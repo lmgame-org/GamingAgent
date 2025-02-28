@@ -5,6 +5,7 @@
 </p>
 
 ## Contents
+- [Gallery](#gallery)
 - [Introduction](#introduction)
 - [Installation](#installation)
 - [APIs](#apis)
@@ -12,6 +13,29 @@
   - [Super Mario Bros 1985](#super-mario-bros-1985-by-nintendo)
   - [2048](#2048)
   - [Tetris](#tetris)
+
+## Gallery
+
+### 2048
+
+<div align="center">
+  <table>
+    <tr>
+      <td align="center"><b>GPT-4o Gameplay</b></td>
+      <td align="center"><b>Claude-3.7 Gameplay</b></td>
+    </tr>
+    <tr>
+      <td>
+        <img src="assets/2048/gpt-4o.gif" width="200" height="200">
+      </td>
+      <td>
+        <img src="assets/2048/claude-3.7.gif" width="200" height="200">
+      </td>
+    </tr>
+  </table>
+</div>
+
+
 
 ## Introduction
 
@@ -136,29 +160,6 @@ Start the AI agent to play automatically:
 ```sh
 python games/game_2048/2048_agent.py
 ```
-
-#### AI Performance Comparison - 2048 in case study
-
-This section simply compares the gameplay performance of GPT-4o and Claude-3.7 in the 2048 game.
-
-## AI Performance Comparison - 2048
-
-<div align="center">
-  <table>
-    <tr>
-      <td align="center"><b>GPT-4o Gameplay</b></td>
-      <td align="center"><b>Claude-3.7 Gameplay</b></td>
-    </tr>
-    <tr>
-      <td>
-        <img src="assets/2048/gpt-4o.gif" width="200" height="200">
-      </td>
-      <td>
-        <img src="assets/2048/claude-3.7.gif" width="200" height="200">
-      </td>
-    </tr>
-  </table>
-</div>
 
 
 #### Other command options
