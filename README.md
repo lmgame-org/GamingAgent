@@ -43,10 +43,10 @@
     </tr>
     <tr>
       <td>
-        <img src="assets/2048/gpt-4o.gif" width="400" height="400">
+        <img src="assets/2048/gpt-4o.gif" width="300" height="300">
       </td>
       <td>
-        <img src="assets/2048/claude-3.7.gif" width="400" height="400">
+        <img src="assets/2048/claude-3.7.gif" width="300" height="300">
       </td>
     </tr>
   </table>
