@@ -141,6 +141,8 @@ python games/game_2048/2048_agent.py
 
 This section simply compares the gameplay performance of GPT-4o and Claude-3.7 in the 2048 game.
 
+## AI Performance Comparison - 2048
+
 <div align="center">
   <table>
     <tr>
@@ -149,14 +151,15 @@ This section simply compares the gameplay performance of GPT-4o and Claude-3.7 i
     </tr>
     <tr>
       <td>
-        <img src="assets/2048/gpt-4o.gif" width="400">
+        <img src="assets/2048/gpt-4o.gif" width="300">
       </td>
       <td>
-        <img src="assets/2048/claude-3.7.gif" width="400">
+        <img src="assets/2048/claude-3.7.gif" width="300">
       </td>
     </tr>
   </table>
 </div>
+
 
 
 ### Tetris
