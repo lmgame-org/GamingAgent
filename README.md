@@ -18,6 +18,21 @@
 
 🎥 Here you can see our AI gaming agents in action, demonstrating their gameplay strategies across different games!
 
+### Super Mario Bros AI Gameplay Comparison
+
+<div align="center">
+  <table>
+    <tr>
+      <td align="center"><b>AI Gameplays</b></td>
+    </tr>
+    <tr>
+      <td>
+        <img src="assets/super_mario_bros/mario-side-by-side.gif" width="250" height="250">
+      </td>
+    </tr>
+  </table>
+</div>
+
 ### 2048 AI Gameplay Comparison
 
 <div align="center">
