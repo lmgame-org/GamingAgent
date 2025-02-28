@@ -143,7 +143,7 @@ In our early experiments, 'alternate' policy performs well. Try it yourself and 
 
 ### 2048
 
-2048 is a sliding tile puzzle game where players merge numbered tiles to reach the highest possible value.
+2048 is a sliding tile puzzle game where players merge numbered tiles to reach the highest possible value. In our demo, we adopt and modify [2048-Pygame](https://github.com/rajitbanerjee/2048-pygame) 
 
 #### Game Set Up
 
