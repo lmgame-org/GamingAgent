@@ -16,7 +16,9 @@
 
 ## Gallery
 
-### 2048
+### 2048 AI Gameplay Comparison
+
+🎥 Here you can see our AI gaming agents in action, demonstrating their gameplay strategies across different games!
 
 <div align="center">
   <table>
@@ -26,10 +28,10 @@
     </tr>
     <tr>
       <td>
-        <img src="assets/2048/gpt-4o.gif" width="200" height="200">
+        <img src="assets/2048/gpt-4o.gif" width="250" height="250">
       </td>
       <td>
-        <img src="assets/2048/claude-3.7.gif" width="200" height="200">
+        <img src="assets/2048/claude-3.7.gif" width="250" height="250">
       </td>
     </tr>
   </table>
