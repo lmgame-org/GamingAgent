@@ -79,8 +79,8 @@ Current features:
 
 1. Clone this repository:
 ```
-git clone https://github.com/lmgame-org/LocalGenie.git
-cd LocalGenie
+git clone https://github.com/lmgame-org/GamingAgent.git
+cd GamingAgent
 ```
 2. Install dependency:
 ```
