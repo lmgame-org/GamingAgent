@@ -246,4 +246,4 @@ python games/tetris/tetris_agent.py
 
 #### Build your own policy
 
-Currently we find single-work agent is able to make meaningful progress in the game. If the gaming agent spawns independent workers, they don't coordinate well. We will work on improving the agent and gaming policies. We also welcome your thought and contributions.
+Currently we find single-worker agent is able to make meaningful progress in the Tetris game. If the gaming agent spawns multiple independent workers, they don't coordinate well. We will work on improving the agent and gaming policies. We also welcome your thoughts and contributions.
