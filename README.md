@@ -151,15 +151,23 @@ This section simply compares the gameplay performance of GPT-4o and Claude-3.7 i
     </tr>
     <tr>
       <td>
-        <img src="assets/2048/gpt-4o.gif" width="200">
+        <img src="assets/2048/gpt-4o.gif" width="200" height="200">
       </td>
       <td>
-        <img src="assets/2048/claude-3.7.gif" width="200">
+        <img src="assets/2048/claude-3.7.gif" width="200" height="200">
       </td>
     </tr>
   </table>
 </div>
 
+
+#### Other command options
+```
+--api_provider: API provider to use.
+
+--model_name: Model name (has to come with vision capability).
+
+```
 
 
 ### Tetris
