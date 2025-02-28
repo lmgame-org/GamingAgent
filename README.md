@@ -27,7 +27,7 @@
     </tr>
     <tr>
       <td>
-        <img src="assets/super_mario_bros/mario-side-by-side.gif" width="400" height="400">
+        <img src="assets/super_mario_bros/mario-side-by-side-demo.gif" width="400" height="400">
       </td>
     </tr>
   </table>
@@ -43,16 +43,29 @@
     </tr>
     <tr>
       <td>
-        <img src="assets/2048/gpt-4o.gif" width="300" height="300">
+        <img src="assets/2048/gpt-4o.gif" width="400" height="400">
       </td>
       <td>
-        <img src="assets/2048/claude-3.7.gif" width="300" height="300">
+        <img src="assets/2048/claude-3.7.gif" width="400" height="400">
       </td>
     </tr>
   </table>
 </div>
 
+### Tetris AI Gameplay
 
+<div align="center">
+  <table>
+    <tr>
+      <td align="center"><b>Claude-3.7 Gameplay</b></td>
+    </tr>
+    <tr>
+      <td>
+        <img src="assets/tetris/tetris-demo.gif" width="400" height="400">
+      </td>
+    </tr>
+  </table>
+</div>
 
 ## Introduction
 
