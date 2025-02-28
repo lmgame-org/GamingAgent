@@ -151,10 +151,10 @@ This section simply compares the gameplay performance of GPT-4o and Claude-3.7 i
     </tr>
     <tr>
       <td>
-        <img src="assets/2048/gpt-4o.gif" width="300" height="300">
+        <img src="assets/2048/gpt-4o.gif" width="200" height="200">
       </td>
       <td>
-        <img src="assets/2048/claude-3.7.gif" width="300" height="300">
+        <img src="assets/2048/claude-3.7.gif" width="200" height="200">
       </td>
     </tr>
   </table>
