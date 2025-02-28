@@ -16,9 +16,9 @@
 
 ## Gallery
 
-### 2048 AI Gameplay Comparison
-
 🎥 Here you can see our AI gaming agents in action, demonstrating their gameplay strategies across different games!
+
+### 2048 AI Gameplay Comparison
 
 <div align="center">
   <table>
