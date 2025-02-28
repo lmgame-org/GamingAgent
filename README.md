@@ -27,7 +27,7 @@
     </tr>
     <tr>
       <td>
-        <img src="assets/super_mario_bros/mario-side-by-side.gif" width="250" height="250">
+        <img src="assets/super_mario_bros/mario-side-by-side.gif" width="400" height="400">
       </td>
     </tr>
   </table>
@@ -43,10 +43,10 @@
     </tr>
     <tr>
       <td>
-        <img src="assets/2048/gpt-4o.gif" width="250" height="250">
+        <img src="assets/2048/gpt-4o.gif" width="300" height="300">
       </td>
       <td>
-        <img src="assets/2048/claude-3.7.gif" width="250" height="250">
+        <img src="assets/2048/claude-3.7.gif" width="300" height="300">
       </td>
     </tr>
   </table>
