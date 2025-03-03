@@ -20,9 +20,11 @@ system_prompt = (
     "\n\n### Sokoban Rules ###\n"
     "1. The game takes place on a grid-based level.\n"
     "2. The level consists of different elements:\n"
-    "   - wall (impassable).\n"
-    "   - dock (where boxes must be placed).\n"
-    "   - worker.\n"
+    "   - wall (#) (impassable).\n"
+    "   - dock (.) (where boxes must be placed).\n"
+    "   - worker (@) (your position).\n"
+    "   - box ($) (movable by the worker).\n"
+    "   - box on dock (*) (goal achieved).\n"
     "3. You can push boxes, but only if there is an empty floor space or dock behind them.\n"
     "4. Boxes must be placed onto dock squares to complete the level.\n"
     "5. If a box is stuck in a corner or against a wall with no way to move it, restart the level.\n"
@@ -32,14 +34,25 @@ system_prompt = (
     "2. Plan moves carefully to avoid pushing boxes into corners or against walls where they cannot be retrieved.\n"
     "3. Use efficient movement patterns to solve the level in the fewest moves possible.\n"
     "4. If you make an irreversible mistake, restart the level using 'R'.\n"
+    "5. If you want to undo the last move, press 'D' to unmove.\n"
 
     "\n### Output Format ###\n"
     "Before deciding on a move, always output the positions of the key elements and then the action.\n"
     "Format:\n"
     "analysis: Worker position (x, y), Box positions [(x1, y1), (x2, y2), ...], Dock positions [(dx1, dy1), (dx2, dy2), ...], Walls [(wx1, wy1), (wx2, wy2), ...].\n"
     "move: <direction>, thought: <brief reasoning>\n\n"
-    "Directions: 'up', 'down', 'left', 'right'"
+    "Directions: 'up', 'down', 'left', 'right', 'restart', 'unmove' (undo the last move).\n\n"
+
+    "### Current initial Level Map ###\n"
+    "#######\n"
+    "#.@ # #\n"
+    "#$* $ #\n"
+    "#   $ #\n"
+    "# ..  #\n"
+    "#  *  #\n"
+    "#######"
 )
+
 
 
 
@@ -103,7 +116,9 @@ def perform_move(move):
         "up": "up",
         "down": "down",
         "left": "left",
-        "right": "right"
+        "right": "right",
+        "restart": 'R',
+        "unmove": 'D'
     }
     if move in key_map:
         pyautogui.press(key_map[move])
@@ -117,7 +132,6 @@ def main():
     parser.add_argument("--api_provider", type=str, default="openai", help="API provider to use.")
     parser.add_argument("--model_name", type=str, default="gpt-4-turbo", help="LLM model name.")
     parser.add_argument("--loop_interval", type=float, default=3, help="Time in seconds between moves.")
-    parser.add_argument("--auto_open", action="store_true", help="Automatically open the game URL.")
     args = parser.parse_args()
 
     print("Starting Boxxel AI Agent.")

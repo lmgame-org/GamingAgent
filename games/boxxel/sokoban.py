@@ -23,7 +23,7 @@ class game:
         self.queue = queue.LifoQueue()
         self.matrix = []
 #        if level < 1 or level > 50:
-        if level < 1:
+        if level < 1 or level >52:
             print ("ERROR: Level "+str(level)+" is out of range")
             sys.exit(1)
         else:
@@ -298,18 +298,19 @@ def start_game():
         print("ERROR: Invalid Level: "+str(level))
         sys.exit(2)
 
-wall = pygame.image.load('images/wall.png')
-floor = pygame.image.load('images/floor.png')
-box = pygame.image.load('images/box.png')
-box_docked = pygame.image.load('images/box_docked.png')
-worker = pygame.image.load('images/worker.png')
-worker_docked = pygame.image.load('images/worker_dock.png')
-docker = pygame.image.load('images/dock.png')
+
+wall = pygame.image.load('games/boxxel/images/wall.png' )
+floor = pygame.image.load('games/boxxel/images/floor.png')
+box = pygame.image.load('games/boxxel/images/box.png')
+box_docked = pygame.image.load('games/boxxel/images/box_docked.png')
+worker = pygame.image.load('games/boxxel/images/worker.png')
+worker_docked = pygame.image.load('games/boxxel/images/worker_dock.png')
+docker = pygame.image.load('games/boxxel/images/dock.png')
 background = 255, 226, 191
 pygame.init()
 
 level = start_game()
-game = game('levels',level)
+game = game('games/boxxel/levels',level)
 size = game.load_size()
 screen = pygame.display.set_mode(size)
 while 1:
@@ -324,4 +325,6 @@ while 1:
             elif event.key == pygame.K_RIGHT: game.move(1,0, True)
             elif event.key == pygame.K_q: sys.exit(0)
             elif event.key == pygame.K_d: game.unmove()
+            elif event.key == pygame.K_r:
+                game = game.__class__('games/boxxel/levels', level)
     pygame.display.update()
