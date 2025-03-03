@@ -6,7 +6,21 @@ import google.generativeai as genai
 
 def openai_completion(system_prompt, model_name, base64_image, prompt):
     client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
-    messages = [
+    
+    if base64_image is None:
+        messages = [
+            {
+                "role": "user",
+                "content": [
+                    {
+                        "type": "text",
+                        "text": prompt
+                    },
+                ],
+            }
+        ]
+    else:
+        messages = [
             {
                 "role": "user",
                 "content": [
@@ -24,12 +38,22 @@ def openai_completion(system_prompt, model_name, base64_image, prompt):
             }
         ]
 
-    response = client.chat.completions.create(
-        model=model_name,
-        messages=messages,
-        temperature=0,
-        max_tokens=1024,
-    )
+    # Determine correct token parameter
+    token_param = "max_completion_tokens" if "o3-mini" in model_name else "max_tokens"
+    
+    # Prepare request parameters dynamically
+    request_params = {
+        "model": model_name,
+        "messages": messages,
+        token_param: 4096 # Correct parameter for different models
+    }
+    
+    # Only add 'temperature' if the model supports it
+    if "o3-mini" not in model_name:  # Assuming o3-mini doesn't support 'temperature'
+        request_params["temperature"] = 0
+
+    response = client.chat.completions.create(**request_params)
+    print(response)
 
     generated_code_str = response.choices[0].message.content
      
