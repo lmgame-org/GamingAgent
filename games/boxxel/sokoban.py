@@ -20,6 +20,8 @@ class game:
             return False
 
     def __init__(self,filename,level):
+        global current_game_instance
+        current_game_instance = self
         self.queue = queue.LifoQueue()
         self.matrix = []
 #        if level < 1 or level > 50:
@@ -310,21 +312,21 @@ background = 255, 226, 191
 pygame.init()
 
 level = start_game()
-game = game('games/boxxel/levels',level)
-size = game.load_size()
+box_game = game('games/boxxel/levels',level)
+size = box_game.load_size()
 screen = pygame.display.set_mode(size)
 while 1:
-    if game.is_completed(): display_end(screen)
-    print_game(game.get_matrix(),screen)
+    if box_game.is_completed(): display_end(screen)
+    print_game(box_game.get_matrix(),screen)
     for event in pygame.event.get():
         if event.type == pygame.QUIT: sys.exit(0)
         elif event.type == pygame.KEYDOWN:
-            if event.key == pygame.K_UP: game.move(0,-1, True)
-            elif event.key == pygame.K_DOWN: game.move(0,1, True)
-            elif event.key == pygame.K_LEFT: game.move(-1,0, True)
-            elif event.key == pygame.K_RIGHT: game.move(1,0, True)
+            if event.key == pygame.K_UP: box_game.move(0,-1, True)
+            elif event.key == pygame.K_DOWN: box_game.move(0,1, True)
+            elif event.key == pygame.K_LEFT: box_game.move(-1,0, True)
+            elif event.key == pygame.K_RIGHT: box_game.move(1,0, True)
             elif event.key == pygame.K_q: sys.exit(0)
-            elif event.key == pygame.K_d: game.unmove()
+            elif event.key == pygame.K_d: box_game.unmove()
             elif event.key == pygame.K_r:
-                game = game.__class__('games/boxxel/levels', level)
+                box_game = game('games/boxxel/levels', level)
     pygame.display.update()

@@ -9,7 +9,11 @@ import webbrowser
 from collections import deque
 from tools.utils import encode_image
 from tools.serving.api_providers import anthropic_completion, openai_completion, gemini_completion
+# import sokoban
 
+
+# # Get the current level map as a formatted string
+# level_map_str = "\n".join("".join(row) for row in sokoban.box_game.get_matrix())
 # Boxxel specialized system prompt
 system_prompt = (
     "You are an expert AI agent specialized in playing Sokoban, a classic puzzle game. "
@@ -43,14 +47,8 @@ system_prompt = (
     "move: <direction>, thought: <brief reasoning>\n\n"
     "Directions: 'up', 'down', 'left', 'right', 'restart', 'unmove' (undo the last move).\n\n"
 
-    "### Current initial Level Map ###\n"
-    "#######\n"
-    "#.@ # #\n"
-    "#$* $ #\n"
-    "#   $ #\n"
-    "# ..  #\n"
-    "#  *  #\n"
-    "#######"
+    # "### Current initial Level Map ###\n"
+    # f"{level_map_str}"
 )
 
 
@@ -85,7 +83,7 @@ def get_best_move(api_provider, model_name, move_history):
         f"Recent moves:\n{history_text}\n\n"
         f"Provide your best move in EXACTLY this format:\n"
         f"move: <direction>, thought: <brief reasoning>\n\n"
-        f"Directions: 'up', 'down', 'left', 'right'."
+        f"Directions: 'up', 'down', 'left', 'right', 'undo', 'restart'"
     )
 
     start_time = time.time()
