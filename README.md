@@ -18,6 +18,21 @@
 
 🎥 Here you can see our AI gaming agents in action, demonstrating their gameplay strategies across different games!
 
+### Super Mario Bros AI Gameplay Comparison
+
+<div align="center">
+  <table>
+    <tr>
+      <td align="center"><b>AI Gameplays</b></td>
+    </tr>
+    <tr>
+      <td>
+        <img src="assets/super_mario_bros/mario-side-by-side-demo.gif" width="400" height="400">
+      </td>
+    </tr>
+  </table>
+</div>
+
 ### 2048 AI Gameplay Comparison
 
 <div align="center">
@@ -28,16 +43,29 @@
     </tr>
     <tr>
       <td>
-        <img src="assets/2048/gpt-4o.gif" width="250" height="250">
+        <img src="assets/2048/gpt-4o.gif" width="300" height="300">
       </td>
       <td>
-        <img src="assets/2048/claude-3.7.gif" width="250" height="250">
+        <img src="assets/2048/claude-3.7.gif" width="300" height="300">
       </td>
     </tr>
   </table>
 </div>
 
+### Tetris AI Gameplay
 
+<div align="center">
+  <table>
+    <tr>
+      <td align="center"><b>Claude-3.7 Gameplay</b></td>
+    </tr>
+    <tr>
+      <td>
+        <img src="assets/tetris/tetris-demo.gif" width="400" height="400">
+      </td>
+    </tr>
+  </table>
+</div>
 
 ## Introduction
 
@@ -51,8 +79,8 @@ Current features:
 
 1. Clone this repository:
 ```
-git clone https://github.com/lmgame-org/LocalGenie.git
-cd LocalGenie
+git clone https://github.com/lmgame-org/GamingAgent.git
+cd GamingAgent
 ```
 2. Install dependency:
 ```
@@ -218,4 +246,4 @@ python games/tetris/tetris_agent.py
 
 #### Build your own policy
 
-Currently we find single-work agent is able to make meaningful progress in the game. If the gaming agent spawns independent workers, they don't coordinate well. We will work on improving the agent and gaming policies. We also welcome your thought and contributions.
+Currently we find single-worker agent is able to make meaningful progress in the Tetris game. If the gaming agent spawns multiple independent workers, they don't coordinate well. We will work on improving the agent and gaming policies. We also welcome your thoughts and contributions.
