@@ -117,16 +117,21 @@ def boxxel_worker(system_prompt, api_provider, model_name, prev_response=""):
 
     prompt = (
         f"Here is the layout of the Boxxel board: {table}\n\n"
+
         "Please carefully analyze the boxxel table corresponding to the input image. Figure out next best move."
-        f"Previous response: {prev_response}. Use previous responses as references, explore new move different from previous moves\n"
         "Please generate next move for this boxxel game."
-
-
-        "### Output Format ###\n"
-        "move: <direction>, thought: <brief reasoning>\n\n"
-        "Directions: 'up', 'down', 'left', 'right', 'restart', 'unmove' (undo the last move).\n\n"
-        "Example output: move: right, thought: Positioning the player to access other boxes and docks for future moves."
+        "## STRICT OUTPUT FORMAT ##\n"
+        "- Respond in this format:\n"
+        'move: up/down/left/right/restart/unmove, thought: "(explaination)"**\n\n'
+        "you are the worker. You can move up , down, left, right."
     )
+
+
+
+        # "### Output Format ###\n"
+        # "move: <direction>, thought: <brief reasoning>\n\n"
+        # "Directions: 'up', 'down', 'left', 'right', 'restart', 'unmove' (undo the last move).\n\n"
+        # "Example output: move: right, thought: Positioning the player to access other boxes and docks for future moves."
     
 
     base64_image = encode_image(screenshot_path)
