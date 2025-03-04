@@ -59,7 +59,7 @@ def main():
             start_time = time.time()
             latest_response = boxxel_worker(system_prompt, args.api_provider, args.model_name
                                             , " ".join(prev_responses))
-            # break
+            break
             if latest_response:
                 prev_responses.append(latest_response)
             elapsed_time = time.time() - start_time
