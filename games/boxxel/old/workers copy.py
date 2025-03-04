@@ -3,12 +3,30 @@ import os
 import pyautogui
 import numpy as np
 
-from tools.utils import encode_image, log_output, get_annotate_img
+from tools.utils import encode_image, log_output
 from tools.serving.api_providers import anthropic_completion, openai_completion, gemini_completion
 import re
 import json
 
 CACHE_DIR = "cache/boxxel"
+
+def load_matrix(filename='game_state.json'):
+    filename = os.path.join(CACHE_DIR, filename)
+    """Load the game matrix from a JSON file."""
+    if not os.path.exists(filename):
+        return None
+    try:
+        with open(filename, 'r') as f:
+            return json.load(f)
+    except Exception as e:
+        print(f"Error loading matrix: {e}")
+        return None
+    
+def matrix_to_string(matrix):
+    """Convert a 2D list matrix into a string with each row on a new line."""
+    # If each element is already a string or you want a space between them:
+    return "\n".join(" ".join(str(cell) for cell in row) for row in matrix)
+
 
 def log_move_and_thought(move, thought, latency):
     """
@@ -27,18 +45,32 @@ def log_move_and_thought(move, thought, latency):
 def boxxel_read_worker(system_prompt, api_provider, model_name, image_path):
     base64_image = encode_image(image_path)
     model_name = "gpt-4-turbo"
-
-
-    
+    matrix = load_matrix()
+    if matrix is not None:
+        board_str = matrix_to_string(matrix)
+    else:
+        board_str = "No board available."
     # Construct prompt for LLM
     prompt = (
-        "Extract the Boxxel board layout from the provided image."
-        "Use the existing unique IDs in the image to identify each item type. "
-        "For each ID, recognize the corresponding item based on item color and shape. "
-        "Strictly format the output as: **ID: item type (row, column)**. "
-        "Each row should reflect the board layout. "
-        "Item include:  red wall, yello box, white destination, yellow ground, dark floor, player"
-        "Example format: \n1: wall (0, 0) | 2: player(0, 1)| 3: dock(0, 2)... \n8: floor (1,0) | 9: box (1, 1)| 10: floor (1, 2)"
+        "Extract the Boxxel board layout from the provided layout.\n\n"
+        
+        "### Current Game Layout ###\n"
+        f"{board_str}\n\n"
+
+        "### Key Elements ###\n"
+        "- `#`: Walls (impassable obstacles)\n"
+        "- `@`: Worker (player character)\n"
+        "- `$`: Box (movable object)\n"
+        "- `?`: Dock (goal position for boxes)\n"
+        "- `*`: Box on a dock (correctly placed)\n"
+        "- ` `: Floor (empty walkable space)\n\n"
+        
+        "### Task ###\n"
+        "Use the given board layout to identify and recognize each item based on the provided symbols.\n"
+        "Strictly format the output as: **ID: item type (row, column)**.\n\n"
+
+        "Each row should reflect the board layout.\n"
+        "Example format: \n1: wall (0, 0) | 2: docker (0, 1)| 3: player (0, 2)... \n8: empty (1,0) | 9: dock (1, 1)| 10: empty (1, 2) "
     
     )
 
@@ -71,14 +103,15 @@ def boxxel_worker(system_prompt, api_provider, model_name, prev_response=""):
     """
     # Capture a screenshot of the current game state.
     screen_width, screen_height = pyautogui.size()
-    region = (0, 150, screen_width // 64 * 30, screen_height // 64 * 35)
+    region = (0, 0, screen_width // 64 * 9, screen_height // 64 * 20)
     
     screenshot = pyautogui.screenshot(region=region)
-    screenshot_path = "boxxel_screenshot.png"
+
+    # Save the screenshot directly in the cache directory.
+    os.makedirs("cache/boxxel", exist_ok=True)
+    screenshot_path = "cache/boxxel/boxxel_screenshot.png"
 
     screenshot.save(screenshot_path)
-    get_annotate_img('cache/boxxel/boxxel_screenshot.png', crop_left=450, crop_right=575, crop_top=60, crop_bottom=170, grid_rows=8, grid_cols=8, cache_dir = CACHE_DIR)
-
 
     table = boxxel_read_worker(system_prompt, api_provider, model_name, screenshot_path)
 
