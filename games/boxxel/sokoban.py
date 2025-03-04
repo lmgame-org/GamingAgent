@@ -5,13 +5,39 @@ import pygame
 import string
 import queue
 
+import json
+import os
+import copy
+
+CACHE_DIR = "cache/boxxel"
+
+_last_saved_matrix = None
+def save_matrix(matrix, filename='game_state.json'):
+    global _last_saved_matrix
+    filename = os.path.join(CACHE_DIR, filename)
+
+    # Only update if the matrix is different than the last saved one
+    if matrix == _last_saved_matrix:
+        return  # No change, so do nothing
+
+    # Make a deep copy of the matrix to preserve its state
+    _last_saved_matrix = copy.deepcopy(matrix)
+
+    # Optionally write to a temporary file and then rename it to avoid partial writes
+    temp_filename = filename + '.tmp'
+    with open(temp_filename, 'w') as f:
+        json.dump(matrix, f)
+    os.replace(temp_filename, filename)
+    print("Matrix saved to JSON.")
+
+
 class game:
 
     def is_valid_value(self,char):
         if ( char == ' ' or #floor
             char == '#' or #wall
             char == '@' or #worker on floor
-            char == '.' or #dock
+            char == '?' or #dock
             char == '*' or #box on dock
             char == '$' or #box
             char == '+' ): #worker on dock
@@ -20,8 +46,7 @@ class game:
             return False
 
     def __init__(self,filename,level):
-        global current_game_instance
-        current_game_instance = self
+        
         self.queue = queue.LifoQueue()
         self.matrix = []
 #        if level < 1 or level > 50:
@@ -97,7 +122,7 @@ class game:
         return self.get_content(self.worker()[0]+x,self.worker()[1]+y)
 
     def can_push(self,x,y):
-        return (self.next(x,y) in ['*','$'] and self.next(x+x,y+y) in [' ','.'])
+        return (self.next(x,y) in ['*','$'] and self.next(x+x,y+y) in [' ','?'])
 
     def is_completed(self):
         for row in self.matrix:
@@ -114,15 +139,15 @@ class game:
         if current_box == '$' and future_box == ' ':
             self.set_content(x+a,y+b,'$')
             self.set_content(x,y,' ')
-        elif current_box == '$' and future_box == '.':
+        elif current_box == '$' and future_box == '?':
             self.set_content(x+a,y+b,'*')
             self.set_content(x,y,' ')
         elif current_box == '*' and future_box == ' ':
             self.set_content(x+a,y+b,'$')
-            self.set_content(x,y,'.')
-        elif current_box == '*' and future_box == '.':
+            self.set_content(x,y,'?')
+        elif current_box == '*' and future_box == '?':
             self.set_content(x+a,y+b,'*')
-            self.set_content(x,y,'.')
+            self.set_content(x,y,'?')
 
     def unmove(self):
         if not self.queue.empty():
@@ -142,17 +167,17 @@ class game:
                 self.set_content(current[0]+x,current[1]+y,'@')
                 self.set_content(current[0],current[1],' ')
                 if save: self.queue.put((x,y,False))
-            elif current[2] == '@' and future == '.':
+            elif current[2] == '@' and future == '?':
                 self.set_content(current[0]+x,current[1]+y,'+')
                 self.set_content(current[0],current[1],' ')
                 if save: self.queue.put((x,y,False))
             elif current[2] == '+' and future == ' ':
                 self.set_content(current[0]+x,current[1]+y,'@')
-                self.set_content(current[0],current[1],'.')
+                self.set_content(current[0],current[1],'?')
                 if save: self.queue.put((x,y,False))
-            elif current[2] == '+' and future == '.':
+            elif current[2] == '+' and future == '?':
                 self.set_content(current[0]+x,current[1]+y,'+')
-                self.set_content(current[0],current[1],'.')
+                self.set_content(current[0],current[1],'?')
                 if save: self.queue.put((x,y,False))
         elif self.can_push(x,y):
             current = self.worker()
@@ -163,7 +188,7 @@ class game:
                 self.set_content(current[0],current[1],' ')
                 self.set_content(current[0]+x,current[1]+y,'@')
                 if save: self.queue.put((x,y,True))
-            elif current[2] == '@' and future == '$' and future_box == '.':
+            elif current[2] == '@' and future == '$' and future_box == '?':
                 self.move_box(current[0]+x,current[1]+y,x,y)
                 self.set_content(current[0],current[1],' ')
                 self.set_content(current[0]+x,current[1]+y,'@')
@@ -173,33 +198,34 @@ class game:
                 self.set_content(current[0],current[1],' ')
                 self.set_content(current[0]+x,current[1]+y,'+')
                 if save: self.queue.put((x,y,True))
-            elif current[2] == '@' and future == '*' and future_box == '.':
+            elif current[2] == '@' and future == '*' and future_box == '?':
                 self.move_box(current[0]+x,current[1]+y,x,y)
                 self.set_content(current[0],current[1],' ')
                 self.set_content(current[0]+x,current[1]+y,'+')
                 if save: self.queue.put((x,y,True))
             if current[2] == '+' and future == '$' and future_box == ' ':
                 self.move_box(current[0]+x,current[1]+y,x,y)
-                self.set_content(current[0],current[1],'.')
+                self.set_content(current[0],current[1],'?')
                 self.set_content(current[0]+x,current[1]+y,'@')
                 if save: self.queue.put((x,y,True))
-            elif current[2] == '+' and future == '$' and future_box == '.':
+            elif current[2] == '+' and future == '$' and future_box == '?':
                 self.move_box(current[0]+x,current[1]+y,x,y)
-                self.set_content(current[0],current[1],'.')
+                self.set_content(current[0],current[1],'?')
                 self.set_content(current[0]+x,current[1]+y,'+')
                 if save: self.queue.put((x,y,True))
             elif current[2] == '+' and future == '*' and future_box == ' ':
                 self.move_box(current[0]+x,current[1]+y,x,y)
-                self.set_content(current[0],current[1],'.')
+                self.set_content(current[0],current[1],'?')
                 self.set_content(current[0]+x,current[1]+y,'+')
                 if save: self.queue.put((x,y,True))
-            elif current[2] == '+' and future == '*' and future_box == '.':
+            elif current[2] == '+' and future == '*' and future_box == '?':
                 self.move_box(current[0]+x,current[1]+y,x,y)
-                self.set_content(current[0],current[1],'.')
+                self.set_content(current[0],current[1],'?')
                 self.set_content(current[0]+x,current[1]+y,'+')
                 if save: self.queue.put((x,y,True))
 
 def print_game(matrix,screen):
+    save_matrix(matrix)
     screen.fill(background)
     x = 0
     y = 0
@@ -211,7 +237,7 @@ def print_game(matrix,screen):
                 screen.blit(wall,(x,y))
             elif char == '@': #worker on floor
                 screen.blit(worker,(x,y))
-            elif char == '.': #dock
+            elif char == '?': #dock
                 screen.blit(docker,(x,y))
             elif char == '*': #box on dock
                 screen.blit(box_docked,(x,y))
