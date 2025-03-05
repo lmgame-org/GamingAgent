@@ -122,6 +122,21 @@ def api_call(system_prompt, api_provider, model_name, base64_image, prompt, thin
     
     return response
 
+def boxxel_evaluator(system_prompt, api_provider, model_name, table, solution):
+    prompt = (
+        f"Sokoban table: {table} Please carefully review the sokoban puzzle in the text table"
+        f"Please utilize sokoban rules to verify the generated sequences of boxes are valid solutions.{solution}"
+        "They shouldn't cause deadlocks. They should be a valid path. No conflict or obstacles are on the path."
+        "Please generate your verification result and reflection about why this solution is not valid."
+        "Carefully consider worker and box occupy two blocks so when worker move block to right and to left, worker should move to the position left to or right to box and this position should not be wall."
+        "Simulate worker's path to see whether it is valid and whether box and worker's position are carefully considered."
+    )
+
+    response = api_call(system_prompt, api_provider, model_name, base64_image=None, prompt=prompt, thinking=True)
+
+    return response
+
+
 def boxxel_worker(system_prompt, api_provider, model_name, prev_response="", level = 1):
     """
     1) Captures a screenshot of the current game state.
@@ -147,48 +162,16 @@ def boxxel_worker(system_prompt, api_provider, model_name, prev_response="", lev
     table = boxxel_read_worker(system_prompt, api_provider, model_name, annotated_cropped_image_path, level = level)
     print(table)
     prompt = (
-    f"Here is your previous response: {prev_response}. Please evaluate your plan and assess whether we should correct or adjust it to stay aligned with the solution plan.\n"
-    f"Here is the current layout of the Boxxel board:\n{table}\n\n"
-
-    "### Previous Lessons Learned###"
-    """
-    "You are an expert AI agent specialized in solving Sokoban puzzles optimally. Your objective is to push all boxes onto their designated dock locations while minimizing unnecessary moves and avoiding deadlocks.
-    Before making a move, analyze the entire puzzle layout. Plan the next 5 steps by considering all possible paths for each box, ensuring they remain maneuverable when necessary to reach their dock locations. Identify potential deadlocks early and prioritize moves that maintain overall solvability. However, note that temporarily blocking a box may sometimes be necessary to progress, so focus on the broader strategy rather than ensuring all boxes are always movable at every step.
-    You control a worker who can move in four directions (up, down, left, right). You can push boxes if positioned correctly but cannot pull them. Be mindful of walls and corners, as getting a box irreversibly stuck may require a restart. Optimize for efficiency while maintaining flexibility in your approach."
-
-
-    "Some reflection try to avoid:"
-    "1. Vertical Stacking Error: occurred when planned to push the box from (3,3) into (4,4), which, when aligned with the box at (3,4), would have created an immovable vertical block."
-    "2. Phantom Deadlock Error: occurred avoided pushing the box at (2,3) downward into (3,3)—a move that is safe thanks to ample space in (4,3) and beyond."
-    "3. Corner Lock Error: Pushing the box from (3,2) into (3,1) created a deadlock by confining the box in a corner against the walls at (3,0) and (4,1)."
-    "4. Path Obstruction Error:  By pushing the box from (2,2) into (2,1), lead to a deadlock by blocking the critical corridor needed to reposition box (3,2), where the layout now has the box at (2,1) obstructing access amid the surrounding wall and floor configuration."
-    "5. Neglected Dock Priority Error: by not prioritizing pushing the workable box at (4,3) to its end dock and instead moving the box from (2,2) to (2,3), I created a configuration where any subsequent vertical push into (3,3) results in an irreversible stacking deadlock against the wall, locking the layout in a general."
-    "6. Final Dock Saturation Error: pushing the box from (5,6) directly onto its dock at (5,7) without leaving any free adjacent floor space in the narrow corridor bordered by walls resulted in a deadlock layout where no maneuvering room remained for later boxes."
-    """
-
-    "### GAME RULES ###\n"
-    "Please reason your moves. Generate a big picture of planning about how to move box to dock. How your future 5 steps are correlated with a picture of planning. "
-    "- You can only move **one direction with multiple steps at a time**.\n"
-    "- Your available moves are: **up X, down X, left X, right X** (where X is the number of steps).\n"
-    "- Your goal is to analyze the board and determine the **best next move** to progress towards solving the puzzle.\n\n"
-
-    "### ROLE ###\n"
-    "You are the Sokoban player, responsible for carefully analyzing the board and making calculated moves to solve the puzzle. Each move must consider long-term implications and **prevent deadlocks**.\n"
-    "- Ensure the move format includes step counts (e.g., 'up 2', 'right 1') for execution via `pyautogui`.\n"
-    "- Always verify if a move **keeps the puzzle solvable** before selecting it.\n"
-    "### OUTPUT FORMAT (STRICT) ###\n"
-    "Respond in the following single-line format:\n\n"
-    '"move: direction X; thought: (reasoning for the move); planning: (future 5-step sequence to reach the goal efficiently)"\n\n'
+        f"This is previous reflection: {prev_response}"
+        f"Here is the current layout of the Boxxel board:\n{table}\n\n"
+        f"Please analyze the board and generate the shortest sequence of numeric IDs "
+        f"representing the worker's movement path to push all boxes onto docks. "
+        f"Ensure all moves follow Sokoban rules, avoiding walls and deadlocks. "
+        "Try to use **Rolling Stone Solver** method to solve this problem and generate a sequence of action for each box."
+        "write code to solve this puzzle"
     )
 
 
-
-
-
-        # "### Output Format ###\n"
-        # "move: <direction>, thought: <brief reasoning>\n\n"
-        # "Directions: 'up', 'down', 'left', 'right', 'restart', 'unmove' (undo the last move).\n\n"
-        # "Example output: move: right, thought: Positioning the player to access other boxes and docks for future moves."
     
 
     base64_image = encode_image(annotated_cropped_image_path)
@@ -197,46 +180,66 @@ def boxxel_worker(system_prompt, api_provider, model_name, prev_response="", lev
     print(f"Calling {model_name} api...")
     # Call the LLM API based on the selected provider.
     response = api_call(system_prompt, api_provider, model_name, base64_image, prompt, thinking=False)
-    
+    print(response)
+    reflection = boxxel_evaluator(system_prompt, api_provider, model_name, table, response)
+
+
     latency = time.time() - start_time
 
+    # match = re.search(r'actions:\s*([\w\s,]+);\s*thought:\s*(.*)', response, re.IGNORECASE)
+
+    # if match:
+    #     actions = [action.strip().lower() for action in match.group(1).split(",")]
+    #     thought = match.group(2).strip()
+    #     print(actions)
+    #     print(thought)
+
+    # for move in actions:
+    #     print(f"Executing: {move}")
+        
+    #     # Perform the move
+    #     pyautogui.keyDown(move)
+    #     time.sleep(0.01)
+    #     pyautogui.keyUp(move)
+
+    # final_output = f"Generated Solution:\n{response}\n\nReflection:\n{reflection}"
+    
+    return reflection
+
+    # match = re.search(r'move:\s*(\w+)\s*(\d*)\s*;\s*thought:\s*(.*?);\s*planning:\s*(.*)', response, re.IGNORECASE)
 
 
-    match = re.search(r'move:\s*(\w+)\s*(\d*)\s*;\s*thought:\s*(.*?);\s*planning:\s*(.*)', response, re.IGNORECASE)
+    # if match:
+    #     move = match.group(1).strip().lower()  # Direction (up, down, left, right)
+    #     step_count = match.group(2).strip()  # Step count (if provided)
+    #     thought = match.group(3).strip()
+    #     planning = match.group(4).strip()
 
+    #     print(f"Move: {move} {step_count}")
+    #     print(f"Thought: {thought}")
+    #     print(f"Planning: {planning}")
+    #     # Default step count to 1 if empty
+    #     step_count = int(step_count) if step_count.isdigit() else 1
 
-    if match:
-        move = match.group(1).strip().lower()  # Direction (up, down, left, right)
-        step_count = match.group(2).strip()  # Step count (if provided)
-        thought = match.group(3).strip()
-        planning = match.group(4).strip()
+    #     print(f"Perform next move: {move} {step_count} times")
 
-        print(f"Move: {move} {step_count}")
-        print(f"Thought: {thought}")
-        print(f"Planning: {planning}")
-        # Default step count to 1 if empty
-        step_count = int(step_count) if step_count.isdigit() else 1
+    #     # Perform the move using multiple key presses
+    #     for _ in range(step_count):
+    #         pyautogui.keyDown(move)
+    #         time.sleep(0.01)
+    #         pyautogui.keyUp(move)
 
-        print(f"Perform next move: {move} {step_count} times")
+    #     # Log the move
+    #     log_output(
+    #         "boxxel_worker",
+    #         f"[INFO] Move executed: ({move} {step_count}) | Thought: {thought} | Latency: {latency:.2f} sec",
+    #         "boxxel"
+    #     )
 
-        # Perform the move using multiple key presses
-        for _ in range(step_count):
-            pyautogui.keyDown(move)
-            time.sleep(0.01)
-            pyautogui.keyUp(move)
+    # else:
+    #     print("[ERROR] Failed to parse response. Check LLM output format.")
 
-        # Log the move
-        log_output(
-            "boxxel_worker",
-            f"[INFO] Move executed: ({move} {step_count}) | Thought: {thought} | Latency: {latency:.2f} sec",
-            "boxxel"
-        )
-
-    else:
-        print("[ERROR] Failed to parse response. Check LLM output format.")
-
-    # Return response for further processing
-    return response
+    # return response
     # match = re.search(r'move:\s*(\w+),\s*thought:\s*(.*?),\s*planning:\s*(.*)', response, re.IGNORECASE)
     # move = match.group(1).strip()
     # thought = match.group(2).strip()
