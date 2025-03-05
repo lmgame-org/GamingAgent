@@ -21,7 +21,31 @@ def load_matrix(filename='game_state.json'):
     except Exception as e:
         print(f"Error loading matrix: {e}")
         return None
+def matrix_to_text_table(matrix):
+    """Convert a 2D list matrix into a structured text table."""
+    header = "ID  | Item Type    | Position"
+    line_separator = "-" * len(header)
     
+    item_map = {
+        '#': 'Wall',
+        '@': 'Worker',
+        '$': 'Box',
+        '?': 'Dock',
+        '*': 'Box on Dock',
+        ' ': 'Empty'
+    }
+    
+    table_rows = [header, line_separator]
+    item_id = 1
+    
+    for row_idx, row in enumerate(matrix):
+        for col_idx, cell in enumerate(row):
+            item_type = item_map.get(cell, 'Unknown')
+            table_rows.append(f"{item_id:<3} | {item_type:<12} | ({row_idx}, {col_idx})")
+            item_id += 1
+    
+    return "\n".join(table_rows)
+
 def matrix_to_string(matrix):
     """Convert a 2D list matrix into a string with each row on a new line."""
     # If each element is already a string or you want a space between them:
@@ -44,56 +68,57 @@ def log_move_and_thought(move, thought, latency):
 
 def boxxel_read_worker(system_prompt, api_provider, model_name, image_path):
     base64_image = encode_image(image_path)
-    api_provider = "openai"
-    model_name = "gpt-4o"
+    api_provider = "anthropic"
+    model_name = "claude-3-7-sonnet-20250219"
     matrix = load_matrix()
     if matrix is not None:
-        board_str = matrix_to_string(matrix)
+        board_str = matrix_to_text_table(matrix)
     else:
         board_str = "No board available."
+    # print(board_str)
     # Construct prompt for LLM
-    prompt = (
-        "Extract the Boxxel board layout from the provided layout.\n\n"
+    # prompt = (
+    #     "Extract the Boxxel board layout from the provided layout.\n\n"
         
-        "### Current Game Layout ###\n"
-        f"{board_str}\n\n"
+    #     "### Current Game Layout ###\n"
+    #     f"{board_str}\n\n"
 
-        "### Key Elements ###\n"
-        "- `#`: Walls (impassable obstacles)\n"
-        "- `@`: Worker (player character)\n"
-        "- `$`: Box (movable object)\n"
-        "- `?`: Dock (goal position for boxes)\n"
-        "- `*`: Box on a dock (correctly placed)\n"
-        "- ` `: Floor (empty walkable space)\n\n"
+    #     "### Key Elements ###\n"
+    #     "- `#`: Walls (impassable obstacles)\n"
+    #     "- `@`: Worker (player character)\n"
+    #     "- `$`: Box (movable object)\n"
+    #     "- `?`: Dock (goal position for boxes)\n"
+    #     "- `*`: Box on a dock (correctly placed)\n"
+    #     "- ` `: Floor (empty walkable space)\n\n"
         
-        "### Task ###\n"
-        "Use the given board layout to identify and recognize each item based on the provided symbols.\n"
-        "Strictly format the output as: **ID: item type (row, column)**.\n\n"
+    #     "### Task ###\n"
+    #     "Use the given board layout to identify and recognize each item based on the provided symbols.\n"
+    #     "Strictly format the output as: **ID: item type (row, column)**.\n\n"
 
-        "Each row should reflect the board layout.\n"
-        "Example format: \n1: wall (0, 0) | 2: docker (0, 1)| 3: player (0, 2)... \n8: empty (1,0) | 9: dock (1, 1)| 10: empty (1, 2) "
+    #     "Each row should reflect the board layout.\n"
+    #     "Example format: \n1: wall (0, 0) | 2: docker (0, 1)| 3: player (0, 2)... \n8: empty (1,0) | 9: dock (1, 1)| 10: empty (1, 2) "
     
-    )
+    # )
 
     
     
-    # Call LLM API based on provider
-    if api_provider == "anthropic":
-        response = anthropic_completion(system_prompt, model_name, base64_image, prompt)
-    elif api_provider == "openai":
-        response = openai_completion(system_prompt, model_name, base64_image, prompt)
-    elif api_provider == "gemini":
-        response = gemini_completion(system_prompt, model_name, base64_image, prompt)
-    else:
-        raise NotImplementedError(f"API provider: {api_provider} is not supported.")
+    # # Call LLM API based on provider
+    # if api_provider == "anthropic":
+    #     response = anthropic_completion(system_prompt, model_name, base64_image, prompt)
+    # elif api_provider == "openai":
+    #     response = openai_completion(system_prompt, model_name, base64_image, prompt)
+    # elif api_provider == "gemini":
+    #     response = gemini_completion(system_prompt, model_name, base64_image, prompt)
+    # else:
+    #     raise NotImplementedError(f"API provider: {api_provider} is not supported.")
     
-    # Process response and format as structured board output
-    structured_board = response.strip()
+    # # Process response and format as structured board output
+    # structured_board = response.strip()
     
-    # Generate final text output
-    final_output = "\nBoxxel Board Representation:\n" + structured_board
+    # # Generate final text output
+    # final_output = "\nBoxxel Board Representation:\n" + structured_board
 
-    return final_output
+    return board_str
 
 
 def boxxel_worker(system_prompt, api_provider, model_name, prev_response=""):
@@ -104,7 +129,7 @@ def boxxel_worker(system_prompt, api_provider, model_name, prev_response=""):
     """
     # Capture a screenshot of the current game state.
     screen_width, screen_height = pyautogui.size()
-    region = (0, 0, screen_width // 64 * 10, screen_height // 64 * 25)
+    region = (0, 0, screen_width // 64 * 14, screen_height // 64 * 26)
     
     screenshot = pyautogui.screenshot(region=region)
 
@@ -115,6 +140,7 @@ def boxxel_worker(system_prompt, api_provider, model_name, prev_response=""):
     screenshot.save(screenshot_path)
 
     table = boxxel_read_worker(system_prompt, api_provider, model_name, screenshot_path)
+    # print(table)
 
     prompt = (
     "### Previous Lessons Learned###"
@@ -126,16 +152,9 @@ def boxxel_worker(system_prompt, api_provider, model_name, prev_response=""):
     f"Here is your previous response: {prev_response}. Please evaluate your plan and thought about whether we should correct or adjust.\n"
     f"Here is the current layout of the Boxxel board:\n{table}\n\n"
 
-    "Some reflection try to avoid:"
-    "1. Vertical Stacking Error: occurred when planned to push the box from (3,3) into (4,4), which, when aligned with the box at (3,4), would have created an immovable vertical block."
-    "2. Phantom Deadlock Error: occurred avoided pushing the box at (2,3) downward into (3,3)—a move that is safe thanks to ample space in (4,3) and beyond."
-    "3. Corner Lock Error: Pushing the box from (3,2) into (3,1) created a deadlock by confining the box in a corner against the walls at (3,0) and (4,1)."
-    "4. Path Obstruction Error:  By pushing the box from (2,2) into (2,1), lead to a deadlock by blocking the critical corridor needed to reposition box (3,2), where the layout now has the box at (2,1) obstructing access amid the surrounding wall and floor configuration."
-    "5. Neglected Dock Priority Error: by not prioritizing pushing the workable box at (4,3) to its end dock and instead moving the box from (2,2) to (2,3), I created a configuration where any subsequent vertical push into (3,3) results in an irreversible stacking deadlock against the wall, locking the layout in a general"
-    "6. Final Dock Saturation Error: pushing the box from (5,6) directly onto its dock at (5,7) without leaving any free adjacent floor space in the narrow corridor bordered by walls resulted in a deadlock layout where no maneuvering room remained for later boxes."
 
     "### Output Format ###\n"
-    "move: up/down/left/right/restart/unmove, thought: <brief reasoning>\n\n"
+    "move: up/down/left/right, thought: <brief reasoning>\n\n"
     "Example output: move: right, thought: Positioning the player to access other boxes and docks for future moves."
     )
 
@@ -143,7 +162,8 @@ def boxxel_worker(system_prompt, api_provider, model_name, prev_response=""):
 
 
     base64_image = encode_image(screenshot_path)
-    base64_image = None
+    if "o3-mini" in model_name:
+        base64_image = None
     start_time = time.time()
 
     print(f"Calling {model_name} api...")

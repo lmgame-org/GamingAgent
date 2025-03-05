@@ -49,7 +49,7 @@ def openai_completion(system_prompt, model_name, base64_image, prompt, temperatu
         "model": model_name,
         "messages": messages,
         token_param: 100000,
-        "reasoning_effort": "high"
+        "reasoning_effort": "medium"
     }
     
     # Only add 'temperature' if the model supports it

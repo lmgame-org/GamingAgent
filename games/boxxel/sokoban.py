@@ -10,7 +10,31 @@ import copy
 
 CACHE_DIR = "cache/boxxel"
 
+original_size = 32  # Original tile size
+scale_factor = 1  # Default scaling factor
+
+wall_original = pygame.image.load('games/boxxel/images/wall.png')
+floor_original = pygame.image.load('games/boxxel/images/floor.png')
+box_original = pygame.image.load('games/boxxel/images/box.png')
+box_docked_original = pygame.image.load('games/boxxel/images/box_docked.png')
+worker_original = pygame.image.load('games/boxxel/images/worker.png')
+worker_docked_original = pygame.image.load('games/boxxel/images/worker_dock.png')
+docker_original = pygame.image.load('games/boxxel/images/dock.png')
+
 _last_saved_matrix = None
+
+def scale_images():
+    global wall, floor, box, box_docked, worker, worker_docked, docker
+    new_size = int(original_size * scale_factor)
+
+    wall = pygame.transform.scale(wall_original, (new_size, new_size))
+    floor = pygame.transform.scale(floor_original, (new_size, new_size))
+    box = pygame.transform.scale(box_original, (new_size, new_size))
+    box_docked = pygame.transform.scale(box_docked_original, (new_size, new_size))
+    worker = pygame.transform.scale(worker_original, (new_size, new_size))
+    worker_docked = pygame.transform.scale(worker_docked_original, (new_size, new_size))
+    docker = pygame.transform.scale(docker_original, (new_size, new_size))
+
 def save_matrix(matrix, filename='game_state.json'):
     global _last_saved_matrix
     filename = os.path.join(CACHE_DIR, filename)
@@ -219,6 +243,8 @@ def print_game(matrix, screen):
     screen.fill(background)
     x = 0
     y = 0
+    new_size = int(original_size * scale_factor)  # Get updated tile size
+
     for row in matrix:
         for char in row:
             if char == ' ':
@@ -235,9 +261,10 @@ def print_game(matrix, screen):
                 screen.blit(box, (x, y))
             elif char == '+':
                 screen.blit(worker_docked, (x, y))
-            x += 32
+            x += new_size  # Move x position by scaled size
         x = 0
-        y += 32
+        y += new_size  # Move y position by scaled size
+
 
 def display_box(screen, message):
     fontobject = pygame.font.Font(None, 18)
@@ -294,7 +321,7 @@ while True:
     print("Starting Level " + str(level))
     box_game = game(levels_filename, level)
     size = box_game.load_size()
-    screen = pygame.display.set_mode(size)
+    screen = pygame.display.set_mode(size, pygame.RESIZABLE)
     clock = pygame.time.Clock()
     level_completed = False
 
@@ -317,6 +344,15 @@ while True:
                     box_game.unmove()
                 elif event.key == pygame.K_r:
                     box_game = game(levels_filename, level)
+            elif event.type == pygame.VIDEORESIZE:
+                # Resize the window and update the display
+                screen = pygame.display.set_mode((event.w, event.h), pygame.RESIZABLE)
+
+                # Calculate scale factor based on the new window width
+                scale_factor = event.w / size[0]  # Scale based on width change
+
+                # Update the game elements' sizes
+                scale_images()
 
         if box_game.is_completed():
             print_game(box_game.get_matrix(), screen)  # Ensure the last move is displayed
