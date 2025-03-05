@@ -4,7 +4,7 @@ import concurrent.futures
 import argparse
 from collections import deque
 
-from games.boxxel.workers import boxxel_worker
+from games.boxxel.workers_local import boxxel_worker
 # System prompt remains constant
 system_prompt = (
     "You are an expert AI agent specialized in solving Sokoban puzzles optimally. "
@@ -50,19 +50,16 @@ def main():
     parser.add_argument("--api_provider", type=str, default="openai", help="API provider to use.")
     parser.add_argument("--model_name", type=str, default="gpt-4-turbo", help="LLM model name.")
     parser.add_argument("--loop_interval", type=float, default=3, help="Time in seconds between moves.")
-    parser.add_argument("--level", type=int, default=1, help="Time in seconds between moves.")
     args = parser.parse_args()
 
     prev_responses = deque(maxlen=7)
-    count = 0
+
     try:
         while True:
             start_time = time.time()
             latest_response = boxxel_worker(system_prompt, args.api_provider, args.model_name
-                                            , " ".join(prev_responses), level = args.level)
-            if count == 3:
-                break
-            count +=1
+                                            , " ".join(prev_responses))
+            # break
             if latest_response:
                 prev_responses.append(latest_response)
             elapsed_time = time.time() - start_time
