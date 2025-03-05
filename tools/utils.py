@@ -78,9 +78,13 @@ def generate_grid(image, grid_rows, grid_cols):
     
     return vertical_lines, horizontal_lines
 
-def annotate_with_grid(image, vertical_lines, horizontal_lines, x_offset, y_offset):
+def annotate_with_grid(image, vertical_lines, horizontal_lines, x_offset, y_offset, alpha=0.5):
+    """Annotates the image with semi-transparent gray grid cell numbers."""
     grid_annotations = []
     
+    # Create a copy of the image to overlay transparent text
+    overlay = image.copy()
+
     for row in range(len(horizontal_lines) - 1):
         for col in range(len(vertical_lines) - 1):
             x = (vertical_lines[col] + vertical_lines[col + 1]) // 2
@@ -88,13 +92,24 @@ def annotate_with_grid(image, vertical_lines, horizontal_lines, x_offset, y_offs
             cell_id = row * (len(vertical_lines) - 1) + col + 1
             grid_annotations.append({'id': cell_id, 'x': x + x_offset, 'y': y + y_offset})
             
-            # Draw black rectangle for better visibility
-            cv2.rectangle(image, (x - 15, y - 15), (x + 15, y + 15), (0, 0, 0), -1)
-            cv2.putText(image, str(cell_id), (x - 10, y + 10), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 255), 2)
+            # Draw semi-transparent text on the overlay
+            text = str(cell_id)
+            font = cv2.FONT_HERSHEY_SIMPLEX
+            font_scale = 0.7
+            thickness = 2
+            text_color = (255, 255, 255)  # Gray color
+            
+            cv2.putText(overlay, text, (x - 10, y + 10), font, font_scale, text_color, thickness, cv2.LINE_AA)
+            
+            # Draw green grid rectangle directly on the original image
             cv2.rectangle(image, (vertical_lines[col], horizontal_lines[row]), 
                           (vertical_lines[col + 1], horizontal_lines[row + 1]), (0, 255, 0), 1)
-    
+
+    # Blend the overlay with the original image to achieve transparency
+    cv2.addWeighted(overlay, alpha, image, 1 - alpha, 0, image)
+
     return image, grid_annotations
+
 
 def save_grid_annotations(grid_annotations, cache_dir=None):
     if cache_dir:

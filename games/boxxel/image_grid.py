@@ -16,4 +16,4 @@ screenshot_path = "boxxel_screenshot.png"
 
 screenshot.save(screenshot_path)
 
-get_annotate_img(screenshot_path, crop_left=450, crop_right=575, crop_top=60, crop_bottom=170, grid_rows=8, grid_cols=8)
+get_annotate_img(screenshot_path, crop_left=225, crop_right=1570, crop_top=365, crop_bottom=460, grid_rows=9, grid_cols=9)

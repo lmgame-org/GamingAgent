@@ -4,9 +4,9 @@ from openai import OpenAI
 import anthropic
 import google.generativeai as genai
 
-def openai_completion(system_prompt, model_name, base64_image, prompt):
+def openai_completion(system_prompt, model_name, base64_image, prompt, temperature=0):
     client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
-    
+    base64_image = None if "o3-mini" in model_name else base64_image
     if base64_image is None:
         messages = [
             {
@@ -40,17 +40,21 @@ def openai_completion(system_prompt, model_name, base64_image, prompt):
 
     # Determine correct token parameter
     token_param = "max_completion_tokens" if "o3-mini" in model_name else "max_tokens"
+
+    # # Correct parameter for different models
+    # "reasoning_effort": "low"
     
     # Prepare request parameters dynamically
     request_params = {
         "model": model_name,
         "messages": messages,
-        token_param: 4096 # Correct parameter for different models
+        token_param: 30000,
+        "reasoning_effort": "medium"
     }
     
     # Only add 'temperature' if the model supports it
     if "o3-mini" not in model_name:  # Assuming o3-mini doesn't support 'temperature'
-        request_params["temperature"] = 0
+        request_params["temperature"] = temperature
 
     response = client.chat.completions.create(**request_params)
     print(response)
@@ -59,7 +63,7 @@ def openai_completion(system_prompt, model_name, base64_image, prompt):
      
     return generated_code_str
 
-def anthropic_completion(system_prompt, model_name, base64_image, prompt):
+def anthropic_completion(system_prompt, model_name, base64_image, prompt, thinking=False):
     client = anthropic.Anthropic(api_key=os.getenv("ANTHROPIC_API_KEY"))
     messages = [
                 {
@@ -80,17 +84,33 @@ def anthropic_completion(system_prompt, model_name, base64_image, prompt):
                     ],
                 }
             ]
-
-    with client.messages.stream(
-            max_tokens=1024,
-            messages=messages,
-            temperature=0,
-            system=system_prompt,
-            model=model_name, # claude-3-5-sonnet-20241022 # claude-3-7-sonnet-20250219
-        ) as stream:
-            partial_chunks = []
-            for chunk in stream.text_stream:
-                partial_chunks.append(chunk)
+    if thinking:
+        with client.messages.stream(
+                max_tokens=20000,
+                thinking={
+                    "type": "enabled",
+                    "budget_tokens": 16000
+                },
+                messages=messages,
+                temperature=1,
+                system=system_prompt,
+                model=model_name, # claude-3-5-sonnet-20241022 # claude-3-7-sonnet-20250219
+            ) as stream:
+                partial_chunks = []
+                for chunk in stream.text_stream:
+                    partial_chunks.append(chunk)
+    else:
+         
+        with client.messages.stream(
+                max_tokens=1024,
+                messages=messages,
+                temperature=0,
+                system=system_prompt,
+                model=model_name, # claude-3-5-sonnet-20241022 # claude-3-7-sonnet-20250219
+            ) as stream:
+                partial_chunks = []
+                for chunk in stream.text_stream:
+                    partial_chunks.append(chunk)
         
     generated_code_str = "".join(partial_chunks)
     
