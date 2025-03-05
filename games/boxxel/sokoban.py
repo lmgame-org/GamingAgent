@@ -4,7 +4,6 @@ import sys
 import pygame
 import string
 import queue
-
 import json
 import os
 import copy
@@ -15,15 +14,9 @@ _last_saved_matrix = None
 def save_matrix(matrix, filename='game_state.json'):
     global _last_saved_matrix
     filename = os.path.join(CACHE_DIR, filename)
-
-    # Only update if the matrix is different than the last saved one
     if matrix == _last_saved_matrix:
         return  # No change, so do nothing
-
-    # Make a deep copy of the matrix to preserve its state
     _last_saved_matrix = copy.deepcopy(matrix)
-
-    # Optionally write to a temporary file and then rename it to avoid partial writes
     temp_filename = filename + '.tmp'
     with open(temp_filename, 'w') as f:
         json.dump(matrix, f)
@@ -32,49 +25,45 @@ def save_matrix(matrix, filename='game_state.json'):
 
 
 class game:
-
-    def is_valid_value(self,char):
-        if ( char == ' ' or #floor
-            char == '#' or #wall
-            char == '@' or #worker on floor
-            char == '?' or #dock
-            char == '*' or #box on dock
-            char == '$' or #box
-            char == '+' ): #worker on dock
+    def is_valid_value(self, char):
+        if ( char == ' ' or  # floor
+             char == '#' or  # wall
+             char == '@' or  # worker on floor
+             char == '?' or  # dock
+             char == '*' or  # box on dock
+             char == '$' or  # box
+             char == '+' ):  # worker on dock
             return True
         else:
             return False
 
-    def __init__(self,filename,level):
-        
+    def __init__(self, filename, level):
         self.queue = queue.LifoQueue()
         self.matrix = []
-#        if level < 1 or level > 50:
-        if level < 1 or level >52:
-            print ("ERROR: Level "+str(level)+" is out of range")
+        if level < 1 or level > 52:
+            print("ERROR: Level " + str(level) + " is out of range")
             sys.exit(1)
         else:
-            file = open(filename,'r')
-            level_found = False
-            for line in file:
-                row = []
-                if not level_found:
-                    if  "Level "+str(level) == line.strip():
-                        level_found = True
-                else:
-                    if line.strip() != "":
-                        row = []
-                        for c in line:
-                            if c != '\n' and self.is_valid_value(c):
-                                row.append(c)
-                            elif c == '\n': #jump to next row when newline
-                                continue
-                            else:
-                                print("ERROR: Level "+str(level)+" has invalid value "+c)
-                                sys.exit(1)
-                        self.matrix.append(row)
+            with open(filename, 'r') as file:
+                level_found = False
+                for line in file:
+                    if not level_found:
+                        if "Level " + str(level) == line.strip():
+                            level_found = True
                     else:
-                        break
+                        if line.strip() != "":
+                            row = []
+                            for c in line:
+                                if c != '\n' and self.is_valid_value(c):
+                                    row.append(c)
+                                elif c == '\n':
+                                    continue
+                                else:
+                                    print("ERROR: Level " + str(level) + " has invalid value " + c)
+                                    sys.exit(1)
+                            self.matrix.append(row)
+                        else:
+                            break
 
     def load_size(self):
         x = 0
@@ -94,14 +83,14 @@ class game:
                 sys.stdout.flush()
             sys.stdout.write('\n')
 
-    def get_content(self,x,y):
+    def get_content(self, x, y):
         return self.matrix[y][x]
 
-    def set_content(self,x,y,content):
+    def set_content(self, x, y, content):
         if self.is_valid_value(content):
             self.matrix[y][x] = content
         else:
-            print("ERROR: Value '"+content+"' to be added is not valid")
+            print("ERROR: Value '" + content + "' to be added is not valid")
 
     def worker(self):
         x = 0
@@ -111,10 +100,11 @@ class game:
                 if pos == '@' or pos == '+':
                     return (x, y, pos)
                 else:
-                    x = x + 1
-            y = y + 1
+                    x += 1
+            y += 1
             x = 0
 
+    
     def can_move(self,x,y):
         return self.get_content(self.worker()[0]+x,self.worker()[1]+y) not in ['#','*','$']
 
@@ -224,135 +214,128 @@ class game:
                 self.set_content(current[0]+x,current[1]+y,'+')
                 if save: self.queue.put((x,y,True))
 
-def print_game(matrix,screen):
+def print_game(matrix, screen):
     save_matrix(matrix)
     screen.fill(background)
     x = 0
     y = 0
     for row in matrix:
         for char in row:
-            if char == ' ': #floor
-                screen.blit(floor,(x,y))
-            elif char == '#': #wall
-                screen.blit(wall,(x,y))
-            elif char == '@': #worker on floor
-                screen.blit(worker,(x,y))
-            elif char == '?': #dock
-                screen.blit(docker,(x,y))
-            elif char == '*': #box on dock
-                screen.blit(box_docked,(x,y))
-            elif char == '$': #box
-                screen.blit(box,(x,y))
-            elif char == '+': #worker on dock
-                screen.blit(worker_docked,(x,y))
-            x = x + 32
+            if char == ' ':
+                screen.blit(floor, (x, y))
+            elif char == '#':
+                screen.blit(wall, (x, y))
+            elif char == '@':
+                screen.blit(worker, (x, y))
+            elif char == '?':
+                screen.blit(docker, (x, y))
+            elif char == '*':
+                screen.blit(box_docked, (x, y))
+            elif char == '$':
+                screen.blit(box, (x, y))
+            elif char == '+':
+                screen.blit(worker_docked, (x, y))
+            x += 32
         x = 0
-        y = y + 32
-
-
-def get_key():
-  while 1:
-    event = pygame.event.poll()
-    if event.type == pygame.KEYDOWN:
-      return event.key
-    else:
-      pass
+        y += 32
 
 def display_box(screen, message):
-  "Print a message in a box in the middle of the screen"
-  fontobject = pygame.font.Font(None,18)
-  pygame.draw.rect(screen, (0,0,0),
-                   ((screen.get_width() / 2) - 100,
-                    (screen.get_height() / 2) - 10,
-                    200,20), 0)
-  pygame.draw.rect(screen, (255,255,255),
-                   ((screen.get_width() / 2) - 102,
-                    (screen.get_height() / 2) - 12,
-                    204,24), 1)
-  if len(message) != 0:
-    screen.blit(fontobject.render(message, 1, (255,255,255)),
-                ((screen.get_width() / 2) - 100, (screen.get_height() / 2) - 10))
-  pygame.display.flip()
+    fontobject = pygame.font.Font(None, 18)
+    pygame.draw.rect(screen, (0, 0, 0),
+                     ((screen.get_width() / 2) - 100,
+                      (screen.get_height() / 2) - 10,
+                      200, 20), 0)
+    pygame.draw.rect(screen, (255, 255, 255),
+                     ((screen.get_width() / 2) - 102,
+                      (screen.get_height() / 2) - 12,
+                      204, 24), 1)
+    if message:
+        screen.blit(fontobject.render(message, 1, (255, 255, 255)),
+                    ((screen.get_width() / 2) - 100, (screen.get_height() / 2) - 10))
+    pygame.display.flip()
 
 def display_end(screen):
     message = "Level Completed"
-    fontobject = pygame.font.Font(None,18)
-    pygame.draw.rect(screen, (0,0,0),
-                   ((screen.get_width() / 2) - 100,
-                    (screen.get_height() / 2) - 10,
-                    200,20), 0)
-    pygame.draw.rect(screen, (255,255,255),
-                   ((screen.get_width() / 2) - 102,
-                    (screen.get_height() / 2) - 12,
-                    204,24), 1)
-    screen.blit(fontobject.render(message, 1, (255,255,255)),
+    fontobject = pygame.font.Font(None, 18)
+    pygame.draw.rect(screen, (0, 0, 0),
+                     ((screen.get_width() / 2) - 100,
+                      (screen.get_height() / 2) - 10,
+                      200, 20), 0)
+    pygame.draw.rect(screen, (255, 255, 255),
+                     ((screen.get_width() / 2) - 102,
+                      (screen.get_height() / 2) - 12,
+                      204, 24), 1)
+    screen.blit(fontobject.render(message, 1, (255, 255, 255)),
                 ((screen.get_width() / 2) - 100, (screen.get_height() / 2) - 10))
     pygame.display.flip()
 
+def get_key():
+    while True:
+        event = pygame.event.poll()
+        if event.type == pygame.KEYDOWN:
+            return event.key
 
-def ask(screen, question):
-  "ask(screen, question) -> answer"
-  pygame.font.init()
-  current_string = []
-  display_box(screen, question + ": " + "".join(current_string))
-
-  while 1:
-    inkey = get_key()
-    if inkey == pygame.K_BACKSPACE:
-      current_string = current_string[0:-1]
-    elif inkey == pygame.K_RETURN:
-      break
-    elif inkey == pygame.K_MINUS:
-      current_string.append("_")
-    elif inkey <= 127:
-      current_string.append(chr(inkey))
-    display_box(screen, question + ": " + "".join(current_string))
-
-  return "".join(current_string)
-
-
-def start_game():
-    start = pygame.display.set_mode((320,240))
-    level = ask(start,"Select Level")
-    try:
-        level = int(level)  # Convert to integer
-    except ValueError:
-        print("ERROR: Invalid Level: "+str(level))
-        sys.exit(2)
-
-    if level > 0:
-        return level
-    else:
-        print("ERROR: Invalid Level: "+str(level))
-        sys.exit(2)
-
-
-wall = pygame.image.load('games/boxxel/images/wall.png' )
+# Load images and initialize pygame
+wall = pygame.image.load('games/boxxel/images/wall.png')
 floor = pygame.image.load('games/boxxel/images/floor.png')
 box = pygame.image.load('games/boxxel/images/box.png')
 box_docked = pygame.image.load('games/boxxel/images/box_docked.png')
 worker = pygame.image.load('games/boxxel/images/worker.png')
 worker_docked = pygame.image.load('games/boxxel/images/worker_dock.png')
 docker = pygame.image.load('games/boxxel/images/dock.png')
-background = 255, 226, 191
+background = (255, 226, 191)
 pygame.init()
 
-level = start_game()
-box_game = game('games/boxxel/levels',level)
-size = box_game.load_size()
-screen = pygame.display.set_mode(size)
-while 1:
-    if box_game.is_completed(): display_end(screen)
-    print_game(box_game.get_matrix(),screen)
-    for event in pygame.event.get():
-        if event.type == pygame.QUIT: sys.exit(0)
-        elif event.type == pygame.KEYDOWN:
-            if event.key == pygame.K_UP: box_game.move(0,-1, True)
-            elif event.key == pygame.K_DOWN: box_game.move(0,1, True)
-            elif event.key == pygame.K_LEFT: box_game.move(-1,0, True)
-            elif event.key == pygame.K_RIGHT: box_game.move(1,0, True)
-            elif event.key == pygame.K_q: sys.exit(0)
-            elif event.key == pygame.K_d: box_game.unmove()
-            elif event.key == pygame.K_r:
-                box_game = game('games/boxxel/levels', level)
-    pygame.display.update()
+# Start game from level 1 and auto advance after completion
+level = 1
+levels_filename = 'games/boxxel/levels'
+
+while True:
+    print("Starting Level " + str(level))
+    box_game = game(levels_filename, level)
+    size = box_game.load_size()
+    screen = pygame.display.set_mode(size)
+    clock = pygame.time.Clock()
+    level_completed = False
+
+    while not level_completed:
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                sys.exit(0)
+            elif event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_UP:
+                    box_game.move(0, -1, True)
+                elif event.key == pygame.K_DOWN:
+                    box_game.move(0, 1, True)
+                elif event.key == pygame.K_LEFT:
+                    box_game.move(-1, 0, True)
+                elif event.key == pygame.K_RIGHT:
+                    box_game.move(1, 0, True)
+                elif event.key == pygame.K_q:
+                    sys.exit(0)
+                elif event.key == pygame.K_d:
+                    box_game.unmove()
+                elif event.key == pygame.K_r:
+                    box_game = game(levels_filename, level)
+
+        if box_game.is_completed():
+            print_game(box_game.get_matrix(), screen)  # Ensure the last move is displayed
+            pygame.display.update()  # Force screen refresh
+            pygame.time.delay(500)  # Small delay to show final state before transition
+            
+            display_end(screen)  # Show "Level Completed" message
+            pygame.display.update()
+            pygame.time.delay(2000)  # Wait for 2 seconds before switching levels
+            
+            level_completed = True
+
+
+        print_game(box_game.get_matrix(), screen)
+        pygame.display.update()
+        clock.tick(10)  # Limit to 10 FPS
+
+    level += 1
+    # If the level number exceeds the maximum, end the game.
+    if level > 52:
+        print("Congratulations! All levels completed.")
+        sys.exit(0)
