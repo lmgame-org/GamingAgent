@@ -4,7 +4,7 @@ import pyautogui
 import numpy as np
 
 from tools.utils import encode_image, log_output, get_annotate_img
-from tools.serving.api_providers import anthropic_completion, anthropic_text_completion, openai_completion, openai_text_reasoning_completion, gemini_completion
+from tools.serving.api_providers import anthropic_completion, anthropic_text_completion, openai_completion, openai_text_reasoning_completion, gemini_completion, gemini_text_completion
 import re
 import json
 
@@ -214,6 +214,8 @@ def boxxel_worker(system_prompt, api_provider, model_name,
         response = openai_text_reasoning_completion(system_prompt, model_name, prompt)
     elif api_provider == "openai":
         response = openai_completion(system_prompt, model_name, base64_image, prompt)
+    elif api_provider == "gemini" and modality=="text-only":
+        response = gemini_text_completion(system_prompt, model_name, prompt)
     elif api_provider == "gemini":
         response = gemini_completion(system_prompt, model_name, base64_image, prompt)
     else:

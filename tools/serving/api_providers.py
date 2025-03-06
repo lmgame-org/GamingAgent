@@ -3,6 +3,7 @@ import os
 from openai import OpenAI
 import anthropic
 import google.generativeai as genai
+from google.genai import types
 
 def openai_completion(system_prompt, model_name, base64_image, prompt, temperature=0):
     client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
@@ -197,6 +198,35 @@ def anthropic_text_completion(system_prompt, model_name, prompt, thinking=False)
     
     return generated_str
 
+def gemini_text_completion(system_prompt, model_name, prompt):
+    genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
+    model = genai.GenerativeModel(model_name=model_name)
+
+    messages = [
+        prompt,
+    ]
+            
+    try:
+        response = model.generate_content(
+            messages
+        )
+    except Exception as e:
+        print(f"error: {e}")
+
+    try:
+        response = model.generate_content(messages)
+
+        # Ensure response is valid and contains candidates
+        if not response or not hasattr(response, "candidates") or not response.candidates:
+            print("Warning: Empty or invalid response")
+            return ""
+        
+        return response.text  # Access response.text safely
+
+    except Exception as e:
+        print(f"Error: {e}")
+        return "" 
+
 def gemini_completion(system_prompt, model_name, base64_image, prompt):
     genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
     model = genai.GenerativeModel(model_name=model_name)
@@ -211,11 +241,21 @@ def gemini_completion(system_prompt, model_name, base64_image, prompt):
             
     try:
         response = model.generate_content(
-            messages,
+            messages
         )
     except Exception as e:
         print(f"error: {e}")
 
-    generated_code_str = response.text
+    try:
+        response = model.generate_content(messages)
 
-    return generated_code_str
+        # Ensure response is valid and contains candidates
+        if not response or not hasattr(response, "candidates") or not response.candidates:
+            print("Warning: Empty or invalid response")
+            return ""
+        
+        return response.text  # Access response.text safely
+
+    except Exception as e:
+        print(f"Error: {e}")
+        return "" 
