@@ -111,23 +111,27 @@ def deepseek_text_reasoning_completion(system_prompt, model_name, prompt):
     messages = [
         {
             "role": "user",
-            "content": [
-                {
-                    "type": "text",
-                    "text": prompt
-                },
-            ],
+            "content": prompt
         }
     ]
 
-    response = client.completions.create(
+    reasoning_content = ""
+    content = ""
+    response = client.chat.completions.create(
         model= model_name,
         messages = messages,
+        stream=True,
         max_tokens=8000)
     
-    generated_str = response.choices[0].message.content
-
-    return generated_str
+    for chunk in response:
+        if chunk.choices[0].delta.reasoning_content and chunk.choices[0].delta.reasoning_content:
+            reasoning_content += chunk.choices[0].delta.reasoning_content
+        elif hasattr(chunk.choices[0].delta, "content") and chunk.choices[0].delta.content:
+            content += chunk.choices[0].delta.content
+    
+    # generated_str = response.choices[0].message.content
+    print(content)
+    return content
     
 
 def anthropic_completion(system_prompt, model_name, base64_image, prompt, thinking=False):
