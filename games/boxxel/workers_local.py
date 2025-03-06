@@ -4,7 +4,7 @@ import pyautogui
 import numpy as np
 
 from tools.utils import encode_image, log_output, get_annotate_img
-from tools.serving.api_providers import anthropic_completion, anthropic_text_completion, openai_completion, openai_text_reasoning_completion, gemini_completion, gemini_text_completion
+from tools.serving.api_providers import anthropic_completion, anthropic_text_completion, openai_completion, openai_text_reasoning_completion, gemini_completion, gemini_text_completion, deepseek_text_reasoning_completion
 import re
 import json
 
@@ -218,6 +218,8 @@ def boxxel_worker(system_prompt, api_provider, model_name,
         response = gemini_text_completion(system_prompt, model_name, prompt)
     elif api_provider == "gemini":
         response = gemini_completion(system_prompt, model_name, base64_image, prompt)
+    elif api_provider == "deepseek":
+        response = deepseek_text_reasoning_completion(system_prompt, model_name, prompt)
     else:
         raise NotImplementedError(f"API provider: {api_provider} is not supported.")
 

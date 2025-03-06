@@ -100,6 +100,36 @@ def openai_text_reasoning_completion(system_prompt, model_name, prompt, temperat
      
     return generated_str
 
+def deepseek_text_reasoning_completion(system_prompt, model_name, prompt):
+     
+    client = OpenAI(
+        api_key=os.getenv("DEEPSEEK_API_KEY"),
+        base_url="https://api.deepseek.com",
+    )
+
+
+    messages = [
+        {
+            "role": "user",
+            "content": [
+                {
+                    "type": "text",
+                    "text": prompt
+                },
+            ],
+        }
+    ]
+
+    response = client.completions.create(
+        model= model_name,
+        messages = messages,
+        max_tokens=8000)
+    
+    generated_str = response.choices[0].message.content
+
+    return generated_str
+    
+
 def anthropic_completion(system_prompt, model_name, base64_image, prompt, thinking=False):
     print(f"anthropic vision-text activated... thinking: {thinking}")
     client = anthropic.Anthropic(api_key=os.getenv("ANTHROPIC_API_KEY"))
