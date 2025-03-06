@@ -4,7 +4,13 @@ import concurrent.futures
 import argparse
 from collections import deque
 
+import os
+import json
+
 from games.boxxel.workers_local import boxxel_worker
+
+CACHE_DIR = "cache/boxxel"
+
 # System prompt remains constant
 system_prompt = (
     "You are an expert AI agent specialized in solving Sokoban puzzles optimally. "
@@ -48,18 +54,29 @@ system_prompt = (
 def main():
     parser = argparse.ArgumentParser(description="Boxxel AI Agent")
     parser.add_argument("--api_provider", type=str, default="openai", help="API provider to use.")
-    parser.add_argument("--model_name", type=str, default="gpt-4-turbo", help="LLM model name.")
-    parser.add_argument("--loop_interval", type=float, default=3, help="Time in seconds between moves.")
+    parser.add_argument("--model_name", type=str, default="o3-mini", help="LLM model name.")
+    parser.add_argument("--modality", type=str, default="text-only", choices=["text-only", "vision-text"],
+                        help="modality used.")
+    parser.add_argument("--thinking", type=str, default=True, help="Whether to use deep thinking.")
     args = parser.parse_args()
 
     prev_responses = deque(maxlen=7)
+    level = None
 
     try:
         while True:
+            current_level_path = os.path.join(CACHE_DIR, "current_level.json")
+            with open(current_level_path, 'r') as f:
+                level_dict = json.load(f)
+                level = level_dict["level"]
+            
             start_time = time.time()
-            latest_response = boxxel_worker(system_prompt, args.api_provider, args.model_name
-                                            , " ".join(prev_responses))
-            # break
+            latest_response = boxxel_worker(system_prompt, args.api_provider, args.model_name, 
+                    " ".join(prev_responses),
+                    thinking=args.thinking,
+                    modality=args.modality,
+                    level=level)
+            # HACK: temporary memory module
             if latest_response:
                 prev_responses.append(latest_response)
             elapsed_time = time.time() - start_time

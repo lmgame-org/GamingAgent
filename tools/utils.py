@@ -19,7 +19,7 @@ def encode_image(image_path):
     with open(image_path, "rb") as image_file:
         return base64.b64encode(image_file.read()).decode("utf-8")
 
-def log_output(thread_id, log_text, game):
+def log_output(thread_id, log_text, game, mode="w"):
     """
     Logs output to `cache/thread_{thread_id}/output.log`
     """
@@ -27,7 +27,7 @@ def log_output(thread_id, log_text, game):
     os.makedirs(thread_folder, exist_ok=True)
     
     log_path = os.path.join(thread_folder, "output.log")
-    with open(log_path, "w", encoding="utf-8") as log_file:
+    with open(log_path, mode, encoding="utf-8") as log_file:
         log_file.write(log_text + "\n\n")
 
 def extract_python_code(content):
@@ -95,8 +95,8 @@ def annotate_with_grid(image, vertical_lines, horizontal_lines, x_offset, y_offs
             # Draw semi-transparent text on the overlay
             text = str(cell_id)
             font = cv2.FONT_HERSHEY_SIMPLEX
-            font_scale = 0.7
-            thickness = 2
+            font_scale = 0.4
+            thickness = 1
             text_color = (255, 255, 255)  # Gray color
             
             cv2.putText(overlay, text, (x - 10, y + 10), font, font_scale, text_color, thickness, cv2.LINE_AA)

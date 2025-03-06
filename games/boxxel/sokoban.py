@@ -23,6 +23,43 @@ docker_original = pygame.image.load('games/boxxel/images/dock.png')
 
 _last_saved_matrix = None
 
+# Start game from level 1 and auto advance after completion
+level = 1
+level_dict = {"level": level}
+current_level_path = os.path.join(CACHE_DIR, "current_level.json")
+print(f"writing to: {current_level_path}")
+print(level_dict)
+with open(current_level_path, 'w') as file:
+    json.dump(level_dict, file)
+
+levels_filename = 'games/boxxel/levels'
+
+def save_levels_dimensions(levels_filename, max_level=52):
+    """
+    Reads each level from 1..max_level, retrieves its matrix dimension,
+    and saves all dimensions in JSON form to "cache/boxxel/levels_dim.json".
+    """
+    dims = {}
+    os.makedirs(CACHE_DIR, exist_ok=True)
+    outpath = os.path.join(CACHE_DIR, "levels_dim.json")
+
+    for lvl in range(1, max_level + 1):
+        g = game(levels_filename, lvl)
+        # load_size() returns pixel size (width, height) = (cols*32, rows*32)
+        pixel_width, pixel_height = g.load_size()
+
+        # Convert pixel dimensions back to tile counts
+        cols = pixel_width // 32
+        rows = pixel_height // 32
+
+        # Store data in a dict keyed by level number
+        dims[f"level_{lvl}"] = {"cols": cols, "rows": rows}
+
+    with open(outpath, "w") as f:
+        json.dump(dims, f, indent=2)
+
+    print(f"Level dimensions saved to: {outpath}")
+
 def scale_images():
     global wall, floor, box, box_docked, worker, worker_docked, docker
     new_size = int(original_size * scale_factor)
@@ -35,18 +72,19 @@ def scale_images():
     worker_docked = pygame.transform.scale(worker_docked_original, (new_size, new_size))
     docker = pygame.transform.scale(docker_original, (new_size, new_size))
 
-def save_matrix(matrix, filename='game_state.json'):
+def save_matrix(matrix, screen, filename='game_state.json'):
     global _last_saved_matrix
     filename = os.path.join(CACHE_DIR, filename)
     if matrix == _last_saved_matrix:
         return  # No change, so do nothing
     _last_saved_matrix = copy.deepcopy(matrix)
+    pygame.image.save(screen, "cache/boxxel/boxxel_screenshot.png")
+    print("Screen for the new move is saved.")
     temp_filename = filename + '.tmp'
     with open(temp_filename, 'w') as f:
         json.dump(matrix, f)
     os.replace(temp_filename, filename)
     print("Matrix saved to JSON.")
-
 
 class game:
     def is_valid_value(self, char):
@@ -239,7 +277,7 @@ class game:
                 if save: self.queue.put((x,y,True))
 
 def print_game(matrix, screen):
-    save_matrix(matrix)
+    os.makedirs("cache/boxxel", exist_ok=True)
     screen.fill(background)
     x = 0
     y = 0
@@ -264,7 +302,8 @@ def print_game(matrix, screen):
             x += new_size  # Move x position by scaled size
         x = 0
         y += new_size  # Move y position by scaled size
-
+    
+    save_matrix(matrix, screen)
 
 def display_box(screen, message):
     fontobject = pygame.font.Font(None, 18)
@@ -313,9 +352,7 @@ docker = pygame.image.load('games/boxxel/images/dock.png')
 background = (255, 226, 191)
 pygame.init()
 
-# Start game from level 1 and auto advance after completion
-level = 1
-levels_filename = 'games/boxxel/levels'
+save_levels_dimensions(levels_filename, 52)
 
 while True:
     print("Starting Level " + str(level))
@@ -355,7 +392,7 @@ while True:
                 scale_images()
 
         if box_game.is_completed():
-            print_game(box_game.get_matrix(), screen)  # Ensure the last move is displayed
+            print_game(box_game.get_matrix(), screen)  # Ensure the last move is captured
             pygame.display.update()  # Force screen refresh
             pygame.time.delay(500)  # Small delay to show final state before transition
             
@@ -365,12 +402,19 @@ while True:
             
             level_completed = True
 
-
         print_game(box_game.get_matrix(), screen)
         pygame.display.update()
         clock.tick(10)  # Limit to 10 FPS
 
     level += 1
+
+    # HACK: make atomic operation
+    level_dict["level"] += 1
+    current_level_path = os.path.join(CACHE_DIR, "current_level.json")
+
+    with open(current_level_path, 'w') as file:
+        json.dump(level_dict, file)
+    
     # If the level number exceeds the maximum, end the game.
     if level > 52:
         print("Congratulations! All levels completed.")

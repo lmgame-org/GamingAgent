@@ -3,8 +3,8 @@ import os
 import pyautogui
 import numpy as np
 
-from tools.utils import encode_image, log_output
-from tools.serving.api_providers import anthropic_completion, openai_completion, gemini_completion
+from tools.utils import encode_image, log_output, get_annotate_img
+from tools.serving.api_providers import anthropic_completion, anthropic_text_completion, openai_completion, openai_text_reasoning_completion, gemini_completion
 import re
 import json
 
@@ -21,6 +21,7 @@ def load_matrix(filename='game_state.json'):
     except Exception as e:
         print(f"Error loading matrix: {e}")
         return None
+
 def matrix_to_text_table(matrix):
     """Convert a 2D list matrix into a structured text table."""
     header = "ID  | Item Type    | Position"
@@ -68,8 +69,6 @@ def log_move_and_thought(move, thought, latency):
 
 def boxxel_read_worker(system_prompt, api_provider, model_name, image_path):
     base64_image = encode_image(image_path)
-    api_provider = "anthropic"
-    model_name = "claude-3-7-sonnet-20250219"
     matrix = load_matrix()
     if matrix is not None:
         board_str = matrix_to_text_table(matrix)
@@ -100,8 +99,6 @@ def boxxel_read_worker(system_prompt, api_provider, model_name, image_path):
     
     # )
 
-    
-    
     # # Call LLM API based on provider
     # if api_provider == "anthropic":
     #     response = anthropic_completion(system_prompt, model_name, base64_image, prompt)
@@ -120,56 +117,99 @@ def boxxel_read_worker(system_prompt, api_provider, model_name, image_path):
 
     return board_str
 
-
-def boxxel_worker(system_prompt, api_provider, model_name, prev_response=""):
+def boxxel_worker(system_prompt, api_provider, model_name, 
+    prev_response="", 
+    thinking=True, 
+    modality="vision-text",
+    level=1,
+    crop_left=0, 
+    crop_right=0, 
+    crop_top=0, 
+    crop_bottom=0, 
+    ):
     """
     1) Captures a screenshot of the current game state.
     2) Calls an LLM to generate PyAutoGUI code for the next move.
     3) Logs latency and the generated code.
     """
     # Capture a screenshot of the current game state.
-    screen_width, screen_height = pyautogui.size()
-    region = (0, 0, screen_width // 64 * 14, screen_height // 64 * 26)
-    
-    screenshot = pyautogui.screenshot(region=region)
-
     # Save the screenshot directly in the cache directory.
+    assert modality in ["text-only", "vision-text"], f"modality {modality} is not supported."
+
     os.makedirs("cache/boxxel", exist_ok=True)
     screenshot_path = "cache/boxxel/boxxel_screenshot.png"
 
-    screenshot.save(screenshot_path)
+    levels_dim_path = os.path.join(CACHE_DIR, "levels_dim.json")
+    with open(levels_dim_path, "r") as f:
+        levels_dims = json.load(f)
+
+    # Extract rows/cols for the specified level
+    level_key = f"level_{level}"
+    if level_key not in levels_dims:
+        raise ValueError(f"No dimension info found for {level_key} in {levels_dim_path}")
+
+    grid_rows = levels_dims[level_key]["rows"]
+    grid_cols = levels_dims[level_key]["cols"]
+
+    annotate_image_path, grid_annotation_path, annotate_cropped_image_path = get_annotate_img(screenshot_path, crop_left=crop_left, crop_right=crop_right, crop_top=crop_top, crop_bottom=crop_bottom, grid_rows=grid_rows, grid_cols=grid_cols, cache_dir=CACHE_DIR)
+
+    #screen_width, screen_height = pyautogui.size()
+    #region = (0, 0, screen_width // 64 * 14, screen_height // 64 * 26)
+    #screenshot = pyautogui.screenshot(region=region)
+    #screenshot.save(screenshot_path)
 
     table = boxxel_read_worker(system_prompt, api_provider, model_name, screenshot_path)
-    # print(table)
+
+    print(f"-------------- TABLE --------------\n{table}\n")
+
+    print(f"-------------- prev response --------------\n{prev_response}\n")
 
     prompt = (
-    "### Previous Lessons Learned###"
-    
-    "You are an expert AI agent specialized in solving Sokoban puzzles optimally. Your objective is to push all boxes onto their designated dock locations while minimizing unnecessary moves and avoiding deadlocks."
-    "Before making a move, analyze the entire puzzle layout. Plan the next 5 steps by considering all possible paths for each box, ensuring they remain maneuverable when necessary to reach their dock locations. Identify potential deadlocks early and prioritize moves that maintain overall solvability. However, note that temporarily blocking a box may sometimes be necessary to progress, so focus on the broader strategy rather than ensuring all boxes are always movable at every step."
-    "You control a worker who can move in four directions (up, down, left, right). You can push boxes if positioned correctly but cannot pull them. Be mindful of walls and corners, as getting a box irreversibly stuck may require a restart. Optimize for efficiency while maintaining flexibility in your approach."
+    "## Previous Lessons Learned\n"
+    "- You control a worker who can move in four directions (up, down, left, right). "
+    "You can push boxes if positioned correctly but cannot pull them. "
+    "Be mindful of walls and corners, as getting a box irreversibly stuck may require a restart. Optimize for efficiency while maintaining flexibility in your approach.\n"
+    "- You are an expert AI agent specialized in solving Sokoban puzzles optimally." 
+    "Your objective is to push all boxes onto their designated dock locations "
+    "while avoiding deadlocks.\n"
+    "- Before making a move, analyze the entire puzzle layout. "
+    "Plan the next 1 to 5 steps by considering all possible paths for each box, "
+    "ensuring they remain maneuverable when necessary to reach their dock locations.\n"
+    "- After a box reaches a dock location. Reconsider if the dock location is optimal, or it should be repositioned to another dock location.\n"
+    "- Identify potential deadlocks early and prioritize moves that maintain overall solvability. "
+    "However, note that temporarily blocking a box may sometimes be necessary to progress, "
+    "so focus on the broader strategy rather than ensuring all boxes are always movable at every step.\n"
+
+    "## Potential Errors to avoid:\n"
+    "1. Vertical Stacking Error: worker can't push stacked boxes.\n"
+    "2. Phantom Deadlock Error: boxes pushed to the walls will very likely get pushed to corners and result in deadlocks.\n"
+    "3. Corner Lock Error: boxes get pushed to corners will not be able to get out.\n"
+    "4. Path Obstruction Error: a box blocks your way to reach other boxes and make progress to the game.\n"
+    "5. Final Dock Saturation Error: choose which box goes to which dock wisely.\n"
 
     f"Here is your previous response: {prev_response}. Please evaluate your plan and thought about whether we should correct or adjust.\n"
-    f"Here is the current layout of the Boxxel board:\n{table}\n\n"
+    "Here is the current layout of the Sokoban board:\n"
+    f"{table}\n\n"
 
 
-    "### Output Format ###\n"
+    "### Output Format:\n"
     "move: up/down/left/right, thought: <brief reasoning>\n\n"
     "Example output: move: right, thought: Positioning the player to access other boxes and docks for future moves."
     )
 
-
-
-
-    base64_image = encode_image(screenshot_path)
+    base64_image = encode_image(annotate_cropped_image_path)
     if "o3-mini" in model_name:
         base64_image = None
     start_time = time.time()
 
-    print(f"Calling {model_name} api...")
+    print(f"Calling {model_name} API...")
     # Call the LLM API based on the selected provider.
-    if api_provider == "anthropic":
-        response = anthropic_completion(system_prompt, model_name, base64_image, prompt)
+    if api_provider == "anthropic" and modality=="text-only":
+        response = anthropic_text_completion(system_prompt, model_name, prompt, thinking)
+    elif api_provider == "anthropic":
+        response = anthropic_completion(system_prompt, model_name, base64_image, prompt, thinking)
+    elif api_provider == "openai" and "o3" in model_name and modality=="text-only":
+        response = openai_text_reasoning_completion(system_prompt, model_name, prompt)
     elif api_provider == "openai":
         response = openai_completion(system_prompt, model_name, base64_image, prompt)
     elif api_provider == "gemini":
@@ -181,9 +221,8 @@ def boxxel_worker(system_prompt, api_provider, model_name, prev_response=""):
 
     print(f"check response: {response}")
 
-    match = re.search(r'move:\s*(\w+),\s*thought:\s*(.*)', response, re.IGNORECASE)
-    move = match.group(1).strip()
-    thought = match.group(2).strip()
+    pattern = r'move:\s*(\w+),\s*thought:\s*(.*)'
+    matches = re.findall(pattern, response, re.IGNORECASE)
 
     def perform_move(move):
         key_map = {
@@ -200,14 +239,18 @@ def boxxel_worker(system_prompt, api_provider, model_name, prev_response=""):
         else:
             print(f"[WARNING] Invalid move: {move}")
 
-    if move is not None:
+    # Loop through every move in the order they appear
+    for move, thought in matches:
+        move = move.strip().lower()
+        thought = thought.strip()
+        # Perform the move
         perform_move(move)
         # Log move and thought
         log_output(
             "boxxel_worker",
-
             f"[INFO] Move executed: ({move}) | Thought: {thought} | Latency: {latency:.2f} sec",
-            "boxxel"
+            "boxxel",
+            mode="a",
         )
 
     return response
