@@ -42,10 +42,11 @@ def matrix_to_text_table(matrix):
     for row_idx, row in enumerate(matrix):
         for col_idx, cell in enumerate(row):
             item_type = item_map.get(cell, 'Unknown')
-            table_rows.append(f"{item_id:<3} | {item_type:<12} | ({row_idx}, {col_idx})")
+            table_rows.append(f"{item_id:<3} | {item_type:<12} | ({col_idx}, {row_idx})")
             item_id += 1
     
     return "\n".join(table_rows)
+
 
 def matrix_to_string(matrix):
     """Convert a 2D list matrix into a string with each row on a new line."""
@@ -166,9 +167,10 @@ def boxxel_worker(system_prompt, api_provider, model_name,
 
     prompt = (
     "## Previous Lessons Learned\n"
-    "- You control a worker who can move in four directions (up, down, left, right). "
+    "- The Sokoban board is structured as a list matrix with coordinated positions: (column_index, row_index).\n"
+    "- You control a worker who can move in four directions (up along row index, down along row index, left along column index, right along column index) in a 2D Sokoban game. "
     "You can push boxes if positioned correctly but cannot pull them. "
-    "Be mindful of walls and corners, as getting a box irreversibly stuck may require a restart. Optimize for efficiency while maintaining flexibility in your approach.\n"
+    "Be mindful of walls and corners, as getting a box irreversibly stuck may require a restart.\n"
     "- You are an expert AI agent specialized in solving Sokoban puzzles optimally." 
     "Your objective is to push all boxes onto their designated dock locations "
     "while avoiding deadlocks.\n"
