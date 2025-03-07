@@ -4,7 +4,7 @@ import pyautogui
 import argparse
 import numpy as np
 from tools.utils import encode_image, log_output
-from tools.serving.api_providers import anthropic_completion, openai_completion, gemini_completion
+from tools.serving.api_providers import anthropic_completion, openai_completion, gemini_completion, ollama_completion
 import subprocess
 import multiprocessing
 import re
@@ -142,6 +142,8 @@ def get_best_move(system_prompt, api_provider, model_name, move_history):
         response = openai_completion(system_prompt, model_name, base64_image, move_prompt)
     elif api_provider == "gemini":
         response = gemini_completion(system_prompt, model_name, base64_image, move_prompt)
+    elif api_provider == "ollama":
+        response = ollama_completion(system_prompt, model_name, base64_image, move_prompt)
     else:
         raise NotImplementedError(f"API provider '{api_provider}' is not supported.")
 

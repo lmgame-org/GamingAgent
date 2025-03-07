@@ -112,6 +112,7 @@ numpy==1.24.4
 numpy-financial==1.0.0
 oauth2client==4.1.3
 odfpy==1.4.1
+ollama==0.4.7
 openai==1.64.0
 opencv-python==4.8.1.78
 opencv-python-headless==4.11.0.86
