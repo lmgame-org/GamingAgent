@@ -112,11 +112,18 @@ Currently we support gaming agents based on the following models:
   - gpt-4o
   - gpt-4o-mini
   - o1
+  - o3-mini (low, medium, high)
 - Anthropic:
   - claude-3-5-sonnet-20241022
-  - claude-3-7-sonnet-20250219
+  - claude-3-7-sonnet-20250219 (thinking mode: True or False)
 - Gemini:
   - gemini-1.5-pro
+  - gemini-2.0-pro
+  - gemini-2.0-flash
+  - gemini-2.0-flash-thinking-exp
+- Deepseek:
+  - chat (V3)
+  - reasoner (R1)
 
 Set your API keys with:
 
