@@ -11,6 +11,7 @@
 - [APIs](#apis)
 - [Games](#games)
   - [Super Mario Bros 1985](#super-mario-bros-1985-by-nintendo)
+  - [Sokoban](#sokoban-1989-modified)
   - [2048](#2048)
   - [Tetris](#tetris)
 
@@ -28,6 +29,21 @@
     <tr>
       <td>
         <img src="assets/super_mario_bros/mario-side-by-side-demo.gif" width="400" height="400">
+      </td>
+    </tr>
+  </table>
+</div>
+
+### Sokoban (box-pushing game) AI Gameplay Comparison
+
+<div align="center">
+  <table>
+    <tr>
+      <td align="center"><b>AI Gameplays</b></td>
+    </tr>
+    <tr>
+      <td>
+        <img src="assets/sokoban/reasoning.gif" width="400" height="400">
       </td>
     </tr>
   </table>
@@ -169,11 +185,54 @@ You can implement your own policy in `mario_agent.py`! Deploying high-concurrenc
 
 In our early experiments, 'alternate' policy performs well. Try it yourself and find out which one works better!
 
+
+
+### Sokoban 1989 (Modified)
+
+#### Game Installation
+
+Install your Sokoban game. Our implementation is modified from the [pySokoban](https://github.com/kazantzakis/pySokoban).
+
+#### Launch Gaming Agent
+
+1. Launch the game with
+```
+cd $YOUR_WORKPLACE/GamingAgent
+python games/sokoban/sokoban.py
+```
+
+You should be able to see the first level:
+
+<p align="center">
+<img src="assets/sokoban/level1.png" alt="sokoban_level1" width="400" align="center">
+</p>
+
+
+2. Open another terminal screen, launch your agent in terminal with
+```
+python games/sokoban/sokoban_agent_local.py
+```
+#### Other command options
+```
+--api_provider: API provider to use.
+
+--model_name: Model name.
+
+--modality: Modality used, choice of ["text-only", "vision-text"].
+
+--thinking: Whether to use deep thinking.
+
+--starting_level: Starting level for the Sokoban game.
+
+--num_threads: Number of parallel threads to launch. default=10.
+```
+⚠️ To turn off self-consistency, set `num_threads` to 1.
+
 ### 2048
 
 2048 is a sliding tile puzzle game where players merge numbered tiles to reach the highest possible value. In our demo, we adopt and modify [2048-Pygame](https://github.com/rajitbanerjee/2048-pygame) 
 
-#### Game Set Up
+#### Launch Gaming Agent
 
 Run the 2048 game with a defined window size:
 ```sh
