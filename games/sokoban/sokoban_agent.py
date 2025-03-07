@@ -9,7 +9,7 @@ import json
 import re
 import pyautogui
 
-from games.sokoban.workers_local import sokoban_worker
+from games.sokoban.workers import sokoban_worker
 
 CACHE_DIR = "cache/sokoban"
 
