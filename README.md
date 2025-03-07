@@ -210,7 +210,7 @@ You should be able to see the first level:
 
 2. Open another terminal screen, launch your agent in terminal with
 ```
-python games/sokoban/sokoban_agent_local.py
+python games/sokoban/sokoban_agent.py
 ```
 #### Other command options
 ```
