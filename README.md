@@ -191,7 +191,7 @@ In our early experiments, 'alternate' policy performs well. Try it yourself and 
 
 #### Game Installation
 
-Install your Sokoban game. Our implementation is modified from the [pySokoban](https://github.com/kazantzakis/pySokoban).
+Install your Sokoban game. Our implementation is modified from the [sokoban](https://github.com/morenod/sokoban).
 
 #### Launch Gaming Agent
 
