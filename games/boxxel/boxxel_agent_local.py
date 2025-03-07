@@ -2,52 +2,49 @@ import time
 import numpy as np
 import concurrent.futures
 import argparse
-from collections import deque
+from collections import deque, Counter
 
 import os
 import json
+import re
+import pyautogui
 
 from games.boxxel.workers_local import boxxel_worker
 
 CACHE_DIR = "cache/boxxel"
 
+from collections import Counter
+
+def majority_vote_move(moves_list, prev_move=None):
+    """
+    Returns the majority-voted move from moves_list.
+    If there's a tie for the top count, and if prev_move is among those tied moves,
+    prev_move is chosen. Otherwise, pick the first move from the tie.
+    """
+    if not moves_list:
+        return None
+
+    c = Counter(moves_list)
+    
+    # c.most_common() -> list of (move, count) sorted by count descending, then by move
+    counts = c.most_common()
+    top_count = counts[0][1]  # highest vote count
+
+    tie_moves = [m for m, cnt in counts if cnt == top_count]
+
+    if len(tie_moves) > 1 and prev_move:
+        if prev_move in tie_moves:
+            return prev_move
+        else:
+            return tie_moves[0]
+    else:
+        return tie_moves[0]
+
+
 # System prompt remains constant
 system_prompt = (
     "You are an expert AI agent specialized in solving Sokoban puzzles optimally. "
     "Your goal is to push all boxes onto the designated dock locations while avoiding deadlocks. "
-    
-    # "You control a worker ('@') who can move in four directions (up, down, left, right) but can only push boxes ('$') if positioned correctly. "
-    # "You cannot pull boxes—only push them. If a box gets stuck against a wall with no way to reposition it, a restart may be necessary. "
-    
-    # "\n\n### Sokoban Rules ###\n"
-    # "1. The game takes place on a grid-based level.\n"
-    # "2. The level consists of different elements:\n"
-    # "   - Wall (#): Impassable.\n"
-    # "   - Dock (?): Goal position for boxes.\n"
-    # "   - Worker (@): Your character.\n"
-    # "   - Box ($): Movable by pushing only.\n"
-    # "   - Box on Dock (*): A correctly placed box.\n"
-    # "3. You can push boxes, but only if there is an empty floor space or dock behind them.\n"
-    # "4. The objective is to place all boxes onto dock squares.\n"
-    # "5. If a box becomes stuck in a corner or against a wall with no way to reposition it, restart is required ('R').\n"
-    # "6. Undo the last move using ('D') if needed.\n"
-
-    # "\n### Movement Constraints ###\n"
-    # "1. You can only push a box when directly adjacent to it and facing the direction you wish to move.\n"
-    # "2. Allowed box movements:\n"
-    # "   - **Upward push**: If the player is below the box (e.g., Player at (3,2), Box at (2,2)), move up to push the box to (1,2), and the player moves to (2,2).\n"
-    # "   - **Leftward push**: If the player is to the right of the box, push it left if the space allows.\n"
-    # "   - **Rightward push**: If the player is to the left of the box, push it right if there is an open space.\n"
-    # "   - **Downward push**: If the player is above the box, push it downward into an open space.\n"
-    # "3. You **cannot** move through walls or boxes unless pushing is valid.\n"
-    # "4. If pushing a box into a dock, it becomes a correctly placed box (*).\n"
-
-    # "\n### Strategy for Optimal Moves ###\n"
-    # "1. **Plan ahead**: Avoid moving boxes into positions where they cannot be recovered.\n"
-    # "2. **Corner awareness**: Never push a box against a wall or into a corner unless it's a final placement.\n"
-    # "3. **Dock positioning**: Prioritize moving boxes towards their nearest dock (?).\n"
-    # "4. **Undo wisely**: If a mistake is made, use 'D' to unmove before committing to a restart.\n"
-    # "5. **Minimize moves**: Solve the level in as few moves as possible.\n"
 )
 
 
@@ -58,10 +55,27 @@ def main():
     parser.add_argument("--modality", type=str, default="text-only", choices=["text-only", "vision-text"],
                         help="modality used.")
     parser.add_argument("--thinking", type=str, default=True, help="Whether to use deep thinking.")
+    parser.add_argument("--starting_level", type=int, default=1, help="Starting level for the Sokoban game.")
+    parser.add_argument("--num_threads", type=int, default=10, help="Number of parallel threads to launch.")
     args = parser.parse_args()
 
-    prev_responses = deque(maxlen=7)
+    prev_responses = deque(maxlen=10)
     level = None
+
+    def perform_move(move):
+        key_map = {
+            "up": "up",
+            "down": "down",
+            "left": "left",
+            "right": "right",
+            "restart": 'R',
+            "unmove": 'D'
+        }
+        if move in key_map:
+            pyautogui.press(key_map[move])
+            print(f"Performed move: {move}")
+        else:
+            print(f"[WARNING] Invalid move: {move}")
 
     try:
         while True:
@@ -71,14 +85,86 @@ def main():
                 level = level_dict["level"]
             
             start_time = time.time()
-            latest_response = boxxel_worker(system_prompt, args.api_provider, args.model_name, 
-                    " ".join(prev_responses),
-                    thinking=args.thinking,
-                    modality=args.modality,
-                    level=level)
+
+            # Self-consistency launch, to disable, set "--num_threads 1"
+            with concurrent.futures.ThreadPoolExecutor(max_workers=args.num_threads) as executor:
+                futures = []
+                for _ in range(args.num_threads):
+                    futures.append(
+                        executor.submit(
+                            boxxel_worker,
+                            system_prompt,
+                            args.api_provider,
+                            args.model_name,
+                            "\n".join(prev_responses),
+                            thinking=args.thinking,
+                            modality=args.modality,
+                            level=level
+                        )
+                    )
+                
+                # Wait until all threads finish
+                concurrent.futures.wait(futures)
+                results = [f.result() for f in futures]
+            
+            print("all threads finished execution...")
+            print(results)
+
+            # Find the shortest solution length among all threads
+            shortest_length = min(len(mlist) for mlist in results)
+
+            # ------------------------- action ------------------------ #
+            # For each position up to that shortest length, do a majority vote
+            final_moves = []
+            collected_thoughts_per_move = []
+            # Iterate over all possible future steps
+            for i in range(shortest_length):
+                # Collect the i-th move and thought from each thread (with sufficient actions predicted)
+                move_thought_pairs = [sol[i] for sol in results if len(sol) > i]
+                
+                # Vote
+                move_candidates = [pair["move"] for pair in move_thought_pairs]
+                move_candidate_count = {}
+                for move_candidate in move_candidates:
+                    if move_candidate in move_candidate_count.keys():
+                        move_candidate_count[move_candidate] += 1
+                    else:
+                        move_candidate_count[move_candidate] = 1
+                
+                print(move_candidate_count)
+
+                if final_moves:
+                    chosen_move = majority_vote_move(move_candidates, final_moves[-1])
+                else:
+                    chosen_move = majority_vote_move(move_candidates)
+                final_moves.append(chosen_move)
+
+                # Iterate over all valid threads for this step
+                # Gather all thoughts from the threads whose move == chosen_move
+                matched_thoughts = [pair["thought"] for pair in move_thought_pairs 
+                                     if pair["move"] == chosen_move]
+
+                matched_thought = matched_thoughts[0]
+
+                collected_thoughts_per_move.append(matched_thought)
+
+            # Loop through every move in the order they appear
+            for move in final_moves:
+                move = move.strip().lower()
+
+                # Perform the move
+                perform_move(move)
+            # ------------------------- action ------------------------ #
+
             # HACK: temporary memory module
-            if latest_response:
-                prev_responses.append(latest_response)
+            if final_moves:
+                assert len(final_moves) == len(collected_thoughts_per_move), "move and thought length disagree, regex operation errored out."
+                for move, matched_thought in zip(final_moves, collected_thoughts_per_move):
+                    latest_response = "step executed:\n" + f"move: {move}, thought: {matched_thought}" + "\n"
+                    prev_responses.append(latest_response)
+
+            print("[debug] previous message:")
+            print("\n".join(prev_responses))
             elapsed_time = time.time() - start_time
             time.sleep(1)
             print(f"[INFO] Move executed in {elapsed_time:.2f} seconds.")

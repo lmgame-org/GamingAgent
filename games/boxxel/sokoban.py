@@ -24,7 +24,7 @@ docker_original = pygame.image.load('games/boxxel/images/dock.png')
 _last_saved_matrix = None
 
 # Start game from level 1 and auto advance after completion
-level = 1
+level = 6
 level_dict = {"level": level}
 current_level_path = os.path.join(CACHE_DIR, "current_level.json")
 print(f"writing to: {current_level_path}")
