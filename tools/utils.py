@@ -101,11 +101,11 @@ def annotate_with_grid(image, vertical_lines, horizontal_lines, x_offset, y_offs
             
             cv2.putText(overlay, text, (x - 10, y + 10), font, font_scale, text_color, thickness, cv2.LINE_AA)
             
-            # Draw green grid rectangle directly on the original image
+            # Draw green grid rectangle
             cv2.rectangle(image, (vertical_lines[col], horizontal_lines[row]), 
                           (vertical_lines[col + 1], horizontal_lines[row + 1]), (0, 255, 0), 1)
 
-    # Blend the overlay with the original image to achieve transparency
+    # Blend the overlay with the original image
     cv2.addWeighted(overlay, alpha, image, 1 - alpha, 0, image)
 
     return image, grid_annotations
@@ -143,8 +143,3 @@ def get_annotate_img(image_path, crop_left=50, crop_right=50, crop_top=50, crop_
     cv2.imwrite(annotated_cropped_image_path, annotated_cropped_image)
 
     return output_image_path, grid_annotation_path, annotated_cropped_image_path
-    
-    # cv2.imshow("Annotated Grid", original_image)
-    # cv2.waitKey(0)
-    # cv2.destroyAllWindows()
-    

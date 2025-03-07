@@ -8,7 +8,7 @@ from tools.serving.api_providers import anthropic_completion, anthropic_text_com
 import re
 import json
 
-CACHE_DIR = "cache/boxxel"
+CACHE_DIR = "cache/sokoban"
 
 def load_matrix(filename='game_state.json'):
     filename = os.path.join(CACHE_DIR, filename)
@@ -58,7 +58,7 @@ def log_move_and_thought(move, thought, latency):
     """
     Logs the move and thought process into a log file inside the cache directory.
     """
-    log_file_path = os.path.join(CACHE_DIR, "boxxel_moves.log")
+    log_file_path = os.path.join(CACHE_DIR, "sokoban_moves.log")
     
     log_entry = f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] Move: {move}, Thought: {thought}, Latency: {latency:.2f} sec\n"
     
@@ -68,57 +68,16 @@ def log_move_and_thought(move, thought, latency):
     except Exception as e:
         print(f"[ERROR] Failed to write log entry: {e}")
 
-def boxxel_read_worker(system_prompt, api_provider, model_name, image_path):
+def sokoban_read_worker(system_prompt, api_provider, model_name, image_path):
     base64_image = encode_image(image_path)
     matrix = load_matrix()
     if matrix is not None:
         board_str = matrix_to_text_table(matrix)
     else:
         board_str = "No board available."
-    # print(board_str)
-    # Construct prompt for LLM
-    # prompt = (
-    #     "Extract the Boxxel board layout from the provided layout.\n\n"
-        
-    #     "### Current Game Layout ###\n"
-    #     f"{board_str}\n\n"
-
-    #     "### Key Elements ###\n"
-    #     "- `#`: Walls (impassable obstacles)\n"
-    #     "- `@`: Worker (player character)\n"
-    #     "- `$`: Box (movable object)\n"
-    #     "- `?`: Dock (goal position for boxes)\n"
-    #     "- `*`: Box on a dock (correctly placed)\n"
-    #     "- ` `: Floor (empty walkable space)\n\n"
-        
-    #     "### Task ###\n"
-    #     "Use the given board layout to identify and recognize each item based on the provided symbols.\n"
-    #     "Strictly format the output as: **ID: item type (row, column)**.\n\n"
-
-    #     "Each row should reflect the board layout.\n"
-    #     "Example format: \n1: wall (0, 0) | 2: docker (0, 1)| 3: player (0, 2)... \n8: empty (1,0) | 9: dock (1, 1)| 10: empty (1, 2) "
-    
-    # )
-
-    # # Call LLM API based on provider
-    # if api_provider == "anthropic":
-    #     response = anthropic_completion(system_prompt, model_name, base64_image, prompt)
-    # elif api_provider == "openai":
-    #     response = openai_completion(system_prompt, model_name, base64_image, prompt)
-    # elif api_provider == "gemini":
-    #     response = gemini_completion(system_prompt, model_name, base64_image, prompt)
-    # else:
-    #     raise NotImplementedError(f"API provider: {api_provider} is not supported.")
-    
-    # # Process response and format as structured board output
-    # structured_board = response.strip()
-    
-    # # Generate final text output
-    # final_output = "\nBoxxel Board Representation:\n" + structured_board
-
     return board_str
 
-def boxxel_worker(system_prompt, api_provider, model_name, 
+def sokoban_worker(system_prompt, api_provider, model_name, 
     prev_response="", 
     thinking=True, 
     modality="vision-text",
@@ -137,8 +96,8 @@ def boxxel_worker(system_prompt, api_provider, model_name,
     # Save the screenshot directly in the cache directory.
     assert modality in ["text-only", "vision-text"], f"modality {modality} is not supported."
 
-    os.makedirs("cache/boxxel", exist_ok=True)
-    screenshot_path = "cache/boxxel/boxxel_screenshot.png"
+    os.makedirs("cache/sokoban", exist_ok=True)
+    screenshot_path = "cache/sokoban/sokoban_screenshot.png"
 
     levels_dim_path = os.path.join(CACHE_DIR, "levels_dim.json")
     with open(levels_dim_path, "r") as f:
@@ -154,16 +113,10 @@ def boxxel_worker(system_prompt, api_provider, model_name,
 
     annotate_image_path, grid_annotation_path, annotate_cropped_image_path = get_annotate_img(screenshot_path, crop_left=crop_left, crop_right=crop_right, crop_top=crop_top, crop_bottom=crop_bottom, grid_rows=grid_rows, grid_cols=grid_cols, cache_dir=CACHE_DIR)
 
-    #screen_width, screen_height = pyautogui.size()
-    #region = (0, 0, screen_width // 64 * 14, screen_height // 64 * 26)
-    #screenshot = pyautogui.screenshot(region=region)
-    #screenshot.save(screenshot_path)
+    table = sokoban_read_worker(system_prompt, api_provider, model_name, screenshot_path)
 
-    table = boxxel_read_worker(system_prompt, api_provider, model_name, screenshot_path)
-
-    print(f"-------------- TABLE --------------\n{table}\n")
-
-    print(f"-------------- prev response --------------\n{prev_response}\n")
+    #print(f"-------------- TABLE --------------\n{table}\n")
+    #print(f"-------------- prev response --------------\n{prev_response}\n")
 
     prompt = (
     "## Previous Lessons Learned\n"
@@ -172,19 +125,20 @@ def boxxel_worker(system_prompt, api_provider, model_name,
     "You can push boxes if positioned correctly but cannot pull them. "
     "Be mindful of walls and corners, as getting a box irreversibly stuck may require a restart.\n"
     "- You are an expert AI agent specialized in solving Sokoban puzzles optimally." 
-    "Your objective is to push all boxes onto their designated dock locations "
-    "while avoiding deadlocks.\n"
-    "- Before making a move, analyze the entire puzzle layout. "
+    "Consider relationship among boxes, you can run the Rolling Stone algorithm: Iterative Deepening A* (IDA*) algorithm to find an optimal path.\n"
+    "- Before leaving a box. Consider if it will be become a road block for future boxes.\n"
+    "- Before making a move, re-analyze the entire puzzle layout. "
     "Plan the next 1 to 5 steps by considering all possible paths for each box, "
-    "ensuring they remain maneuverable when necessary to reach their dock locations.\n"
+    "ensuring they will have a viable step-by-step path to reach their dock locations.\n"
     "- After a box reaches a dock location. Reconsider if the dock location is optimal, or it should be repositioned to another dock location.\n"
     "- Identify potential deadlocks early and prioritize moves that maintain overall solvability. "
     "However, note that temporarily blocking a box may sometimes be necessary to progress, "
     "so focus on the broader strategy rather than ensuring all boxes are always movable at every step.\n"
 
     "## Potential Errors to avoid:\n"
-    "1. Vertical Stacking Error: worker can't push stacked boxes.\n"
+    "1. Vertical Stacking Error: stacked boxes can't not be moved from the stacked direction and can become road block.\n"
     "2. Phantom Deadlock Error: boxes pushed to the walls will very likely get pushed to corners and result in deadlocks.\n"
+    "3. Box Accessibility Error: Consider the spacial relationship between the worker and the current box. Push it in a way that the worker can access it later to move it to a dock location.\n"
     "3. Corner Lock Error: boxes get pushed to corners will not be able to get out.\n"
     "4. Path Obstruction Error: a box blocks your way to reach other boxes and make progress to the game.\n"
     "5. Final Dock Saturation Error: choose which box goes to which dock wisely.\n"
@@ -192,7 +146,6 @@ def boxxel_worker(system_prompt, api_provider, model_name,
     f"Here is your previous response: {prev_response}. Please evaluate your plan and thought about whether we should correct or adjust.\n"
     "Here is the current layout of the Sokoban board:\n"
     f"{table}\n\n"
-
 
     "### Output Format:\n"
     "move: up/down/left/right, thought: <brief reasoning>\n\n"
@@ -225,38 +178,25 @@ def boxxel_worker(system_prompt, api_provider, model_name,
 
     latency = time.time() - start_time
 
-    print(f"check response: {response}")
-
     pattern = r'move:\s*(\w+),\s*thought:\s*(.*)'
     matches = re.findall(pattern, response, re.IGNORECASE)
 
-    def perform_move(move):
-        key_map = {
-            "up": "up",
-            "down": "down",
-            "left": "left",
-            "right": "right",
-            "restart": 'R',
-            "unmove": 'D'
-        }
-        if move in key_map:
-            pyautogui.press(key_map[move])
-            print(f"Performed move: {move}")
-        else:
-            print(f"[WARNING] Invalid move: {move}")
-
+    move_thought_list = []
     # Loop through every move in the order they appear
     for move, thought in matches:
         move = move.strip().lower()
         thought = thought.strip()
-        # Perform the move
-        perform_move(move)
+
+        action_pair = {"move": move, "thought": thought}
+        move_thought_list.append(action_pair)
+
         # Log move and thought
         log_output(
-            "boxxel_worker",
+            "sokoban_worker",
             f"[INFO] Move executed: ({move}) | Thought: {thought} | Latency: {latency:.2f} sec",
-            "boxxel",
+            "sokoban",
             mode="a",
         )
 
-    return response
+    # response
+    return move_thought_list
