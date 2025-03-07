@@ -114,6 +114,7 @@ Currently we support gaming agents based on the following models:
   - o1
   - o3-mini (low, medium, high)
 - Anthropic:
+  - claude-3-5-haiku-20241022
   - claude-3-5-sonnet-20241022
   - claude-3-7-sonnet-20250219 (thinking mode: True or False)
 - Gemini:
