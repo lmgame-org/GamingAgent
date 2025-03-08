@@ -14,6 +14,7 @@
   - [Sokoban](#sokoban-1989-modified)
   - [2048](#2048)
   - [Tetris](#tetris)
+  - [Candy Crush](#candy-crush)
 
 ## Gallery
 
@@ -116,7 +117,8 @@ cd GamingAgent
 2. Install dependency:
 ```
 conda create -n game_cua python==3.10 -y
-pip install -r requirements.txt
+conda activate game_cua
+pip install -e .
 ```
 
 ## APIs
