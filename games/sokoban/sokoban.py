@@ -10,6 +10,8 @@ import copy
 
 CACHE_DIR = "cache/sokoban"
 
+os.makedirs(CACHE_DIR, exist_ok=True)
+
 original_size = 32  # Original tile size
 scale_factor = 1  # Default scaling factor
 
