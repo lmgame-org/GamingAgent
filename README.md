@@ -91,7 +91,7 @@
     </tr>
     <tr>
       <td>
-        <img src="assets/candy/candy_crush_o3_mini.gif" width="400" height="400">
+        <img src="assets/candy/candy_crush_o3_mini.gif" width="500" height="300">
       </td>
     </tr>
   </table>
@@ -333,7 +333,7 @@ You can freely test the game agent on the [online version of Candy Crush](https:
 The example below demonstrates Level 1 gameplay on the online version of Candy Crush.
 
 <p align="center">
-  <img src="assets/candy/gamep.png" alt="Candy Crush Game" width="400">
+  <img src="assets/candy/candy_game.png" alt="Candy Crush Game" width="400">
 </p>
 
 #### Setup Instructions
