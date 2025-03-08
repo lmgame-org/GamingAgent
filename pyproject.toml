@@ -1,0 +1,34 @@
+[build-system]
+requires = ["pdm-backend"]
+build-backend = "pdm.backend"
+
+[project]
+name = "GamingAgent"
+version = "0.1.0"
+description = "Default template for PDM package"
+readme = "README.md"
+authors = [
+    { name = "Lanxiang Hu", email = "lah003@ucsd.edu" },
+    { name = "Yuxuan Zhang", email = "yuz165@ucsd.edu" },
+    { name = "Haoyang Yu", email = "vica031106@gmail.com" }
+]
+requires-python = "==3.10"
+dependencies = [
+    anthropic==0.49.0
+    mss==10.0.0
+    numpy==1.24.4
+    openai==1.65.4
+    opencv_python==4.8.1.78
+    opencv_python_headless==4.11.0.86
+    protobuf==5.29.3
+    pyautogui==0.9.54
+    pygame==2.6.1
+    PyGetWindow==0.0.9
+    google-generativeai==0.8.4
+    google.genai==1.5.0
+]
+license = {text = "MIT"}
+repository = "https://github.com/lmgame-org/GamingAgent"
+
+[tool.pdm]
+distribution = true
