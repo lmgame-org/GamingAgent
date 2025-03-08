@@ -270,7 +270,7 @@ Use **Ctrl** to restart the game and the **arrow keys** to move tiles strategica
 Start the AI agent to play automatically:
 
 ```sh
-python games/game_2048/2048_agent.py
+python games/2048/2048_agent.py
 ```
 
 
