@@ -83,6 +83,21 @@
   </table>
 </div>
 
+### Candy Crush Gameplay
+<div align="center">
+  <table>
+    <tr>
+      <td align="center"><b>Candy Crush Gameplay</b></td>
+    </tr>
+    <tr>
+      <td>
+        <img src="assets/candy/candy_crush_o3_mini.gif" width="400" height="400">
+      </td>
+    </tr>
+  </table>
+</div>
+
+
 ## Introduction
 
 The goal of this repo is to provide an easy solution of deploying computer use agents (CUAs) that run on your PC and laptops. As part of LMGames, our current focus is on building local gaming agents.
@@ -306,3 +321,47 @@ python games/tetris/tetris_agent.py
 #### Build your own policy
 
 Currently we find single-worker agent is able to make meaningful progress in the Tetris game. If the gaming agent spawns multiple independent workers, they don't coordinate well. We will work on improving the agent and gaming policies. We also welcome your thoughts and contributions.
+
+### Candy Crush
+
+#### Game Test
+
+You can freely test the game agent on the [online version of Candy Crush](https://candy-crush-gg.github.io/).
+
+#### Launch Gaming Agent
+
+The example below demonstrates Level 1 gameplay on the online version of Candy Crush.
+
+<p align="center">
+  <img src="assets/candy/gamep.png" alt="Candy Crush Game" width="400">
+</p>
+
+#### Setup Instructions
+
+1. Adjust the agent's field of vision  
+   To enable the agent to reason effectively, you need to crop the Candy Crush board and convert it into text. Adjust the following parameters:
+   - `--crop_left`, `--crop_right`, `--crop_top`, `--crop_bottom` to define the board cropping area from the image.
+   - `--grid_rows`, `--grid_cols` to specify the board dimensions.  
+   Check the output in `./cache/candy_crush/annotated_cropped_image.png` to verify the adjustments.
+
+2. Launch the agent  
+   Open a terminal window and run the following command to start the agent:
+   ```bash
+   cd $YOUR_WORKPLACE/GamingAgent
+   python games/candy/candy_agent.py
+
+#### Other command options
+```
+--api_provider: API provider to use.
+
+--model_name: Model name (has to come with vision capability).
+
+--modality: Modality used, choice of ["text-only", "vision-text"].
+
+--thinking: Whether to use deep thinking.(Special for anthropic models)
+
+```
+#### Build Your Own Policy
+
+The Candy Crush game agent has two workers: one extracts board information from images and converts it into text, and the other plays the game. The AI agent follows a simple prompt to play Candy Crush but performs surprisingly well. Feel free to create and implement your own policy to improve its gameplay.
+

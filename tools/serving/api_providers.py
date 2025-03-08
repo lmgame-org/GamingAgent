@@ -49,8 +49,7 @@ def openai_completion(system_prompt, model_name, base64_image, prompt, temperatu
     request_params = {
         "model": model_name,
         "messages": messages,
-        token_param: 100000,
-        "reasoning_effort": "medium"
+        token_param: 4096
     }
     
     # Only add 'temperature' if the model supports it
@@ -58,7 +57,6 @@ def openai_completion(system_prompt, model_name, base64_image, prompt, temperatu
         request_params["temperature"] = temperature
 
     response = client.chat.completions.create(**request_params)
-    print(response)
 
     generated_str = response.choices[0].message.content
      
