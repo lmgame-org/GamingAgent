@@ -1,6 +1,7 @@
 anthropic==0.49.0
 mss==10.0.0
 numpy==1.24.4
+ollama==0.4.7
 openai==1.65.4
 opencv_python==4.8.1.78
 opencv_python_headless==4.11.0.86

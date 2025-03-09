@@ -4,6 +4,41 @@ from openai import OpenAI
 import anthropic
 import google.generativeai as genai
 from google.genai import types
+from ollama import Client
+import time
+
+def ollama_completion(system_prompt, model_name, base64_image, prompt):
+    client = Client(
+        host='http://127.0.0.1:11434'
+    )
+    error_try = 5
+    while error_try >= 0:
+        try:
+            response = client.chat(
+                model=model_name,
+                messages=[
+                    {
+                        'role': 'system',
+                        'content': system_prompt
+                    },
+                    {
+                        'role': 'user',
+                        'content': prompt,
+                        'images': [base64_image]
+                    }
+                ]
+            )
+            break
+        except Exception as e:
+            if error_try <= 0:
+                print(f"[Ollama API] Error: {e}, aborting...")
+                raise e
+            print(f"[Ollama API] Error: {e}, retrying...")
+            error_try -= 1
+            time.sleep(1)
+
+    generated_code_str = response['message']['content']
+    return generated_code_str
 
 def openai_completion(system_prompt, model_name, base64_image, prompt, temperature=0):
     client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
