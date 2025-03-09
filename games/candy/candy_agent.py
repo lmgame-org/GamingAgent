@@ -23,6 +23,8 @@ def main():
                         help="API provider to use (anthropic, openai, gemini).")
     parser.add_argument("--model_name", type=str, default="gpt-4-turbo",
                         help="Model name.")
+    parser.add_argument("--modality", type=str, default="text-only", choices=["text-only", "vision-text"], help="modality used.")
+    parser.add_argument("--thinking", type=str, default=True, help="Whether to use deep thinking.")
     parser.add_argument("--crop_left", type=int, default=700, help="Pixels to crop from the left.")
     parser.add_argument("--crop_right", type=int, default=800, help="Pixels to crop from the right.")
     parser.add_argument("--crop_top", type=int, default=300, help="Pixels to crop from the top.")
@@ -39,15 +41,16 @@ def main():
             start_time = time.time()
 
             # Execute the Candy Crush worker
-            latest_response = candy_crush_worker(system_prompt, args.api_provider, args.model_name, 
-                               args.crop_left, args.crop_right, args.crop_top, args.crop_bottom, 
-                               args.grid_rows, args.grid_cols, " ".join(prev_responses))
+            latest_response = candy_crush_worker(system_prompt, args.api_provider, args.model_name, args.modality, args.thinking,
+                                                 args.crop_left, args.crop_right, args.crop_top, args.crop_bottom, 
+                                                 args.grid_rows, args.grid_cols, " ".join(prev_responses))
             # break
             if latest_response:
                 prev_responses.append(latest_response)
             elapsed_time = time.time() - start_time
             time.sleep(1)
-            print(f"[INFO] Move executed in {elapsed_time:.2f} seconds.")
+            print("[debug] previous message:")
+            print("\n".join(prev_responses))
 
     except KeyboardInterrupt:
         print("\n[INFO] Stopping Candy Crush automation. Goodbye!")

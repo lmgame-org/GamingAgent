@@ -8,18 +8,20 @@ import json
 import os
 import copy
 
-CACHE_DIR = "cache/boxxel"
+CACHE_DIR = "cache/sokoban"
+
+os.makedirs(CACHE_DIR, exist_ok=True)
 
 original_size = 32  # Original tile size
 scale_factor = 1  # Default scaling factor
 
-wall_original = pygame.image.load('games/boxxel/images/wall.png')
-floor_original = pygame.image.load('games/boxxel/images/floor.png')
-box_original = pygame.image.load('games/boxxel/images/box.png')
-box_docked_original = pygame.image.load('games/boxxel/images/box_docked.png')
-worker_original = pygame.image.load('games/boxxel/images/worker.png')
-worker_docked_original = pygame.image.load('games/boxxel/images/worker_dock.png')
-docker_original = pygame.image.load('games/boxxel/images/dock.png')
+wall_original = pygame.image.load('games/sokoban/images/wall.png')
+floor_original = pygame.image.load('games/sokoban/images/floor.png')
+box_original = pygame.image.load('games/sokoban/images/box.png')
+box_docked_original = pygame.image.load('games/sokoban/images/box_docked.png')
+worker_original = pygame.image.load('games/sokoban/images/worker.png')
+worker_docked_original = pygame.image.load('games/sokoban/images/worker_dock.png')
+docker_original = pygame.image.load('games/sokoban/images/dock.png')
 
 _last_saved_matrix = None
 
@@ -32,12 +34,12 @@ print(level_dict)
 with open(current_level_path, 'w') as file:
     json.dump(level_dict, file)
 
-levels_filename = 'games/boxxel/levels'
+levels_filename = 'games/sokoban/levels'
 
 def save_levels_dimensions(levels_filename, max_level=52):
     """
     Reads each level from 1..max_level, retrieves its matrix dimension,
-    and saves all dimensions in JSON form to "cache/boxxel/levels_dim.json".
+    and saves all dimensions in JSON form to "cache/sokoban/levels_dim.json".
     """
     dims = {}
     os.makedirs(CACHE_DIR, exist_ok=True)
@@ -78,7 +80,7 @@ def save_matrix(matrix, screen, filename='game_state.json'):
     if matrix == _last_saved_matrix:
         return  # No change, so do nothing
     _last_saved_matrix = copy.deepcopy(matrix)
-    pygame.image.save(screen, "cache/boxxel/boxxel_screenshot.png")
+    pygame.image.save(screen, "cache/sokoban/sokoban_screenshot.png")
     print("Screen for the new move is saved.")
     temp_filename = filename + '.tmp'
     with open(temp_filename, 'w') as f:
@@ -277,7 +279,7 @@ class game:
                 if save: self.queue.put((x,y,True))
 
 def print_game(matrix, screen):
-    os.makedirs("cache/boxxel", exist_ok=True)
+    os.makedirs("cache/sokoban", exist_ok=True)
     screen.fill(background)
     x = 0
     y = 0
@@ -342,13 +344,13 @@ def get_key():
             return event.key
 
 # Load images and initialize pygame
-wall = pygame.image.load('games/boxxel/images/wall.png')
-floor = pygame.image.load('games/boxxel/images/floor.png')
-box = pygame.image.load('games/boxxel/images/box.png')
-box_docked = pygame.image.load('games/boxxel/images/box_docked.png')
-worker = pygame.image.load('games/boxxel/images/worker.png')
-worker_docked = pygame.image.load('games/boxxel/images/worker_dock.png')
-docker = pygame.image.load('games/boxxel/images/dock.png')
+wall = pygame.image.load('games/sokoban/images/wall.png')
+floor = pygame.image.load('games/sokoban/images/floor.png')
+box = pygame.image.load('games/sokoban/images/box.png')
+box_docked = pygame.image.load('games/sokoban/images/box_docked.png')
+worker = pygame.image.load('games/sokoban/images/worker.png')
+worker_docked = pygame.image.load('games/sokoban/images/worker_dock.png')
+docker = pygame.image.load('games/sokoban/images/dock.png')
 background = (255, 226, 191)
 pygame.init()
 
