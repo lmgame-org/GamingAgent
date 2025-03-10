@@ -245,7 +245,7 @@ python games/sokoban/sokoban_agent.py
 
 --modality: Modality used, choice of ["text-only", "vision-text"].
 
---thinking: Whether to use deep thinking.
+--thinking: Whether to use deep thinking. (Special for anthropic models)
 
 --starting_level: Starting level for the Sokoban game.
 
@@ -272,7 +272,7 @@ Use **Ctrl** to restart the game and the **arrow keys** to move tiles strategica
 Start the AI agent to play automatically:
 
 ```sh
-python games/2048/2048_agent.py
+python games/game_2048/2048_agent.py
 ```
 
 
@@ -280,7 +280,13 @@ python games/2048/2048_agent.py
 ```
 --api_provider: API provider to use.
 
---model_name: Model name (has to come with vision capability).
+--model_name: Model name.
+
+--modality: Modality used, choice of ["text-only", "vision-text"].
+
+--thinking: Whether to use deep thinking. (Special for anthropic models)
+
+--num_threads: Number of parallel threads to launch. default=10.
 
 ```
 
