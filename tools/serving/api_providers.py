@@ -39,26 +39,18 @@ def openai_completion(system_prompt, model_name, base64_image, prompt, temperatu
             }
         ]
 
-    # Determine correct token parameter
     token_param = "max_completion_tokens" if "o3-mini" in model_name else "max_tokens"
-
-    # # Correct parameter for different models
-    # "reasoning_effort": "low"
-    
     # Prepare request parameters dynamically
     request_params = {
         "model": model_name,
         "messages": messages,
-        token_param: 100000,
-        "reasoning_effort": "medium"
+        token_param: 4096
     }
     
-    # Only add 'temperature' if the model supports it
     if "o3-mini" not in model_name:  # Assuming o3-mini doesn't support 'temperature'
         request_params["temperature"] = temperature
 
     response = client.chat.completions.create(**request_params)
-    print(response)
 
     generated_str = response.choices[0].message.content
      
