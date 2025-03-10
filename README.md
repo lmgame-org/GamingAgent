@@ -286,7 +286,7 @@ python games/game_2048/2048_agent.py
 
 --thinking: Whether to use deep thinking. (Special for anthropic models)
 
---num_threads: Number of parallel threads to launch. default=10.
+--num_threads: Number of parallel threads to launch. default=1.
 
 ```
 
