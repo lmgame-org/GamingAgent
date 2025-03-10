@@ -5,7 +5,7 @@ import anthropic
 import google.generativeai as genai
 from google.genai import types
 
-def openai_completion(system_prompt, model_name, base64_image, prompt, temperature=0):
+def openai_completion(system_prompt, model_name, base64_image, prompt, temperature=0, n=1):
     client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
     base64_image = None if "o3-mini" in model_name else base64_image
     if base64_image is None:
@@ -44,7 +44,8 @@ def openai_completion(system_prompt, model_name, base64_image, prompt, temperatu
     request_params = {
         "model": model_name,
         "messages": messages,
-        token_param: 4096
+        token_param: 4096,
+        "n": n
     }
     
     if "o3-mini" not in model_name:  # Assuming o3-mini doesn't support 'temperature'
@@ -56,7 +57,7 @@ def openai_completion(system_prompt, model_name, base64_image, prompt, temperatu
      
     return generated_str
 
-def openai_text_reasoning_completion(system_prompt, model_name, prompt, temperature=0):
+def openai_text_reasoning_completion(system_prompt, model_name, prompt, temperature=0, n=1):
     client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
     
     messages = [
@@ -79,7 +80,8 @@ def openai_text_reasoning_completion(system_prompt, model_name, prompt, temperat
         "model": model_name,
         "messages": messages,
         token_param: 100000,
-        "reasoning_effort": "medium"
+        "reasoning_effort": "medium",
+        "n": n
     }
     
     # Only add 'temperature' if the model supports it

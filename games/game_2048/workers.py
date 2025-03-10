@@ -99,7 +99,7 @@ def game_2048_worker(system_prompt, api_provider, model_name,
     "- Always keep the highest-value tile in a stable corner to allow efficient merges and maintain control of the board.\n"
     "- Minimize unnecessary movements that disrupt tile positioning and reduce future merge opportunities.\n"
     
-    "**IMPORTANT: You must always try a valid direction that leads to a merge. If there are no available merges in the current direction, moving in that direction is invalid. In such cases, choose a new direction where at least two adjacent tiles can merge. Every move should ensure the merging of two or more neighboring tiles to maintain board control and progress.**\n"
+    "**IMPORTANT: You must always try a valid direction that leads to a merge or a tile move. If there are no available merges and no tile moves in the current direction, moving in that direction is invalid. In such cases, choose a new direction where at least two adjacent tiles can merge or where at least a tile can move. Every move should ensure the merging of two or more neighboring tiles to maintain board control and progress.**\n"
 
     "## Potential Errors to Avoid:\n"
     "1. Grid Disorder Error: Moving tiles in a way that disrupts the structured arrangement of numbers, leading to inefficient merges.\n"
