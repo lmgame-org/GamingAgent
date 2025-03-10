@@ -12,6 +12,10 @@ import os
 # TODO: Add a RULES button on start page
 # TODO: Add score keeping
 
+CACHE_DIR = "cache/2048"
+
+os.makedirs(CACHE_DIR, exist_ok=True)
+
 # set up pygame for main gameplay
 pygame.init()
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -193,6 +197,10 @@ def playGame(theme, difficulty, size):
 
     board = newGame(theme, text_col, size)
 
+    screenshot_path = os.path.abspath(os.path.join(CACHE_DIR, "2048_screenshot.png"))
+
+    pygame.image.save(screen, screenshot_path)
+
     # Define movement key mappings
     movement_keys = {
         pygame.K_LEFT: "a",
@@ -211,7 +219,6 @@ def playGame(theme, difficulty, size):
                 sys.exit()
 
             if event.type == pygame.KEYDOWN:
-                print(f"Key pressed: {event.key}")  # Debugging output
 
 
                 if event.key == pygame.K_LCTRL or event.key == pygame.K_RCTRL:
@@ -237,3 +244,5 @@ def playGame(theme, difficulty, size):
 
                         # Check win/lose
                         board, status = winCheck(board, status, theme, text_col, size)
+                
+                pygame.image.save(screen, screenshot_path)
