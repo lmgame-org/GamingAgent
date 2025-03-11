@@ -261,21 +261,6 @@ class SunFlower(Plant):
         self.sun_timer = 0
         self.sun_group = sun_group
 
-    def loadImages(self, name, scale):
-        self.idle_frames = []
-        self.sleep_frames = []
-
-        idle_name = name
-        sleep_name = name + 'Sleep'
-        
-        frame_list = [self.idle_frames, self.sleep_frames]
-        name_list = [idle_name, sleep_name]
-
-        for i, name in enumerate(name_list):
-            self.loadFrames(frame_list[i], name, 1)
-
-        self.frames = self.idle_frames
-
     def idling(self):
         if self.sun_timer == 0:
             self.sun_timer = self.current_time - (c.FLOWER_SUN_INTERVAL - 6000)

@@ -6,6 +6,7 @@ import pygame as pg
 from .. import tool
 from .. import constants as c
 from ..component import map, plant, zombie, menubar
+BASE_PATH = os.path.dirname(os.path.dirname(__file__)) 
 
 class Level(tool.State):
     def __init__(self):
@@ -24,7 +25,8 @@ class Level(tool.State):
 
     def loadMap(self):
         map_file = 'level_' + str(self.game_info[c.LEVEL_NUM]) + '.json'
-        file_path = os.path.join('source', 'data', 'map', map_file)
+        file_path = os.path.join("games/plants/plants_game/source/data/map", map_file)
+
         f = open(file_path)
         self.map_data = json.load(f)
         f.close()

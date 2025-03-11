@@ -6,6 +6,7 @@ from abc import abstractmethod
 import pygame as pg
 from . import constants as c
 
+BASE_PATH = os.path.dirname(os.path.dirname(__file__))
 class State():
     def __init__(self):
         self.start_time = 0.0
@@ -104,7 +105,10 @@ def load_image_frames(directory, image_name, colorkey, accept):
     for pic in os.listdir(directory):
         name, ext = os.path.splitext(pic)
         if ext.lower() in accept:
-            index = int(name[index_start:])
+            index_str = name[index_start:]
+            if not index_str.isdigit():
+                continue  # skip files that don't end with index
+            index = int(index_str)
             img = pg.image.load(os.path.join(directory, pic))
             if img.get_alpha():
                 img = img.convert_alpha()
@@ -154,14 +158,14 @@ def load_all_gfx(directory, colorkey=c.WHITE, accept=('.png', '.jpg', '.bmp', '.
     return graphics
 
 def loadZombieImageRect():
-    file_path = os.path.join('source', 'data', 'entity', 'zombie.json')
+    file_path = "games/plants/plants_game/source/data/entity/zombie.json"
     f = open(file_path)
     data = json.load(f)
     f.close()
     return data[c.ZOMBIE_IMAGE_RECT]
 
 def loadPlantImageRect():
-    file_path = os.path.join('source', 'data', 'entity', 'plant.json')
+    file_path = "games/plants/plants_game/source/data/entity/plant.json"
     f = open(file_path)
     data = json.load(f)
     f.close()
@@ -171,6 +175,6 @@ pg.init()
 pg.display.set_caption(c.ORIGINAL_CAPTION)
 SCREEN = pg.display.set_mode(c.SCREEN_SIZE)
 
-GFX = load_all_gfx(os.path.join("resources","graphics"))
+GFX = load_all_gfx(os.path.join(BASE_PATH, "resources", "graphics"))
 ZOMBIE_RECT = loadZombieImageRect()
 PLANT_RECT = loadPlantImageRect()
