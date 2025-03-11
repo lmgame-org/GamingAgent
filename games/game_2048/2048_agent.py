@@ -10,6 +10,7 @@ import re
 import pyautogui
 
 from games.game_2048.workers import game_2048_worker
+from tools.utils import str2bool
 from collections import Counter
 
 CACHE_DIR = "cache/2048"
@@ -91,7 +92,7 @@ def main():
                             args.api_provider,
                             args.model_name,
                             "\n".join(prev_responses),
-                            thinking=args.thinking,
+                            thinking=str2bool(args.thinking),
                             modality=args.modality
                         )
                     )
