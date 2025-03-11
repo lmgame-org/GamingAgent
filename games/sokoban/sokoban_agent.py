@@ -8,6 +8,7 @@ import os
 import json
 import re
 import pyautogui
+from tools.utils import str2bool
 
 from games.sokoban.workers import sokoban_worker
 
@@ -97,7 +98,7 @@ def main():
                             args.api_provider,
                             args.model_name,
                             "\n".join(prev_responses),
-                            thinking=args.thinking,
+                            thinking=str2bool(args.thinking),
                             modality=args.modality,
                             level=level
                         )
