@@ -9,7 +9,14 @@ import re
 import cv2
 import numpy as np
 import json
-
+import platform
+if platform.system() == "Windows":
+    import pygetwindow as gw
+    import win32gui
+    import win32con
+elif platform.system() == "Linux":
+    from Xlib import display
+    import mss
 
 
 def encode_image(image_path):
@@ -56,6 +63,10 @@ def preprocess_image(image_path, crop_left=0, crop_right=0, crop_top=0, crop_bot
     new_y_start = crop_top
     new_y_end = height - crop_bottom
     cropped_image = image[new_y_start:new_y_end, new_x_start:new_x_end]
+
+    # print(f"Original Image Size: {width}x{height}")
+    # print(f"Cropping: Left={crop_left}, Right={crop_right}, Top={crop_top}, Bottom={crop_bottom}")
+    # print(f"New Crop Bounds: x=({new_x_start}, {new_x_end}), y=({new_y_start}, {new_y_end})")
     
     # Save cropped image for debugging
     if cache_dir:
@@ -148,3 +159,61 @@ def get_annotate_img(image_path, crop_left=50, crop_right=50, crop_top=50, crop_
     cv2.imwrite(annotated_cropped_image_path, annotated_cropped_image)
 
     return output_image_path, grid_annotation_path, annotated_cropped_image_path
+
+def get_window_rect_linux(window_name):
+    """Gets the window position and size on Linux using Xlib."""
+    d = display.Display()
+    root = d.screen().root
+    window_id = None
+
+    # Iterate over all windows to find the matching name
+    for window in root.query_tree().children:
+        name = window.get_wm_name()
+        if name and window_name.lower() in name.lower():
+            window_id = window.id
+            geom = window.get_geometry()
+            return (geom.x, geom.y, geom.width, geom.height)
+
+    return None
+
+def get_window_rect_windows(window_name):
+    """Gets the window position and size on Windows."""
+    windows = gw.getWindowsWithTitle(window_name)
+    if windows:
+        window = windows[0]  # Take the first matching window
+        rect = win32gui.GetWindowRect(window._hWnd)
+        left, top, right, bottom = rect
+        width, height = right - left, bottom - top
+        return (left, top, width, height)
+    return None
+
+def take_screenshot(window_name, save_path="screenshot.png"):
+    """Takes a screenshot of the specified window on Windows or Linux."""
+    system = platform.system()
+    rect = None
+
+    if system == "Windows":
+        rect = get_window_rect_windows(window_name)
+        if not rect:
+            print("Window not found!")
+            return None, None
+        x, y, width, height = rect
+        win32gui.SetForegroundWindow(win32gui.FindWindow(None, window_name))  # Bring window to front
+        pyautogui.screenshot(save_path, region=(x, y, width, height))
+
+    elif system == "Linux":
+        rect = get_window_rect_linux(window_name)
+        if not rect:
+            print("Window not found!")
+            return None, None
+        x, y, width, height = rect
+        with mss.mss() as sct:
+            screenshot = sct.grab({"top": y, "left": x, "width": width, "height": height})
+            mss.tools.to_png(screenshot.rgb, screenshot.size, output=save_path)
+
+    else:
+        print(f"Unsupported platform: {system}")
+        return None, None
+
+    print(f"Screenshot saved to {save_path}")
+    return save_path, rect

@@ -130,6 +130,7 @@ def deepseek_text_reasoning_completion(system_prompt, model_name, prompt):
 
 def anthropic_completion(system_prompt, model_name, base64_image, prompt, thinking=False):
     print(f"anthropic vision-text activated... thinking: {thinking}")
+    print(type(thinking))
     client = anthropic.Anthropic(api_key=os.getenv("ANTHROPIC_API_KEY"))
     messages = [
                 {
@@ -150,7 +151,9 @@ def anthropic_completion(system_prompt, model_name, base64_image, prompt, thinki
                     ],
                 }
             ]
+    thinking = bool(thinking)
     if thinking:
+        print(f"Start thinking deeply...")
         with client.messages.stream(
                 max_tokens=20000,
                 thinking={
