@@ -178,14 +178,16 @@ class Level(tool.State):
                 map_x, map_y = self.map.getRandomMapIndex()
                 x, y = self.map.getMapGridPos(map_x, map_y)
                 self.sun_group.add(plant.Sun(x, 0, x, y))
+        # for sun in self.sun_group:
+        #     if sun.rect.bottom >= c.SCREEN_HEIGHT - 50:  # adjust threshold if needed
+        #         self.menubar.increaseSunValue(sun.sun_value)
+        #         sun.kill()
+
+
         for sun in self.sun_group:
-            if sun.rect.bottom >= c.SCREEN_HEIGHT - 50:  # adjust threshold if needed
+            if (self.current_time - sun.spawn_time) >= 1000:  # wait 1 second
                 self.menubar.increaseSunValue(sun.sun_value)
                 sun.kill()
-        if not self.drag_plant and mouse_pos and mouse_click[0]:
-            for sun in self.sun_group:
-                if sun.checkCollision(mouse_pos[0], mouse_pos[1]):
-                    self.menubar.increaseSunValue(sun.sun_value)
 
         for car in self.cars:
             car.update(self.game_info)

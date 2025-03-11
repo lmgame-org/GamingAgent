@@ -231,6 +231,8 @@ class Sun(Plant):
         self.dest_x = dest_x
         self.dest_y = dest_y
         self.die_timer = 0
+        self.spawn_time = pg.time.get_ticks()
+
 
     def handleState(self):
         if self.rect.centerx != self.dest_x:
