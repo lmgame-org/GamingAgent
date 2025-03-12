@@ -11,6 +11,7 @@ import pyautogui
 
 from games.plants.workers import plants_worker
 from collections import Counter
+from tools.utils import str2bool
 
 CACHE_DIR = "cache/plants"
 os.makedirs(CACHE_DIR, exist_ok=True)
@@ -159,7 +160,7 @@ def main():
                           args.api_provider, 
                           args.model_name, 
                           "\n".join(prev_responses), 
-                          thinking=args.thinking, 
+                          thinking=str2bool(args.thinking), 
                           modality=args.modality )
             break
             print("[debug] previous message:")

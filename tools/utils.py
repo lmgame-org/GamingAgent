@@ -218,3 +218,31 @@ def take_screenshot(window_name, save_path="screenshot.png"):
 
     print(f"Screenshot saved to {save_path}")
     return save_path, rect
+
+
+def str2bool(value):
+    """
+    Converts a string to a boolean.
+    Accepts: 'true', 'false' (case-insensitive)
+    Raises an error for invalid values.
+    """
+    if isinstance(value, bool):
+        return value
+    if value.lower() in ('true', '1', 'yes', 'y'):
+        return True
+    elif value.lower() in ('false', '0', 'no', 'n'):
+        return False
+    else:
+        raise argparse.ArgumentTypeError("Boolean value expected (true/false).")
+    
+
+def rescale_img(img_path, output_path, factor=1):
+    image = cv2.imread(img_path)
+
+    # Get the dimensions of the original image
+    height, width = image.shape[:2]
+
+    # Scale the image to twice the original size
+    scaled_image = cv2.resize(image, (width * 2, height * 2), interpolation=cv2.INTER_LINEAR)
+
+    cv2.imwrite(output_path, scaled_image)
