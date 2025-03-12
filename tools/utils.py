@@ -9,7 +9,11 @@ import re
 import cv2
 import numpy as np
 import json
+<<<<<<< HEAD
 
+=======
+import argparse
+>>>>>>> 628badbf09c47eb895fc4df6fc082f85f2af61ef
 
 
 def encode_image(image_path):
@@ -147,4 +151,24 @@ def get_annotate_img(image_path, crop_left=50, crop_right=50, crop_top=50, crop_
     cv2.imwrite(output_image_path, original_image)
     cv2.imwrite(annotated_cropped_image_path, annotated_cropped_image)
 
+<<<<<<< HEAD
     return output_image_path, grid_annotation_path, annotated_cropped_image_path
+=======
+    return output_image_path, grid_annotation_path, annotated_cropped_image_path
+
+
+def str2bool(value):
+    """
+    Converts a string to a boolean.
+    Accepts: 'true', 'false' (case-insensitive)
+    Raises an error for invalid values.
+    """
+    if isinstance(value, bool):
+        return value
+    if value.lower() in ('true', '1', 'yes', 'y'):
+        return True
+    elif value.lower() in ('false', '0', 'no', 'n'):
+        return False
+    else:
+        raise argparse.ArgumentTypeError("Boolean value expected (true/false).")
+>>>>>>> 628badbf09c47eb895fc4df6fc082f85f2af61ef
