@@ -5,6 +5,7 @@ import argparse
 from collections import deque
 
 from games.candy.workers import candy_crush_worker
+from tools.utils import str2bool
 # System prompt remains constant
 system_prompt = (  
     "You are a highly intelligent Candy Crush gameplay agent trained to achieve the highest possible score "  
@@ -41,7 +42,7 @@ def main():
             start_time = time.time()
 
             # Execute the Candy Crush worker
-            latest_response = candy_crush_worker(system_prompt, args.api_provider, args.model_name, args.modality, args.thinking,
+            latest_response = candy_crush_worker(system_prompt, args.api_provider, args.model_name, args.modality, str2bool(args.thinking),
                                                  args.crop_left, args.crop_right, args.crop_top, args.crop_bottom, 
                                                  args.grid_rows, args.grid_cols, " ".join(prev_responses))
             # break
