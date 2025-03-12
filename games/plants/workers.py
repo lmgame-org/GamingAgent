@@ -35,7 +35,59 @@ def log_move_and_thought(move, thought, latency):
         print(f"[ERROR] Failed to write log entry: {e}")
 
 
-def plants_read_worker(system_prompt, api_provider, model_name, image_path, modality="vision-text", thinking=False):
+def plants_state_read_worker(system_prompt, api_provider, model_name, image_path, modality="vision-text", thinking=False):
+    base64_image = encode_image(image_path)
+    print(f"Using {model_name} for text table generation...")
+    # Construct prompt for LLM
+    prompt = (
+    "Extract plants and sun point information from the first 9 blocks of the game board. "
+    "The provided image represents the game state of Plants vs. Zombies, where you select plants based on collected sun points. "
+    "Follow these specific instructions to extract and format the data correctly:"
+    "\n\n1. Identify the first 9 blocks of the game board. "
+    "   - The first block displays the current number of sun points available. "
+    "   - The remaining 8 blocks contain plant selection cards."
+    "\n2. For each plant selection card, extract the following information: "
+    "   - The plant type (e.g., sunflower, peashooter, snow peashooter, etc.). "
+    "   - The sun point cost of the plant. "
+    "   - The plant's availability: "
+    "     - If the card is dark, it means the plant is on cooldown (CD = 0). "
+    "     - If the card is bright, it is selectable (CD = 1)."
+    "\n3. Format the output strictly as follows: "
+    "   - Each block's data should be represented in the format: **id: (plant, cost, CD)** "
+    "   - Maintain the board's original row layout when displaying the extracted data."
+    "\n4. Example output format: "
+    "   1:(sunflower,50,1) | 2:(peashooter,100,0) | 3:(wallnut,50,1) | ..."
+    "\n5. Recognized plant types: sunflower, peashooter, snow peashooter, wallnut, cherry bomb, repeater pea, chomper, spikeweed."
+    )
+
+    
+    # Call the LLM API based on the selected provider.
+    if api_provider == "anthropic" and modality=="text-only":
+        response = anthropic_text_completion(system_prompt, model_name, prompt, thinking)
+    elif api_provider == "anthropic":
+        response = anthropic_completion(system_prompt, model_name, base64_image, prompt, thinking)
+    elif api_provider == "openai" and "o3" in model_name and modality=="text-only":
+        response = openai_text_reasoning_completion(system_prompt, model_name, prompt)
+    elif api_provider == "openai":
+        response = openai_completion(system_prompt, model_name, base64_image, prompt)
+    elif api_provider == "gemini" and modality=="text-only":
+        response = gemini_text_completion(system_prompt, model_name, prompt)
+    elif api_provider == "gemini":
+        response = gemini_completion(system_prompt, model_name, base64_image, prompt)
+    elif api_provider == "deepseek":
+        response = deepseek_text_reasoning_completion(system_prompt, model_name, prompt)
+    else:
+        raise NotImplementedError(f"API provider: {api_provider} is not supported.")
+    
+    # Process response and format as structured board output
+    structured_board = response.strip()
+    
+    # Generate final text output
+    final_output = "\nPlants VS Zombies Plants Status Representation:\n" + structured_board
+
+    return final_output
+
+def plants_board_read_worker(system_prompt, api_provider, model_name, image_path, modality="vision-text", thinking=False):
     base64_image = encode_image(image_path)
     print(f"Using {model_name} for text table generation...")
     # Construct prompt for LLM
@@ -74,7 +126,6 @@ def plants_read_worker(system_prompt, api_provider, model_name, image_path, moda
 
     return final_output
 
-
 def plants_worker(system_prompt, api_provider, model_name, 
     prev_response="", 
     thinking=True, 
@@ -89,17 +140,21 @@ def plants_worker(system_prompt, api_provider, model_name,
     # Save the screenshot directly in the cache directory.
     assert modality in ["text-only", "vision-text"], f"modality {modality} is not supported."
 
-    os.makedirs(CACHE_DIR, exist_ok=True)
+    thread1_dir = os.path.join(CACHE_DIR, "thread1")
+    thread2_dir = os.path.join(CACHE_DIR, "thread2")
+
+    os.makedirs(thread1_dir, exist_ok=True)
+    os.makedirs(thread2_dir, exist_ok=True)
+    
     screenshot_path = os.path.abspath(os.path.join(CACHE_DIR, "plants_screenshot.png"))
-    screenshot_path, position = take_screenshot("Plants vs. Zombies" if platform.system() == "Windows" else "Terminal", screenshot_path)
+    # thread1_screenshot_path, position = take_screenshot("Plant VS Zombies Game" if platform.system() == "Windows" else "Terminal", screenshot_path)
 
     # thread 1 - cut off the board
-    # annotate_image_path, grid_annotation_path, annotate_cropped_image_path = get_annotate_img(screenshot_path, crop_left=30, crop_right=30, crop_top=135, crop_bottom=30, grid_rows=5, grid_cols=9, enable_digit_label=True, cache_dir=CACHE_DIR, line_thickness=3, black=True)
-
+    thread1_annotate_image_path, thread2_grid_annotation_path, thread1_annotate_cropped_image_path = get_annotate_img(screenshot_path, crop_left=30, crop_right=30, crop_top=0, crop_bottom=520, grid_rows=1, grid_cols=13, enable_digit_label=True, cache_dir=thread1_dir, line_thickness=3, black=True)
     # thread 2 - cut off the cards
-    annotate_image_path, grid_annotation_path, annotate_cropped_image_path = get_annotate_img(screenshot_path, crop_left=30, crop_right=30, crop_top=50, crop_bottom=520, grid_rows=1, grid_cols=12, enable_digit_label=True, cache_dir=CACHE_DIR, line_thickness=3, black=True)
-    # table = plants_read_worker(system_prompt, api_provider, model_name, annotate_cropped_image_path, thinking=thinking, modality=modality)
-
+    thread2_annotate_image_path, thread1_grid_annotation_path, thread2_annotate_cropped_image_path = get_annotate_img(screenshot_path, crop_left=30, crop_right=30, crop_top=85, crop_bottom=30, grid_rows=5, grid_cols=9, enable_digit_label=True, cache_dir=thread2_dir, line_thickness=3, black=True)
+    table = plants_state_read_worker(system_prompt, api_provider, model_name, thread1_annotate_cropped_image_path, thinking=thinking, modality=modality)
+    print(table)
     # print(table)
     # print(f"-------------- TABLE --------------\n{table}\n")
     # print(f"-------------- prev response --------------\n{prev_response}\n")

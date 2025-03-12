@@ -6,6 +6,7 @@ from abc import abstractmethod
 import pygame as pg
 from . import constants as c
 
+CACHE_DIR = "cache/plants"
 BASE_PATH = os.path.dirname(os.path.dirname(__file__))
 class State():
     def __init__(self):
@@ -42,6 +43,7 @@ class Control():
         self.state = None
         self.game_info = {c.CURRENT_TIME:0.0,
                           c.LEVEL_NUM:c.START_LEVEL_NUM}
+        self.frame_counter = 0
  
     def setup_states(self, state_dict, start_state):
         self.state_dict = state_dict
@@ -81,8 +83,15 @@ class Control():
         while not self.done:
             self.event_loop()
             self.update()
+
+            if self.frame_counter % 100 == 0:
+                os.makedirs(CACHE_DIR, exist_ok=True)
+                frame_filename = os.path.join(CACHE_DIR, f"plants_screenshot.png")
+                pg.image.save(self.screen, frame_filename)
+
             pg.display.update()
             self.clock.tick(self.fps)
+            self.frame_counter += 1
         print('game over')
 
 def get_image(sheet, x, y, width, height, colorkey=c.BLACK, scale=1):
