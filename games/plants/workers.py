@@ -12,7 +12,7 @@ elif platform.system() == "Linux":
     from Xlib import display
     import mss
 
-from tools.utils import encode_image, log_output, get_annotate_img, take_screenshot
+from tools.utils import encode_image, log_output, get_annotate_img, take_screenshot, rescale_img
 from tools.serving.api_providers import anthropic_completion, anthropic_text_completion, openai_completion, openai_text_reasoning_completion, gemini_completion, gemini_text_completion, deepseek_text_reasoning_completion
 import re
 import json
@@ -151,6 +151,8 @@ def plants_worker(system_prompt, api_provider, model_name,
 
     # thread 1 - cut off the board
     thread1_annotate_image_path, thread2_grid_annotation_path, thread1_annotate_cropped_image_path = get_annotate_img(screenshot_path, crop_left=30, crop_right=30, crop_top=0, crop_bottom=520, grid_rows=1, grid_cols=13, enable_digit_label=True, cache_dir=thread1_dir, line_thickness=3, black=True)
+    thread1_annotate_cropped_image_path = rescale_img(thread1_annotate_cropped_image_path, thread1_annotate_cropped_image_path, 2)
+    
     # thread 2 - cut off the cards
     thread2_annotate_image_path, thread1_grid_annotation_path, thread2_annotate_cropped_image_path = get_annotate_img(screenshot_path, crop_left=30, crop_right=30, crop_top=85, crop_bottom=30, grid_rows=5, grid_cols=9, enable_digit_label=True, cache_dir=thread2_dir, line_thickness=3, black=True)
     table = plants_state_read_worker(system_prompt, api_provider, model_name, thread1_annotate_cropped_image_path, thinking=thinking, modality=modality)

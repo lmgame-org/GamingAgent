@@ -239,10 +239,10 @@ def str2bool(value):
 def rescale_img(img_path, output_path, factor=1):
     image = cv2.imread(img_path)
 
-    # Get the dimensions of the original image
     height, width = image.shape[:2]
 
-    # Scale the image to twice the original size
-    scaled_image = cv2.resize(image, (width * 2, height * 2), interpolation=cv2.INTER_LINEAR)
+    scaled_image = cv2.resize(image, (width * factor, height * factor), interpolation=cv2.INTER_LINEAR)
 
     cv2.imwrite(output_path, scaled_image)
+
+    return output_path
