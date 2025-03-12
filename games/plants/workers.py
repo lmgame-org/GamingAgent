@@ -50,14 +50,26 @@ def plants_state_read_worker(system_prompt, api_provider, model_name, image_path
     "   - The plant type (e.g., sunflower, peashooter, snow peashooter, etc.). "
     "   - The sun point cost of the plant. "
     "   - The plant's availability: "
-    "     - If the card is dark, it means the plant is on cooldown (CD = 0). "
+    "     - If the card look darker than other cards, it means the plant is on cooldown (CD = 0). "
     "     - If the card is bright, it is selectable (CD = 1)."
     "\n3. Format the output strictly as follows: "
     "   - Each block's data should be represented in the format: **id: (plant, cost, CD)** "
     "   - Maintain the board's original row layout when displaying the extracted data."
     "\n4. Example output format: "
     "   1:(sunflower,50,1) | 2:(peashooter,100,0) | 3:(wallnut,50,1) | ..."
-    "\n5. Recognized plant types: sunflower, peashooter, snow peashooter, wallnut, cherry bomb, repeater pea, chomper, spikeweed."
+    "\n5. Recognized plant types:"
+    """
+    | Plant          | Sun Cost | Health | Cooldown | Description |
+    |----------------|----------|--------|----------|-------------|
+    | Sunflower      | 50       | 5      | 7.5 sec  | Generates extra sun. Essential for economy. |
+    | Peashooter     | 100      | 5      | 7.5 sec  | Basic ranged attacker. Fires 1 pea every 2 sec. |
+    | Snow Peashooter| 175      | 5      | 7.5 sec  | Slows zombies with ice peas. Which is blue peashooter |
+    | WallNut        | 50       | 30     | 30 sec   | High-health blocker. Absorbs many attacks. |
+    | Cherry Bomb    | 150      | 30     | 50 sec   | Explodes and deals AoE damage after short delay. |
+    | Repeater Pea   | 200      | 5      | 7.5 sec  | Fires 2 peas every 2 sec for higher DPS. |
+    | Chomper        | 150      | 5      | 7.5 sec  | Eats a zombie instantly in front of it, then digests. |
+    | Spikeweed      | 100      | 5      | 7.5 sec  | Damages zombies that walk over it passively. |
+    """
     )
 
     
@@ -88,44 +100,65 @@ def plants_state_read_worker(system_prompt, api_provider, model_name, image_path
     return final_output
 
 def plants_board_read_worker(system_prompt, api_provider, model_name, image_path, modality="vision-text", thinking=False):
-    base64_image = encode_image(image_path)
-    print(f"Using {model_name} for text table generation...")
-    # Construct prompt for LLM
-    prompt = (
-        "Extract the 2048 puzzel board layout from the provided image. "
-        "Use the existing 4 * 4 grid to generate a text table to represent the game board. "
-        "For each square block, recognize the value at center of this block. If it is empty just label it as empty "
-        "Strictly format the output as: **value (row, column)**. "
-        "Each row should reflect the board layout. "
-        "Example format: \n2 (0, 0) | 4 (1, 0)| 16 (2, 0) | 8 (3, 0) \nempty (0,1) | 2 (1, 1)| empty (2, 1)... "
+   base64_image = encode_image(image_path)
+   print(f"Using {model_name} for text table generation...")
+   # Construct prompt for LLM
+   prompt = (
+       """
+       The provided image is a 9*5 grid.
+       You are given a labeled image of a Plants vs. Zombies game board. Each tile on the grid may contain a plant, a zombie, or be empty. Your task is to extract and report the full state of the board from the image.
+       ### Instructions:
+       1. Carefully examine the labeled game board image.
+       2. For each grid cell, identify and record:
+       - The content in the cell: either a **plant name**, **zombie**, or **empty**.
+       - The **x-coordinate** (column) and **y-coordinate** (row) of that cell.
+
+
+       ### Recognized Plant Types:
+       Sunflower, Peashooter, Snow Peashooter, WallNut, Cherry Bomb, Repeater Pea, Chomper, Spikeweed, Mushroom
+       ### Output Format:
+       List each cell's content in the following format:
+       `<index>: (content, x, y)`
+
+
+       - Use `"empty"` if no plant or zombie is present.
+       - Use `"zombie"` if a zombie is present.
+       - Use the **exact plant name** if a plant is in the cell.
+    Please carefully recognize the zombie instance. where they are located at. Focus on their footstep.
+
+       ### Example Output (strict output, the first column has a weeding machine at the begining of games.):
+       Just tell me where the zombie is . Just give me coordinate. and give me explanation
+
+
+       """
     )
-    
-    # Call the LLM API based on the selected provider.
-    if api_provider == "anthropic" and modality=="text-only":
-        response = anthropic_text_completion(system_prompt, model_name, prompt, thinking)
-    elif api_provider == "anthropic":
-        response = anthropic_completion(system_prompt, model_name, base64_image, prompt, thinking)
-    elif api_provider == "openai" and "o3" in model_name and modality=="text-only":
-        response = openai_text_reasoning_completion(system_prompt, model_name, prompt)
-    elif api_provider == "openai":
-        response = openai_completion(system_prompt, model_name, base64_image, prompt)
-    elif api_provider == "gemini" and modality=="text-only":
-        response = gemini_text_completion(system_prompt, model_name, prompt)
-    elif api_provider == "gemini":
-        response = gemini_completion(system_prompt, model_name, base64_image, prompt)
-    elif api_provider == "deepseek":
-        response = deepseek_text_reasoning_completion(system_prompt, model_name, prompt)
-    else:
-        raise NotImplementedError(f"API provider: {api_provider} is not supported.")
-    
-    # Process response and format as structured board output
-    structured_board = response.strip()
-    
-    # Generate final text output
-    final_output = "\n2048 Puzzel Board Representation:\n" + structured_board
+  
+   # Call the LLM API based on the selected provider.
+   if api_provider == "anthropic" and modality=="text-only":
+       response = anthropic_text_completion(system_prompt, model_name, prompt, thinking)
+   elif api_provider == "anthropic":
+       response = anthropic_completion(system_prompt, model_name, base64_image, prompt, thinking)
+   elif api_provider == "openai" and "o3" in model_name and modality=="text-only":
+       response = openai_text_reasoning_completion(system_prompt, model_name, prompt)
+   elif api_provider == "openai":
+       response = openai_completion(system_prompt, model_name, base64_image, prompt)
+   elif api_provider == "gemini" and modality=="text-only":
+       response = gemini_text_completion(system_prompt, model_name, prompt)
+   elif api_provider == "gemini":
+       response = gemini_completion(system_prompt, model_name, base64_image, prompt)
+   elif api_provider == "deepseek":
+       response = deepseek_text_reasoning_completion(system_prompt, model_name, prompt)
+   else:
+       raise NotImplementedError(f"API provider: {api_provider} is not supported.")
+  
+   # Process response and format as structured board output
+   structured_board = response.strip()
+  
+   # Generate final text output
+   final_output = "\nPlants vs Zombies Board Representation:\n" + structured_board
 
-    return final_output
 
+   return final_output
 def plants_worker(system_prompt, api_provider, model_name, 
     prev_response="", 
     thinking=True, 
@@ -151,15 +184,17 @@ def plants_worker(system_prompt, api_provider, model_name,
 
     # thread 1 - cut off the board
     thread1_annotate_image_path, thread2_grid_annotation_path, thread1_annotate_cropped_image_path = get_annotate_img(screenshot_path, crop_left=30, crop_right=30, crop_top=0, crop_bottom=520, grid_rows=1, grid_cols=13, enable_digit_label=True, cache_dir=thread1_dir, line_thickness=3, black=True)
-    thread1_annotate_cropped_image_path = rescale_img(thread1_annotate_cropped_image_path, thread1_annotate_cropped_image_path, 2)
+    thread1_annotate_cropped_image_path = rescale_img(thread1_annotate_cropped_image_path, thread1_annotate_cropped_image_path, 4)
     
     # thread 2 - cut off the cards
     thread2_annotate_image_path, thread1_grid_annotation_path, thread2_annotate_cropped_image_path = get_annotate_img(screenshot_path, crop_left=30, crop_right=30, crop_top=85, crop_bottom=30, grid_rows=5, grid_cols=9, enable_digit_label=True, cache_dir=thread2_dir, line_thickness=3, black=True)
-    table = plants_state_read_worker(system_prompt, api_provider, model_name, thread1_annotate_cropped_image_path, thinking=thinking, modality=modality)
-    print(table)
+    thread1_table = plants_state_read_worker(system_prompt, api_provider, model_name, thread1_annotate_cropped_image_path, thinking=thinking, modality=modality)
+    thread2_table = plants_board_read_worker(system_prompt, api_provider, model_name, thread2_annotate_cropped_image_path, thinking=thinking, modality=modality)
+    print(thread1_table)
+    print(thread2_table)
     # print(table)
     # print(f"-------------- TABLE --------------\n{table}\n")
-    # print(f"-------------- prev response --------------\n{prev_response}\n")
+    print(f"-------------- prev response --------------\n{prev_response}\n")
 
     # prompt = (
     # "## Previous Lessons Learned\n"

@@ -101,7 +101,7 @@ class Level(tool.State):
         #     if self.bar_type == c.CHOSSEBAR_BOWLING:
         #         self.initBowlingMap()
         self.bar_type = c.CHOOSEBAR_STATIC
-        preset_cards = [2, 0, 1, 12, 13, 7, 8, 16]
+        preset_cards = [0, 1, 2, 3, 4, 6, 7, 11]
         self.initPlay(preset_cards)
         self.state = c.PLAY
 

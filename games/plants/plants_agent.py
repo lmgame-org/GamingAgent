@@ -44,8 +44,7 @@ os.makedirs(CACHE_DIR, exist_ok=True)
 
 # System prompt remains constant
 system_prompt = (
-    "You are an expert AI agent specialized in solving 2048 puzzles optimally. "
-    "Your goal is to get the highest score without freezing the game board. The ultimate goal is to reach 2048. "
+    "You are an expert AI agent specialized in solving plants VS zombies games optimally. "
 )
 
 
