@@ -61,6 +61,7 @@ def main():
 
     prev_responses = deque(maxlen=1)
     level = None
+    move_counter = 0
 
     def perform_move(move):
         key_map = {
@@ -148,6 +149,7 @@ def main():
 
                 # Perform the move
                 perform_move(move)
+                move_counter += 1
             # ------------------------- action ------------------------ #
 
             # HACK: temporary memory module
@@ -162,6 +164,7 @@ def main():
             elapsed_time = time.time() - start_time
             time.sleep(1)
             print(f"[INFO] Move executed in {elapsed_time:.2f} seconds.")
+            print(f"[INFO] Total move count so far: {move_counter}")
     except KeyboardInterrupt:
         print("\nStopped by user.")
 

@@ -4,7 +4,7 @@ import pyautogui
 import numpy as np
 
 from tools.utils import encode_image, log_output, get_annotate_img
-from tools.serving.api_providers import anthropic_completion, anthropic_text_completion, openai_completion, openai_text_reasoning_completion, gemini_completion, gemini_text_completion, deepseek_text_reasoning_completion
+from tools.serving.api_providers import anthropic_completion, anthropic_text_completion, openai_completion, openai_text_reasoning_completion, gemini_completion, gemini_text_completion, deepseek_text_reasoning_completion, openai_vision_reasoning_completion
 import re
 import json
 
@@ -44,6 +44,8 @@ def game_2048_read_worker(system_prompt, api_provider, model_name, image_path, m
         response = anthropic_completion(system_prompt, model_name, base64_image, prompt, thinking)
     elif api_provider == "openai" and "o3" in model_name and modality=="text-only":
         response = openai_text_reasoning_completion(system_prompt, model_name, prompt)
+    elif api_provider == "openai" and "o1" in model_name and modality=="vision-text":
+        response = openai_vision_reasoning_completion(system_prompt, model_name, base64_image, prompt)
     elif api_provider == "openai":
         response = openai_completion(system_prompt, model_name, base64_image, prompt)
     elif api_provider == "gemini" and modality=="text-only":
@@ -83,9 +85,6 @@ def game_2048_worker(system_prompt, api_provider, model_name,
 
     annotate_image_path, grid_annotation_path, annotate_cropped_image_path = get_annotate_img(screenshot_path, crop_left=0, crop_right=0, crop_top=0, crop_bottom=0, grid_rows=4, grid_cols=4,enable_digit_label=False, cache_dir=CACHE_DIR, line_thickness=3, black=True)
 
-    table = game_2048_read_worker(system_prompt, api_provider, model_name, annotate_cropped_image_path, thinking=thinking, modality=modality)
-
-    print(f"-------------- TABLE --------------\n{table}\n")
     print(f"-------------- prev response --------------\n{prev_response}\n")
 
     prompt = (
@@ -109,8 +108,6 @@ def game_2048_worker(system_prompt, api_provider, model_name,
     "5. Forced Move Error: Reaching a state where only one move is possible, reducing strategic flexibility.\n"
 
     f"Here is your previous response: {prev_response}. Please evaluate your strategy and consider if any adjustments are necessary.\n"
-    "Here is the current state of the 2048 board:\n"
-    f"{table}\n\n"
 
     "### Output Format:\n"
     "move: up/down/left/right, thought: <brief reasoning>\n\n"
@@ -131,6 +128,8 @@ def game_2048_worker(system_prompt, api_provider, model_name,
         response = anthropic_completion(system_prompt, model_name, base64_image, prompt, thinking)
     elif api_provider == "openai" and "o3" in model_name and modality=="text-only":
         response = openai_text_reasoning_completion(system_prompt, model_name, prompt)
+    elif api_provider == "openai" and "o1" in model_name and modality=="vision-text":
+        response = openai_vision_reasoning_completion(system_prompt, model_name, base64_image, prompt)
     elif api_provider == "openai":
         response = openai_completion(system_prompt, model_name, base64_image, prompt)
     elif api_provider == "gemini" and modality=="text-only":
