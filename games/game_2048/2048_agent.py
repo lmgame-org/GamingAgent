@@ -50,7 +50,7 @@ system_prompt = (
 
 
 def main():
-    parser = argparse.ArgumentParser(description="sokoban AI Agent")
+    parser = argparse.ArgumentParser(description="2048 AI Agent")
     parser.add_argument("--api_provider", type=str, default="anthropic", help="API provider to use.")
     parser.add_argument("--model_name", type=str, default="claude-3-7-sonnet-20250219", help="LLM model name.")
     parser.add_argument("--modality", type=str, default="vision-text", choices=["text-only", "vision-text"],

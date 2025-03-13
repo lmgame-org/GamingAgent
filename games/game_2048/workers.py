@@ -14,7 +14,7 @@ def log_move_and_thought(move, thought, latency):
     """
     Logs the move and thought process into a log file inside the cache directory.
     """
-    log_file_path = os.path.join(CACHE_DIR, "sokoban_moves.log")
+    log_file_path = os.path.join(CACHE_DIR, "2048_moves.log")
     
     log_entry = f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] Move: {move}, Thought: {thought}, Latency: {latency:.2f} sec\n"
     
@@ -157,9 +157,9 @@ def game_2048_worker(system_prompt, api_provider, model_name,
 
         # Log move and thought
         log_output(
-            "sokoban_worker",
+            "2048_worker",
             f"[INFO] Move executed: ({move}) | Thought: {thought} | Latency: {latency:.2f} sec",
-            "sokoban",
+            "2048",
             mode="a",
         )
 
