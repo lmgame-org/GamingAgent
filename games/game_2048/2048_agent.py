@@ -73,8 +73,11 @@ def main():
             "unmove": 'D'
         }
         if move in key_map:
-            pyautogui.press(key_map[move])
-            print(f"Performed move: {move}")
+            try:
+                pyautogui.press(key_map[move])
+                print(f"Performed move: {move}")
+            except pyautogui.FailSafeException:
+                print("[WARNING] Fail-safe triggered! Skipping move...")
         else:
             print(f"[WARNING] Invalid move: {move}")
 
