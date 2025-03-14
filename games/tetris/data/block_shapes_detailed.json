@@ -1,0 +1,409 @@
+{
+    "LBlock": {
+      "rotations": {
+        "0": {
+          "description": "The shape appears as an L where the long arm forms a horizontal line at the bottom (row 1) and the short arm is a single block on the top right (row 0, column 2).",
+          "cells": [
+            { "ID": 1, "ItemType": "Empty", "Position": [0, 0] },
+            { "ID": 2, "ItemType": "Empty", "Position": [1, 0] },
+            { "ID": 3, "ItemType": "block", "Position": [2, 0] },
+            { "ID": 4, "ItemType": "block", "Position": [0, 1] },
+            { "ID": 5, "ItemType": "block", "Position": [1, 1] },
+            { "ID": 6, "ItemType": "block", "Position": [2, 1] },
+            { "ID": 7, "ItemType": "Empty", "Position": [0, 2] },
+            { "ID": 8, "ItemType": "Empty", "Position": [1, 2] },
+            { "ID": 9, "ItemType": "Empty", "Position": [2, 2] }
+          ]
+        },
+        "1": {
+          "description": "Rotated 90° clockwise, the LBlock forms a vertical line in the center with an extra block attached at the bottom right (row 2, column 2), creating the L's foot.",
+          "cells": [
+            { "ID": 1, "ItemType": "Empty", "Position": [0, 0] },
+            { "ID": 2, "ItemType": "block", "Position": [1, 0] },
+            { "ID": 3, "ItemType": "Empty", "Position": [2, 0] },
+            { "ID": 4, "ItemType": "Empty", "Position": [0, 1] },
+            { "ID": 5, "ItemType": "block", "Position": [1, 1] },
+            { "ID": 6, "ItemType": "Empty", "Position": [2, 1] },
+            { "ID": 7, "ItemType": "Empty", "Position": [0, 2] },
+            { "ID": 8, "ItemType": "block", "Position": [1, 2] },
+            { "ID": 9, "ItemType": "block", "Position": [2, 2] }
+          ]
+        },
+        "2": {
+          "description": "In the 180° rotation, the horizontal bar is on the middle row and the additional block is on the bottom left (row 2, column 0), mirroring the original L orientation.",
+          "cells": [
+            { "ID": 1, "ItemType": "Empty", "Position": [0, 0] },
+            { "ID": 2, "ItemType": "Empty", "Position": [1, 0] },
+            { "ID": 3, "ItemType": "Empty", "Position": [2, 0] },
+            { "ID": 4, "ItemType": "block", "Position": [0, 1] },
+            { "ID": 5, "ItemType": "block", "Position": [1, 1] },
+            { "ID": 6, "ItemType": "block", "Position": [2, 1] },
+            { "ID": 7, "ItemType": "block", "Position": [0, 2] },
+            { "ID": 8, "ItemType": "Empty", "Position": [1, 2] },
+            { "ID": 9, "ItemType": "Empty", "Position": [2, 2] }
+          ]
+        },
+        "3": {
+          "description": "Rotated 270° clockwise, the LBlock displays a vertical line with the extra block attached at the top left (row 0, column 0), forming an inverted L shape.",
+          "cells": [
+            { "ID": 1, "ItemType": "block", "Position": [0, 0] },
+            { "ID": 2, "ItemType": "block", "Position": [1, 0] },
+            { "ID": 3, "ItemType": "Empty", "Position": [2, 0] },
+            { "ID": 4, "ItemType": "Empty", "Position": [0, 1] },
+            { "ID": 5, "ItemType": "block", "Position": [1, 1] },
+            { "ID": 6, "ItemType": "Empty", "Position": [2, 1] },
+            { "ID": 7, "ItemType": "Empty", "Position": [0, 2] },
+            { "ID": 8, "ItemType": "block", "Position": [1, 2] },
+            { "ID": 9, "ItemType": "Empty", "Position": [2, 2] }
+          ]
+        }
+      }
+    },
+    "JBlock": {
+      "rotations": {
+        "0": {
+          "description": "The JBlock in rotation 0 features a horizontal bar with a protruding block on the top left (row 0, column 0), resembling the letter J.",
+          "cells": [
+            { "ID": 1, "ItemType": "block", "Position": [0, 0] },
+            { "ID": 2, "ItemType": "Empty", "Position": [1, 0] },
+            { "ID": 3, "ItemType": "Empty", "Position": [2, 0] },
+            { "ID": 4, "ItemType": "block", "Position": [0, 1] },
+            { "ID": 5, "ItemType": "block", "Position": [1, 1] },
+            { "ID": 6, "ItemType": "block", "Position": [2, 1] },
+            { "ID": 7, "ItemType": "Empty", "Position": [0, 2] },
+            { "ID": 8, "ItemType": "Empty", "Position": [1, 2] },
+            { "ID": 9, "ItemType": "Empty", "Position": [2, 2] }
+          ]
+        },
+        "1": {
+          "description": "Rotated 90° clockwise, the JBlock forms a vertical line in the center with an extra block on the top right (row 0, column 2), capturing the J shape from a rotated perspective.",
+          "cells": [
+            { "ID": 1, "ItemType": "Empty", "Position": [0, 0] },
+            { "ID": 2, "ItemType": "block", "Position": [1, 0] },
+            { "ID": 3, "ItemType": "block", "Position": [2, 0] },
+            { "ID": 4, "ItemType": "Empty", "Position": [0, 1] },
+            { "ID": 5, "ItemType": "block", "Position": [1, 1] },
+            { "ID": 6, "ItemType": "Empty", "Position": [2, 1] },
+            { "ID": 7, "ItemType": "Empty", "Position": [0, 2] },
+            { "ID": 8, "ItemType": "block", "Position": [1, 2] },
+            { "ID": 9, "ItemType": "Empty", "Position": [2, 2] }
+          ]
+        },
+        "2": {
+          "description": "At 180° rotation, the horizontal bar remains while the extra block shifts to the bottom right (row 2, column 2), inverting the original J orientation.",
+          "cells": [
+            { "ID": 1, "ItemType": "Empty", "Position": [0, 0] },
+            { "ID": 2, "ItemType": "Empty", "Position": [1, 0] },
+            { "ID": 3, "ItemType": "Empty", "Position": [2, 0] },
+            { "ID": 4, "ItemType": "block", "Position": [0, 1] },
+            { "ID": 5, "ItemType": "block", "Position": [1, 1] },
+            { "ID": 6, "ItemType": "block", "Position": [2, 1] },
+            { "ID": 7, "ItemType": "Empty", "Position": [0, 2] },
+            { "ID": 8, "ItemType": "Empty", "Position": [1, 2] },
+            { "ID": 9, "ItemType": "block", "Position": [2, 2] }
+          ]
+        },
+        "3": {
+          "description": "Rotated 270° clockwise, the JBlock displays a vertical line with an additional block on the bottom left (row 2, column 0), forming the J shape rotated in the opposite direction.",
+          "cells": [
+            { "ID": 1, "ItemType": "Empty", "Position": [0, 0] },
+            { "ID": 2, "ItemType": "block", "Position": [1, 0] },
+            { "ID": 3, "ItemType": "Empty", "Position": [2, 0] },
+            { "ID": 4, "ItemType": "Empty", "Position": [0, 1] },
+            { "ID": 5, "ItemType": "block", "Position": [1, 1] },
+            { "ID": 6, "ItemType": "Empty", "Position": [2, 1] },
+            { "ID": 7, "ItemType": "block", "Position": [0, 2] },
+            { "ID": 8, "ItemType": "block", "Position": [1, 2] },
+            { "ID": 9, "ItemType": "Empty", "Position": [2, 2] }
+          ]
+        }
+      }
+    },
+    "IBlock": {
+      "rotations": {
+        "0": {
+          "description": "In rotation 0, the IBlock appears as a horizontal line across the second row, occupying four consecutive cells.",
+          "cells": [
+            { "ID": 1, "ItemType": "Empty", "Position": [0, 0] },
+            { "ID": 2, "ItemType": "Empty", "Position": [1, 0] },
+            { "ID": 3, "ItemType": "Empty", "Position": [2, 0] },
+            { "ID": 4, "ItemType": "Empty", "Position": [3, 0] },
+            { "ID": 5, "ItemType": "block", "Position": [0, 1] },
+            { "ID": 6, "ItemType": "block", "Position": [1, 1] },
+            { "ID": 7, "ItemType": "block", "Position": [2, 1] },
+            { "ID": 8, "ItemType": "block", "Position": [3, 1] },
+            { "ID": 9, "ItemType": "Empty", "Position": [0, 2] },
+            { "ID": 10, "ItemType": "Empty", "Position": [1, 2] },
+            { "ID": 11, "ItemType": "Empty", "Position": [2, 2] },
+            { "ID": 12, "ItemType": "Empty", "Position": [3, 2] },
+            { "ID": 13, "ItemType": "Empty", "Position": [0, 3] },
+            { "ID": 14, "ItemType": "Empty", "Position": [1, 3] },
+            { "ID": 15, "ItemType": "Empty", "Position": [2, 3] },
+            { "ID": 16, "ItemType": "Empty", "Position": [3, 3] }
+          ]
+        },
+        "1": {
+          "description": "Rotated 90° clockwise, the IBlock forms a vertical line in the third column, with four cells aligned vertically.",
+          "cells": [
+            { "ID": 1, "ItemType": "Empty", "Position": [0, 0] },
+            { "ID": 2, "ItemType": "Empty", "Position": [1, 0] },
+            { "ID": 3, "ItemType": "block", "Position": [2, 0] },
+            { "ID": 4, "ItemType": "Empty", "Position": [3, 0] },
+            { "ID": 5, "ItemType": "Empty", "Position": [0, 1] },
+            { "ID": 6, "ItemType": "Empty", "Position": [1, 1] },
+            { "ID": 7, "ItemType": "block", "Position": [2, 1] },
+            { "ID": 8, "ItemType": "Empty", "Position": [3, 1] },
+            { "ID": 9, "ItemType": "Empty", "Position": [0, 2] },
+            { "ID": 10, "ItemType": "Empty", "Position": [1, 2] },
+            { "ID": 11, "ItemType": "block", "Position": [2, 2] },
+            { "ID": 12, "ItemType": "Empty", "Position": [3, 2] },
+            { "ID": 13, "ItemType": "Empty", "Position": [0, 3] },
+            { "ID": 14, "ItemType": "Empty", "Position": [1, 3] },
+            { "ID": 15, "ItemType": "block", "Position": [2, 3] },
+            { "ID": 16, "ItemType": "Empty", "Position": [3, 3] }
+          ]
+        },
+        "2": {
+          "description": "At 180° rotation, the IBlock forms a horizontal line along the third row, maintaining its four-cell alignment.",
+          "cells": [
+            { "ID": 1, "ItemType": "Empty", "Position": [0, 0] },
+            { "ID": 2, "ItemType": "Empty", "Position": [1, 0] },
+            { "ID": 3, "ItemType": "Empty", "Position": [2, 0] },
+            { "ID": 4, "ItemType": "Empty", "Position": [3, 0] },
+            { "ID": 5, "ItemType": "Empty", "Position": [0, 1] },
+            { "ID": 6, "ItemType": "Empty", "Position": [1, 1] },
+            { "ID": 7, "ItemType": "Empty", "Position": [2, 1] },
+            { "ID": 8, "ItemType": "Empty", "Position": [3, 1] },
+            { "ID": 9, "ItemType": "block", "Position": [0, 2] },
+            { "ID": 10, "ItemType": "block", "Position": [1, 2] },
+            { "ID": 11, "ItemType": "block", "Position": [2, 2] },
+            { "ID": 12, "ItemType": "block", "Position": [3, 2] },
+            { "ID": 13, "ItemType": "Empty", "Position": [0, 3] },
+            { "ID": 14, "ItemType": "Empty", "Position": [1, 3] },
+            { "ID": 15, "ItemType": "Empty", "Position": [2, 3] },
+            { "ID": 16, "ItemType": "Empty", "Position": [3, 3] }
+          ]
+        },
+        "3": {
+          "description": "Rotated 270° clockwise, the IBlock displays as a vertical line in the second column, with four cells aligned vertically.",
+          "cells": [
+            { "ID": 1, "ItemType": "Empty", "Position": [0, 0] },
+            { "ID": 2, "ItemType": "block", "Position": [1, 0] },
+            { "ID": 3, "ItemType": "Empty", "Position": [2, 0] },
+            { "ID": 4, "ItemType": "Empty", "Position": [3, 0] },
+            { "ID": 5, "ItemType": "Empty", "Position": [0, 1] },
+            { "ID": 6, "ItemType": "block", "Position": [1, 1] },
+            { "ID": 7, "ItemType": "Empty", "Position": [2, 1] },
+            { "ID": 8, "ItemType": "Empty", "Position": [3, 1] },
+            { "ID": 9, "ItemType": "Empty", "Position": [0, 2] },
+            { "ID": 10, "ItemType": "block", "Position": [1, 2] },
+            { "ID": 11, "ItemType": "Empty", "Position": [2, 2] },
+            { "ID": 12, "ItemType": "Empty", "Position": [3, 2] },
+            { "ID": 13, "ItemType": "Empty", "Position": [0, 3] },
+            { "ID": 14, "ItemType": "block", "Position": [1, 3] },
+            { "ID": 15, "ItemType": "Empty", "Position": [2, 3] },
+            { "ID": 16, "ItemType": "Empty", "Position": [3, 3] }
+          ]
+        }
+      }
+    },
+    "OBlock": {
+      "rotations": {
+        "0": {
+          "description": "The OBlock is a simple 2x2 square that remains unchanged regardless of rotation.",
+          "cells": [
+            { "ID": 1, "ItemType": "block", "Position": [0, 0] },
+            { "ID": 2, "ItemType": "block", "Position": [1, 0] },
+            { "ID": 3, "ItemType": "Empty", "Position": [2, 0] },
+            { "ID": 4, "ItemType": "block", "Position": [0, 1] },
+            { "ID": 5, "ItemType": "block", "Position": [1, 1] },
+            { "ID": 6, "ItemType": "Empty", "Position": [2, 1] },
+            { "ID": 7, "ItemType": "Empty", "Position": [0, 2] },
+            { "ID": 8, "ItemType": "Empty", "Position": [1, 2] },
+            { "ID": 9, "ItemType": "Empty", "Position": [2, 2] }
+          ]
+        }
+      }
+    },
+    "SBlock": {
+      "rotations": {
+        "0": {
+          "description": "Rotation 0 of the SBlock is oriented horizontally with a zigzag pattern: two blocks at the top right and two blocks in the middle row shifted left.",
+          "cells": [
+            { "ID": 1, "ItemType": "Empty", "Position": [0, 0] },
+            { "ID": 2, "ItemType": "block", "Position": [1, 0] },
+            { "ID": 3, "ItemType": "block", "Position": [2, 0] },
+            { "ID": 4, "ItemType": "block", "Position": [0, 1] },
+            { "ID": 5, "ItemType": "block", "Position": [1, 1] },
+            { "ID": 6, "ItemType": "Empty", "Position": [2, 1] },
+            { "ID": 7, "ItemType": "Empty", "Position": [0, 2] },
+            { "ID": 8, "ItemType": "Empty", "Position": [1, 2] },
+            { "ID": 9, "ItemType": "Empty", "Position": [2, 2] }
+          ]
+        },
+        "1": {
+          "description": "Rotated 90° clockwise, the SBlock becomes vertical, featuring a block in the middle and a diagonal that extends toward the bottom right.",
+          "cells": [
+            { "ID": 1, "ItemType": "Empty", "Position": [0, 0] },
+            { "ID": 2, "ItemType": "block", "Position": [1, 0] },
+            { "ID": 3, "ItemType": "Empty", "Position": [2, 0] },
+            { "ID": 4, "ItemType": "Empty", "Position": [0, 1] },
+            { "ID": 5, "ItemType": "block", "Position": [1, 1] },
+            { "ID": 6, "ItemType": "block", "Position": [2, 1] },
+            { "ID": 7, "ItemType": "Empty", "Position": [0, 2] },
+            { "ID": 8, "ItemType": "Empty", "Position": [1, 2] },
+            { "ID": 9, "ItemType": "block", "Position": [2, 2] }
+          ]
+        },
+        "2": {
+          "description": "In the 180° rotation, the SBlock mirrors its original state with the zigzag pattern reversed, shifting the filled cells to the opposite diagonal.",
+          "cells": [
+            { "ID": 1, "ItemType": "Empty", "Position": [0, 0] },
+            { "ID": 2, "ItemType": "Empty", "Position": [1, 0] },
+            { "ID": 3, "ItemType": "Empty", "Position": [2, 0] },
+            { "ID": 4, "ItemType": "Empty", "Position": [0, 1] },
+            { "ID": 5, "ItemType": "block", "Position": [1, 1] },
+            { "ID": 6, "ItemType": "block", "Position": [2, 1] },
+            { "ID": 7, "ItemType": "block", "Position": [0, 2] },
+            { "ID": 8, "ItemType": "block", "Position": [1, 2] },
+            { "ID": 9, "ItemType": "Empty", "Position": [2, 2] }
+          ]
+        },
+        "3": {
+          "description": "Rotated 270° clockwise, the SBlock forms a vertical layout with the diagonal oriented opposite to rotation 1, creating a mirror image of the zigzag.",
+          "cells": [
+            { "ID": 1, "ItemType": "block", "Position": [0, 0] },
+            { "ID": 2, "ItemType": "Empty", "Position": [1, 0] },
+            { "ID": 3, "ItemType": "Empty", "Position": [2, 0] },
+            { "ID": 4, "ItemType": "block", "Position": [0, 1] },
+            { "ID": 5, "ItemType": "block", "Position": [1, 1] },
+            { "ID": 6, "ItemType": "Empty", "Position": [2, 1] },
+            { "ID": 7, "ItemType": "Empty", "Position": [0, 2] },
+            { "ID": 8, "ItemType": "block", "Position": [1, 2] },
+            { "ID": 9, "ItemType": "Empty", "Position": [2, 2] }
+          ]
+        }
+      }
+    },
+    "TBlock": {
+      "rotations": {
+        "0": {
+          "description": "Rotation 0 of the TBlock shows the classic T shape, with a horizontal bar (row 1) and a centered block on top (row 0, column 1).",
+          "cells": [
+            { "ID": 1, "ItemType": "Empty", "Position": [0, 0] },
+            { "ID": 2, "ItemType": "block", "Position": [1, 0] },
+            { "ID": 3, "ItemType": "Empty", "Position": [2, 0] },
+            { "ID": 4, "ItemType": "block", "Position": [0, 1] },
+            { "ID": 5, "ItemType": "block", "Position": [1, 1] },
+            { "ID": 6, "ItemType": "block", "Position": [2, 1] },
+            { "ID": 7, "ItemType": "Empty", "Position": [0, 2] },
+            { "ID": 8, "ItemType": "Empty", "Position": [1, 2] },
+            { "ID": 9, "ItemType": "Empty", "Position": [2, 2] }
+          ]
+        },
+        "1": {
+          "description": "Rotated 90° clockwise, the TBlock appears as a vertical column with an extra block on the right (row 1, column 2), preserving its T formation.",
+          "cells": [
+            { "ID": 1, "ItemType": "Empty", "Position": [0, 0] },
+            { "ID": 2, "ItemType": "block", "Position": [1, 0] },
+            { "ID": 3, "ItemType": "Empty", "Position": [2, 0] },
+            { "ID": 4, "ItemType": "Empty", "Position": [0, 1] },
+            { "ID": 5, "ItemType": "block", "Position": [1, 1] },
+            { "ID": 6, "ItemType": "block", "Position": [2, 1] },
+            { "ID": 7, "ItemType": "Empty", "Position": [0, 2] },
+            { "ID": 8, "ItemType": "block", "Position": [1, 2] },
+            { "ID": 9, "ItemType": "Empty", "Position": [2, 2] }
+          ]
+        },
+        "2": {
+          "description": "At 180° rotation, the TBlock is inverted with the horizontal bar remaining in the middle and the extra block now positioned below the center (row 2, column 1).",
+          "cells": [
+            { "ID": 1, "ItemType": "Empty", "Position": [0, 0] },
+            { "ID": 2, "ItemType": "Empty", "Position": [1, 0] },
+            { "ID": 3, "ItemType": "Empty", "Position": [2, 0] },
+            { "ID": 4, "ItemType": "block", "Position": [0, 1] },
+            { "ID": 5, "ItemType": "block", "Position": [1, 1] },
+            { "ID": 6, "ItemType": "block", "Position": [2, 1] },
+            { "ID": 7, "ItemType": "Empty", "Position": [0, 2] },
+            { "ID": 8, "ItemType": "block", "Position": [1, 2] },
+            { "ID": 9, "ItemType": "Empty", "Position": [2, 2] }
+          ]
+        },
+        "3": {
+          "description": "Rotated 270° clockwise, the TBlock forms a vertical line with an extra block on the left (row 1, column 0), completing its T-shaped configuration.",
+          "cells": [
+            { "ID": 1, "ItemType": "Empty", "Position": [0, 0] },
+            { "ID": 2, "ItemType": "block", "Position": [1, 0] },
+            { "ID": 3, "ItemType": "Empty", "Position": [2, 0] },
+            { "ID": 4, "ItemType": "block", "Position": [0, 1] },
+            { "ID": 5, "ItemType": "block", "Position": [1, 1] },
+            { "ID": 6, "ItemType": "Empty", "Position": [2, 1] },
+            { "ID": 7, "ItemType": "Empty", "Position": [0, 2] },
+            { "ID": 8, "ItemType": "block", "Position": [1, 2] },
+            { "ID": 9, "ItemType": "Empty", "Position": [2, 2] }
+          ]
+        }
+      }
+    },
+    "ZBlock": {
+      "rotations": {
+        "0": {
+          "description": "Rotation 0 of the ZBlock presents the classic Z shape: two adjacent blocks in the top row followed by two blocks in the middle row shifted right.",
+          "cells": [
+            { "ID": 1, "ItemType": "block", "Position": [0, 0] },
+            { "ID": 2, "ItemType": "block", "Position": [1, 0] },
+            { "ID": 3, "ItemType": "Empty", "Position": [2, 0] },
+            { "ID": 4, "ItemType": "Empty", "Position": [0, 1] },
+            { "ID": 5, "ItemType": "block", "Position": [1, 1] },
+            { "ID": 6, "ItemType": "block", "Position": [2, 1] },
+            { "ID": 7, "ItemType": "Empty", "Position": [0, 2] },
+            { "ID": 8, "ItemType": "Empty", "Position": [1, 2] },
+            { "ID": 9, "ItemType": "Empty", "Position": [2, 2] }
+          ]
+        },
+        "1": {
+          "description": "Rotated 90° clockwise, the ZBlock forms a vertical layout with the top block positioned on the right and a descending diagonal structure.",
+          "cells": [
+            { "ID": 1, "ItemType": "Empty", "Position": [0, 0] },
+            { "ID": 2, "ItemType": "Empty", "Position": [1, 0] },
+            { "ID": 3, "ItemType": "block", "Position": [2, 0] },
+            { "ID": 4, "ItemType": "Empty", "Position": [0, 1] },
+            { "ID": 5, "ItemType": "block", "Position": [1, 1] },
+            { "ID": 6, "ItemType": "block", "Position": [2, 1] },
+            { "ID": 7, "ItemType": "Empty", "Position": [0, 2] },
+            { "ID": 8, "ItemType": "block", "Position": [1, 2] },
+            { "ID": 9, "ItemType": "Empty", "Position": [2, 2] }
+          ]
+        },
+        "2": {
+          "description": "In the 180° rotation, the ZBlock mirrors its original orientation with the diagonal offset reversed so that the filled cells swap sides.",
+          "cells": [
+            { "ID": 1, "ItemType": "Empty", "Position": [0, 0] },
+            { "ID": 2, "ItemType": "Empty", "Position": [1, 0] },
+            { "ID": 3, "ItemType": "Empty", "Position": [2, 0] },
+            { "ID": 4, "ItemType": "block", "Position": [0, 1] },
+            { "ID": 5, "ItemType": "block", "Position": [1, 1] },
+            { "ID": 6, "ItemType": "Empty", "Position": [2, 1] },
+            { "ID": 7, "ItemType": "Empty", "Position": [0, 2] },
+            { "ID": 8, "ItemType": "block", "Position": [1, 2] },
+            { "ID": 9, "ItemType": "block", "Position": [2, 2] }
+          ]
+        },
+        "3": {
+          "description": "Rotated 270° clockwise, the ZBlock displays a vertical zigzag with the extra block on the bottom left, reversing the diagonal seen in rotation 1.",
+          "cells": [
+            { "ID": 1, "ItemType": "Empty", "Position": [0, 0] },
+            { "ID": 2, "ItemType": "block", "Position": [1, 0] },
+            { "ID": 3, "ItemType": "Empty", "Position": [2, 0] },
+            { "ID": 4, "ItemType": "block", "Position": [0, 1] },
+            { "ID": 5, "ItemType": "block", "Position": [1, 1] },
+            { "ID": 6, "ItemType": "Empty", "Position": [2, 1] },
+            { "ID": 7, "ItemType": "block", "Position": [0, 2] },
+            { "ID": 8, "ItemType": "Empty", "Position": [1, 2] },
+            { "ID": 9, "ItemType": "Empty", "Position": [2, 2] }
+          ]
+        }
+      }
+    }
+  }
+  
