@@ -54,19 +54,15 @@ def matrix_to_string(matrix):
     return "\n".join(" ".join(str(cell) for cell in row) for row in matrix)
 
 
-def log_move_and_thought(move, thought, latency):
-    """
-    Logs the move and thought process into a log file inside the cache directory.
-    """
+def log_move_and_thought(move, thought, latency, level, step_count):
     log_file_path = os.path.join(CACHE_DIR, "sokoban_moves.log")
-    
-    log_entry = f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] Move: {move}, Thought: {thought}, Latency: {latency:.2f} sec\n"
-    
+    log_entry = f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] Current Level: {level}, Total Step {step_count}: Move: {move}, Thought: {thought}, Latency: {latency:.2f} sec\n"
     try:
         with open(log_file_path, "a") as log_file:
             log_file.write(log_entry)
     except Exception as e:
         print(f"[ERROR] Failed to write log entry: {e}")
+
 
 def sokoban_read_worker(system_prompt, api_provider, model_name, image_path):
     base64_image = encode_image(image_path)
@@ -85,7 +81,8 @@ def sokoban_worker(system_prompt, api_provider, model_name,
     crop_left=0, 
     crop_right=0, 
     crop_top=0, 
-    crop_bottom=0, 
+    crop_bottom=0,
+    step_count=1, 
     ):
     """
     1) Captures a screenshot of the current game state.
@@ -191,12 +188,9 @@ def sokoban_worker(system_prompt, api_provider, model_name,
         move_thought_list.append(action_pair)
 
         # Log move and thought
-        log_output(
-            "sokoban_worker",
-            f"[INFO] Move executed: ({move}) | Thought: {thought} | Latency: {latency:.2f} sec",
-            "sokoban",
-            mode="a",
-        )
+    log_move_and_thought(move, thought, latency, level, step_count)
+    step_count+=1
+
 
     # response
     return move_thought_list
