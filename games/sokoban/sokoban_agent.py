@@ -57,11 +57,12 @@ def main():
                         help="modality used.")
     parser.add_argument("--thinking", type=str, default=True, help="Whether to use deep thinking.")
     parser.add_argument("--starting_level", type=int, default=1, help="Starting level for the Sokoban game.")
-    parser.add_argument("--num_threads", type=int, default=1, help="Number of parallel threads to launch.")
+    parser.add_argument("--num_threads", type=int, default=10, help="Number of parallel threads to launch.")
     args = parser.parse_args()
 
     prev_responses = deque(maxlen=10)
     level = None
+    step_count = 1
 
     def perform_move(move):
         key_map = {
@@ -100,13 +101,17 @@ def main():
                             "\n".join(prev_responses),
                             thinking=str2bool(args.thinking),
                             modality=args.modality,
-                            level=level
+                            level=level,
+                            step_count=step_count
                         )
                     )
                 
                 # Wait until all threads finish
                 concurrent.futures.wait(futures)
-                results = [f.result() for f in futures]
+                results_with_steps = [f.result() for f in futures]
+                results = [res[0] for res in results_with_steps]
+                updated_step_counts = [res[1] for res in results_with_steps]
+                step_count = max(updated_step_counts)
             
             print("all threads finished execution...")
             print(results)

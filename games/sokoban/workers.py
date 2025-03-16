@@ -55,7 +55,7 @@ def matrix_to_string(matrix):
 
 
 def log_move_and_thought(move, thought, latency, level, step_count):
-    log_file_path = os.path.join(CACHE_DIR, "sokoban_moves.log")
+    log_file_path = os.path.join(CACHE_DIR, "sokoban_moves_o3mini.log")
     log_entry = f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] Current Level: {level}, Total Step {step_count}: Move: {move}, Thought: {thought}, Latency: {latency:.2f} sec\n"
     try:
         with open(log_file_path, "a") as log_file:
@@ -82,7 +82,7 @@ def sokoban_worker(system_prompt, api_provider, model_name,
     crop_right=0, 
     crop_top=0, 
     crop_bottom=0,
-    step_count=1, 
+    step_count=0, 
     ):
     """
     1) Captures a screenshot of the current game state.
@@ -189,8 +189,8 @@ def sokoban_worker(system_prompt, api_provider, model_name,
 
         # Log move and thought
     log_move_and_thought(move, thought, latency, level, step_count)
-    step_count+=1
 
 
     # response
-    return move_thought_list
+    step_count += 1
+    return move_thought_list, step_count
