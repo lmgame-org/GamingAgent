@@ -40,13 +40,20 @@ def main():
     parser.add_argument("--crop_bottom", type=int, default=230, help="Pixels to crop from the bottom.")
     parser.add_argument("--grid_rows", type=int, default=8, help="Number of grid rows.")
     parser.add_argument("--grid_cols", type=int, default=8, help="Number of grid columns.")
+    parser.add_argument("--moves", type=int, default=50, help="Number of moves")
     
     args = parser.parse_args()
 
     prev_responses = deque(maxlen=7)
 
+    count = 0
+
     try:
         while True:
+            if count == args.moves:
+                print(f"{args.model_name} finished {args.moves}.")
+                break
+
             start_time = time.time()
 
             # Execute the Candy Crush worker
@@ -57,7 +64,8 @@ def main():
             if latest_response:
                 prev_responses.append(latest_response)
             elapsed_time = time.time() - start_time
-            time.sleep(1)
+            time.sleep(3)
+            count+=1
             print("[debug] previous message:")
             print("\n".join(prev_responses))
 
