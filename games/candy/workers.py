@@ -36,8 +36,6 @@ def log_move_and_thought(move, thought, latency):
 
 def candy_crush_read_worker(system_prompt, api_provider, model_name, image_path, modality, thinking):
     base64_image = encode_image(image_path)
-
-    model_name = "gpt-4-turbo"
     
     # Construct prompt for LLM
     prompt = (
@@ -46,7 +44,7 @@ def candy_crush_read_worker(system_prompt, api_provider, model_name, image_path,
         "For each ID, recognize the corresponding candy based on color and shape. "
         "Strictly format the output as: **ID: candy type (row, column)**. "
         "Each row should reflect the board layout. "
-        "Example format: \n1: blue sphere candy (0, 0) | 2: green square candy (0, 1)| 3: red circle candy (0, 2)... \n8: empty (1,0) | 9: green square candy (1, 1)| 10: red circle candy (1, 2) "
+        "Example format: \n1: blue sphere candy (0, 0) | 2: green square candy (0, 1)| 3: red bean candy (0, 2)... \n8: orange jelly candy (1,0) | 9: yellow teardrop candy (1, 1)| 10: purple cluster candy (1, 2) "
     )
     
     # Call LLM API based on provider
@@ -98,7 +96,7 @@ def candy_crush_worker(system_prompt, api_provider, model_name, modality, thinki
 
     annotate_image_path, grid_annotation_path, annotate_cropped_image_path = get_annotate_img(screenshot_path, crop_left=crop_left, crop_right=crop_right, crop_top=crop_top, crop_bottom=crop_bottom, grid_rows=grid_rows, grid_cols=grid_cols, cache_dir=CACHE_DIR)
 
-    candy_crush_text_table = candy_crush_read_worker(system_prompt, api_provider, model_name, annotate_cropped_image_path, modality, thinking)
+    candy_crush_text_table = candy_crush_read_worker(system_prompt, "anthropic", "claude-3-7-sonnet-20250219", annotate_cropped_image_path, modality="vision-text", thinking=False)
 
     prompt = (
         f"Here is the layout of the Candy Crush board:\n\n"
@@ -114,7 +112,6 @@ def candy_crush_worker(system_prompt, api_provider, model_name, modality, thinki
     
 
     base64_image = encode_image(annotate_cropped_image_path)
-    base64_image = None
     start_time = time.time()
 
     print(f"Calling {model_name} api...")
