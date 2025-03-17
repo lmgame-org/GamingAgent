@@ -56,6 +56,58 @@ def openai_completion(system_prompt, model_name, base64_image, prompt, temperatu
      
     return generated_str
 
+def openai_vision_reasoning_completion(system_prompt, model_name, base64_image, prompt, temperature=0):
+    client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+
+    if base64_image is None:
+        messages = [
+            {
+                "role": "user",
+                "content": [
+                    {
+                        "type": "text",
+                        "text": prompt
+                    },
+                ],
+            }
+        ]
+    else:
+        messages = [
+            {
+                "role": "user",
+                "content": [
+                    {
+                        "type": "image_url",
+                        "image_url": {
+                            "url": f"data:image/png;base64,{base64_image}"
+                        },
+                    },
+                    {
+                        "type": "text",
+                        "text": prompt
+                    },
+                ],
+            }
+        ]
+
+    # Determine correct token parameter
+    token_param = "max_completion_tokens"
+    
+    # Prepare request parameters dynamically
+    request_params = {
+        "model": model_name,
+        "messages": messages,
+        token_param: 100000,
+        "reasoning_effort": "medium"
+    }
+    
+
+    response = client.chat.completions.create(**request_params)
+
+    generated_str = response.choices[0].message.content
+     
+    return generated_str
+
 def openai_text_reasoning_completion(system_prompt, model_name, prompt, temperature=0):
     client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
     

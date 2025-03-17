@@ -4,7 +4,7 @@ import pyautogui
 import numpy as np
 
 from tools.utils import encode_image, log_output, extract_python_code, get_annotate_img
-from tools.serving.api_providers import anthropic_completion, openai_completion, gemini_completion, anthropic_text_completion, gemini_text_completion, openai_text_reasoning_completion, deepseek_text_reasoning_completion
+from tools.serving.api_providers import anthropic_completion, openai_completion, gemini_completion, anthropic_text_completion, gemini_text_completion, openai_text_reasoning_completion, openai_vision_reasoning_completion, deepseek_text_reasoning_completion
 
 cache_dir = "cache/candy_crush"
 
@@ -54,6 +54,8 @@ def candy_crush_read_worker(system_prompt, api_provider, model_name, image_path,
         response = anthropic_completion(system_prompt, model_name, base64_image, prompt, thinking)
     elif api_provider == "openai" and "o3" in model_name and modality=="text-only":
         response = openai_text_reasoning_completion(system_prompt, model_name, prompt)
+    elif api_provider == "openai" and "o1" in model_name:
+        response = openai_vision_reasoning_completion(system_prompt, model_name, base64_image, prompt)
     elif api_provider == "openai":
         response = openai_completion(system_prompt, model_name, base64_image, prompt)
     elif api_provider == "gemini" and modality=="text-only":
@@ -96,20 +98,27 @@ def candy_crush_worker(system_prompt, api_provider, model_name, modality, thinki
 
     annotate_image_path, grid_annotation_path, annotate_cropped_image_path = get_annotate_img(screenshot_path, crop_left=crop_left, crop_right=crop_right, crop_top=crop_top, crop_bottom=crop_bottom, grid_rows=grid_rows, grid_cols=grid_cols, cache_dir=CACHE_DIR)
 
-    candy_crush_text_table = candy_crush_read_worker(system_prompt, "anthropic", "claude-3-7-sonnet-20250219", annotate_cropped_image_path, modality="vision-text", thinking=False)
+    candy_crush_text_table = candy_crush_read_worker(system_prompt, api_provider, model_name, annotate_cropped_image_path, modality="vision-text", thinking=False)
 
+    print(candy_crush_text_table)
     prompt = (
-        f"Here is the layout of the Candy Crush board:\n\n"
+        f"Here is the current layout of the Candy Crush board:\n\n"
         f"{candy_crush_text_table}\n\n"
-        "Please carefully analyze the candy crush table corresponding to the input image. Figure out next best move."
-        f"Previous response: {prev_response}. Use previous responses as references, explore new move different from previous moves, and find additional three-match opportunities.\n\n"
-        "Please generate next move for this candy crush game."
-        "## STRICT OUTPUT FORMAT ##\n"
+        "Analyze the given Candy Crush board carefully and determine the best next move.\n\n"
+        "### PRIORITY STRATEGY ###\n"
+        "1. **First Priority**: Find and execute a move that creates a three-match.\n"
+        "2. **Second Priority**: If possible, prioritize a move that results in a four-match or a special candy.\n"
+        "3. **Bonus Consideration**: If you can trigger multiple three-matches in a single move, favor that option over a single match.\n\n"
+        f"Previous response: {prev_response}\n"
+        "Use past responses as references, explore a different move from previous suggestions, and identify new three-match opportunities.\n\n"
+        "### OUTPUT FORMAT (STRICT) and Only output move and thought in the formard below ###\n"
         "- Respond in this format:\n"
-        '  **move: "(U, M)", thought: "(explaination)"**\n\n'
-        "U and M are unique ids for candies. You can reason with coordinate but finally output U and M corresponding ids."
+        '  move: "(U, M)", thought: "(explanation of why this move is optimal)"\n\n'
+        "Where:\n"
+        "- U and M are the unique IDs of the candies to be swapped.\n"
+        "- Reason using board coordinates, but ensure the final output uses unique candy IDs."
     )
-    
+
 
     base64_image = encode_image(annotate_cropped_image_path)
     start_time = time.time()
@@ -122,6 +131,8 @@ def candy_crush_worker(system_prompt, api_provider, model_name, modality, thinki
         response = anthropic_completion(system_prompt, model_name, base64_image, prompt, thinking)
     elif api_provider == "openai" and "o3" in model_name and modality=="text-only":
         response = openai_text_reasoning_completion(system_prompt, model_name, prompt)
+    elif api_provider == "openai" and "o1" in model_name:
+        response = openai_vision_reasoning_completion(system_prompt, model_name, base64_image, prompt)
     elif api_provider == "openai":
         response = openai_completion(system_prompt, model_name, base64_image, prompt)
     elif api_provider == "gemini" and modality=="text-only":
@@ -135,6 +146,7 @@ def candy_crush_worker(system_prompt, api_provider, model_name, modality, thinki
 
     latency = time.time() - start_time
 
+    print(response)
     # Extract the move (X, Y) and thought from LLM response
     move_match = re.search(r'move:\s*"\((\d+),\s*(\d+)\)"', response)
     thought_match = re.search(r'thought:\s*"(.*?)"', response)
