@@ -23,13 +23,14 @@ CACHE_DIR = "cache/candy_crush"
 def log_move_and_thought(move, thought, latency):
     """
     Logs the move and thought process into a log file inside the cache directory.
+    The log is appended with UTF-8 encoding.
     """
     log_file_path = os.path.join(CACHE_DIR, "candy_crush_moves.log")
     
     log_entry = f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] Move: {move}, Thought: {thought}, Latency: {latency:.2f} sec\n"
     
     try:
-        with open(log_file_path, "a") as log_file:
+        with open(log_file_path, "a", encoding="utf-8") as log_file:
             log_file.write(log_entry)
     except Exception as e:
         print(f"[ERROR] Failed to write log entry: {e}")
@@ -99,8 +100,7 @@ def candy_crush_worker(system_prompt, api_provider, model_name, modality, thinki
     annotate_image_path, grid_annotation_path, annotate_cropped_image_path = get_annotate_img(screenshot_path, crop_left=crop_left, crop_right=crop_right, crop_top=crop_top, crop_bottom=crop_bottom, grid_rows=grid_rows, grid_cols=grid_cols, cache_dir=CACHE_DIR)
 
     candy_crush_text_table = candy_crush_read_worker(system_prompt, api_provider, model_name, annotate_cropped_image_path, modality="vision-text", thinking=False)
-
-    print(candy_crush_text_table)
+    
     prompt = (
         f"Here is the current layout of the Candy Crush board:\n\n"
         f"{candy_crush_text_table}\n\n"

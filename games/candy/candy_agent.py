@@ -40,7 +40,7 @@ def main():
     parser.add_argument("--crop_bottom", type=int, default=230, help="Pixels to crop from the bottom.")
     parser.add_argument("--grid_rows", type=int, default=8, help="Number of grid rows.")
     parser.add_argument("--grid_cols", type=int, default=8, help="Number of grid columns.")
-    parser.add_argument("--moves", type=int, default=50, help="Number of moves")
+    parser.add_argument("--moves", type=int, default=25, help="Number of moves")
     
     args = parser.parse_args()
 
