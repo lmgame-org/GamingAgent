@@ -53,7 +53,7 @@ def main():
             latest_response = candy_crush_worker(system_prompt, args.api_provider, args.model_name, args.modality, str2bool(args.thinking),
                                                  args.crop_left, args.crop_right, args.crop_top, args.crop_bottom, 
                                                  args.grid_rows, args.grid_cols, " ".join(prev_responses))
-            break
+            # break
             if latest_response:
                 prev_responses.append(latest_response)
             elapsed_time = time.time() - start_time
