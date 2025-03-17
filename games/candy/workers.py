@@ -100,7 +100,7 @@ def candy_crush_worker(system_prompt, api_provider, model_name, modality, thinki
     annotate_image_path, grid_annotation_path, annotate_cropped_image_path = get_annotate_img(screenshot_path, crop_left=crop_left, crop_right=crop_right, crop_top=crop_top, crop_bottom=crop_bottom, grid_rows=grid_rows, grid_cols=grid_cols, cache_dir=CACHE_DIR)
 
     candy_crush_text_table = candy_crush_read_worker(system_prompt, api_provider, model_name, annotate_cropped_image_path, modality="vision-text", thinking=False)
-    
+
     prompt = (
         f"Here is the current layout of the Candy Crush board:\n\n"
         f"{candy_crush_text_table}\n\n"
@@ -112,7 +112,7 @@ def candy_crush_worker(system_prompt, api_provider, model_name, modality, thinki
         f"Previous response: {prev_response}\n"
         "Use past responses as references, explore a different move from previous suggestions, and identify new three-match opportunities.\n\n"
         "### OUTPUT FORMAT (STRICT) and Only output move and thought in the formard below ###\n"
-        "- Respond in this format:\n"
+        "- Respond in this format (including brackets):\n"
         '  move: "(U, M)", thought: "(explanation of why this move is optimal)"\n\n'
         "Where:\n"
         "- U and M are the unique IDs of the candies to be swapped.\n"

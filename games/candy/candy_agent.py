@@ -63,9 +63,9 @@ def main():
             # break
             if latest_response:
                 prev_responses.append(latest_response)
+                count+=1
             elapsed_time = time.time() - start_time
             time.sleep(3)
-            count+=1
             print("[debug] previous message:")
             print("\n".join(prev_responses))
 
