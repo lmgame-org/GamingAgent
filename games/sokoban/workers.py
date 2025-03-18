@@ -55,7 +55,7 @@ def matrix_to_string(matrix):
 
 
 def log_move_and_thought(move, thought, latency, level, step_count):
-    log_file_path = os.path.join(CACHE_DIR, "sokoban_moves_o3mini.log")
+    log_file_path = os.path.join(CACHE_DIR, "sokoban_moves_claude3.7_thinking_3.log")
     log_entry = f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] Current Level: {level}, Total Step {step_count}: Move: {move}, Thought: {thought}, Latency: {latency:.2f} sec\n"
     try:
         with open(log_file_path, "a") as log_file:

@@ -57,7 +57,7 @@ def main():
                         help="modality used.")
     parser.add_argument("--thinking", type=str, default=True, help="Whether to use deep thinking.")
     parser.add_argument("--starting_level", type=int, default=1, help="Starting level for the Sokoban game.")
-    parser.add_argument("--num_threads", type=int, default=10, help="Number of parallel threads to launch.")
+    parser.add_argument("--num_threads", type=int, default=5, help="Number of parallel threads to launch.")
     args = parser.parse_args()
 
     prev_responses = deque(maxlen=10)
