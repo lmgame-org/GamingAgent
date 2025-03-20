@@ -7,8 +7,10 @@ import numpy as np
 import concurrent.futures
 import re
 import cv2
-import json
 
+import numpy as np
+import json
+import argparse
 
 def encode_image(image_path):
     """
@@ -17,7 +19,7 @@ def encode_image(image_path):
     with open(image_path, "rb") as image_file:
         return base64.b64encode(image_file.read()).decode("utf-8")
 
-def log_output(thread_id, log_text, game, alias=None):
+def log_output(thread_id, log_text, game, alias=None, mode="w"):
     """
     Logs output.
     """
@@ -30,7 +32,7 @@ def log_output(thread_id, log_text, game, alias=None):
     os.makedirs(thread_folder, exist_ok=True)
     
     log_path = os.path.join(thread_folder, "output.log")
-    with open(log_path, "w", encoding="utf-8") as log_file:
+    with open(log_path, mode, encoding="utf-8") as log_file:
         log_file.write(log_text + "\n\n")
 
 def extract_python_code(content):
@@ -452,3 +454,18 @@ def scale_png_to_512x512(input_path, output_path):
     # Save the result
     cv2.imwrite(output_path, resized_image)
     print(f"Saved scaled image to {output_path}")
+
+def str2bool(value):
+    """
+    Converts a string to a boolean.
+    Accepts: 'true', 'false' (case-insensitive)
+    Raises an error for invalid values.
+    """
+    if isinstance(value, bool):
+        return value
+    if value.lower() in ('true', '1', 'yes', 'y'):
+        return True
+    elif value.lower() in ('false', '0', 'no', 'n'):
+        return False
+    else:
+        raise argparse.ArgumentTypeError("Boolean value expected (true/false).")

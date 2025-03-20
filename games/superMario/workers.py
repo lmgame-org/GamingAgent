@@ -27,7 +27,7 @@ def worker_short(thread_id, offset, system_prompt, api_provider, model_name):
         "- Press 'Enter' to start the game ONLY IF the game hasn't started.\n"
         "  Otherwise the game will be paused.\n"
         "- Press the right arrow to move forward.\n"
-        "- Press 'X' along with right/left arrow to jump over obstacles or gaps. Be very careful with gaps, do lopped jumps if necessary.\n\n"
+        "- Press 'x' along with right/left arrow to jump over obstacles or gaps. Be very careful with gaps, do lopped jumps if necessary.\n\n"
 
         "### Strategies and Caveats:\n"
         "- Whenever a gap is detected, AVOID jumping over the gap. Only do small position adjustments to prepare for big jump.\n"
@@ -110,7 +110,7 @@ def worker_long(thread_id, offset, system_prompt, api_provider, model_name):
         "- Press 'Enter' to start the game ONLY IF the game hasn't started.\n"
         "  Otherwise the game will be paused.\n"
         "- Press the right arrow to move forward.\n"
-        "- Press 'X' along with right/left arrow to jump over obstacles or gaps. Be very careful with gaps, do lopped jumps if necessary.\n\n"
+        "- Press 'x' along with right/left arrow to jump over obstacles or gaps. Be very careful with gaps, do lopped jumps if necessary.\n\n"
 
         "### Strategies and Caveats:\n"
         "- Don't move too fast, as unseen enemies may appear from off-screen.\n"

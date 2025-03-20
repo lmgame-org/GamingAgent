@@ -8,14 +8,13 @@ import os
 import json
 import re
 import pyautogui
-
-from games.game_2048.workers import game_2048_worker
 from tools.utils import str2bool
+
+from games.sokoban.workers import sokoban_worker
+
+CACHE_DIR = "cache/sokoban"
+
 from collections import Counter
-
-CACHE_DIR = "cache/2048"
-os.makedirs(CACHE_DIR, exist_ok=True)
-
 
 def majority_vote_move(moves_list, prev_move=None):
     """
@@ -28,6 +27,7 @@ def majority_vote_move(moves_list, prev_move=None):
 
     c = Counter(moves_list)
     
+    # c.most_common() -> list of (move, count) sorted by count descending, then by move
     counts = c.most_common()
     top_count = counts[0][1]  # highest vote count
 
@@ -44,22 +44,23 @@ def majority_vote_move(moves_list, prev_move=None):
 
 # System prompt remains constant
 system_prompt = (
-    "You are an expert AI agent specialized in solving 2048 puzzles optimally. "
-    "Your goal is to get the highest score without freezing the game board. The ultimate goal is to reach 2048. "
+    "You are an expert AI agent specialized in solving Sokoban puzzles optimally. "
+    "Your goal is to push all boxes onto the designated dock locations while avoiding deadlocks. "
 )
 
 
 def main():
     parser = argparse.ArgumentParser(description="sokoban AI Agent")
-    parser.add_argument("--api_provider", type=str, default="anthropic", help="API provider to use.")
-    parser.add_argument("--model_name", type=str, default="claude-3-7-sonnet-20250219", help="LLM model name.")
-    parser.add_argument("--modality", type=str, default="vision-text", choices=["text-only", "vision-text"],
+    parser.add_argument("--api_provider", type=str, default="openai", help="API provider to use.")
+    parser.add_argument("--model_name", type=str, default="o3-mini", help="LLM model name.")
+    parser.add_argument("--modality", type=str, default="text-only", choices=["text-only", "vision-text"],
                         help="modality used.")
     parser.add_argument("--thinking", type=str, default=True, help="Whether to use deep thinking.")
-    parser.add_argument("--num_threads", type=int, default=1, help="Number of parallel threads to launch.")
+    parser.add_argument("--starting_level", type=int, default=1, help="Starting level for the Sokoban game.")
+    parser.add_argument("--num_threads", type=int, default=10, help="Number of parallel threads to launch.")
     args = parser.parse_args()
 
-    prev_responses = deque(maxlen=1)
+    prev_responses = deque(maxlen=10)
     level = None
 
     def perform_move(move):
@@ -79,6 +80,11 @@ def main():
 
     try:
         while True:
+            current_level_path = os.path.join(CACHE_DIR, "current_level.json")
+            with open(current_level_path, 'r') as f:
+                level_dict = json.load(f)
+                level = level_dict["level"]
+            
             start_time = time.time()
 
             # Self-consistency launch, to disable, set "--num_threads 1"
@@ -87,13 +93,14 @@ def main():
                 for _ in range(args.num_threads):
                     futures.append(
                         executor.submit(
-                            game_2048_worker,
+                            sokoban_worker,
                             system_prompt,
                             args.api_provider,
                             args.model_name,
                             "\n".join(prev_responses),
                             thinking=str2bool(args.thinking),
-                            modality=args.modality
+                            modality=args.modality,
+                            level=level
                         )
                     )
                 
