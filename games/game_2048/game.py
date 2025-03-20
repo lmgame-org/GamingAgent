@@ -75,7 +75,7 @@ def winCheck(board, status, theme, text_col, size):
 
         while True:
             for event in pygame.event.get():
-                if event.type == QUIT or \
+                if event.type == pygame.QUIT or \
                         (event.type == pygame.KEYDOWN and event.key == pygame.K_n):
                     pygame.quit()
                     sys.exit()
