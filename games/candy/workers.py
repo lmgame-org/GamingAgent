@@ -38,8 +38,8 @@ def log_move_and_thought(move, thought, latency):
 def candy_crush_read_worker(system_prompt, api_provider, model_name, image_path, modality, thinking):
     base64_image = encode_image(image_path)
 
-    api_provider = "anthropic"
-    model_name = "claude-3-7-sonnet-20250219"
+    # api_provider = "anthropic"
+    # model_name = "claude-3-7-sonnet-20250219"
     
     # Construct prompt for LLM
     prompt = (
@@ -100,9 +100,9 @@ def candy_crush_worker(system_prompt, api_provider, model_name, modality, thinki
 
     screenshot.save(screenshot_path)
 
-    # annotate_image_path, grid_annotation_path, annotate_cropped_image_path = get_annotate_img(screenshot_path, crop_left=crop_left, crop_right=crop_right, crop_top=crop_top, crop_bottom=crop_bottom, grid_rows=grid_rows, grid_cols=grid_cols, cache_dir=CACHE_DIR)
+    annotate_image_path, grid_annotation_path, annotate_cropped_image_path = get_annotate_img(screenshot_path, crop_left=crop_left, crop_right=crop_right, crop_top=crop_top, crop_bottom=crop_bottom, grid_rows=grid_rows, grid_cols=grid_cols, cache_dir=CACHE_DIR, thickness = 2, black = True, font_size=0.7)
     # side view
-    annotate_image_path, grid_annotation_path, annotate_cropped_image_path = get_annotate_img(screenshot_path, crop_left=250, crop_right=1300, crop_top=crop_top, crop_bottom=crop_bottom, grid_rows=grid_rows, grid_cols=grid_cols, cache_dir=CACHE_DIR)
+    # annotate_image_path, grid_annotation_path, annotate_cropped_image_path = get_annotate_img(screenshot_path, crop_left=250, crop_right=1300, crop_top=crop_top, crop_bottom=crop_bottom, grid_rows=grid_rows, grid_cols=grid_cols, cache_dir=CACHE_DIR)
     candy_crush_text_table = candy_crush_read_worker(system_prompt, api_provider, model_name, annotate_cropped_image_path, modality="vision-text", thinking=False)
 
 

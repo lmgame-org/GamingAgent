@@ -78,7 +78,7 @@ def generate_grid(image, grid_rows, grid_cols):
     
     return vertical_lines, horizontal_lines
 
-def annotate_with_grid(image, vertical_lines, horizontal_lines, x_offset, y_offset, alpha=0.5, enable_digit_label = True, line_thickness = 1, black = False):
+def annotate_with_grid(image, vertical_lines, horizontal_lines, x_offset, y_offset, alpha=0.5, enable_digit_label = True, thickness = 1, black = False, font_size=0.4):
     """Annotates the image with semi-transparent gray grid cell numbers."""
     grid_annotations = []
     
@@ -96,19 +96,22 @@ def annotate_with_grid(image, vertical_lines, horizontal_lines, x_offset, y_offs
                 # Draw semi-transparent text on the overlay
                 text = str(cell_id)
                 font = cv2.FONT_HERSHEY_SIMPLEX
-                font_scale = 0.4
-                thickness = 1
-                text_color = (255, 255, 255)  # Gray color
+                font_scale = font_size
+                thickness = thickness
+                if black:
+                    text_color = (0, 0, 0)
+                else:
+                    text_color = (255, 255, 255)  # Gray color
             
                 cv2.putText(overlay, text, (x - 10, y + 10), font, font_scale, text_color, thickness, cv2.LINE_AA)
             
             # Draw green grid rectangle
             if black:
                 cv2.rectangle(image, (vertical_lines[col], horizontal_lines[row]), 
-                            (vertical_lines[col + 1], horizontal_lines[row + 1]), (0, 0, 0), line_thickness)
+                            (vertical_lines[col + 1], horizontal_lines[row + 1]), (0, 0, 0), thickness)
             else:
                 cv2.rectangle(image, (vertical_lines[col], horizontal_lines[row]), 
-                            (vertical_lines[col + 1], horizontal_lines[row + 1]), (0, 255, 0), line_thickness)
+                            (vertical_lines[col + 1], horizontal_lines[row + 1]), (0, 255, 0), thickness)
 
     # Blend the overlay with the original image
     cv2.addWeighted(overlay, alpha, image, 1 - alpha, 0, image)
@@ -127,10 +130,10 @@ def save_grid_annotations(grid_annotations, cache_dir=None):
         json.dump(grid_annotations, file, indent=4)
     return output_file
 
-def get_annotate_img(image_path, crop_left=50, crop_right=50, crop_top=50, crop_bottom=50, grid_rows=9, grid_cols=9, output_image='annotated_grid.png', cache_dir=None, enable_digit_label=True, line_thickness=1, black=False):
+def get_annotate_img(image_path, crop_left=50, crop_right=50, crop_top=50, crop_bottom=50, grid_rows=9, grid_cols=9, output_image='annotated_grid.png', cache_dir=None, enable_digit_label=True, thickness=1, black=False, font_size=0.4):
     original_image, cropped_image, x_offset, y_offset = preprocess_image(image_path, crop_left, crop_right, crop_top, crop_bottom, cache_dir)
     vertical_lines, horizontal_lines = generate_grid(cropped_image, grid_rows, grid_cols)
-    annotated_cropped_image, grid_annotations = annotate_with_grid(cropped_image, vertical_lines, horizontal_lines, x_offset, y_offset, enable_digit_label=enable_digit_label, line_thickness=line_thickness, black=black)
+    annotated_cropped_image, grid_annotations = annotate_with_grid(cropped_image, vertical_lines, horizontal_lines, x_offset, y_offset, enable_digit_label=enable_digit_label, thickness=thickness, black=black, font_size=font_size)
     grid_annotation_path = save_grid_annotations(grid_annotations, cache_dir)
     
     # Place the annotated cropped image back onto the original image
