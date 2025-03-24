@@ -10,5 +10,4 @@ pygame==2.6.1
 PyGetWindow==0.0.9
 google-generativeai==0.8.4
 google.genai==1.5.0
-
-
+ollama==0.4.7

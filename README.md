@@ -139,6 +139,10 @@ Currently we support gaming agents based on the following models:
 - Deepseek:
   - chat (V3)
   - reasoner (R1)
+- Ollama:
+  - deepseek-r1:8b
+  - llama3.1:8b
+  - gemma3:12b
 
 Set your API keys with:
 
@@ -231,9 +235,20 @@ You should be able to see the first level:
 
 
 2. Open another terminal screen, launch your agent in terminal with
-```
+```shell
 python games/sokoban/sokoban_agent.py
 ```
+
+Gemini example
+```shell
+python games/sokoban/sokoban_agent.py --api_provider gemini --model_name gemini-2.0-flash --modality text-only --starting_level 1
+```
+
+Ollama example
+```shell
+python games/sokoban/sokoban_agent.py --api_provider ollama --model_name gemma3:12b --modality text-only --starting_level 1
+```
+
 #### Other command options
 ```
 --api_provider: API provider to use.

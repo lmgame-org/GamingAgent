@@ -3,7 +3,8 @@ import os
 from openai import OpenAI
 import anthropic
 import google.generativeai as genai
-from google.generativeai import types
+from ollama import chat
+from ollama import ChatResponse
 
 def anthropic_completion(system_prompt, model_name, base64_image, prompt, thinking=False):
     print(f"anthropic vision-text activated... thinking: {thinking}")
@@ -435,17 +436,9 @@ def openai_multiimage_completion(system_prompt, model_name, prompt, list_content
 def gemini_text_completion(system_prompt, model_name, prompt):
     genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
     model = genai.GenerativeModel(model_name=model_name)
-
     messages = [
         prompt,
     ]
-            
-    try:
-        response = model.generate_content(
-            messages
-        )
-    except Exception as e:
-        print(f"error: {e}")
 
     try:
         response = model.generate_content(messages)
@@ -504,35 +497,6 @@ def anthropic_text_completion(system_prompt, model_name, prompt, thinking=False)
     generated_str = "".join(partial_chunks)
     
     return generated_str
-
-def gemini_text_completion(system_prompt, model_name, prompt):
-    genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
-    model = genai.GenerativeModel(model_name=model_name)
-
-    messages = [
-        prompt,
-    ]
-            
-    try:
-        response = model.generate_content(
-            messages
-        )
-    except Exception as e:
-        print(f"error: {e}")
-
-    try:
-        response = model.generate_content(messages)
-
-        # Ensure response is valid and contains candidates
-        if not response or not hasattr(response, "candidates") or not response.candidates:
-            print("Warning: Empty or invalid response")
-            return ""
-        
-        return response.text  # Access response.text safely
-
-    except Exception as e:
-        print(f"Error: {e}")
-        return "" 
 
 def gemini_completion(system_prompt, model_name, base64_image, prompt):
     genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
@@ -631,3 +595,23 @@ def deepseek_text_reasoning_completion(system_prompt, model_name, prompt):
     # generated_str = response.choices[0].message.content
     print(content)
     return content
+
+
+def ollama_text_completion(system_prompt, model_name, prompt):
+    try:
+        response: ChatResponse = chat(model=model_name, messages=[
+            {
+                'role': 'user',
+                'content': prompt,
+            },
+        ])
+
+        if not response or not hasattr(response, "message") or not response.message:
+            print("Warning: Empty or invalid response")
+            return ""
+
+        return response.message.content
+
+    except Exception as e:
+        print(f"Error: {e}")
+        return ""
