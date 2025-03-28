@@ -28,6 +28,27 @@ GAME_ORDER = [
     "Tetris (planning only)"
 ]
 
+# Add leaderboard state at the top level
+leaderboard_state = {
+    "current_game": None,
+    "previous_overall": {
+        "Super Mario Bros": True,
+        "Sokoban": True,
+        "2048": True,
+        "Candy Crash": True,
+        "Tetris (complete)": True,
+        "Tetris (planning only)": True
+    },
+    "previous_details": {
+        "Super Mario Bros": False,
+        "Sokoban": False,
+        "2048": False,
+        "Candy Crash": False,
+        "Tetris (complete)": False,
+        "Tetris (planning only)": False
+    }
+}
+
 def load_rank_data(time_point):
     """Load rank data for a specific time point"""
     if time_point in TIME_POINTS:
@@ -251,57 +272,113 @@ def update_leaderboard(mario_overall, mario_details,
                        candy_overall, candy_details,
                        tetris_overall, tetris_details,
                        tetris_plan_overall, tetris_plan_details):
-    # Check if any detailed checkbox is selected
-    if any([mario_details, sokoban_details, _2048_details, candy_details, tetris_details, tetris_plan_details]):
-        # Use priority order
-        if mario_details:
-            chosen = "Super Mario Bros"
-            df = get_mario_leaderboard()
-        elif sokoban_details:
-            chosen = "Sokoban"
-            df = get_sokoban_leaderboard()
-        elif _2048_details:
-            chosen = "2048"
-            df = get_2048_leaderboard()
-        elif candy_details:
-            chosen = "Candy Crash"
-            df = get_candy_leaderboard()
-        elif tetris_details:
-            chosen = "Tetris (complete)"
-            df = get_tetris_leaderboard()
-        elif tetris_plan_details:
-            chosen = "Tetris (planning only)"
-            df = get_tetris_planning_leaderboard()
+    global leaderboard_state
+    
+    # Convert current checkbox states to dictionary for easier comparison
+    current_overall = {
+        "Super Mario Bros": mario_overall,
+        "Sokoban": sokoban_overall,
+        "2048": _2048_overall,
+        "Candy Crash": candy_overall,
+        "Tetris (complete)": tetris_overall,
+        "Tetris (planning only)": tetris_plan_overall
+    }
+    
+    current_details = {
+        "Super Mario Bros": mario_details,
+        "Sokoban": sokoban_details,
+        "2048": _2048_details,
+        "Candy Crash": candy_details,
+        "Tetris (complete)": tetris_details,
+        "Tetris (planning only)": tetris_plan_details
+    }
+    
+    # Find which game's state changed
+    changed_game = None
+    for game in current_overall.keys():
+        if (current_overall[game] != leaderboard_state["previous_overall"][game] or 
+            current_details[game] != leaderboard_state["previous_details"][game]):
+            changed_game = game
+            break
+    
+    if changed_game:
+        # If a game's details checkbox was checked
+        if current_details[changed_game] and not leaderboard_state["previous_details"][changed_game]:
+            # Reset all other games' states
+            for game in current_overall.keys():
+                if game != changed_game:
+                    current_overall[game] = False
+                    current_details[game] = False
+                    leaderboard_state["previous_overall"][game] = False
+                    leaderboard_state["previous_details"][game] = False
+            
+            # Update state for the selected game
+            leaderboard_state["current_game"] = changed_game
+            leaderboard_state["previous_overall"][changed_game] = True  # Set overall to True when details is checked
+            leaderboard_state["previous_details"][changed_game] = True
+            current_overall[changed_game] = True  # Ensure the overall checkbox is checked
         
-        # When details view is selected:
-        # - Set all overall checkboxes to False except the chosen game
-        # - Keep only the chosen game's details checkbox True
-        return (df,
-                chosen=="Super Mario Bros", mario_details,
-                chosen=="Sokoban", sokoban_details,
-                chosen=="2048", _2048_details,
-                chosen=="Candy Crash", candy_details,
-                chosen=="Tetris (complete)", tetris_details,
-                chosen=="Tetris (planning only)", tetris_plan_details)
+        # If a game's overall checkbox was checked
+        elif current_overall[changed_game] and not leaderboard_state["previous_overall"][changed_game]:
+            # If we were in details view for another game, switch to overall view
+            if leaderboard_state["current_game"] and leaderboard_state["previous_details"][leaderboard_state["current_game"]]:
+                # Reset previous game's details
+                leaderboard_state["previous_details"][leaderboard_state["current_game"]] = False
+                current_details[leaderboard_state["current_game"]] = False
+                leaderboard_state["current_game"] = None
+            
+            # Update state
+            leaderboard_state["previous_overall"][changed_game] = True
+            leaderboard_state["previous_details"][changed_game] = False
+        
+        # If a game's overall checkbox was unchecked
+        elif not current_overall[changed_game] and leaderboard_state["previous_overall"][changed_game]:
+            # If we're in details view, don't allow unchecking the overall checkbox
+            if leaderboard_state["current_game"] == changed_game:
+                current_overall[changed_game] = True
+            else:
+                leaderboard_state["previous_overall"][changed_game] = False
+        
+        # If a game's details checkbox was unchecked
+        elif not current_details[changed_game] and leaderboard_state["previous_details"][changed_game]:
+            leaderboard_state["previous_details"][changed_game] = False
+            if leaderboard_state["current_game"] == changed_game:
+                leaderboard_state["current_game"] = None
+    
+    # Build dictionary for selected games
+    selected_games = {
+        "Super Mario Bros": current_overall["Super Mario Bros"],
+        "Sokoban": current_overall["Sokoban"],
+        "2048": current_overall["2048"],
+        "Candy Crash": current_overall["Candy Crash"],
+        "Tetris (complete)": current_overall["Tetris (complete)"],
+        "Tetris (planning only)": current_overall["Tetris (planning only)"]
+    }
+    
+    # Get the appropriate DataFrame based on current state
+    if leaderboard_state["current_game"]:
+        if leaderboard_state["current_game"] == "Super Mario Bros":
+            df = get_mario_leaderboard()
+        elif leaderboard_state["current_game"] == "Sokoban":
+            df = get_sokoban_leaderboard()
+        elif leaderboard_state["current_game"] == "2048":
+            df = get_2048_leaderboard()
+        elif leaderboard_state["current_game"] == "Candy Crash":
+            df = get_candy_leaderboard()
+        elif leaderboard_state["current_game"] == "Tetris (complete)":
+            df = get_tetris_leaderboard()
+        else:  # Tetris (planning only)
+            df = get_tetris_planning_leaderboard()
     else:
-        # Build dictionary for selected games
-        selected_games = {
-            "Super Mario Bros": mario_overall,
-            "Sokoban": sokoban_overall,
-            "2048": _2048_overall,
-            "Candy Crash": candy_overall,
-            "Tetris (complete)": tetris_overall,
-            "Tetris (planning only)": tetris_plan_overall
-        }
-        df_combined = get_combined_leaderboard(selected_games)
-        # Keep overall checkboxes as they are, set all details to False
-        return (df_combined,
-                mario_overall, False,
-                sokoban_overall, False,
-                _2048_overall, False,
-                candy_overall, False,
-                tetris_overall, False,
-                tetris_plan_overall, False)
+        df = get_combined_leaderboard(selected_games)
+    
+    return (df,
+            current_overall["Super Mario Bros"], current_details["Super Mario Bros"],
+            current_overall["Sokoban"], current_details["Sokoban"],
+            current_overall["2048"], current_details["2048"],
+            current_overall["Candy Crash"], current_details["Candy Crash"],
+            current_overall["Tetris (complete)"], current_details["Tetris (complete)"],
+            current_overall["Tetris (planning only)"], current_details["Tetris (planning only)"])
 
 def update_leaderboard_with_time(time_point, mario_overall, mario_details,
                                sokoban_overall, sokoban_details,
