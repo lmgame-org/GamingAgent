@@ -1,0 +1,310 @@
+{
+    "Super Mario Bros": {
+        "runs": 5,
+        "results": [
+            {
+                "model": "claude-3-7-sonnet-20250219",
+                "score": 710,
+                "progress": "1-1",
+                "time_s": 64.2,
+                "rank": 1
+            },
+            {
+                "model": "gpt-4o-2024-11-20",
+                "score": 560,
+                "progress": "1-1",
+                "time_s": 58.6,
+                "rank": 2
+            },
+            {
+                "model": "gemini-2.0-flash",
+                "score": 320,
+                "progress": "1-1",
+                "time_s": 51.8,
+                "rank": 3
+            },
+            {
+                "model": "claude-3-5-haiku-20241022",
+                "score": 140,
+                "progress": "1-1",
+                "time_s": 76.4,
+                "rank": 4
+            },
+            {
+                "model": "gpt-4.5-preview-2025-02-27",
+                "score": 160,
+                "progress": "1-1",
+                "time_s": 62.8,
+                "rank": 5
+            }
+        ]
+    },
+    "2048": {
+        "runs": 1,
+        "results": [
+            {
+                "model": "claude-3-7-sonnet-20250219(thinking)",
+                "score": 256,
+                "steps": 114,
+                "time": ">200",
+                "rank": 1
+            },
+            {
+                "model": "o1-2024-12-17",
+                "score": 256,
+                "steps": 116,
+                "time": ">200",
+                "rank": 2
+            },
+            {
+                "model": "claude-3-7-sonnet-20250219",
+                "score": 256,
+                "steps": 130,
+                "time": "20:36",
+                "rank": 3
+            },
+            {
+                "model": "deepseek-v3",
+                "score": 256,
+                "steps": 216,
+                "time": "54.02",
+                "rank": 4
+            },
+            {
+                "model": "gemini-2.0-flash",
+                "score": 128,
+                "steps": 111,
+                "time": "18:43",
+                "rank": 5
+            },
+            {
+                "model": "gemini-2.0-flash-thinking-exp-1219",
+                "score": 128,
+                "steps": 132,
+                "time": ">100",
+                "rank": 6
+            },
+            {
+                "model": "gemini-2.5-pro-exp-03-25",
+                "score": 128,
+                "steps": 138,
+                "time": "169",
+                "rank": 7
+            },
+            {
+                "model": "claude-3-5-sonnet-20241022",
+                "score": 64,
+                "steps": 92,
+                "time": "9:2",
+                "rank": 8
+            },
+            {
+                "model": "gpt-4.5-preview-2025-02-27",
+                "score": 34,
+                "steps": 34,
+                "time": "8:25",
+                "rank": 9
+            },
+            {
+                "model": "gpt-4o-2024-11-20",
+                "score": 16,
+                "steps": 21,
+                "time": "1:17",
+                "rank": 10
+            }
+        ]
+    },
+    "Tetris (complete)": {
+        "runs": 3,
+        "results": [
+            {
+                "model": "claude-3-7-sonnet-20250219",
+                "score": 95,
+                "steps_blocks": 27,
+                "rank": 1
+            },
+            {
+                "model": "claude-3-5-haiku-20241022",
+                "score": 90,
+                "steps_blocks": 25,
+                "rank": 2
+            },
+            {
+                "model": "gemini-2.0-flash",
+                "score": 82,
+                "steps_blocks": 23,
+                "rank": 3
+            },
+            {
+                "model": "gpt-4o-2024-11-20",
+                "score": 54,
+                "steps_blocks": 19,
+                "rank": 4
+            }
+        ]
+    },
+    "Tetris (planning only)": {
+        "runs": 3,
+        "results": [
+            {
+                "model": "claude-3-7-sonnet-20250219",
+                "score": 110,
+                "steps_blocks": 29,
+                "rank": 1
+            },
+            {
+                "model": "claude-3-5-haiku-20241022",
+                "score": 92,
+                "steps_blocks": 25,
+                "rank": 2
+            },
+            {
+                "model": "gemini-2.0-flash",
+                "score": 87,
+                "steps_blocks": 24,
+                "rank": 3
+            },
+            {
+                "model": "gpt-4o-2024-11-20",
+                "score": 56,
+                "steps_blocks": 20,
+                "rank": 4
+            }
+        ]
+    },
+    "Candy Crash": {
+        "runs": 3,
+        "results": [
+            {
+                "model": "o3-mini-2025-01-31(medium)",
+                "score_runs": "90;109;120",
+                "average_score": 106.33,
+                "steps": 25,
+                "rank": 1
+            },
+            {
+                "model": "o1-2024-12-17",
+                "score_runs": "96;114;83",
+                "average_score": 97.67,
+                "steps": 25,
+                "rank": 2
+            },
+            {
+                "model": "deepseek-r1",
+                "score_runs": "62;108;105",
+                "average_score": 91.67,
+                "steps": 25,
+                "rank": 3
+            },
+            {
+                "model": "gemini-2.5-pro-exp-03-25",
+                "score_runs": "50;36;68",
+                "average_score": 51.33,
+                "steps": 25,
+                "rank": 4
+            },
+            {
+                "model": "claude-3-7-sonnet-20250219(thinking)",
+                "score_runs": "36;46;24",
+                "average_score": 35.33,
+                "steps": 25,
+                "rank": 5
+            },
+            {
+                "model": "gemini-2.0-flash-thinking-exp-1219",
+                "score_runs": "0;15;39",
+                "average_score": 18,
+                "steps": 25,
+                "rank": 6
+            },
+            {
+                "model": "claude-3-5-sonnet-20241022",
+                "score_runs": "3;0;0",
+                "average_score": 1,
+                "steps": 25,
+                "rank": 7
+            },
+            {
+                "model": "deepseek-v3",
+                "score_runs": "0;0;0",
+                "average_score": 0,
+                "steps": 25,
+                "rank": 8
+            }
+        ]
+    },
+    "Sokoban": {
+        "runs": 3,
+        "results": [
+            {
+                "model": "o3-mini-2025-01-31(medium)",
+                "levels_cracked": "2; 3; 2",
+                "steps": "[17,52,68];[24,58,78,91];[19,44,64]",
+                "rank": 1
+            },
+            {
+                "model": "gemini-2.5-pro-exp-03-25",
+                "levels_cracked": "2;2;3",
+                "steps": "[23, 46, 79]; [20,50,77]; [26,95,125,175]",
+                "rank": 2
+            },
+            {
+                "model": "claude-3-7-sonnet-20250219(thinking)",
+                "levels_cracked": "1; 2; 0",
+                "steps": "[17,35];[15,40,43];[4]",
+                "rank": 3
+            },
+            {
+                "model": "o1-2024-12-17",
+                "levels_cracked": "1; 1; 1",
+                "steps": null,
+                "rank": 4
+            },
+            {
+                "model": "deepseek-r1",
+                "levels_cracked": "1; 0; 1",
+                "steps": "[19,42];[13];[19,36]",
+                "note": "stuck",
+                "rank": 5
+            },
+            {
+                "model": "o1-mini-2024-09-12",
+                "levels_cracked": "0;1;0",
+                "steps": null,
+                "rank": 6
+            },
+            {
+                "model": "gemini-2.0-flash-thinking-exp-1219",
+                "levels_cracked": "0; 0; 0",
+                "steps": "[23]; [14]; [14]",
+                "rank": 7
+            },
+            {
+                "model": "gpt-4o-2024-11-20",
+                "levels_cracked": "0; 0; 0",
+                "steps": "[68];[105];[168]",
+                "note": "stuck in a loop",
+                "rank": 8
+            },
+            {
+                "model": "claude-3-5-sonnet-20241022",
+                "levels_cracked": "0; 0; 0",
+                "steps": "[21]; [30]; [51]",
+                "note": "stuck in a loop",
+                "rank": 9
+            },
+            {
+                "model": "deepseek-v3",
+                "levels_cracked": "0; 0; 0",
+                "steps": "[9]; [47]; [64]",
+                "rank": 10
+            },
+            {
+                "model": "claude-3-5-sonnet-20241022",
+                "levels_cracked": "0;0;0",
+                "steps": null,
+                "rank": 11
+            }
+        ]
+    }
+}
