@@ -405,6 +405,8 @@ def update_leaderboard_with_time(time_point, mario_overall, mario_details,
 #######################################################
 
 def clear_filters():
+    global leaderboard_state
+    
     # Reset all checkboxes to default state and get fresh data
     df = get_combined_leaderboard({
         "Super Mario Bros": True,
@@ -414,6 +416,27 @@ def clear_filters():
         "Tetris (complete)": True,
         "Tetris (planning only)": True
     })
+    
+    # Reset the leaderboard state to match the default checkbox states
+    leaderboard_state = {
+        "current_game": None,
+        "previous_overall": {
+            "Super Mario Bros": True,
+            "Sokoban": True,
+            "2048": True,
+            "Candy Crash": True,
+            "Tetris (complete)": True,
+            "Tetris (planning only)": True
+        },
+        "previous_details": {
+            "Super Mario Bros": False,
+            "Sokoban": False,
+            "2048": False,
+            "Candy Crash": False,
+            "Tetris (complete)": False,
+            "Tetris (planning only)": False
+        }
+    }
     
     # Reset the DataFrame to its original state
     return (df,
@@ -439,7 +462,7 @@ def build_app():
                             maximum=1,
                             value=1,
                             step=1,
-                            label="Progress",
+                            label="Model Time Point",
                             info="Current Time: 03/25/2025"
                         )
                     with gr.Column(scale=1):
@@ -495,6 +518,9 @@ def build_app():
                                 tetris_overall, tetris_details,
                                 tetris_plan_overall, tetris_plan_details]
 
+                # Initialize the leaderboard state when the app starts
+                clear_filters()
+
                 # When any checkbox changes, update the leaderboard and the checkbox states
                 for checkbox in checkbox_list:
                     checkbox.change(
@@ -514,4 +540,4 @@ def build_app():
 
 if __name__ == "__main__":
     demo_app = build_app()
-    demo_app.launch(debug=True)
+    demo_app.launch(share=True, debug=True)
