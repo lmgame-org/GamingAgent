@@ -54,3 +54,7 @@ pip-delete-this-directory.txt
 .DS_Store
 Thumbs.db
 desktop.ini
+
+assets/
+**/assets/
+
