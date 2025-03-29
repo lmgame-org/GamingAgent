@@ -60,8 +60,11 @@ leaderboard_state = {
 
 # Define GIF paths for the carousel
 GIF_PATHS = [
-    "assets/sokoban/sokoban_sample.gif",
-    "assets/super_mario_bros/super_mario_sample.gif"
+    "assets/super_mario_bros/super_mario.gif",
+    "assets/sokoban/sokoban.gif",
+    "assets/2048/2048.gif",
+    "assets/candy/candy.gif",
+    "assets/tetris/tetris.gif"
 ]
 
 # Print and verify GIF paths
@@ -212,6 +215,19 @@ def update_leaderboard(mario_overall, mario_details,
         "Tetris (planning only)": current_overall["Tetris (planning only)"]
     }
     
+    # Filter GIF paths based on selected games
+    filtered_gifs = []
+    if current_overall["Super Mario Bros"]:
+        filtered_gifs.append(GIF_PATHS[0])
+    if current_overall["Sokoban"]:
+        filtered_gifs.append(GIF_PATHS[1])
+    if current_overall["2048"]:
+        filtered_gifs.append(GIF_PATHS[2])
+    if current_overall["Candy Crash"]:
+        filtered_gifs.append(GIF_PATHS[3])
+    if current_overall["Tetris (complete)"] or current_overall["Tetris (planning only)"]:
+        filtered_gifs.append(GIF_PATHS[4])
+    
     # Get the appropriate DataFrame and chart based on current state
     if leaderboard_state["current_game"]:
         # For detailed view
@@ -235,7 +251,7 @@ def update_leaderboard(mario_overall, mario_details,
         df = get_combined_leaderboard(rank_data, selected_games)
         _, chart = get_combined_leaderboard_with_radar(rank_data, selected_games)
     
-    return (df, chart,
+    return (df, chart, filtered_gifs,
             current_overall["Super Mario Bros"], current_details["Super Mario Bros"],
             current_overall["Sokoban"], current_details["Sokoban"],
             current_overall["2048"], current_details["2048"],
@@ -308,7 +324,7 @@ def clear_filters():
     }
     
     # Return both the DataFrame and the visualization
-    return (df, chart,
+    return (df, chart, GIF_PATHS,
             True, False,  # mario
             True, False,  # sokoban
             True, False,  # 2048
@@ -317,34 +333,102 @@ def clear_filters():
             True, False)  # tetris plan
 
 def build_app():
-    with gr.Blocks() as demo:
+    with gr.Blocks(css="""
+        .gallery-container {
+            height: 50vh !important;
+            max-height: 600px !important;
+            min-height: 300px !important;
+            background-color: #f8f9fa;
+            border-radius: 10px;
+            padding: 5px !important;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            overflow: hidden;
+            aspect-ratio: 1 !important;
+            display: flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+        }
+        .gallery-container .gallery-item {
+            height: 100% !important;
+            width: 100% !important;
+            border-radius: 8px;
+            overflow: hidden;
+            margin: 0 !important;
+            padding: 0 !important;
+            aspect-ratio: 1 !important;
+            display: flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+        }
+        .gallery-container .gallery-item img {
+            height: 100% !important;
+            width: 100% !important;
+            object-fit: contain !important;
+            aspect-ratio: 1 !important;
+        }
+        .visualization-container {
+            height: 50vh !important;
+            max-height: 600px !important;
+            min-height: 300px !important;
+            background-color: #f8f9fa;
+            border-radius: 10px;
+            padding: 15px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            overflow: hidden;
+            margin-left: 10px !important;  /* Add small gap between gallery and visualization */
+        }
+        .visualization-container .plot {
+            height: 100% !important;
+            width: 100% !important;
+        }
+        .section-title {
+            font-size: 1.5em;
+            font-weight: bold;
+            color: #2c3e50;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #e9ecef;
+        }
+        /* Add container for the entire app */
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 0 20px;
+        }
+        /* Add flex layout for the row containing gallery and visualization */
+        .gallery-viz-row {
+            display: flex !important;
+            align-items: center !important;
+            gap: 20px !important;  /* Add consistent gap between components */
+        }
+    """) as demo:
         gr.Markdown("# 🎮 Game Arena: Gaming Agent 🎲")
         
         with gr.Tabs():
             with gr.Tab("🏆 Leaderboard"):
                 # Visualization section at the very top
                 with gr.Row():
-                    gr.Markdown("### 📊 Data Visualization")
-                with gr.Row():
+                    gr.Markdown("### 📊 Gallery")
+                with gr.Row(elem_classes="gallery-viz-row"):
                     # Split into two columns
-                    with gr.Column(scale=3):  # Changed from 1 to 3 to make demos larger
-                        # GIF gallery on the left
-                        gr.Gallery(
+                    with gr.Column(scale=3):
+                        gallery = gr.Gallery(
                             value=GIF_PATHS,
                             label="Game Demos",
                             show_label=True,
                             elem_id="gallery",
+                            elem_classes="gallery-container",
                             columns=1,
                             rows=1,
-                            min_width=400,  # Control size through min_width
+                            min_width=100,
+                            container=True,
                             allow_preview=True,
-                            object_fit='contain',  # Ensure proper scaling
-                            show_download_button=False,  # Hide download button to keep it clean
-                            show_share_button=False,  # Hide share button to keep it clean
-                            show_fullscreen_button=True  # Allow fullscreen for better viewing
+                            object_fit='contain',
+                            show_download_button=False,
+                            show_share_button=False,
+                            show_fullscreen_button=True
                         )
-                    with gr.Column(scale=4):  # Changed from 2 to 4, but maintains a smaller ratio compared to demos
-                        # Radar charts on the right
+                    with gr.Column(scale=4):
                         visualization = gr.Plot(
                             value=get_combined_leaderboard_with_radar(rank_data, {
                                 "Super Mario Bros": True,
@@ -354,24 +438,9 @@ def build_app():
                                 "Tetris (complete)": True,
                                 "Tetris (planning only)": True
                             })[1],
-                            label="Performance Visualization"
+                            label="Performance Visualization",
+                            elem_classes="visualization-container"
                         )
-
-                # Time progression display and control buttons
-                with gr.Row():
-                    with gr.Column(scale=2):
-                        gr.Markdown("**⏰ Time Tracker**")
-                        time_slider = gr.Slider(
-                            minimum=0,
-                            maximum=1,
-                            value=1,
-                            step=1,
-                            label="Model Time Point",
-                            info="Current Time: 03/25/2025"
-                        )
-                    with gr.Column(scale=1):
-                        gr.Markdown("**Controls**")
-                        clear_btn = gr.Button("🔄 Reset Filters", variant="secondary")
 
                 # Game selection section
                 with gr.Row():
@@ -402,6 +471,22 @@ def build_app():
                         gr.Markdown("**📋 Tetris (planning)**")
                         tetris_plan_overall = gr.Checkbox(label="Tetris (planning) Score", value=True)
                         tetris_plan_details = gr.Checkbox(label="Tetris (planning) Details", value=False)
+
+                # Time progression display and control buttons - Moved below game selection
+                with gr.Row():
+                    with gr.Column(scale=2):
+                        gr.Markdown("**⏰ Time Tracker**")
+                        time_slider = gr.Slider(
+                            minimum=0,
+                            maximum=1,
+                            value=1,
+                            step=1,
+                            label="Model Time Point",
+                            info="Current Time: 03/25/2025"
+                        )
+                    with gr.Column(scale=1):
+                        gr.Markdown("**🔄 Controls**")
+                        clear_btn = gr.Button("Reset Filters", variant="secondary")
 
                 # Leaderboard table section
                 with gr.Row():
@@ -437,14 +522,14 @@ def build_app():
                     checkbox.change(
                         fn=update_leaderboard,
                         inputs=checkbox_list,
-                        outputs=[leaderboard_board, visualization] + checkbox_list
+                        outputs=[leaderboard_board, visualization, gallery] + checkbox_list
                     )
 
                 # Update both when clear button is clicked
                 clear_btn.click(
                     fn=clear_filters,
                     inputs=[],
-                    outputs=[leaderboard_board, visualization] + checkbox_list
+                    outputs=[leaderboard_board, visualization, gallery] + checkbox_list
                 )
 
     return demo
@@ -452,4 +537,4 @@ def build_app():
 if __name__ == "__main__":
     demo_app = build_app()
     # Add file serving configuration
-    demo_app.launch(debug=True, show_error=True, share=False)
+    demo_app.launch(debug=True, show_error=True, share=True)

@@ -49,7 +49,7 @@ def create_horizontal_bar_chart(df, game_name):
     # Set style
     plt.style.use('default')
     # Increase figure width to accommodate long model names
-    fig, ax = plt.subplots(figsize=(10, 6.7))
+    fig, ax = plt.subplots(figsize=(10, 6))
     
     # Sort by score
     if game_name == "Super Mario Bros":
@@ -189,8 +189,8 @@ def create_radar_charts(df):
     categories = [col.replace(' Score', '') for col in game_columns]
     
     # Create figure with two subplots - adjusted size for new layout
-    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(10, 6.7), subplot_kw=dict(projection='polar'))
-    fig.patch.set_facecolor('#e8e8e8')
+    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(10, 6), subplot_kw=dict(projection='polar'))
+    fig.patch.set_facecolor('white')  # Set figure background to white
     
     def normalize_values(values, mean, std):
         """
@@ -219,30 +219,31 @@ def create_radar_charts(df):
         return np.mean(values), np.std(values)
 
     def setup_radar_plot(ax, data, title):
-        ax.set_facecolor('#f0f0f0')
+        ax.set_facecolor('white')  # Set subplot background to white
         
         num_vars = len(categories)
         angles = np.linspace(0, 2*np.pi, num_vars, endpoint=False)
         angles = np.concatenate((angles, [angles[0]]))
         
-        # Plot grid lines
-        grid_values = [10, 30, 50, 70, 90]  # Changed values to make first grid smaller
+        # Plot grid lines with darker color
+        grid_values = [10, 30, 50, 70, 90]
         ax.set_rgrids(grid_values, 
-                    labels=grid_values,  # Empty strings to remove numbers
+                    labels=grid_values,
                     angle=45, 
                     fontsize=6, 
-                    alpha=0.5, 
-                    color='black')
+                    alpha=0.7,  # Increased alpha for better visibility
+                    color='#404040')  # Darker color for grid labels
     
-        # Make grid lines visible but subtle
-        ax.grid(True, color='gray', alpha=0.2)
+        # Make grid lines darker but still subtle
+        ax.grid(True, color='#404040', alpha=0.3)  # Darker grid lines
         
+        # Define darker, more vibrant colors for the radar plots
         colors = ['#1f77b4', '#d62728', '#2ca02c', '#ff7f0e', '#9467bd', '#8c564b']
         
         # Calculate game statistics once
         game_stats = {col: get_game_stats(df, col) for col in game_columns}
         
-        # Plot data
+        # Plot data with darker lines and higher opacity for fills
         for idx, (_, row) in enumerate(data.iterrows()):
             values = []
             for col in game_columns:
@@ -266,9 +267,13 @@ def create_radar_charts(df):
             normalized_values = np.concatenate((normalized_values, [normalized_values[0]]))
             
             model_name = simplify_model_name(row['Player'])
-            ax.plot(angles, normalized_values, 'o-', linewidth=1.5, label=model_name,
-                   color=colors[idx % len(colors)], markersize=3)
-            ax.fill(angles, normalized_values, alpha=0.2, color=colors[idx % len(colors)])
+            ax.plot(angles, normalized_values, 'o-', linewidth=2.0,  # Increased line width
+                   label=model_name,
+                   color=colors[idx % len(colors)], 
+                   markersize=4)  # Increased marker size
+            ax.fill(angles, normalized_values, 
+                   alpha=0.3,  # Increased fill opacity
+                   color=colors[idx % len(colors)])
         
         # Format categories
         formatted_categories = []
@@ -284,21 +289,28 @@ def create_radar_charts(df):
             formatted_categories.append(game)
         
         ax.set_xticks(angles[:-1])
-        ax.set_xticklabels(formatted_categories, fontsize=7, color='black')
-        ax.tick_params(pad=10, colors='black')
+        ax.set_xticklabels(formatted_categories, 
+                          fontsize=8,  # Slightly larger font
+                          color='#202020',  # Darker text
+                          fontweight='bold')  # Bold text
+        ax.tick_params(pad=10, colors='#202020')  # Darker tick colors
         
-        ax.set_title(title, pad=20, fontsize=10, color='black')
+        ax.set_title(title, 
+                    pad=20, 
+                    fontsize=11,  # Slightly larger title
+                    color='#202020',  # Darker title
+                    fontweight='bold')  # Bold title
         
         legend = ax.legend(loc='upper right',
                           bbox_to_anchor=(1.3, 1.1),
-                          fontsize=6,
-                          framealpha=0.8,
-                          edgecolor='gray',
+                          fontsize=7,  # Slightly larger legend
+                          framealpha=0.9,  # More opaque legend
+                          edgecolor='#404040',  # Darker edge
                           ncol=1)
         
         ax.set_ylim(0, 105)
-        ax.spines['polar'].set_color('black')
-        ax.spines['polar'].set_alpha(0.3)
+        ax.spines['polar'].set_color('#404040')  # Darker spine
+        ax.spines['polar'].set_alpha(0.5)  # More visible spine
     
     # Setup both plots
     setup_radar_plot(ax1, df_reasoning, "Reasoning Models")
