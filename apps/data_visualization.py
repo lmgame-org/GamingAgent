@@ -49,7 +49,7 @@ def create_horizontal_bar_chart(df, game_name):
     # Set style
     plt.style.use('default')
     # Increase figure width to accommodate long model names
-    fig, ax = plt.subplots(figsize=(11, 5))
+    fig, ax = plt.subplots(figsize=(10, 6.7))
     
     # Sort by score
     if game_name == "Super Mario Bros":
@@ -188,8 +188,8 @@ def create_radar_charts(df):
     game_columns = [col for col in df.columns if col.endswith(' Score')]
     categories = [col.replace(' Score', '') for col in game_columns]
     
-    # Create figure with two subplots
-    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(11, 5), subplot_kw=dict(projection='polar'))
+    # Create figure with two subplots - adjusted size for new layout
+    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(10, 6.7), subplot_kw=dict(projection='polar'))
     fig.patch.set_facecolor('#e8e8e8')
     
     def normalize_values(values, mean, std):
