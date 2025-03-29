@@ -7,6 +7,25 @@ import io
 from functools import reduce
 import numpy as np
 from datetime import datetime, timedelta
+import matplotlib.pyplot as plt
+from leaderboard_utils import (
+    get_organization,
+    get_mario_leaderboard,
+    get_sokoban_leaderboard,
+    get_2048_leaderboard,
+    get_candy_leaderboard,
+    get_tetris_leaderboard,
+    get_tetris_planning_leaderboard,
+    get_combined_leaderboard,
+    GAME_ORDER
+)
+from data_visualization import (
+    get_combined_leaderboard_with_radar,
+    create_organization_radar_chart,
+    create_top_players_radar_chart,
+    create_player_radar_chart,
+    create_horizontal_bar_chart
+)
 
 # Define time points and their corresponding data files
 TIME_POINTS = {
@@ -17,16 +36,6 @@ TIME_POINTS = {
 # Load the initial JSON file with rank data
 with open(TIME_POINTS["03/25/2025"], "r") as f:
     rank_data = json.load(f)
-
-# Define game order
-GAME_ORDER = [
-    "Super Mario Bros",
-    "Sokoban",
-    "2048",
-    "Candy Crash",
-    "Tetris (complete)",
-    "Tetris (planning only)"
-]
 
 # Add leaderboard state at the top level
 leaderboard_state = {
@@ -58,213 +67,6 @@ def load_rank_data(time_point):
         except FileNotFoundError:
             return None
     return None
-
-def get_organization(model_name):
-    m = model_name.lower()
-    if "claude" in m:
-        return "anthropic"
-    elif "gemini" in m:
-        return "google"
-    elif "o1" in m or "gpt" in m or "o3" in m:
-        return "openai"
-    elif "deepseek" in m:
-        return "deepseek"
-    else:
-        return "unknown"
-
-#######################################################
-# Helper functions to build individual game leaderboards
-#######################################################
-
-def get_mario_leaderboard():
-    data = rank_data.get("Super Mario Bros", {}).get("results", [])
-    df = pd.DataFrame(data)
-    df = df.rename(columns={
-        "model": "Player", 
-        "progress": "Progress (current/total)", 
-        "score": "Score", 
-        "time_s": "Time (s)"
-    })
-    df["Organization"] = df["Player"].apply(get_organization)
-    # Reorder columns to put Organization second
-    df = df[["Player", "Organization", "Progress (current/total)", "Score", "Time (s)"]]
-    return df
-
-def get_sokoban_leaderboard():
-    data = rank_data.get("Sokoban", {}).get("results", [])
-    df = pd.DataFrame(data)
-    df = df.rename(columns={
-        "model": "Player", 
-        "levels_cracked": "Levels Cracked", 
-        "steps": "Steps"
-    })
-    df["Organization"] = df["Player"].apply(get_organization)
-    # Reorder columns to put Organization second
-    df = df[["Player", "Organization", "Levels Cracked", "Steps"]]
-    return df
-
-def get_2048_leaderboard():
-    data = rank_data.get("2048", {}).get("results", [])
-    df = pd.DataFrame(data)
-    df = df.rename(columns={
-        "model": "Player", 
-        "score": "Score", 
-        "steps": "Steps", 
-        "time": "Time"
-    })
-    df["Organization"] = df["Player"].apply(get_organization)
-    # Reorder columns to put Organization second
-    df = df[["Player", "Organization", "Score", "Steps", "Time"]]
-    return df
-
-def get_candy_leaderboard():
-    data = rank_data.get("Candy Crash", {}).get("results", [])
-    df = pd.DataFrame(data)
-    df = df.rename(columns={
-        "model": "Player", 
-        "score_runs": "Score Runs", 
-        "average_score": "Average Score", 
-        "steps": "Steps"
-    })
-    df["Organization"] = df["Player"].apply(get_organization)
-    # Reorder columns to put Organization second
-    df = df[["Player", "Organization", "Score Runs", "Average Score", "Steps"]]
-    return df
-
-def get_tetris_leaderboard():
-    data = rank_data.get("Tetris (complete)", {}).get("results", [])
-    df = pd.DataFrame(data)
-    df = df.rename(columns={
-        "model": "Player", 
-        "score": "Score", 
-        "steps_blocks": "Steps"
-    })
-    df["Organization"] = df["Player"].apply(get_organization)
-    # Reorder columns to put Organization second
-    df = df[["Player", "Organization", "Score", "Steps"]]
-    return df
-
-def get_tetris_planning_leaderboard():
-    data = rank_data.get("Tetris (planning only)", {}).get("results", [])
-    df = pd.DataFrame(data)
-    df = df.rename(columns={
-        "model": "Player", 
-        "score": "Score", 
-        "steps_blocks": "Steps"
-    })
-    df["Organization"] = df["Player"].apply(get_organization)
-    # Reorder columns to put Organization second
-    df = df[["Player", "Organization", "Score", "Steps"]]
-    return df
-
-#######################################################
-# Combined leaderboard with ranking system
-#######################################################
-
-def calculate_rank_and_completeness(selected_games):
-    # Dictionary to store DataFrames for each game
-    game_dfs = {}
-    
-    # Get DataFrames for selected games
-    if selected_games.get("Super Mario Bros"):
-        game_dfs["Super Mario Bros"] = get_mario_leaderboard()
-    if selected_games.get("Sokoban"):
-        game_dfs["Sokoban"] = get_sokoban_leaderboard()
-    if selected_games.get("2048"):
-        game_dfs["2048"] = get_2048_leaderboard()
-    if selected_games.get("Candy Crash"):
-        game_dfs["Candy Crash"] = get_candy_leaderboard()
-    if selected_games.get("Tetris (complete)"):
-        game_dfs["Tetris (complete)"] = get_tetris_leaderboard()
-    if selected_games.get("Tetris (planning only)"):
-        game_dfs["Tetris (planning only)"] = get_tetris_planning_leaderboard()
-
-    # Get all unique players
-    all_players = set()
-    for df in game_dfs.values():
-        all_players.update(df["Player"].unique())
-    all_players = sorted(list(all_players))
-
-    # Create results DataFrame
-    results = []
-    for player in all_players:
-        player_data = {
-            "Player": player,
-            "Organization": get_organization(player)
-        }
-        ranks = []
-        games_played = 0
-
-        # Calculate rank and completeness for each game
-        for game in GAME_ORDER:
-            if game in game_dfs:
-                df = game_dfs[game]
-                if player in df["Player"].values:
-                    games_played += 1
-                    # Get player's score based on game type
-                    if game == "Super Mario Bros":
-                        player_score = df[df["Player"] == player]["Score"].iloc[0]
-                        rank = len(df[df["Score"] > player_score]) + 1
-                    elif game == "Sokoban":
-                        # Parse Sokoban score string and get maximum level
-                        levels_str = df[df["Player"] == player]["Levels Cracked"].iloc[0]
-                        try:
-                            # Split by semicolon, strip whitespace, filter empty strings, convert to integers
-                            levels = [int(x.strip()) for x in levels_str.split(";") if x.strip()]
-                            player_score = max(levels) if levels else 0
-                        except:
-                            player_score = 0
-                        # Calculate rank based on maximum level
-                        rank = len(df[df["Levels Cracked"].apply(
-                            lambda x: max([int(y.strip()) for y in x.split(";") if y.strip()]) > player_score
-                        )]) + 1
-                    elif game == "2048":
-                        player_score = df[df["Player"] == player]["Score"].iloc[0]
-                        rank = len(df[df["Score"] > player_score]) + 1
-                    elif game == "Candy Crash":
-                        player_score = df[df["Player"] == player]["Average Score"].iloc[0]
-                        rank = len(df[df["Average Score"] > player_score]) + 1
-                    elif game == "Tetris (complete)":
-                        player_score = df[df["Player"] == player]["Score"].iloc[0]
-                        rank = len(df[df["Score"] > player_score]) + 1
-                    elif game == "Tetris (planning only)":
-                        player_score = df[df["Player"] == player]["Score"].iloc[0]
-                        rank = len(df[df["Score"] > player_score]) + 1
-
-                    ranks.append(rank)
-                    player_data[f"{game} Score"] = player_score
-                else:
-                    player_data[f"{game} Score"] = "_"
-
-        # Calculate average rank and completeness for sorting only
-        if ranks:
-            player_data["Sort Rank"] = round(np.mean(ranks), 2)
-            player_data["Games Played"] = games_played
-        else:
-            player_data["Sort Rank"] = float('inf')
-            player_data["Games Played"] = 0
-
-        results.append(player_data)
-
-    # Create DataFrame and sort by average rank and completeness
-    df_results = pd.DataFrame(results)
-    if not df_results.empty:
-        # Sort by average rank (ascending) and completeness (descending)
-        df_results = df_results.sort_values(
-            by=["Sort Rank", "Games Played"],
-            ascending=[True, False]
-        )
-        # Drop the sorting columns
-        df_results = df_results.drop(["Sort Rank", "Games Played"], axis=1)
-
-    return df_results
-
-def get_combined_leaderboard(selected_games):
-    return calculate_rank_and_completeness(selected_games)
-
-#######################################################
-# Update function for Gradio checkboxes and leaderboard
-#######################################################
 
 def update_leaderboard(mario_overall, mario_details,
                        sokoban_overall, sokoban_details,
@@ -338,6 +140,8 @@ def update_leaderboard(mario_overall, mario_details,
                 current_overall[changed_game] = True
             else:
                 leaderboard_state["previous_overall"][changed_game] = False
+                if leaderboard_state["current_game"] == changed_game:
+                    leaderboard_state["current_game"] = None
         
         # If a game's details checkbox was unchecked
         elif not current_details[changed_game] and leaderboard_state["previous_details"][changed_game]:
@@ -355,24 +159,30 @@ def update_leaderboard(mario_overall, mario_details,
         "Tetris (planning only)": current_overall["Tetris (planning only)"]
     }
     
-    # Get the appropriate DataFrame based on current state
+    # Get the appropriate DataFrame and chart based on current state
     if leaderboard_state["current_game"]:
+        # For detailed view
         if leaderboard_state["current_game"] == "Super Mario Bros":
-            df = get_mario_leaderboard()
+            df = get_mario_leaderboard(rank_data)
         elif leaderboard_state["current_game"] == "Sokoban":
-            df = get_sokoban_leaderboard()
+            df = get_sokoban_leaderboard(rank_data)
         elif leaderboard_state["current_game"] == "2048":
-            df = get_2048_leaderboard()
+            df = get_2048_leaderboard(rank_data)
         elif leaderboard_state["current_game"] == "Candy Crash":
-            df = get_candy_leaderboard()
+            df = get_candy_leaderboard(rank_data)
         elif leaderboard_state["current_game"] == "Tetris (complete)":
-            df = get_tetris_leaderboard()
+            df = get_tetris_leaderboard(rank_data)
         else:  # Tetris (planning only)
-            df = get_tetris_planning_leaderboard()
+            df = get_tetris_planning_leaderboard(rank_data)
+        
+        # Always create a new chart for detailed view
+        chart = create_horizontal_bar_chart(df, leaderboard_state["current_game"])
     else:
-        df = get_combined_leaderboard(selected_games)
+        # For overall view
+        df = get_combined_leaderboard(rank_data, selected_games)
+        _, chart = get_combined_leaderboard_with_radar(rank_data, selected_games)
     
-    return (df,
+    return (df, chart,
             current_overall["Super Mario Bros"], current_details["Super Mario Bros"],
             current_overall["Sokoban"], current_details["Sokoban"],
             current_overall["2048"], current_details["2048"],
@@ -400,15 +210,21 @@ def update_leaderboard_with_time(time_point, mario_overall, mario_details,
                             tetris_overall, tetris_details,
                             tetris_plan_overall, tetris_plan_details)
 
-#######################################################
-# Build Gradio App
-#######################################################
-
 def clear_filters():
     global leaderboard_state
     
     # Reset all checkboxes to default state and get fresh data
-    df = get_combined_leaderboard({
+    df = get_combined_leaderboard(rank_data, {
+        "Super Mario Bros": True,
+        "Sokoban": True,
+        "2048": True,
+        "Candy Crash": True,
+        "Tetris (complete)": True,
+        "Tetris (planning only)": True
+    })
+    
+    # Get the radar chart visualization
+    _, chart = get_combined_leaderboard_with_radar(rank_data, {
         "Super Mario Bros": True,
         "Sokoban": True,
         "2048": True,
@@ -438,8 +254,8 @@ def clear_filters():
         }
     }
     
-    # Reset the DataFrame to its original state
-    return (df,
+    # Return both the DataFrame and the visualization
+    return (df, chart,
             True, False,  # mario
             True, False,  # sokoban
             True, False,  # 2048
@@ -453,7 +269,23 @@ def build_app():
         
         with gr.Tabs():
             with gr.Tab("🏆 Leaderboard"):
-                # Add time progression display and control buttons in one block
+                # Visualization section at the very top
+                with gr.Row():
+                    gr.Markdown("### 📊 Data Visualization")
+                with gr.Row():
+                    visualization = gr.Plot(
+                        value=get_combined_leaderboard_with_radar(rank_data, {
+                            "Super Mario Bros": True,
+                            "Sokoban": True,
+                            "2048": True,
+                            "Candy Crash": True,
+                            "Tetris (complete)": True,
+                            "Tetris (planning only)": True
+                        })[1],
+                        label="Performance Visualization"
+                    )
+
+                # Time progression display and control buttons
                 with gr.Row():
                     with gr.Column(scale=2):
                         gr.Markdown("**⏰ Time Tracker**")
@@ -467,8 +299,11 @@ def build_app():
                         )
                     with gr.Column(scale=1):
                         gr.Markdown("**Controls**")
-                        clear_btn = gr.Button("🗑️ Clear Filters", variant="secondary")
+                        clear_btn = gr.Button("🔄 Reset Filters", variant="secondary")
 
+                # Game selection section
+                with gr.Row():
+                    gr.Markdown("### 🎮 Game Selection")
                 with gr.Row():
                     # For each game, we have two checkboxes: one for overall and one for detailed view.
                     with gr.Column():
@@ -496,19 +331,23 @@ def build_app():
                         tetris_plan_overall = gr.Checkbox(label="Tetris (planning) Score", value=True)
                         tetris_plan_details = gr.Checkbox(label="Tetris (planning) Details", value=False)
 
-                # Leaderboard display with initial value
-                leaderboard_board = gr.DataFrame(
-                    value=get_combined_leaderboard({
-                        "Super Mario Bros": True,
-                        "Sokoban": True,
-                        "2048": True,
-                        "Candy Crash": True,
-                        "Tetris (complete)": True,
-                        "Tetris (planning only)": True
-                    }),
-                    interactive=True,  # Enable sorting by making it interactive
-                    wrap=True  # Enable text wrapping for better readability
-                )
+                # Leaderboard table section
+                with gr.Row():
+                    gr.Markdown("### 📋 Detailed Results")
+                with gr.Row():
+                    leaderboard_board = gr.DataFrame(
+                        value=get_combined_leaderboard(rank_data, {
+                            "Super Mario Bros": True,
+                            "Sokoban": True,
+                            "2048": True,
+                            "Candy Crash": True,
+                            "Tetris (complete)": True,
+                            "Tetris (planning only)": True
+                        }),
+                        interactive=True,
+                        wrap=True,
+                        label="Leaderboard"
+                    )
 
                 # List of all checkboxes (in order)
                 checkbox_list = [mario_overall, mario_details,
@@ -521,23 +360,23 @@ def build_app():
                 # Initialize the leaderboard state when the app starts
                 clear_filters()
 
-                # When any checkbox changes, update the leaderboard and the checkbox states
+                # Update both the leaderboard and visualization when checkboxes change
                 for checkbox in checkbox_list:
                     checkbox.change(
                         fn=update_leaderboard,
                         inputs=checkbox_list,
-                        outputs=[leaderboard_board] + checkbox_list
+                        outputs=[leaderboard_board, visualization] + checkbox_list
                     )
 
-                # When clear button is clicked, reset all filters
+                # Update both when clear button is clicked
                 clear_btn.click(
                     fn=clear_filters,
                     inputs=[],
-                    outputs=[leaderboard_board] + checkbox_list
+                    outputs=[leaderboard_board, visualization] + checkbox_list
                 )
 
     return demo
 
 if __name__ == "__main__":
     demo_app = build_app()
-    demo_app.launch(share=True, debug=True)
+    demo_app.launch(debug=True)
