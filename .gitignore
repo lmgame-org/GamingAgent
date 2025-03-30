@@ -55,6 +55,4 @@ pip-delete-this-directory.txt
 Thumbs.db
 desktop.ini
 
-assets/
-**/assets/
 
