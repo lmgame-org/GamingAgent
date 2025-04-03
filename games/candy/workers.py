@@ -38,8 +38,10 @@ def log_move_and_thought(move, thought, latency):
 def candy_crush_read_worker(system_prompt, api_provider, model_name, image_path, modality, thinking):
     base64_image = encode_image(image_path)
 
-    # api_provider = "anthropic"
-    # model_name = "claude-3-7-sonnet-20250219"
+    # Provide text table for o3-min due to limit to text-only input
+    if model_name == "o3-mini-2025-01-31":
+        api_provider = "anthropic"
+        model_name = "claude-3-7-sonnet-20250219"
     
     # Construct prompt for LLM
     prompt = (
