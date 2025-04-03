@@ -195,79 +195,46 @@ def generate_grid(image, grid_rows, grid_cols):
     horizontal_lines = [i * cell_height for i in range(grid_rows + 1)]
     
     return vertical_lines, horizontal_lines
-
-def annotate_with_grid(image, vertical_lines, horizontal_lines, x_offset, y_offset):
-    """
-    Draws bounding rectangles and text labels for each cell, then returns:
-        image, grid_annotations
-    where grid_annotations is a list of dicts, one per cell:
-        {
-            'id': cell_id,
-            'row': row,
-            'col': col,
-            'x1': left_pixel_in_original,
-            'y1': top_pixel_in_original,
-            'x2': right_pixel_in_original,
-            'y2': bottom_pixel_in_original,
-            'center_x': center_pixel_in_original,
-            'center_y': center_pixel_in_original
-        }
-    """
+def annotate_with_grid(image, vertical_lines, horizontal_lines, x_offset, y_offset, alpha=0.5, enable_digit_label = True, thickness = 1, black = False, font_size=0.4):
+    """Annotates the image with semi-transparent gray grid cell numbers."""
     grid_annotations = []
-
-    # Number of cells in each dimension
-    row_count = len(horizontal_lines) - 1
-    col_count = len(vertical_lines) - 1
-
-    for row in range(row_count):
-        for col in range(col_count):
-            # Compute a cell_id in row-major order
-            cell_id = row * col_count + col + 1
-
-            # Determine bounding box corners in the cropped image
-            cell_x1 = vertical_lines[col]
-            cell_y1 = horizontal_lines[row]
-            cell_x2 = vertical_lines[col + 1]
-            cell_y2 = horizontal_lines[row + 1]
-
-            # Compute the center (for labeling)
-            center_x = (cell_x1 + cell_x2) // 2
-            center_y = (cell_y1 + cell_y2) // 2
-
-            # Save the annotation in original-image coordinates
-            grid_annotations.append({
-                'id': cell_id,
-                'row': row,
-                'col': col,
-                'x1': cell_x1 + x_offset,
-                'y1': cell_y1 + y_offset,
-                'x2': cell_x2 + x_offset,
-                'y2': cell_y2 + y_offset,
-                'center_x': center_x + x_offset,
-                'center_y': center_y + y_offset
-            })
-
-            # draw a rectangle around the cell
-            cv2.rectangle(
-                image,
-                (cell_x1, cell_y1),
-                (cell_x2, cell_y2),
-                (0, 255, 0),  # green lines
-                1
-            )
-
-            # label the cell with its ID
-            cv2.putText(
-                image,
-                str(cell_id),
-                (center_x - 10, center_y + 10),  # near the center
-                cv2.FONT_HERSHEY_SIMPLEX,
-                0.4,
-                (255, 255, 255),  # white text
-                1
-            )
     
+    # Create a copy of the image to overlay transparent text
+    overlay = image.copy()
+
+    for row in range(len(horizontal_lines) - 1):
+        for col in range(len(vertical_lines) - 1):
+            x = (vertical_lines[col] + vertical_lines[col + 1]) // 2
+            y = (horizontal_lines[row] + horizontal_lines[row + 1]) // 2
+            cell_id = row * (len(vertical_lines) - 1) + col + 1
+            grid_annotations.append({'id': cell_id, 'x': x + x_offset, 'y': y + y_offset})
+            
+            if enable_digit_label:
+                # Draw semi-transparent text on the overlay
+                text = str(cell_id)
+                font = cv2.FONT_HERSHEY_SIMPLEX
+                font_scale = font_size
+                thickness = thickness
+                if black:
+                    text_color = (0, 0, 0)
+                else:
+                    text_color = (255, 255, 255)  # Gray color
+            
+                cv2.putText(overlay, text, (x - 10, y + 10), font, font_scale, text_color, thickness, cv2.LINE_AA)
+            
+            # Draw green grid rectangle
+            if black:
+                cv2.rectangle(image, (vertical_lines[col], horizontal_lines[row]), 
+                            (vertical_lines[col + 1], horizontal_lines[row + 1]), (0, 0, 0), thickness)
+            else:
+                cv2.rectangle(image, (vertical_lines[col], horizontal_lines[row]), 
+                            (vertical_lines[col + 1], horizontal_lines[row + 1]), (0, 255, 0), thickness)
+
+    # Blend the overlay with the original image
+    cv2.addWeighted(overlay, alpha, image, 1 - alpha, 0, image)
+
     return image, grid_annotations
+
 
 def save_grid_annotations(grid_annotations, cache_dir=None):
     if cache_dir:
@@ -280,69 +247,10 @@ def save_grid_annotations(grid_annotations, cache_dir=None):
         json.dump(grid_annotations, file, indent=4)
     return output_file
 
-def generate_patches_from_cells(grid_annotations, grid_rows, grid_cols, x_dim, y_dim):
-    """
-    Given cell-level annotations, group them into patches of size (y_dim × x_dim).
-    Each patch covers y_dim rows and x_dim columns of cells, and we return
-    bounding boxes that encompass all cells in that patch.
-    """
-    cell_map = {}
-    for cell in grid_annotations:
-        # Grab the row & col from the new annotation
-        r, c = cell["row"], cell["col"]
-        cell_map[(r, c)] = cell
-
-    patches = []
-    patch_number = 0
-
-    # Number of patch-blocks in each dimension
-    patches_across = grid_cols // x_dim  # how many patches horizontally
-    patches_down = grid_rows // y_dim    # how many patches vertically
-
-    for patch_row_idx in range(patches_down):        # for each patch in the vertical direction
-        for patch_col_idx in range(patches_across):  # for each patch in the horizontal direction
-            row_start = patch_row_idx * y_dim
-            row_end   = row_start + y_dim - 1
-            col_start = patch_col_idx * x_dim
-            col_end   = col_start + x_dim - 1
-
-            min_x1 = float('inf')
-            min_y1 = float('inf')
-            max_x2 = float('-inf')
-            max_y2 = float('-inf')
-
-            # Traverse each cell in the patch
-            for r in range(row_start, row_end + 1):
-                for c in range(col_start, col_end + 1):
-                    # If the cell was annotated
-                    if (r, c) in cell_map:
-                        cell = cell_map[(r, c)]
-                        min_x1 = min(min_x1, cell["x1"])
-                        min_y1 = min(min_y1, cell["y1"])
-                        max_x2 = max(max_x2, cell["x2"])
-                        max_y2 = max(max_y2, cell["y2"])
-
-            patch_info = {
-                "patch_number": patch_number,
-                "row_start": row_start,
-                "row_end": row_end,
-                "col_start": col_start,
-                "col_end": col_end,
-                "x1": min_x1,
-                "y1": min_y1,
-                "x2": max_x2,
-                "y2": max_y2,
-            }
-            patches.append(patch_info)
-            patch_number += 1
-
-    return patches
-
-
-def get_annotate_img(image_path, crop_left=50, crop_right=50, crop_top=50, crop_bottom=50, grid_rows=9, grid_cols=9, output_image='annotated_grid.png', cache_dir=None):
+def get_annotate_img(image_path, crop_left=50, crop_right=50, crop_top=50, crop_bottom=50, grid_rows=9, grid_cols=9, output_image='annotated_grid.png', cache_dir=None, enable_digit_label=True, thickness=1, black=False, font_size=0.4):
     original_image, cropped_image, x_offset, y_offset = preprocess_image(image_path, crop_left, crop_right, crop_top, crop_bottom, cache_dir)
     vertical_lines, horizontal_lines = generate_grid(cropped_image, grid_rows, grid_cols)
-    annotated_cropped_image, grid_annotations = annotate_with_grid(cropped_image, vertical_lines, horizontal_lines, x_offset, y_offset)
+    annotated_cropped_image, grid_annotations = annotate_with_grid(cropped_image, vertical_lines, horizontal_lines, x_offset, y_offset, enable_digit_label=enable_digit_label, thickness=thickness, black=black, font_size=font_size)
     grid_annotation_path = save_grid_annotations(grid_annotations, cache_dir)
     
     # Place the annotated cropped image back onto the original image
