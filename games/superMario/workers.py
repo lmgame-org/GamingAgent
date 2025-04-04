@@ -18,7 +18,7 @@ def worker_short(thread_id, offset, system_prompt, api_provider, model_name):
     print(f"[Thread {thread_id} - SHORT] Starting after {offset}s delay...")
 
     short_prompt = (
-        f"Analyze the current game state and generate PyAutoGUI code to control Mario "
+        "Analyze the current game state and generate PyAutoGUI code to control Mario "
         "for the next 1 second.\n"
         "Mario's position most likely has moved forward when the generated code gets to execute.\n"
         "Your objective is to avoid obstacles, enemies, and hazards.\n"

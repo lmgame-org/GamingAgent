@@ -32,7 +32,13 @@ def main():
                         help="API provider to use (anthropic, openai, gemini).")
     parser.add_argument("--model_name", type=str, default="gpt-4-turbo",
                         help="Model name.")
-    parser.add_argument("--modality", type=str, default="text-only", choices=["text-only", "vision-text"], help="modality used.")
+    parser.add_argument("--state_reader_api_provider", type=str, default="anthropic",
+                        help="Game state reader API provider to use.")
+    parser.add_argument("--state_reader_model_name", type=str, default="claude-3-7-sonnet-20250219",
+                        help="Game state reader model name.")
+    parser.add_argument("--modality", type=str, default="vision-text",
+                        choices=["vision-only", "vision-text", "text-only"],
+                        help="Employ vision-only, text-only or vision-text reasoning mode.")
     parser.add_argument("--thinking", type=str, default=True, help="Whether to use deep thinking.")
     parser.add_argument("--crop_left", type=int, default=880, help="Pixels to crop from the left.")
     parser.add_argument("--crop_right", type=int, default=660, help="Pixels to crop from the right.")
@@ -57,7 +63,10 @@ def main():
             start_time = time.time()
 
             # Execute the Candy Crush worker
-            latest_response = candy_crush_worker(system_prompt, args.api_provider, args.model_name, args.modality, str2bool(args.thinking),
+            latest_response = candy_crush_worker(system_prompt, state_reader_system_prompt,
+                                                args.api_provider, args.model_name, 
+                                                args.state_reader_api_provider, args.state_reader_model_name,
+                                                args.modality, str2bool(args.thinking),
                                                  args.crop_left, args.crop_right, args.crop_top, args.crop_bottom, 
                                                  args.grid_rows, args.grid_cols, " ".join(prev_responses))
             # break

@@ -4,7 +4,7 @@ import pyautogui
 import numpy as np
 
 from tools.utils import encode_image, log_output, get_annotate_img
-from tools.serving.api_providers import anthropic_completion, anthropic_text_completion, openai_completion, openai_text_reasoning_completion, gemini_completion, gemini_text_completion, deepseek_text_reasoning_completion
+from tools.serving.api_providers import anthropic_completion, openai_completion, gemini_completion, anthropic_text_completion, openai_text_completion, gemini_text_completion, openai_text_reasoning_completion, deepseek_text_reasoning_completion
 import re
 import json
 
@@ -63,11 +63,13 @@ def game_2048_read_worker(system_prompt, api_provider, model_name, image_path, m
 
     return final_output
 
-
-def game_2048_worker(system_prompt, api_provider, model_name, 
-    prev_response="", 
-    thinking=True, 
-    modality="vision-text",
+def game_2048_worker(
+        system_prompt, state_reader_system_prompt,
+        api_provider, model_name,
+        state_reader_api_provider, state_reader_model_name,
+        prev_response="", 
+        thinking=True, 
+        modality="vision-text",
     ):
     """
     1) Captures a screenshot of the current game state.
@@ -76,19 +78,24 @@ def game_2048_worker(system_prompt, api_provider, model_name,
     """
     # Capture a screenshot of the current game state.
     # Save the screenshot directly in the cache directory.
-    assert modality in ["text-only", "vision-text"], f"modality {modality} is not supported."
+    assert modality in ["vision-only", "vision-text", "text-only"], f"{modality} modality is not supported."
 
     os.makedirs(CACHE_DIR, exist_ok=True)
     screenshot_path = os.path.abspath(os.path.join(CACHE_DIR, "2048_screenshot.png"))
-
     annotate_image_path, grid_annotation_path, annotate_cropped_image_path = get_annotate_img(screenshot_path, crop_left=0, crop_right=0, crop_top=0, crop_bottom=0, grid_rows=4, grid_cols=4,enable_digit_label=False, cache_dir=CACHE_DIR, line_thickness=3, black=True)
 
-    table = game_2048_read_worker(system_prompt, api_provider, model_name, annotate_cropped_image_path, thinking=thinking, modality=modality)
+    if modality == "vision-text" or modality == "text-only":
+        table = game_2048_read_worker(state_reader_system_prompt, state_reader_api_provider, state_reader_model_name, annotate_cropped_image_path, thinking=thinking, modality=modality)
+    elif modality == "vision-only":
+        # In pure "vision" modality, we do not parse the board via text
+        table = "[NO CONVERTED BOARD TEXT]"
+    else:
+        raise NotImplementedError(f"modality: {modality} is not supported.")
 
     print(f"-------------- TABLE --------------\n{table}\n")
     print(f"-------------- prev response --------------\n{prev_response}\n")
 
-    prompt = (
+    prompt_template = (
     "## Previous Lessons Learned\n"
     "- The 2048 board is structured as a 4x4 grid where each tile holds a power-of-two number.\n"
     "- You can slide tiles in four directions (up, down, left, right), merging identical numbers when they collide.\n"
@@ -108,15 +115,19 @@ def game_2048_worker(system_prompt, api_provider, model_name,
     "4. Tile Isolation Error: Creating a situation where smaller tiles are blocked from merging due to inefficient movement.\n"
     "5. Forced Move Error: Reaching a state where only one move is possible, reducing strategic flexibility.\n"
 
-    f"Here is your previous response: {prev_response}. Please evaluate your strategy and consider if any adjustments are necessary.\n"
+    "Here is your previous response: {prev_response}. Please evaluate your strategy and consider if any adjustments are necessary.\n"
     "Here is the current state of the 2048 board:\n"
-    f"{table}\n\n"
+    "{table}\n\n"
 
     "### Output Format:\n"
     "move: up/down/left/right, thought: <brief reasoning>\n\n"
     "Example output: move: left, thought: Maintaining the highest tile in the corner while creating merge opportunities."
     )
 
+    prompt = prompt_template.format(
+        prev_response=prev_response,
+        table=table,
+    )
 
     base64_image = encode_image(annotate_cropped_image_path)
     if "o3-mini" in model_name:
@@ -125,25 +136,32 @@ def game_2048_worker(system_prompt, api_provider, model_name,
 
     print(f"Calling {model_name} API...")
     # Call the LLM API based on the selected provider.
-    if api_provider == "anthropic" and modality=="text-only":
-        response = anthropic_text_completion(system_prompt, model_name, prompt, thinking)
-    elif api_provider == "anthropic":
-        response = anthropic_completion(system_prompt, model_name, base64_image, prompt, thinking)
-    elif api_provider == "openai" and "o3" in model_name and modality=="text-only":
+    if modality=="text-only":
+        if api_provider == "anthropic":
+            generated_code_str = anthropic_text_completion(system_prompt, model_name, prompt)
+        elif api_provider == "openai":
+            generated_code_str = openai_text_completion(system_prompt, model_name, prompt)
+        elif api_provider == "gemini":
+            generated_code_str = gemini_text_completion(system_prompt, model_name, prompt)
+        else:
+            raise NotImplementedError(f"API provider: {api_provider} is not supported.")
+    elif api_provider == "openai" and "o3" in model_name and modality == "text-only":
         response = openai_text_reasoning_completion(system_prompt, model_name, prompt)
-    elif api_provider == "openai":
-        response = openai_completion(system_prompt, model_name, base64_image, prompt)
-    elif api_provider == "gemini" and modality=="text-only":
-        response = gemini_text_completion(system_prompt, model_name, prompt)
-    elif api_provider == "gemini":
-        response = gemini_completion(system_prompt, model_name, base64_image, prompt)
-    elif api_provider == "deepseek":
+    elif api_provider == "deepseek" and "reasoner" in model_name:
         response = deepseek_text_reasoning_completion(system_prompt, model_name, prompt)
     else:
-        raise NotImplementedError(f"API provider: {api_provider} is not supported.")
+        # only support "vision-only" and "vision-text" for now
+        if api_provider == "anthropic":
+            generated_code_str = anthropic_completion(system_prompt, model_name, base64_image, prompt)
+        elif api_provider == "openai":
+            generated_code_str = openai_completion(system_prompt, model_name, base64_image, prompt)
+        elif api_provider == "gemini":
+            generated_code_str = gemini_completion(system_prompt, model_name, base64_image, prompt)
+        else:
+            raise NotImplementedError(f"API provider: {api_provider} is not supported.")
 
     latency = time.time() - start_time
-
+    
     pattern = r'move:\s*(\w+),\s*thought:\s*(.*)'
     matches = re.findall(pattern, response, re.IGNORECASE)
 

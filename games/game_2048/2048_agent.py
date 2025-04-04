@@ -48,13 +48,22 @@ system_prompt = (
     "Your goal is to get the highest score without freezing the game board. The ultimate goal is to reach 2048. "
 )
 
+state_reader_system_prompt = (
+    "You are an expert AI agent specialized in converting a Tetris game grid to a text table."
+)
+
 
 def main():
     parser = argparse.ArgumentParser(description="sokoban AI Agent")
     parser.add_argument("--api_provider", type=str, default="anthropic", help="API provider to use.")
     parser.add_argument("--model_name", type=str, default="claude-3-7-sonnet-20250219", help="LLM model name.")
-    parser.add_argument("--modality", type=str, default="vision-text", choices=["text-only", "vision-text"],
-                        help="modality used.")
+    parser.add_argument("--state_reader_api_provider", type=str, default="anthropic",
+                        help="Game state reader API provider to use.")
+    parser.add_argument("--state_reader_model_name", type=str, default="claude-3-7-sonnet-20250219",
+                        help="Game state reader model name.")
+    parser.add_argument("--modality", type=str, default="vision-text",
+                        choices=["vision-only", "vision-text", "text-only"],
+                        help="Employ vision-only, text-only or vision-text reasoning mode.")
     parser.add_argument("--thinking", type=str, default=True, help="Whether to use deep thinking.")
     parser.add_argument("--num_threads", type=int, default=1, help="Number of parallel threads to launch.")
     args = parser.parse_args()
@@ -89,8 +98,11 @@ def main():
                         executor.submit(
                             game_2048_worker,
                             system_prompt,
+                            state_reader_system_prompt,
                             args.api_provider,
                             args.model_name,
+                            args.state_reader_api_provider,
+                            args.state_reader_model_name,
                             "\n".join(prev_responses),
                             thinking=str2bool(args.thinking),
                             modality=args.modality
