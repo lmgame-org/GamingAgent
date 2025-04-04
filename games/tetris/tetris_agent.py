@@ -3,7 +3,7 @@ import numpy as np
 import concurrent.futures
 import argparse
 
-from games.tetris.workers import tetris_worker
+from games.tetris.workers import tetris_worker, tetris_planning_worker
 from games.tetris.speculators import tetris_speculator
 
 system_prompt = (
@@ -39,8 +39,8 @@ def main():
     parser.add_argument("--board_reader_model_name", type=str, default="claude-3-7-sonnet-20250219",
                         help="Board reader model name.")
     parser.add_argument("--modality", type=str, default="vision-text", 
-                        choices=["vision", "vision-text", "text-only"],
-                        help="Employ vision reasoning or vision-text reasoning mode.")
+                        choices=["vision-only", "vision-text", "text-only"],
+                        help="Employ vision-only, text-only or vision-text reasoning mode.")
     parser.add_argument("--concurrency_interval", type=float, default=2,
                         help="Interval in seconds between workers.")
     parser.add_argument("--api_response_latency_estimate", type=float, default=6,
@@ -55,6 +55,9 @@ def main():
                         help="Worker control time.")
     parser.add_argument("--input_type", type=str, default="read-from-game-backend",
                         help="Game state input type.")
+    parser.add_argument("--game_mode", type=str,
+                        choices=["frozen", "dynamic"],
+                        help="Game mode, whether the game is time-sensitive (dynamic) or not (frozen).")
     parser.add_argument("--policy", type=str, default="fixed", 
                         choices=["fixed"],
                         help="Worker policy")
@@ -64,7 +67,7 @@ def main():
 
     args = parser.parse_args()
     # FIXME (lanxiang): scale the number of speculators
-    assert args.speculator_count == 1, f"more than 1 speculator worker ({args.speculator_count} is passed) is not yet supported."
+    assert args.speculator_count <= 1, f"more than 1 speculator worker ({args.speculator_count} is passed) is not yet supported."
 
     worker_span = args.control_time + args.concurrency_interval
     num_threads = int(args.api_response_latency_estimate // worker_span)
@@ -77,34 +80,64 @@ def main():
     
     num_threads += args.speculator_count
 
-    print(f"Starting with {num_threads} threads, ({args.speculator_count} thread[s] are speculator[s]) using policy '{args.policy}'...")
-    print(f"API Provider: {args.api_provider}, Model Name: {args.model_name}")
-
     # Spawn workers
-    with concurrent.futures.ThreadPoolExecutor(max_workers=num_threads) as executor:
-        # TODO: add multiple speculator if needed
-        if args.speculator_count:
-            executor.submit(
-                tetris_speculator, 0, args.speculation_delay, speculator_system_prompt,
-                args.api_provider, args.model_name, args.speculation_size, 20
-            )
-        for i in range(num_threads-1):
-            if args.policy == "fixed":
+    if args.game_mode == "dynamic":
+        print(f"Starting with {num_threads} threads, ({args.speculator_count} thread[s] are speculator[s]) using policy '{args.policy}'...")
+        print(f"API Provider: {args.api_provider}, Model Name: {args.model_name}")
+
+        with concurrent.futures.ThreadPoolExecutor(max_workers=num_threads) as executor:
+            # TODO: add multiple speculator if needed
+            if args.speculator_count:
                 executor.submit(
-                    tetris_worker, i, offsets[i], system_prompt, tetris_board_reader_system_prompt, tetris_board_aggregator_system_prompt,
-                    args.api_provider, args.model_name, 
-                    args.board_reader_api_provider, args.board_reader_model_name, 
-                    args.modality, input_type=args.input_type,
-                    plan_seconds=args.control_time, cache_folder=args.cache_folder
+                    tetris_speculator, 0, args.speculation_delay, speculator_system_prompt,
+                    args.api_provider, args.model_name, args.speculation_size, 20
                 )
+            for i in range(num_threads-1):
+                if args.policy == "fixed":
+                    executor.submit(
+                        tetris_worker, i, offsets[i], system_prompt, tetris_board_reader_system_prompt, tetris_board_aggregator_system_prompt,
+                        args.api_provider, args.model_name, 
+                        args.board_reader_api_provider, args.board_reader_model_name, 
+                        args.modality, input_type=args.input_type,
+                        plan_seconds=args.control_time, cache_folder=args.cache_folder
+                    )
+                else:
+                    raise NotImplementedError(f"policy: {args.policy} not implemented.")
+
+            try:
+                while True:
+                    time.sleep(0.25)
+            except KeyboardInterrupt:
+                print("\nMain thread interrupted. Exiting all threads...")
+    elif args.game_mode == "frozen":
+        print(f"Starting with {args.speculator_count+1} threads, ({args.speculator_count} thread[s] are speculator[s]) using policy '{args.policy}'...")
+        print(f"API Provider: {args.api_provider}, Model Name: {args.model_name}")
+
+        with concurrent.futures.ThreadPoolExecutor(max_workers=args.speculator_count+1) as executor:
+            if args.speculator_count:
+                executor.submit(
+                    tetris_speculator, 0, args.speculation_delay, speculator_system_prompt,
+                    args.api_provider, args.model_name, args.speculation_size, 20
+                )
+            
+            if args.policy == "fixed":
+                    executor.submit(
+                        tetris_planning_worker, 0, offsets[0], system_prompt, tetris_board_reader_system_prompt, tetris_board_aggregator_system_prompt,
+                        args.api_provider, args.model_name, 
+                        args.board_reader_api_provider, args.board_reader_model_name, args.modality, 
+                        input_type=args.input_type, cache_folder=args.cache_folder
+                    )
             else:
                 raise NotImplementedError(f"policy: {args.policy} not implemented.")
 
-        try:
-            while True:
-                time.sleep(0.25)
-        except KeyboardInterrupt:
-            print("\nMain thread interrupted. Exiting all threads...")
+            try:
+                while True:
+                    time.sleep(0.25)
+            except KeyboardInterrupt:
+                print("\nMain thread interrupted. Exiting all threads...")
+            
+    else:
+        raise NotImplementedError(f"game_mode: {args.game_mode} not implemented.")
 
 if __name__ == "__main__":
     main()

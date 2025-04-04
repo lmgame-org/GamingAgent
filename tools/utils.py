@@ -195,6 +195,7 @@ def generate_grid(image, grid_rows, grid_cols):
     horizontal_lines = [i * cell_height for i in range(grid_rows + 1)]
     
     return vertical_lines, horizontal_lines
+    
 def annotate_with_grid(image, vertical_lines, horizontal_lines, x_offset, y_offset, alpha=0.5, enable_digit_label = True, thickness = 1, black = False, font_size=0.4):
     """Annotates the image with semi-transparent gray grid cell numbers."""
     grid_annotations = []
@@ -246,6 +247,65 @@ def save_grid_annotations(grid_annotations, cache_dir=None):
     with open(output_file, 'w') as file:
         json.dump(grid_annotations, file, indent=4)
     return output_file
+
+def generate_patches_from_cells(grid_annotations, grid_rows, grid_cols, x_dim, y_dim):
+    """
+    Given cell-level annotations, group them into patches of size (y_dim × x_dim).
+    Each patch covers y_dim rows and x_dim columns of cells, and we return
+    bounding boxes that encompass all cells in that patch.
+    """
+    cell_map = {}
+    for cell in grid_annotations:
+        # Grab the row & col from the new annotation
+        r, c = cell["row"], cell["col"]
+        cell_map[(r, c)] = cell
+
+    patches = []
+    patch_number = 0
+
+    # Number of patch-blocks in each dimension
+    patches_across = grid_cols // x_dim  # how many patches horizontally
+    patches_down = grid_rows // y_dim    # how many patches vertically
+
+    for patch_row_idx in range(patches_down):        # for each patch in the vertical direction
+        for patch_col_idx in range(patches_across):  # for each patch in the horizontal direction
+            row_start = patch_row_idx * y_dim
+            row_end   = row_start + y_dim - 1
+            col_start = patch_col_idx * x_dim
+            col_end   = col_start + x_dim - 1
+
+            min_x1 = float('inf')
+            min_y1 = float('inf')
+            max_x2 = float('-inf')
+            max_y2 = float('-inf')
+
+            # Traverse each cell in the patch
+            for r in range(row_start, row_end + 1):
+                for c in range(col_start, col_end + 1):
+                    # If the cell was annotated
+                    if (r, c) in cell_map:
+                        cell = cell_map[(r, c)]
+                        min_x1 = min(min_x1, cell["x1"])
+                        min_y1 = min(min_y1, cell["y1"])
+                        max_x2 = max(max_x2, cell["x2"])
+                        max_y2 = max(max_y2, cell["y2"])
+
+            patch_info = {
+                "patch_number": patch_number,
+                "row_start": row_start,
+                "row_end": row_end,
+                "col_start": col_start,
+                "col_end": col_end,
+                "x1": min_x1,
+                "y1": min_y1,
+                "x2": max_x2,
+                "y2": max_y2,
+            }
+            patches.append(patch_info)
+            patch_number += 1
+
+    return patches
+
 
 def get_annotate_img(image_path, crop_left=50, crop_right=50, crop_top=50, crop_bottom=50, grid_rows=9, grid_cols=9, output_image='annotated_grid.png', cache_dir=None, enable_digit_label=True, thickness=1, black=False, font_size=0.4):
     original_image, cropped_image, x_offset, y_offset = preprocess_image(image_path, crop_left, crop_right, crop_top, crop_bottom, cache_dir)

@@ -1,6 +1,7 @@
 import time
 import os
 import pyautogui
+
 import numpy as np
 
 import re
@@ -194,6 +195,7 @@ def tetris_board_reader(system_prompt, api_provider, model_name, image_path, pat
       ...
     """
     # TODO (lanxiang): make patch granularity configurable
+    
     vlm_prompt = (
         "Extract the number grid layout from the provided image. "
         "Each block is represented by contiguous blocks with an unique background color.\n"
@@ -263,28 +265,36 @@ def tetris_worker(
     crop_bottom=2,
     grid_rows=20,
     grid_cols=10,
-    cache_folder="/games/tetris/Python-Tetris-Game-Pygame/cache/tetris"
+    cache_folder="games/tetris/Python-Tetris-Game-Pygame/cache/tetris"
 ):
     """
     vision reasoning modality:
-        A single Tetris worker that plans moves for 'plan_seconds'.
         1) Sleeps 'offset' seconds before starting (to stagger starts).
         2) Continuously:
             - Captures a screenshot
             - Calls the LLM with a Tetris prompt that includes 'plan_seconds'
             - Extracts the Python code from the LLM output
             - Executes the code with `exec()`
-    vision-text reasoning modality:
-        A single Tetris worker that plans moves for 'plan_seconds'.
+    text reasoning modality:
         1) Sleeps 'offset' seconds before starting (to stagger starts).
         2) Continuously:
             - Captures a screenshot
-            - Calls the VLM with a prompt to convert the game state into a text-table
-            - Feed into a LLM , to generate the Python code
+            - EITHER calls the VLM with a prompt to convert the game state into a text-table
+              OR from game backend reads game state into a text-table
+            - Feed ONLY text-table into a LLM with a Tetris prompt, to generate the Python code
+            - Extracts the Python code from the LLM output
+            - Executes the code with `exec()`
+    vision-text reasoning modality:
+        1) Sleeps 'offset' seconds before starting (to stagger starts).
+        2) Continuously:
+            - Captures a screenshot
+            - EITHER calls the VLM with a prompt to convert the game state into a text-table
+              OR from game backend reads game state into a text-table
+            - Feed BOTH text-table and img into a LLM with a Tetris prompt, to generate the Python code
             - Extracts the Python code from the LLM output
             - Executes the code with `exec()`
     """
-    assert modality in ["vision", "vision-text", "text-only"], f"{modality} modality is not supported."
+    assert modality in ["vision-only", "vision-text", "text-only"], f"{modality} modality is not supported."
     assert input_type in ["read-from-game-backend", "read-from-ui"], f"{input_type} input type is not supported."
     all_response_time = []
 
@@ -293,7 +303,7 @@ def tetris_worker(
 
     tetris_prompt_template = """
 Analyze the current Tetris board state and generate PyAutoGUI code to control the active Tetris piece for the next {plan_seconds} second(s).
-An active Tetris piece appears from the top, and is not connected to the bottom of the screen is to be placed.
+An active Tetris piece appears from the top, and is not connected to the bottom of the screen.
 
 ## Board state reference as a text table:
 {board_text}
@@ -421,7 +431,7 @@ An active Tetris piece appears from the top, and is not connected to the bottom 
                 except Exception as e:
                     print(f"Error extracting Tetris board text conversion: {e}")
                     formatted_text_table = "[NO CONVERTED BOARD TEXT]"
-            elif modality == "vision":
+            elif modality == "vision-only":
                 # In pure "vision" modality, we do not parse the board via text
                 formatted_text_table = "[NO CONVERTED BOARD TEXT]"
             else:
@@ -443,7 +453,256 @@ An active Tetris piece appears from the top, and is not connected to the bottom 
             start_time = time.time()
 
             try:
-                # HACK: o3-mini only support text-only modality for now
+                # HACK (lanxiang): o3-mini only support text-only modality for now
+                if api_provider == "openai" and "o3" in model_name and modality=="text-only":
+                    generated_code_str = openai_text_reasoning_completion(system_prompt, model_name, tetris_prompt)
+                elif api_provider == "anthropic" and modality=="text-only":
+                    print("calling text-only API...")
+                    generated_code_str = anthropic_text_completion(system_prompt, model_name, tetris_prompt)
+                elif api_provider == "anthropic":
+                    print("calling vision API...")
+                    generated_code_str = anthropic_completion(system_prompt, model_name, base64_image, tetris_prompt)
+                elif api_provider == "openai":
+                    generated_code_str = openai_completion(system_prompt, model_name, base64_image, tetris_prompt)
+                elif api_provider == "gemini":
+                    generated_code_str = gemini_completion(system_prompt, model_name, base64_image, tetris_prompt)
+                else:
+                    raise NotImplementedError(f"API provider: {api_provider} is not supported.")
+
+            except Exception as e:
+                print(f"[Thread {thread_id}] Error executing code: {e}")
+
+            end_time = time.time()
+            latency = end_time - start_time
+            all_response_time.append(latency)
+
+            print(f"[Thread {thread_id}] Request latency: {latency:.2f}s")
+            avg_latency = np.mean(all_response_time)
+            print(f"[Thread {thread_id}] Latencies: {all_response_time}")
+            print(f"[Thread {thread_id}] Average latency: {avg_latency:.2f}s\n")
+
+            print(f"[Thread {thread_id}] --- API output ---\n{generated_code_str}\n")
+
+            # Extract Python code for execution
+            clean_code = extract_python_code(generated_code_str)
+            log_output(thread_id, f"[Thread {thread_id}] Python code to be executed:\n{clean_code}\n", "tetris", f"iter_{iter_counter}")
+            print(f"[Thread {thread_id}] Python code to be executed:\n{clean_code}\n")
+
+            try:
+                exec(clean_code)
+            except Exception as e:
+                print(f"[Thread {thread_id}] Error executing code: {e}")
+            
+            iter_counter += 1
+
+    except KeyboardInterrupt:
+        print(f"[Thread {thread_id}] Interrupted by user. Exiting...")
+
+def tetris_planning_worker(
+    thread_id,
+    offset,
+    system_prompt,
+    board_reader_system_prompt,
+    board_aggregator_system_prompt,
+    api_provider,
+    model_name,
+    board_reader_api_provider,
+    board_reader_model_name,
+    modality,
+    input_type="read-from-game-backend",
+    total_patch_num=8,
+    crop_left=10,
+    crop_right=182,
+    crop_top=8,
+    crop_bottom=2,
+    grid_rows=20,
+    grid_cols=10,
+    cache_folder="games/tetris/Python-Tetris-Game-Pygame/cache/tetris"
+):
+    """
+    This worker is meant to plan action trajectory for Tetris blocks given the initial game-state layout.
+
+    vision reasoning modality:
+        1) Sleeps 'offset' seconds before starting (to stagger starts).
+        2) Single call:
+            - Captures a screenshot of the initial state.
+            - Calls the LLM with a Tetris prompt
+            - Extracts the Python code from the LLM output
+            - Executes the code with `exec()`
+    text reasoning modality:
+        1) Sleeps 'offset' seconds before starting (to stagger starts).
+        2) Single call:
+            - Captures a screenshot
+            - EITHER calls the VLM with a prompt to convert the game state into a text-table
+              OR from game backend reads game state into a text-table
+            - Feed ONLY text-table into a LLM with a Tetris prompt, to generate the Python code
+            - Extracts the Python code from the LLM output
+            - Executes the code with `exec()`
+    vision-text reasoning modality:
+        1) Sleeps 'offset' seconds before starting (to stagger starts).
+        2) Single call:
+            - Captures a screenshot
+            - EITHER calls the VLM with a prompt to convert the game state into a text-table
+              OR from game backend reads game state into a text-table
+            - Feed BOTH text-table and img into a LLM with a Tetris prompt, to generate the Python code
+            - Extracts the Python code from the LLM output
+            - Executes the code with `exec()`
+    """
+    assert modality in ["vision-only", "vision-text", "text-only"], f"{modality} modality is not supported."
+    assert input_type in ["read-from-game-backend", "read-from-ui"], f"{input_type} input type is not supported."
+    all_response_time = []
+
+    time.sleep(offset)
+    print(f"[Thread {thread_id}] Starting after {offset}s delay...")
+
+    tetris_prompt_template = """
+Analyze the current Tetris board state and generate PyAutoGUI code to control the active Tetris piece and move it to the correct location.
+An active Tetris piece appears from the top, and is not connected to the bottom of the screen.
+
+## Board state reference as a text table:
+{board_text}
+
+## General Tetris Controls (example keybinds).
+- left: move the piece left by 1 grid unit.
+- right: move the piece right by 1 grid unit.
+- up: rotate the piece clockwise once by 90 degrees.
+- down: move the piece down by 1 grid unit.
+
+## Tetris Geometry
+- Tetris pieces in the game follow the following configurations:
+{tetris_configurations}
+- Every Tetris piece starts at state 0, every rotation will transit the piece to the next state modulo 4.
+- Consider each Tetris piece occupies its nearest 3x3 grid (or 4x4 for I-shape). Each configurable specifies which grid unit are occupied by each rotation state.
+- Place each piece such that the flat sides align with the sides or geometric structure at the bottom.
+
+## Game Physics
+- The game is played on a 10x20 grid.
+- Rotations will be performed within the nearest 9x9 block, and shapes will be changed accordingly.
+
+## Planning
+
+### Principles
+- Maximize Cleared Lines: prioritize moves that clear the most rows.
+- Minimize Holes: avoid placements that create empty spaces that can only be filled by future pieces.
+- Minimize Bumpiness: keep the playfield as flat as possible to avoid difficult-to-fill gaps.
+- Minimize Aggregate Height: lower the total height of all columns to delay top-outs.
+- Minimize Maximum Height: prevent any single column from growing too tall, which can lead to an early game over.
+
+### Strategies
+- Try clear the bottom-most line first.
+- Imagine what shape the entire structure will form after the current active piece is placed. Avoid leaving any holes.
+- Do not move a block piece back and forth. Plan a trajectory and generate the code.
+
+### Code generation and latency
+- In generated code, only consider the current active Tetris piece.
+
+### Lessons learned
+{experience_summary}
+
+## Output Format:
+- Output ONLY the Python code for PyAutoGUI commands, e.g. `pyautogui.press("left")`.
+- Include brief comments for each action.
+- Do not print anything else besides these Python commands.
+"""
+    # TODO: make path configurable
+    game_state_file_path = "/Users/lhu/workspace/game_arena_env/Python-Tetris-Game-Pygame/cache/tetris/state.json"
+
+    block_shape_file_path = "games/tetris/data/block_shapes.json"
+    block_shapes_info = load_block_shapes(block_shape_file_path)
+    print("block shape file loaded.")
+    block_shapes_prompt = create_block_shapes_prompt(block_shapes_info)
+    
+    iter_counter = 0
+    try:
+        while True:
+            # Read information passed from the speculator cache
+            try:
+                # FIXME (lanxiang): make thread count configurable, currently planner is only in thread 0
+                experience_summary = read_log_to_string(f"cache/tetris/thread_0/planner/experience_summary.log")
+            except Exception as e:
+                experience_summary = "- No lessons learned so far."
+            
+            print(f"-------------- experience summary --------------\n{experience_summary}\n------------------------------------\n")
+            
+            # Create a unique folder for this thread's cache
+            screenshot_path = os.path.join(cache_folder, "screenshot.png")
+
+            # Cache the screenshot content
+            img = Image.open(screenshot_path)
+            # Save the image to the new path.
+            cache_path = f"cache/tetris/thread_{thread_id}/iter_{iter_counter}"
+            os.makedirs(cache_path, exist_ok=True)
+            cache_screenshot_path = os.path.join(cache_path, "screenshot.png")
+            img.save(cache_screenshot_path)
+
+            # Encode the screenshot
+            print("starting a round of annotations...")
+            _, _, annotate_cropped_image_paths = get_annotate_patched_img(screenshot_path, 
+            crop_left=crop_left, crop_right=crop_right, 
+            crop_top=crop_top, crop_bottom=crop_bottom, 
+            grid_rows=grid_rows, grid_cols=grid_cols, 
+            x_dim=5, y_dim=5, cache_dir=cache_folder)
+
+            _, _, complete_annotate_cropped_image_path = get_annotate_img(screenshot_path, crop_left=crop_left, crop_right=crop_right, crop_top=crop_top, crop_bottom=crop_bottom, grid_rows=grid_rows, grid_cols=grid_cols, cache_dir=cache_folder)
+
+            base64_image = encode_image(complete_annotate_cropped_image_path)
+
+            print("finished a round of annotations.")
+
+            patch_table_list = []
+            if input_type == "read-from-game-backend":
+                formatted_text_table = state_to_text(game_state_file_path)
+            elif modality == "vision-text" or modality == "text-only":
+                try:
+                    threads = []
+                    # read individual game sub-boards
+                    with concurrent.futures.ThreadPoolExecutor(max_workers=total_patch_num) as executor:
+                        for i in range(total_patch_num):
+                            threads.append(
+                                executor.submit(
+                                    tetris_board_reader, board_reader_system_prompt, board_reader_api_provider, board_reader_model_name, annotate_cropped_image_paths[i], i
+                                )
+                            )
+                        
+                        for _ in concurrent.futures.as_completed(threads):
+                            patch_table_list.append(_.result())
+                    
+                    print("patch table list generated.")
+
+                    sorted_patch_table_list = sorted(patch_table_list, key=lambda x: x[0])
+                    # aggreagte sub-boards to a bigger one
+                    board_text = tetris_board_aggregator(board_aggregator_system_prompt, board_reader_api_provider, board_reader_model_name, complete_annotate_cropped_image_path, sorted_patch_table_list)
+
+                    matrix = game_table_to_matrix(board_text)
+                    formatted_text_table = matrix_to_text_table(matrix)
+                    print("Formatted Text Table:")
+                    print(formatted_text_table)
+
+                except Exception as e:
+                    print(f"Error extracting Tetris board text conversion: {e}")
+                    formatted_text_table = "[NO CONVERTED BOARD TEXT]"
+            elif modality == "vision-only":
+                # In pure "vision" modality, we do not parse the board via text
+                formatted_text_table = "[NO CONVERTED BOARD TEXT]"
+            else:
+                raise NotImplementedError(f"modality: {modality} is not supported.")
+
+            print("---- Tetris Board (textual) ----")
+            print(formatted_text_table)
+            print("--------------------------------")
+            
+            tetris_prompt = tetris_prompt_template.format(
+                board_text=formatted_text_table,
+                tetris_configurations=block_shapes_prompt,
+                experience_summary=experience_summary,
+            )
+
+            print(f"============ complete Tetris prompt ============\n{tetris_prompt}\n===========================\n")
+
+            start_time = time.time()
+
+            try:
+                # HACK (lanxiang): o3-mini only support text-only modality for now
                 if api_provider == "openai" and "o3" in model_name and modality=="text-only":
                     generated_code_str = openai_text_reasoning_completion(system_prompt, model_name, tetris_prompt)
                 elif api_provider == "anthropic" and modality=="text-only":
