@@ -66,7 +66,7 @@ def main():
                         help="Employ vision-only, text-only or vision-text reasoning mode.")
     parser.add_argument("--thinking", type=str, default=True, help="Whether to use deep thinking.")
     parser.add_argument("--starting_level", type=int, default=1, help="Starting level for the Sokoban game.")
-    parser.add_argument("--num_threads", type=int, default=10, help="Number of parallel threads to launch.")
+    parser.add_argument("--num_threads", type=int, default=1, help="Number of parallel threads to launch.")
     args = parser.parse_args()
 
     prev_responses = deque(maxlen=10)
@@ -104,7 +104,7 @@ def main():
                         executor.submit(
                             sokoban_worker,
                             system_prompt,
-                            state_reader_system_prompt
+                            state_reader_system_prompt,
                             args.api_provider,
                             args.model_name,
                             args.state_reader_api_provider, 

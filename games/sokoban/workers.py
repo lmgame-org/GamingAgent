@@ -4,7 +4,7 @@ import pyautogui
 import numpy as np
 
 from tools.utils import encode_image, log_output, get_annotate_img
-from tools.serving.api_providers import anthropic_completion, openai_completion, gemini_completion, anthropic_text_completion, openai_text_completion, gemini_text_completion, openai_text_reasoning_completion, deepseek_text_reasoning_completion
+from tools.serving.api_providers import anthropic_completion, openai_completion, gemini_completion, anthropic_text_completion, openai_text_completion, gemini_text_completion, openai_text_reasoning_completion, deepseek_text_reasoning_completion, together_ai_completion
 import re
 import json
 
@@ -175,11 +175,13 @@ def sokoban_worker(
     # Call the LLM API based on the selected provider.
     if modality=="text-only":
         if api_provider == "anthropic":
-            generated_code_str = anthropic_text_completion(system_prompt, model_name, sokoban_prompt)
+            response = anthropic_text_completion(system_prompt, model_name, sokoban_prompt)
         elif api_provider == "openai":
-            generated_code_str = openai_text_completion(system_prompt, model_name, sokoban_prompt)
+            response = openai_text_completion(system_prompt, model_name, sokoban_prompt)
         elif api_provider == "gemini":
-            generated_code_str = gemini_text_completion(system_prompt, model_name, sokoban_prompt)
+            response = gemini_text_completion(system_prompt, model_name, sokoban_prompt)
+        elif api_provider == "together_ai":
+            response = together_ai_completion(system_prompt, model_name, sokoban_prompt)
         else:
             raise NotImplementedError(f"API provider: {api_provider} is not supported.")
     elif api_provider == "openai" and "o3" in model_name and modality == "text-only":
@@ -189,11 +191,13 @@ def sokoban_worker(
     else:
         # only support "vision-only" and "vision-text" for now
         if api_provider == "anthropic":
-            generated_code_str = anthropic_completion(system_prompt, model_name, base64_image, sokoban_prompt)
+            response = anthropic_completion(system_prompt, model_name, base64_image, sokoban_prompt)
         elif api_provider == "openai":
-            generated_code_str = openai_completion(system_prompt, model_name, base64_image, sokoban_prompt)
+            response = openai_completion(system_prompt, model_name, base64_image, sokoban_prompt)
         elif api_provider == "gemini":
-            generated_code_str = gemini_completion(system_prompt, model_name, base64_image, sokoban_prompt)
+            response = gemini_completion(system_prompt, model_name, base64_image, sokoban_prompt)
+        elif api_provider == "together_ai":
+            response = together_ai_completion(system_prompt, model_name, prompt=sokoban_prompt, base64_image=base64_image)
         else:
             raise NotImplementedError(f"API provider: {api_provider} is not supported.")
 
