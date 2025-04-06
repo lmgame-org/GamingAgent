@@ -3,7 +3,7 @@ import os
 import pyautogui
 import numpy as np
 
-from tools.utils import encode_image, log_output, extract_python_code, get_annotate_img
+from tools.utils import encode_image, log_output, extract_python_code, candy_get_annotate_img
 from tools.serving.api_providers import anthropic_completion, openai_completion, gemini_completion, anthropic_text_completion, gemini_text_completion, openai_text_reasoning_completion, deepseek_text_reasoning_completion, together_ai_completion, openai_text_completion
 import re
 import json
@@ -25,7 +25,7 @@ def log_move_and_thought(move, thought, latency):
     except Exception as e:
         print(f"[ERROR] Failed to write log entry: {e}")
 
-def candy_crush_read_worker(system_prompt, api_provider, model_name, image_path):
+def candy_crush_read_worker_llm(system_prompt, api_provider, model_name, image_path):
     base64_image = encode_image(image_path)
     
     # Construct prompt for LLM
@@ -58,11 +58,28 @@ def candy_crush_read_worker(system_prompt, api_provider, model_name, image_path)
 
     return final_output
 
+def candy_crush_read_worker_rule(cell_labels):
+    final_output = "\nCandy Crush Board Representation:\n"
+    grid_rows = len(cell_labels)
+    grid_cols = len(cell_labels[0])
+
+    for row_idx in range(grid_rows):
+        for col_idx, label in enumerate(cell_labels[row_idx]):
+            cnt = row_idx * grid_rows + col_idx + 1
+            final_output += f"{cnt}: {label} ({row_idx}, {col_idx})"
+            if col_idx == grid_cols - 1:
+                final_output += '\n'
+            else:
+                final_output += ' | '
+
+    return final_output
+
+
 
 def candy_crush_worker(system_prompt, state_reader_system_prompt,
     api_provider, model_name, 
     state_reader_api_provider, state_reader_model_name,
-    modality, thinking, crop_left=700, crop_right=800, crop_top=300, crop_bottom=300, grid_rows=7, grid_cols=7, prev_response=""):
+    modality, thinking, crop_left=700, crop_right=800, crop_top=300, crop_bottom=300, grid_rows=7, grid_cols=7, prev_response=None, move_count=0):
     """
     Worker function for short-term (1 second) control in Candy Crush.
     1) Captures a screenshot of the current Candy Crush game state.
@@ -83,12 +100,18 @@ def candy_crush_worker(system_prompt, state_reader_system_prompt,
 
     # Save the screenshot directly in the cache directory.
     os.makedirs(CACHE_DIR, exist_ok=True)
+
     screenshot_path = os.path.join(CACHE_DIR, "screenshot.png")
     screenshot.save(screenshot_path)
 
+    # save screenshot history
+    history_dir = os.path.join(CACHE_DIR, "history")
+    os.makedirs(history_dir, exist_ok=True)
+    screenshot.save(os.path.join(history_dir, f"{move_count}.png"))
+
     print(f"\nScreenshot captured and saved to: {screenshot_path}")
 
-    annotate_image_path, grid_annotation_path, annotate_cropped_image_path = get_annotate_img(
+    annotate_image_path, grid_annotation_path, annotate_cropped_image_path, cell_labels = candy_get_annotate_img(
         screenshot_path, 
         crop_left=crop_left, 
         crop_right=crop_right, 
@@ -109,24 +132,27 @@ def candy_crush_worker(system_prompt, state_reader_system_prompt,
     
     if modality == "vision-text" or modality == "text-only":
         print("\nConverting board to text representation...")
-        candy_crush_text_table = candy_crush_read_worker(state_reader_system_prompt, state_reader_api_provider, state_reader_model_name, annotate_cropped_image_path)
+        candy_crush_text_table = candy_crush_read_worker_rule(cell_labels)
         print("Board text representation generated")
     elif modality == "vision-only":
         candy_crush_text_table = "[NO CONVERTED BOARD TEXT]"
         print("\nUsing vision-only mode - skipping text conversion")
     else:
         raise NotImplementedError(f"modality: {modality} is not supported.")
+    
+    prev_response_prompt=''
+    if prev_response:
+        prev_response_prompt =f"Previous response: {prev_response}\nUse past responses as references, explore a different move from previous suggestions, and identify new three-match opportunities.\n\n"
 
     prompt_template = (
         "Here is the current layout of the Candy Crush board:\n\n"
-        "{candy_crush_text_table}\n\n"
+        "{candy_crush_text_table}\n"
         "Analyze the given Candy Crush board carefully and determine the best next move.\n\n"
         "### PRIORITY STRATEGY ###\n"
-        "1. **First Priority**: Find and execute a move that creates a three-match.\n"
-        "2. **Second Priority**: If possible, prioritize a move that results in a four-match or a special candy.\n"
-        "3. **Bonus Consideration**: If you can trigger multiple three-matches in a single move, favor that option over a single match.\n\n"
-        "Previous response: {prev_response}\n"
-        "Use past responses as references, explore a different move from previous suggestions, and identify new three-match opportunities.\n\n"
+        "1. Find and execute a move that creates a three/four/five-match, a larger match yield a higher score.\n"
+        "2. If possible, prioritize a move that results in a four/five-match or a special candy.\n"
+        "3. **Bonus Consideration**: If you can trigger multiple matches in a single move, favor that option over a single match.\n\n"
+        "{prev_response_prompt}"
         "### OUTPUT FORMAT (STRICT) and Only output move and thought in the formard below ###\n"
         "- Respond in this format (including brackets):\n"
         '  move: "(U, M)", thought: "(explanation of why this move is optimal)"\n\n'
@@ -136,7 +162,7 @@ def candy_crush_worker(system_prompt, state_reader_system_prompt,
     )
 
     prompt = prompt_template.format(
-        prev_response=prev_response,
+        prev_response_prompt=prev_response_prompt,
         candy_crush_text_table=candy_crush_text_table
     )
 
@@ -154,12 +180,12 @@ def candy_crush_worker(system_prompt, state_reader_system_prompt,
             response = gemini_text_completion(system_prompt, model_name, prompt)
         elif api_provider == "together_ai":
             response = gemini_text_completion(system_prompt, model_name, prompt)
+        elif api_provider == "deepseek":
+            response = deepseek_text_reasoning_completion(system_prompt, model_name, prompt)
         else:
             raise NotImplementedError(f"API provider: {api_provider} is not supported.")
     elif api_provider == "openai" and "o3" in model_name and modality == "text-only":
         response = openai_text_reasoning_completion(system_prompt, model_name, prompt)
-    elif api_provider == "deepseek" and "reasoner" in model_name:
-        response = deepseek_text_reasoning_completion(system_prompt, model_name, prompt)
     else:
         # only support "vision-only" and "vision-text" for now
         if api_provider == "anthropic":

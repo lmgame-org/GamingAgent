@@ -196,7 +196,7 @@ def generate_grid(image, grid_rows, grid_cols):
     
     return vertical_lines, horizontal_lines
     
-def annotate_with_grid(image, vertical_lines, horizontal_lines, x_offset, y_offset, alpha=0.5, enable_digit_label = True, thickness = 1, black = False, font_size=0.4):
+def annotate_with_grid(image, vertical_lines, horizontal_lines, x_offset, y_offset, cell_labels=None, alpha=0.5, enable_digit_label = True, thickness = 1, black = False, font_size=0.4):
     """Annotates the image with semi-transparent gray grid cell numbers."""
     grid_annotations = []
     
@@ -222,6 +222,9 @@ def annotate_with_grid(image, vertical_lines, horizontal_lines, x_offset, y_offs
                     text_color = (255, 255, 255)  # Gray color
             
                 cv2.putText(overlay, text, (x - 10, y + 10), font, font_scale, text_color, thickness, cv2.LINE_AA)
+                
+                if cell_labels != None: # for candy crush
+                    cv2.putText(overlay, cell_labels[row][col].split(' ')[0], (x - 20, y + 20), font, font_scale, text_color, thickness, cv2.LINE_AA)
             
             # Draw green grid rectangle
             if black:
@@ -328,6 +331,83 @@ def get_annotate_img(image_path, crop_left=50, crop_right=50, crop_top=50, crop_
     cv2.imwrite(annotated_cropped_image_path, annotated_cropped_image)
 
     return output_image_path, grid_annotation_path, annotated_cropped_image_path
+
+# use rule-based game state extractor for candy crush
+
+def candy_classify_by_center_color(cell_img, patch_size=10):
+    h, w = cell_img.shape[:2]
+    center_x, center_y = w // 2, h // 2
+    half_patch = patch_size // 2
+    patch = cell_img[center_y - half_patch:center_y + half_patch, center_x - half_patch:center_x + half_patch]
+    
+    if patch.size == 0:
+        return "empty"
+
+    hsv = cv2.cvtColor(patch, cv2.COLOR_BGR2HSV)
+    avg_color = np.mean(hsv.reshape(-1, 3), axis=0)
+    h_val, s_val, v_val = avg_color
+
+    if s_val < 40:
+        return "empty"
+    elif 0 <= h_val <= 10 or h_val >= 160:
+        return "red bean candy"
+    elif 20 <= h_val <= 35:
+        return "yellow teardrop candy"
+    elif 40 <= h_val <= 85:
+        return "green square candy"
+    elif 90 <= h_val <= 130:
+        return "blue sphere candy"
+    elif 130 < h_val < 160:
+        return "purple cluster candy"
+    elif 10 < h_val < 20:
+        return "orange jelly candy"
+    else:
+        return "unknown"
+    
+
+def candy_extract_and_classify_cells(cropped_image, vertical_lines, horizontal_lines):
+    cell_labels = [[] for i in range(len(horizontal_lines) - 1)]
+
+    for row in range(len(horizontal_lines) - 1):
+        for col in range(len(vertical_lines) - 1):
+            x_start = vertical_lines[col]
+            x_end = vertical_lines[col + 1]
+            y_start = horizontal_lines[row]
+            y_end = horizontal_lines[row + 1]
+
+            cell = cropped_image[y_start:y_end, x_start:x_end]
+            label = candy_classify_by_center_color(cell)
+            cell_labels[row].append(label)
+
+    return cell_labels
+
+
+def candy_get_annotate_img(image_path, crop_left=50, crop_right=50, crop_top=50, crop_bottom=50, grid_rows=9, grid_cols=9, output_image='annotated_grid.png', cache_dir=None, enable_digit_label=True, thickness=1, black=False, font_size=0.4):
+    original_image, cropped_image, x_offset, y_offset = preprocess_image(image_path, crop_left, crop_right, crop_top, crop_bottom, cache_dir)
+    vertical_lines, horizontal_lines = generate_grid(cropped_image, grid_rows, grid_cols)
+    
+    cell_labels = candy_extract_and_classify_cells(cropped_image, vertical_lines, horizontal_lines)
+    annotated_cropped_image, grid_annotations = annotate_with_grid(cropped_image, vertical_lines, horizontal_lines, x_offset, y_offset, cell_labels=cell_labels, \
+                                                                enable_digit_label=enable_digit_label, thickness=thickness, black=black, font_size=font_size)
+    
+    grid_annotation_path = save_grid_annotations(grid_annotations, cache_dir)
+    
+    # Place the annotated cropped image back onto the original image
+    original_image[y_offset:y_offset + annotated_cropped_image.shape[0], x_offset:x_offset + annotated_cropped_image.shape[1]] = annotated_cropped_image
+    
+    if cache_dir:
+        os.makedirs(cache_dir, exist_ok=True)
+        output_image_path = os.path.join(cache_dir, output_image)
+        annotated_cropped_image_path = os.path.join(cache_dir, 'annotated_cropped_image.png')
+    else:
+        output_image_path = output_image
+        annotated_cropped_image_path = 'annotated_cropped_image.png'
+
+    cv2.imwrite(output_image_path, original_image)
+    cv2.imwrite(annotated_cropped_image_path, annotated_cropped_image)
+
+    return output_image_path, grid_annotation_path, annotated_cropped_image_path, cell_labels
+
 
 def get_annotate_patched_img(image_path, 
         crop_left=50, crop_right=50, crop_top=50, crop_bottom=50, 
