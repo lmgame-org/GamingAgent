@@ -77,7 +77,10 @@ def sokoban_read_worker(system_prompt, api_provider, model_name, image_path):
         board_str = "No board available."
     return board_str
 
-def sokoban_worker(system_prompt, api_provider, model_name, 
+def sokoban_worker(
+    system_prompt, state_reader_system_prompt,
+    api_provider, model_name,
+    state_reader_api_provider, state_reader_model_name,
     prev_response="", 
     thinking=True, 
     modality="vision-text",
@@ -113,12 +116,18 @@ def sokoban_worker(system_prompt, api_provider, model_name,
 
     annotate_image_path, grid_annotation_path, annotate_cropped_image_path = get_annotate_img(screenshot_path, crop_left=crop_left, crop_right=crop_right, crop_top=crop_top, crop_bottom=crop_bottom, grid_rows=grid_rows, grid_cols=grid_cols, cache_dir=CACHE_DIR)
 
-    table = sokoban_read_worker(system_prompt, api_provider, model_name, screenshot_path)
+    if modality == "vision-text" or modality == "text-only":
+        table = sokoban_read_worker(system_prompt, api_provider, model_name, screenshot_path)
+    elif modality == "vision-only":
+        # In pure "vision" modality, we do not parse the board via text
+        table = "[NO CONVERTED BOARD TEXT]"
+    else:
+        raise NotImplementedError(f"modality: {modality} is not supported.")
 
     #print(f"-------------- TABLE --------------\n{table}\n")
     #print(f"-------------- prev response --------------\n{prev_response}\n")
 
-    prompt = (
+    sokoban_prompt_template = (
     "## Previous Lessons Learned\n"
     "- The Sokoban board is structured as a list matrix with coordinated positions: (column_index, row_index).\n"
     "- You control a worker who can move in four directions (up along row index, down along row index, left along column index, right along column index) in a 2D Sokoban game. "
@@ -143,13 +152,18 @@ def sokoban_worker(system_prompt, api_provider, model_name,
     "4. Path Obstruction Error: a box blocks your way to reach other boxes and make progress to the game.\n"
     "5. Final Dock Saturation Error: choose which box goes to which dock wisely.\n"
 
-    f"Here is your previous response: {prev_response}. Please evaluate your plan and thought about whether we should correct or adjust.\n"
+    "Here is your previous response: {prev_response}. Please evaluate your plan and thought about whether we should correct or adjust.\n"
     "Here is the current layout of the Sokoban board:\n"
-    f"{table}\n\n"
+    "{table}\n\n"
 
     "### Output Format:\n"
     "move: up/down/left/right, thought: <brief reasoning>\n\n"
     "Example output: move: right, thought: Positioning the player to access other boxes and docks for future moves."
+    )
+
+    sokoban_prompt = sokoban_prompt_template.format(
+        prev_response=prev_response,
+        table=table
     )
 
     base64_image = encode_image(annotate_cropped_image_path)
@@ -159,22 +173,29 @@ def sokoban_worker(system_prompt, api_provider, model_name,
 
     print(f"Calling {model_name} API...")
     # Call the LLM API based on the selected provider.
-    if api_provider == "anthropic" and modality=="text-only":
-        response = anthropic_text_completion(system_prompt, model_name, prompt, thinking)
-    elif api_provider == "anthropic":
-        response = anthropic_completion(system_prompt, model_name, base64_image, prompt, thinking)
-    elif api_provider == "openai" and "o3" in model_name and modality=="text-only":
-        response = openai_text_reasoning_completion(system_prompt, model_name, prompt)
-    elif api_provider == "openai":
-        response = openai_completion(system_prompt, model_name, base64_image, prompt)
-    elif api_provider == "gemini" and modality=="text-only":
-        response = gemini_text_completion(system_prompt, model_name, prompt)
-    elif api_provider == "gemini":
-        response = gemini_completion(system_prompt, model_name, base64_image, prompt)
-    elif api_provider == "deepseek":
-        response = deepseek_text_reasoning_completion(system_prompt, model_name, prompt)
+    if modality=="text-only":
+        if api_provider == "anthropic":
+            generated_code_str = anthropic_text_completion(system_prompt, model_name, sokoban_prompt)
+        elif api_provider == "openai":
+            generated_code_str = openai_text_completion(system_prompt, model_name, sokoban_prompt)
+        elif api_provider == "gemini":
+            generated_code_str = gemini_text_completion(system_prompt, model_name, sokoban_prompt)
+        else:
+            raise NotImplementedError(f"API provider: {api_provider} is not supported.")
+    elif api_provider == "openai" and "o3" in model_name and modality == "text-only":
+        response = openai_text_reasoning_completion(system_prompt, model_name, sokoban_prompt)
+    elif api_provider == "deepseek" and "reasoner" in model_name:
+        response = deepseek_text_reasoning_completion(system_prompt, model_name, sokoban_prompt)
     else:
-        raise NotImplementedError(f"API provider: {api_provider} is not supported.")
+        # only support "vision-only" and "vision-text" for now
+        if api_provider == "anthropic":
+            generated_code_str = anthropic_completion(system_prompt, model_name, base64_image, sokoban_prompt)
+        elif api_provider == "openai":
+            generated_code_str = openai_completion(system_prompt, model_name, base64_image, sokoban_prompt)
+        elif api_provider == "gemini":
+            generated_code_str = gemini_completion(system_prompt, model_name, base64_image, sokoban_prompt)
+        else:
+            raise NotImplementedError(f"API provider: {api_provider} is not supported.")
 
     latency = time.time() - start_time
 
