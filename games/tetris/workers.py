@@ -454,20 +454,25 @@ An active Tetris piece appears from the top, and is not connected to the bottom 
 
             try:
                 # HACK (lanxiang): o3-mini only support text-only modality for now
-                if api_provider == "openai" and "o3" in model_name and modality=="text-only":
-                    generated_code_str = openai_text_reasoning_completion(system_prompt, model_name, tetris_prompt)
-                elif api_provider == "anthropic" and modality=="text-only":
-                    print("calling text-only API...")
-                    generated_code_str = anthropic_text_completion(system_prompt, model_name, tetris_prompt)
-                elif api_provider == "anthropic":
-                    print("calling vision API...")
-                    generated_code_str = anthropic_completion(system_prompt, model_name, base64_image, tetris_prompt)
-                elif api_provider == "openai":
-                    generated_code_str = openai_completion(system_prompt, model_name, base64_image, tetris_prompt)
-                elif api_provider == "gemini":
-                    generated_code_str = gemini_completion(system_prompt, model_name, base64_image, tetris_prompt)
+                if modality=="text-only":
+                    if api_provider == "anthropic":
+                        generated_code_str = anthropic_text_completion(system_prompt, model_name, tetris_prompt)
+                    elif api_provider == "openai":
+                        generated_code_str = openai_text_completion(system_prompt, model_name, tetris_prompt)
+                    elif api_provider == "gemini":
+                        generated_code_str = gemini_text_completion(system_prompt, model_name, tetris_prompt)
+                    else:
+                        raise NotImplementedError(f"API provider: {api_provider} is not supported.")
                 else:
-                    raise NotImplementedError(f"API provider: {api_provider} is not supported.")
+                    # only support "vision-only" and "vision-text" for now
+                    if api_provider == "anthropic":
+                        generated_code_str = anthropic_completion(system_prompt, model_name, base64_image, tetris_prompt)
+                    elif api_provider == "openai":
+                        generated_code_str = openai_completion(system_prompt, model_name, base64_image, tetris_prompt)
+                    elif api_provider == "gemini":
+                        generated_code_str = gemini_completion(system_prompt, model_name, base64_image, tetris_prompt)
+                    else:
+                        raise NotImplementedError(f"API provider: {api_provider} is not supported.")
 
             except Exception as e:
                 print(f"[Thread {thread_id}] Error executing code: {e}")

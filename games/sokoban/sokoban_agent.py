@@ -48,13 +48,22 @@ system_prompt = (
     "Your goal is to push all boxes onto the designated dock locations while avoiding deadlocks. "
 )
 
+state_reader_system_prompt = (
+    "You are an expert AI agent specialized in converting a Sokoban game state to a text table."
+)
+
 
 def main():
     parser = argparse.ArgumentParser(description="sokoban AI Agent")
     parser.add_argument("--api_provider", type=str, default="openai", help="API provider to use.")
     parser.add_argument("--model_name", type=str, default="o3-mini", help="LLM model name.")
-    parser.add_argument("--modality", type=str, default="text-only", choices=["text-only", "vision-text"],
-                        help="modality used.")
+    parser.add_argument("--state_reader_api_provider", type=str, default="anthropic",
+                        help="Game state reader API provider to use.")
+    parser.add_argument("--state_reader_model_name", type=str, default="claude-3-7-sonnet-20250219",
+                        help="Game state reader model name.")
+    parser.add_argument("--modality", type=str, default="vision-text",
+                        choices=["vision-only", "vision-text", "text-only"],
+                        help="Employ vision-only, text-only or vision-text reasoning mode.")
     parser.add_argument("--thinking", type=str, default=True, help="Whether to use deep thinking.")
     parser.add_argument("--starting_level", type=int, default=1, help="Starting level for the Sokoban game.")
     parser.add_argument("--num_threads", type=int, default=10, help="Number of parallel threads to launch.")
@@ -95,8 +104,11 @@ def main():
                         executor.submit(
                             sokoban_worker,
                             system_prompt,
+                            state_reader_system_prompt
                             args.api_provider,
                             args.model_name,
+                            args.state_reader_api_provider, 
+                            args.state_reader_model_name,
                             "\n".join(prev_responses),
                             thinking=str2bool(args.thinking),
                             modality=args.modality,
