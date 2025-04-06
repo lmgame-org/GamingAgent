@@ -4,17 +4,7 @@ import pyautogui
 import numpy as np
 
 from tools.utils import encode_image, log_output, extract_python_code, get_annotate_img
-from tools.serving.api_providers import anthropic_completion, openai_completion, gemini_completion, anthropic_text_completion, openai_text_completion, gemini_text_completion, openai_text_reasoning_completion, deepseek_text_reasoning_completion
-
-cache_dir = "cache/candy_crush"
-
-import time
-import os
-import pyautogui
-import numpy as np
-
-from tools.utils import encode_image, log_output, extract_python_code, get_annotate_img
-from tools.serving.api_providers import anthropic_completion, openai_completion, gemini_completion
+from tools.serving.api_providers import anthropic_completion, openai_completion, gemini_completion, anthropic_text_completion, gemini_text_completion, openai_text_reasoning_completion, deepseek_text_reasoning_completion, together_ai_completion, openai_text_completion
 import re
 import json
 
@@ -39,7 +29,7 @@ def candy_crush_read_worker(system_prompt, api_provider, model_name, image_path)
     base64_image = encode_image(image_path)
     
     # Construct prompt for LLM
-    prompt = (
+    vlm_prompt = (
         "Extract the Candy Crush board layout from the provided image. "
         "Use the existing unique IDs in the image to identify each candy type. "
         "For each ID, recognize the corresponding candy based on color and shape. "
@@ -55,6 +45,8 @@ def candy_crush_read_worker(system_prompt, api_provider, model_name, image_path)
         response = openai_completion(system_prompt, model_name, base64_image, vlm_prompt)
     elif api_provider == "gemini":
         response = gemini_completion(system_prompt, model_name, base64_image, vlm_prompt)
+    elif api_provider == "together_ai":
+        response = together_ai_completion(system_prompt, model_name, prompt=vlm_prompt,base64_image=base64_image)
     else:
         raise NotImplementedError(f"API provider: {api_provider} is not supported.")
     
@@ -78,8 +70,11 @@ def candy_crush_worker(system_prompt, state_reader_system_prompt,
     3) Logs latency and the generated code.
     """
 
-    assert modality in ["vision-only", "vision-text", "text-only"], f"{modality} modality is not supported."
+    print("\n" + "="*80)
+    print(f"Candy Crush Move Analysis - {modality} Mode")
+    print("="*80)
 
+    assert modality in ["vision-only", "vision-text", "text-only"], f"{modality} modality is not supported."
 
     # Capture a screenshot of the current game state.
     screen_width, screen_height = pyautogui.size()
@@ -87,19 +82,38 @@ def candy_crush_worker(system_prompt, state_reader_system_prompt,
     screenshot = pyautogui.screenshot(region=region)
 
     # Save the screenshot directly in the cache directory.
-    os.makedirs(cache_dir, exist_ok=True)
-    screenshot_path = os.path.join(cache_dir, "screenshot.png")
-
+    os.makedirs(CACHE_DIR, exist_ok=True)
+    screenshot_path = os.path.join(CACHE_DIR, "screenshot.png")
     screenshot.save(screenshot_path)
 
-    annotate_image_path, grid_annotation_path, annotate_cropped_image_path = get_annotate_img(screenshot_path, crop_left=crop_left, crop_right=crop_right, crop_top=crop_top, crop_bottom=crop_bottom, grid_rows=grid_rows, grid_cols=grid_cols, cache_dir=CACHE_DIR, thickness = 2, black = True, font_size=0.7)
-    # side view
+    print(f"\nScreenshot captured and saved to: {screenshot_path}")
+
+    annotate_image_path, grid_annotation_path, annotate_cropped_image_path = get_annotate_img(
+        screenshot_path, 
+        crop_left=crop_left, 
+        crop_right=crop_right, 
+        crop_top=crop_top, 
+        crop_bottom=crop_bottom, 
+        grid_rows=grid_rows, 
+        grid_cols=grid_cols, 
+        cache_dir=CACHE_DIR, 
+        thickness=2, 
+        black=True, 
+        font_size=0.7
+    )
+    
+    print(f"\nAnnotated images generated:")
+    print(f"   - Full annotated image: {annotate_image_path}")
+    print(f"   - Grid annotations: {grid_annotation_path}")
+    print(f"   - Cropped annotated image: {annotate_cropped_image_path}")
     
     if modality == "vision-text" or modality == "text-only":
+        print("\nConverting board to text representation...")
         candy_crush_text_table = candy_crush_read_worker(state_reader_system_prompt, state_reader_api_provider, state_reader_model_name, annotate_cropped_image_path)
+        print("Board text representation generated")
     elif modality == "vision-only":
-        # In pure "vision" modality, we do not parse the board via text
         candy_crush_text_table = "[NO CONVERTED BOARD TEXT]"
+        print("\nUsing vision-only mode - skipping text conversion")
     else:
         raise NotImplementedError(f"modality: {modality} is not supported.")
 
@@ -123,21 +137,23 @@ def candy_crush_worker(system_prompt, state_reader_system_prompt,
 
     prompt = prompt_template.format(
         prev_response=prev_response,
-        table=table,
+        candy_crush_text_table=candy_crush_text_table
     )
 
     base64_image = encode_image(annotate_cropped_image_path)
     start_time = time.time()
 
-    print(f"Calling {model_name} api...")
+    print(f"\nCalling {model_name} ({api_provider}) API...")
     # Call the LLM API based on the selected provider.
     if modality=="text-only":
         if api_provider == "anthropic":
-            generated_code_str = anthropic_text_completion(system_prompt, model_name, prompt)
+            response = anthropic_text_completion(system_prompt, model_name, prompt)
         elif api_provider == "openai":
-            generated_code_str = openai_text_completion(system_prompt, model_name, prompt)
+            response = openai_text_completion(system_prompt, model_name, prompt)
         elif api_provider == "gemini":
-            generated_code_str = gemini_text_completion(system_prompt, model_name, prompt)
+            response = gemini_text_completion(system_prompt, model_name, prompt)
+        elif api_provider == "together_ai":
+            response = gemini_text_completion(system_prompt, model_name, prompt)
         else:
             raise NotImplementedError(f"API provider: {api_provider} is not supported.")
     elif api_provider == "openai" and "o3" in model_name and modality == "text-only":
@@ -147,17 +163,22 @@ def candy_crush_worker(system_prompt, state_reader_system_prompt,
     else:
         # only support "vision-only" and "vision-text" for now
         if api_provider == "anthropic":
-            generated_code_str = anthropic_completion(system_prompt, model_name, base64_image, prompt)
+            response = anthropic_completion(system_prompt, model_name, base64_image, prompt)
         elif api_provider == "openai":
-            generated_code_str = openai_completion(system_prompt, model_name, base64_image, prompt)
+            response = openai_completion(system_prompt, model_name, base64_image, prompt)
         elif api_provider == "gemini":
-            generated_code_str = gemini_completion(system_prompt, model_name, base64_image, prompt)
+            response = gemini_completion(system_prompt, model_name, base64_image, prompt)
+        elif api_provider == "together_ai":
+            response = together_ai_completion(system_prompt, model_name, prompt=prompt, base64_image=base64_image)
         else:
             raise NotImplementedError(f"API provider: {api_provider} is not supported.")
 
     latency = time.time() - start_time
 
-    print(response)
+    print("\nAPI Response Analysis:")
+    print(f"Latency: {latency:.2f} seconds")
+    print(f"Response: {response}")
+
     # Extract the move (X, Y) and thought from LLM response
     move_match = re.search(r'move:\s*"\((\d+),\s*(\d+)\)"', response)
     thought_match = re.search(r'thought:\s*"(.*?)"', response)
@@ -169,8 +190,9 @@ def candy_crush_worker(system_prompt, state_reader_system_prompt,
     id_1, id_2 = int(move_match.group(1)), int(move_match.group(2))
     thought_text = thought_match.group(1)
 
-    print(f"Extracted move: ({id_1}, {id_2})")
-    print(f"LLM Thought Process: {thought_text}")
+    print("\nExtracted Move Details:")
+    print(f"   - Candy IDs to swap: ({id_1}, {id_2})")
+    print(f"   - Reasoning: {thought_text}")
 
     log_move_and_thought(f"({id_1}, {id_2})", thought_text, latency)
 
@@ -192,13 +214,17 @@ def candy_crush_worker(system_prompt, state_reader_system_prompt,
 
     x1, y1 = pos_1["x"], pos_1["y"]
     x2, y2 = pos_2["x"], pos_2["y"]
-    print(f"Swapping ({id_1} -> {x1}, {y1}) with ({id_2} -> {x2}, {y2})")
+    print(f"\nMouse Movement Details:")
+    print(f"   - First candy ({id_1}) at: ({x1}, {y1})")
+    print(f"   - Second candy ({id_2}) at: ({x2}, {y2})")
 
     # Perform the swap using PyAutoGUI
+    print("\nExecuting move...")
     pyautogui.moveTo(x1, y1, duration=0.2)
     pyautogui.mouseDown()
     pyautogui.moveTo(x2, y2, duration=0.2)
     pyautogui.mouseUp()
+    print("Move executed successfully")
 
     # Log move and thought
     log_output(
@@ -207,4 +233,5 @@ def candy_crush_worker(system_prompt, state_reader_system_prompt,
         "candy_crush"
     )
 
+    print("\n" + "="*80)
     return response

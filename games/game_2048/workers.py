@@ -4,7 +4,7 @@ import pyautogui
 import numpy as np
 
 from tools.utils import encode_image, log_output, get_annotate_img
-from tools.serving.api_providers import anthropic_completion, openai_completion, gemini_completion, anthropic_text_completion, openai_text_completion, gemini_text_completion, openai_text_reasoning_completion, deepseek_text_reasoning_completion
+from tools.serving.api_providers import anthropic_completion, openai_completion, gemini_completion, anthropic_text_completion, openai_text_completion, gemini_text_completion, openai_text_reasoning_completion, deepseek_text_reasoning_completion, together_ai_completion
 import re
 import json
 
@@ -52,6 +52,8 @@ def game_2048_read_worker(system_prompt, api_provider, model_name, image_path, m
         response = gemini_completion(system_prompt, model_name, base64_image, prompt)
     elif api_provider == "deepseek":
         response = deepseek_text_reasoning_completion(system_prompt, model_name, prompt)
+    elif api_provider == "together_ai":
+        response = together_ai_completion(system_prompt, model_name, prompt=prompt, base64_image=base64_image)
     else:
         raise NotImplementedError(f"API provider: {api_provider} is not supported.")
     
@@ -82,7 +84,7 @@ def game_2048_worker(
 
     os.makedirs(CACHE_DIR, exist_ok=True)
     screenshot_path = os.path.abspath(os.path.join(CACHE_DIR, "2048_screenshot.png"))
-    annotate_image_path, grid_annotation_path, annotate_cropped_image_path = get_annotate_img(screenshot_path, crop_left=0, crop_right=0, crop_top=0, crop_bottom=0, grid_rows=4, grid_cols=4,enable_digit_label=False, cache_dir=CACHE_DIR, line_thickness=3, black=True)
+    annotate_image_path, grid_annotation_path, annotate_cropped_image_path = get_annotate_img(screenshot_path, crop_left=0, crop_right=0, crop_top=0, crop_bottom=0, grid_rows=4, grid_cols=4,enable_digit_label=False, cache_dir=CACHE_DIR, thickness=3, black=True)
 
     if modality == "vision-text" or modality == "text-only":
         table = game_2048_read_worker(state_reader_system_prompt, state_reader_api_provider, state_reader_model_name, annotate_cropped_image_path, thinking=thinking, modality=modality)
@@ -138,11 +140,13 @@ def game_2048_worker(
     # Call the LLM API based on the selected provider.
     if modality=="text-only":
         if api_provider == "anthropic":
-            generated_code_str = anthropic_text_completion(system_prompt, model_name, prompt)
+            response = anthropic_text_completion(system_prompt, model_name, prompt)
         elif api_provider == "openai":
-            generated_code_str = openai_text_completion(system_prompt, model_name, prompt)
+            response = openai_text_completion(system_prompt, model_name, prompt)
         elif api_provider == "gemini":
-            generated_code_str = gemini_text_completion(system_prompt, model_name, prompt)
+            response = gemini_text_completion(system_prompt, model_name, prompt)
+        elif api_provider == "together_ai":
+            response = together_ai_completion(system_prompt, model_name, prompt=prompt)
         else:
             raise NotImplementedError(f"API provider: {api_provider} is not supported.")
     elif api_provider == "openai" and "o3" in model_name and modality == "text-only":
@@ -152,11 +156,13 @@ def game_2048_worker(
     else:
         # only support "vision-only" and "vision-text" for now
         if api_provider == "anthropic":
-            generated_code_str = anthropic_completion(system_prompt, model_name, base64_image, prompt)
+            response = anthropic_completion(system_prompt, model_name, base64_image, prompt)
         elif api_provider == "openai":
-            generated_code_str = openai_completion(system_prompt, model_name, base64_image, prompt)
+            response = openai_completion(system_prompt, model_name, base64_image, prompt)
         elif api_provider == "gemini":
-            generated_code_str = gemini_completion(system_prompt, model_name, base64_image, prompt)
+            response = gemini_completion(system_prompt, model_name, base64_image, prompt)
+        elif api_provider == "together_ai":
+            response = together_ai_completion(system_prompt, model_name, prompt=prompt, base64_image=base64_image)
         else:
             raise NotImplementedError(f"API provider: {api_provider} is not supported.")
 
