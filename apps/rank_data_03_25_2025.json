@@ -96,21 +96,28 @@
                 "score": 64,
                 "steps": 92,
                 "time": "9:2",
-                "rank": 8
+                "rank": 9
             },
             {
                 "model": "gpt-4.5-preview-2025-02-27",
                 "score": 34,
                 "steps": 34,
                 "time": "8:25",
-                "rank": 9
+                "rank": 10
             },
             {
                 "model": "gpt-4o-2024-11-20",
                 "score": 16,
                 "steps": 21,
                 "time": "1:17",
-                "rank": 10
+                "rank": 11
+            },
+            {
+                "model": "Llama-4-Maverick-17B-128E-Instruct-FP8",
+                "score": 128,
+                "steps": 145,
+                "time": ">100",
+                "rank": 8
             }
         ]
     },
@@ -229,6 +236,13 @@
                 "score_runs": "0;0;0",
                 "average_score": 0,
                 "steps": 25,
+                "rank":9 
+            },
+            {
+                "model": "Llama-4-Maverick-17B-128E-Instruct-FP8",
+                "score_runs": "6;0;0",
+                "average_score": 2,
+                "steps": 25,
                 "rank": 8
             }
         ]
@@ -300,9 +314,9 @@
                 "rank": 10
             },
             {
-                "model": "claude-3-5-sonnet-20241022",
+                "model": "Llama-4-Maverick-17B-128E-Instruct-FP8",
                 "levels_cracked": "0;0;0",
-                "steps": null,
+                "steps": "[5]",
                 "rank": 11
             }
         ]
