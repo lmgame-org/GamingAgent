@@ -543,6 +543,202 @@ def get_combined_leaderboard_with_group_bar(rank_data, selected_games):
     group_bar_fig = create_group_bar_chart(df)
     return df, group_bar_fig
 
+def create_single_radar_chart(df, selected_games=None, highlight_models=None):
+    """
+    Create a single radar chart comparing AI model performance across selected games
+    
+    Args:
+        df (pd.DataFrame): DataFrame containing the combined leaderboard data
+        selected_games (list, optional): List of game names to include in the radar chart
+        highlight_models (list, optional): List of model names to highlight in the chart
+        
+    Returns:
+        matplotlib.figure.Figure: The generated radar chart figure
+    """
+    # Close any existing figures to prevent memory leaks
+    plt.close('all')
+    
+    # Use provided selected_games or default to the four main games
+    if selected_games is None:
+        selected_games = ['Super Mario Bros', '2048', 'Candy Crash', 'Sokoban']
+    
+    game_columns = [f"{game} Score" for game in selected_games]
+    categories = selected_games
+    
+    # Create figure
+    fig, ax = plt.subplots(figsize=(12, 8), subplot_kw=dict(projection='polar'))
+    fig.patch.set_facecolor('white')
+    ax.set_facecolor('white')
+    
+    # Compute number of variables
+    num_vars = len(categories)
+    angles = np.linspace(0, 2*np.pi, num_vars, endpoint=False)
+    angles = np.concatenate((angles, [angles[0]]))  # Complete the circle
+    
+    # Set up the axes
+    ax.set_xticks(angles[:-1])
+    
+    # Format categories with bold text
+    formatted_categories = []
+    for game in categories:
+        if game == "Super Mario Bros":
+            game = "Super\nMario"
+        elif game == "Candy Crash":
+            game = "Candy\nCrash"
+        elif game == "Tetris (planning only)":
+            game = "Tetris\n(planning)"
+        elif game == "Tetris (complete)":
+            game = "Tetris\n(complete)"
+        formatted_categories.append(game)
+    
+    # Set bold labels for categories
+    ax.set_xticklabels(formatted_categories, fontsize=10, fontweight='bold')
+    
+    # Draw grid lines
+    ax.set_rgrids([20, 40, 60, 80, 100], 
+                  labels=['20', '40', '60', '80', '100'],
+                  angle=45,
+                  fontsize=8)
+    
+    # Calculate game statistics for normalization
+    def get_game_stats(df, game_col):
+        values = []
+        for val in df[game_col]:
+            if isinstance(val, str) and val == '_':
+                values.append(0)
+            else:
+                try:
+                    values.append(float(val))
+                except:
+                    values.append(0)
+        return np.mean(values), np.std(values)
+    
+    game_stats = {col: get_game_stats(df, col) for col in game_columns}
+    
+    # Split the dataframe into highlighted and non-highlighted models
+    if highlight_models:
+        highlighted_df = df[df['Player'].isin(highlight_models)]
+        non_highlighted_df = df[~df['Player'].isin(highlight_models)]
+    else:
+        highlighted_df = pd.DataFrame()
+        non_highlighted_df = df
+    
+    # Plot non-highlighted models first
+    for _, row in non_highlighted_df.iterrows():
+        values = []
+        for col in game_columns:
+            val = row[col]
+            if isinstance(val, str) and val == '_':
+                values.append(0)
+            else:
+                try:
+                    mean, std = game_stats[col]
+                    if std == 0:
+                        normalized = 50 if float(val) > 0 else 0
+                    else:
+                        z_score = (float(val) - mean) / std
+                        normalized = max(0, min(100, (z_score * 30) + 50))
+                    values.append(normalized)
+                except:
+                    values.append(0)
+        
+        # Complete the circular plot
+        values = np.concatenate((values, [values[0]]))
+        
+        # Get color for model, use default if not found
+        model_name = row['Player']
+        color = MODEL_COLORS.get(model_name, '#808080')  # Default to gray if color not found
+        
+        # Plot with lines and markers
+        ax.plot(angles, values, 'o-', linewidth=2, label=model_name, color=color)
+        ax.fill(angles, values, alpha=0.25, color=color)
+    
+    # Plot highlighted models last (so they appear on top)
+    for _, row in highlighted_df.iterrows():
+        values = []
+        for col in game_columns:
+            val = row[col]
+            if isinstance(val, str) and val == '_':
+                values.append(0)
+            else:
+                try:
+                    mean, std = game_stats[col]
+                    if std == 0:
+                        normalized = 50 if float(val) > 0 else 0
+                    else:
+                        z_score = (float(val) - mean) / std
+                        normalized = max(0, min(100, (z_score * 30) + 30))
+                    values.append(normalized)
+                except:
+                    values.append(0)
+        
+        # Complete the circular plot
+        values = np.concatenate((values, [values[0]]))
+        
+        # Plot with red color and thicker line
+        model_name = row['Player']
+        ax.plot(angles, values, 'o-', linewidth=6, label=model_name, color='red')
+        ax.fill(angles, values, alpha=0.25, color='red')
+    
+    # Add title
+    plt.title('AI Models Performance Across Selected Games\n(Normalized Scores)',
+              pad=20, fontsize=14, fontweight='bold')
+    
+    # Get handles and labels for legend
+    handles, labels = ax.get_legend_handles_labels()
+    
+    # Reorder legend to put highlighted models first
+    if highlight_models:
+        highlighted_handles = []
+        highlighted_labels = []
+        non_highlighted_handles = []
+        non_highlighted_labels = []
+        
+        for handle, label in zip(handles, labels):
+            if label in highlight_models:
+                highlighted_handles.append(handle)
+                highlighted_labels.append(label)
+            else:
+                non_highlighted_handles.append(handle)
+                non_highlighted_labels.append(label)
+        
+        handles = highlighted_handles + non_highlighted_handles
+        labels = highlighted_labels + non_highlighted_labels
+    
+    # Add legend with reordered handles and labels
+    legend = plt.legend(handles, labels,
+                       loc='center left',
+                       bbox_to_anchor=(1.2, 0.5),
+                       fontsize=8,
+                       title='AI Models',
+                       title_fontsize=10)
+    
+    # Make the legend title bold
+    legend.get_title().set_fontweight('bold')
+    
+    # Adjust layout to prevent label cutoff
+    plt.tight_layout()
+    
+    return fig
+
+def get_combined_leaderboard_with_single_radar(rank_data, selected_games, highlight_models=None):
+    """
+    Get combined leaderboard and create single radar chart
+    
+    Args:
+        rank_data (dict): Dictionary containing rank data
+        selected_games (dict): Dictionary of game names and their selection status
+        highlight_models (list, optional): List of model names to highlight in the chart
+        
+    Returns:
+        tuple: (DataFrame, matplotlib.figure.Figure) containing the leaderboard data and radar chart
+    """
+    df = get_combined_leaderboard(rank_data, selected_games)
+    # Convert selected_games dict to list of selected game names
+    selected_game_names = [game for game, selected in selected_games.items() if selected]
+    radar_fig = create_single_radar_chart(df, selected_games=selected_game_names, highlight_models=highlight_models)
+    return df, radar_fig
+
 def save_visualization(fig, filename):
     """
     Save visualization to file

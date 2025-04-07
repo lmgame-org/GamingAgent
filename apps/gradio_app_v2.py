@@ -25,7 +25,8 @@ from data_visualization import (
     create_top_players_radar_chart,
     create_player_radar_chart,
     create_horizontal_bar_chart,
-    normalize_values
+    normalize_values,
+    get_combined_leaderboard_with_single_radar
 )
 
 # Define time points and their corresponding data files
@@ -212,6 +213,29 @@ def update_leaderboard(mario_overall, mario_details,
             leaderboard_state["previous_details"][changed_game] = False
             if leaderboard_state["current_game"] == changed_game:
                 leaderboard_state["current_game"] = None
+                # When exiting details view, reset to show all games
+                for game in current_overall.keys():
+                    current_overall[game] = True
+                    current_details[game] = False
+                    leaderboard_state["previous_overall"][game] = True
+                    leaderboard_state["previous_details"][game] = False
+    
+    # Special case: If all games are selected and we're trying to view details
+    all_games_selected = all(current_overall.values()) and not any(current_details.values())
+    if all_games_selected and changed_game and current_details[changed_game]:
+        # Reset all other games' states
+        for game in current_overall.keys():
+            if game != changed_game:
+                current_overall[game] = False
+                current_details[game] = False
+                leaderboard_state["previous_overall"][game] = False
+                leaderboard_state["previous_details"][game] = False
+        
+        # Update state for the selected game
+        leaderboard_state["current_game"] = changed_game
+        leaderboard_state["previous_overall"][changed_game] = True
+        leaderboard_state["previous_details"][changed_game] = True
+        current_overall[changed_game] = True
     
     # Build dictionary for selected games
     selected_games = {
@@ -223,7 +247,7 @@ def update_leaderboard(mario_overall, mario_details,
         "Tetris (planning only)": current_overall["Tetris (planning only)"]
     }
     
-    # Get the appropriate DataFrame and chart based on current state
+    # Get the appropriate DataFrame and charts based on current state
     if leaderboard_state["current_game"]:
         # For detailed view
         if leaderboard_state["current_game"] == "Super Mario Bros":
@@ -241,12 +265,18 @@ def update_leaderboard(mario_overall, mario_details,
         
         # Always create a new chart for detailed view
         chart = create_horizontal_bar_chart(df, leaderboard_state["current_game"])
+        # For detailed view, we'll use the same chart for all visualizations
+        radar_chart = chart
+        group_bar_chart = chart
     else:
         # For overall view
-        df, chart = get_combined_leaderboard_with_group_bar(rank_data, selected_games)
+        df, group_bar_chart = get_combined_leaderboard_with_group_bar(rank_data, selected_games)
+        # Use the same selected_games for radar chart
+        _, radar_chart = get_combined_leaderboard_with_single_radar(rank_data, selected_games)
+        chart = group_bar_chart
     
-    # Return exactly 14 values to match the expected outputs
-    return (df, chart,
+    # Return exactly 16 values to match the expected outputs
+    return (df, chart, radar_chart, group_bar_chart,
             current_overall["Super Mario Bros"], current_details["Super Mario Bros"],
             current_overall["Sokoban"], current_details["Sokoban"],
             current_overall["2048"], current_details["2048"],
@@ -274,24 +304,9 @@ def update_leaderboard_with_time(time_point, mario_overall, mario_details,
                             tetris_overall, tetris_details,
                             tetris_plan_overall, tetris_plan_details)
 
-def clear_filters():
-    global leaderboard_state
-    
-    # Reset all checkboxes to default state
-    selected_games = {
-        "Super Mario Bros": True,
-        "Sokoban": True,
-        "2048": True,
-        "Candy Crash": True,
-        "Tetris (complete)": True,
-        "Tetris (planning only)": True
-    }
-    
-    # Get the combined leaderboard and group bar chart
-    df, chart = get_combined_leaderboard_with_group_bar(rank_data, selected_games)
-    
-    # Reset the leaderboard state to match the default checkbox states
-    leaderboard_state = {
+def get_initial_state():
+    """Get the initial state for the leaderboard"""
+    return {
         "current_game": None,
         "previous_overall": {
             "Super Mario Bros": True,
@@ -310,9 +325,31 @@ def clear_filters():
             "Tetris (planning only)": False
         }
     }
+
+def clear_filters():
+    global leaderboard_state
     
-    # Return exactly 14 values to match the expected outputs
-    return (df, chart,
+    # Reset all checkboxes to default state
+    selected_games = {
+        "Super Mario Bros": True,
+        "Sokoban": True,
+        "2048": True,
+        "Candy Crash": True,
+        "Tetris (complete)": True,
+        "Tetris (planning only)": True
+    }
+    
+    # Get the combined leaderboard and group bar chart
+    df, group_bar_chart = get_combined_leaderboard_with_group_bar(rank_data, selected_games)
+    
+    # Get the radar chart using the same selected games
+    _, radar_chart = get_combined_leaderboard_with_single_radar(rank_data, selected_games)
+    
+    # Reset the leaderboard state to match the default checkbox states
+    leaderboard_state = get_initial_state()
+    
+    # Return exactly 16 values to match the expected outputs
+    return (df, group_bar_chart, radar_chart, group_bar_chart,
             True, False,  # mario
             True, False,  # sokoban
             True, False,  # 2048
@@ -659,6 +696,37 @@ def build_app():
                         elem_classes="visualization-container"
                     )
 
+                # Add new visualization block with radar and group bar charts
+                with gr.Row():
+                    gr.Markdown("### 📈 Comparative Analysis")
+                with gr.Row():
+                    with gr.Column(scale=1):
+                        radar_visualization = gr.Plot(
+                            value=get_combined_leaderboard_with_single_radar(rank_data, {
+                                "Super Mario Bros": True,
+                                "Sokoban": True,
+                                "2048": True,
+                                "Candy Crash": True,
+                                "Tetris (complete)": True,
+                                "Tetris (planning only)": True
+                            })[1],
+                            label="Radar Chart Visualization",
+                            elem_classes="visualization-container"
+                        )
+                    with gr.Column(scale=1):
+                        group_bar_visualization = gr.Plot(
+                            value=get_combined_leaderboard_with_group_bar(rank_data, {
+                                "Super Mario Bros": True,
+                                "Sokoban": True,
+                                "2048": True,
+                                "Candy Crash": True,
+                                "Tetris (complete)": True,
+                                "Tetris (planning only)": True
+                            })[1],
+                            label="Group Bar Chart Visualization",
+                            elem_classes="visualization-container"
+                        )
+
                 # Game selection section
                 with gr.Row():
                     gr.Markdown("### 🎮 Game Selection")
@@ -725,21 +793,25 @@ def build_app():
                                 tetris_plan_overall, tetris_plan_details]
 
                 # Initialize the leaderboard state when the app starts
-                clear_filters()
+                demo.load(
+                    fn=clear_filters,
+                    inputs=[],
+                    outputs=[leaderboard_board, visualization, radar_visualization, group_bar_visualization] + checkbox_list
+                )
 
-                # Update both the leaderboard and visualization when checkboxes change
+                # Update both the leaderboard and visualizations when checkboxes change
                 for checkbox in checkbox_list:
                     checkbox.change(
                         fn=update_leaderboard,
                         inputs=checkbox_list,
-                        outputs=[leaderboard_board, visualization] + checkbox_list
+                        outputs=[leaderboard_board, visualization, radar_visualization, group_bar_visualization] + checkbox_list
                     )
 
                 # Update both when clear button is clicked
                 clear_btn.click(
                     fn=clear_filters,
                     inputs=[],
-                    outputs=[leaderboard_board, visualization] + checkbox_list
+                    outputs=[leaderboard_board, visualization, radar_visualization, group_bar_visualization] + checkbox_list
                 )
 
             with gr.Tab("🎥 Gallery"):
