@@ -173,9 +173,9 @@ def update_leaderboard(mario_overall, mario_details,
             
             # Update state for the selected game
             leaderboard_state["current_game"] = changed_game
-            leaderboard_state["previous_overall"][changed_game] = True  # Set overall to True when details is checked
+            leaderboard_state["previous_overall"][changed_game] = True
             leaderboard_state["previous_details"][changed_game] = True
-            current_overall[changed_game] = True  # Ensure the overall checkbox is checked
+            current_overall[changed_game] = True
         
         # If a game's overall checkbox was checked
         elif current_overall[changed_game] and not leaderboard_state["previous_overall"][changed_game]:
@@ -216,19 +216,6 @@ def update_leaderboard(mario_overall, mario_details,
         "Tetris (planning only)": current_overall["Tetris (planning only)"]
     }
     
-    # Filter GIF paths based on selected games
-    filtered_gifs = []
-    if current_overall["Super Mario Bros"]:
-        filtered_gifs.append(GIF_PATHS[0])
-    if current_overall["Sokoban"]:
-        filtered_gifs.append(GIF_PATHS[1])
-    if current_overall["2048"]:
-        filtered_gifs.append(GIF_PATHS[2])
-    if current_overall["Candy Crash"]:
-        filtered_gifs.append(GIF_PATHS[3])
-    if current_overall["Tetris (complete)"] or current_overall["Tetris (planning only)"]:
-        filtered_gifs.append(GIF_PATHS[4])
-    
     # Get the appropriate DataFrame and chart based on current state
     if leaderboard_state["current_game"]:
         # For detailed view
@@ -251,7 +238,8 @@ def update_leaderboard(mario_overall, mario_details,
         # For overall view
         df, chart = get_combined_leaderboard_with_group_bar(rank_data, selected_games)
     
-    return (df, chart, filtered_gifs,
+    # Return exactly 14 values to match the expected outputs
+    return (df, chart,
             current_overall["Super Mario Bros"], current_details["Super Mario Bros"],
             current_overall["Sokoban"], current_details["Sokoban"],
             current_overall["2048"], current_details["2048"],
@@ -282,7 +270,7 @@ def update_leaderboard_with_time(time_point, mario_overall, mario_details,
 def clear_filters():
     global leaderboard_state
     
-    # Reset all checkboxes to default state and get fresh data
+    # Reset all checkboxes to default state
     selected_games = {
         "Super Mario Bros": True,
         "Sokoban": True,
@@ -316,8 +304,8 @@ def clear_filters():
         }
     }
     
-    # Return both the DataFrame and the visualization
-    return (df, chart, GIF_PATHS,
+    # Return exactly 14 values to match the expected outputs
+    return (df, chart,
             True, False,  # mario
             True, False,  # sokoban
             True, False,  # 2048
@@ -325,50 +313,126 @@ def clear_filters():
             True, False,  # tetris
             True, False)  # tetris plan
 
+def create_timeline_slider():
+    """Create a custom timeline slider component"""
+    timeline_html = """
+    <div class="timeline-container">
+        <style>
+            .timeline-container {
+                width: 85%;  /* Increased from 70% to 85% */
+                padding: 8px;
+                font-family: Arial, sans-serif;
+                height: 40px;
+                display: flex;
+                align-items: center;
+            }
+            .timeline-track {
+                position: relative;
+                height: 6px;
+                background: #e0e0e0;
+                border-radius: 3px;
+                margin: 0;
+                width: 100%;
+            }
+            .timeline-progress {
+                position: absolute;
+                height: 100%;
+                background: #2196F3;
+                border-radius: 3px;
+                width: 100%;
+            }
+            .timeline-handle {
+                position: absolute;
+                right: 0;
+                top: 50%;
+                transform: translate(50%, -50%);
+                width: 20px;
+                height: 20px;
+                background: #2196F3;
+                border: 3px solid white;
+                border-radius: 50%;
+                cursor: pointer;
+                box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+            }
+            .timeline-date {
+                position: absolute;
+                top: -25px;
+                transform: translateX(-50%);
+                background: #2196F3;  /* Changed to match slider blue color */
+                color: #ffffff !important;
+                padding: 3px 8px;
+                border-radius: 4px;
+                font-size: 12px;
+                white-space: nowrap;
+                font-weight: 600;
+                box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+                letter-spacing: 0.5px;
+                text-shadow: 0 1px 2px rgba(0,0,0,0.2);
+            }
+        </style>
+        <div class="timeline-track">
+            <div class="timeline-progress"></div>
+            <div class="timeline-handle">
+                <div class="timeline-date">03/25/2025</div>
+            </div>
+        </div>
+    </div>
+    <script>
+        (function() {
+            const container = document.querySelector('.timeline-container');
+            const track = container.querySelector('.timeline-track');
+            const handle = container.querySelector('.timeline-handle');
+            let isDragging = false;
+            
+            // For now, we only have one time point
+            const timePoints = {
+                "03/25/2025": 1.0
+            };
+            
+            function updatePosition(e) {
+                if (!isDragging) return;
+                
+                const rect = track.getBoundingClientRect();
+                let x = (e.clientX - rect.left) / rect.width;
+                x = Math.max(0, Math.min(1, x));
+                
+                // For now, snap to the only available time point
+                x = 1.0;
+                
+                handle.style.right = `${(1 - x) * 100}%`;
+            }
+            
+            handle.addEventListener('mousedown', (e) => {
+                isDragging = true;
+                e.preventDefault();
+            });
+            
+            document.addEventListener('mousemove', updatePosition);
+            document.addEventListener('mouseup', () => {
+                isDragging = false;
+            });
+            
+            // Prevent text selection while dragging
+            container.addEventListener('selectstart', (e) => {
+                if (isDragging) e.preventDefault();
+            });
+        })();
+    </script>
+    """
+    return gr.HTML(timeline_html)
+
 def build_app():
     with gr.Blocks(css="""
-        .gallery-container {
-            height: 50vh !important;
-            max-height: 600px !important;
-            min-height: 300px !important;
-            background-color: #f8f9fa;
-            border-radius: 10px;
-            padding: 5px !important;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-            overflow: hidden;
-            aspect-ratio: 1 !important;
-            display: flex !important;
-            align-items: center !important;
-            justify-content: center !important;
-        }
-        .gallery-container .gallery-item {
-            height: 100% !important;
-            width: 100% !important;
-            border-radius: 8px;
-            overflow: hidden;
-            margin: 0 !important;
-            padding: 0 !important;
-            aspect-ratio: 1 !important;
-            display: flex !important;
-            align-items: center !important;
-            justify-content: center !important;
-        }
-        .gallery-container .gallery-item img {
-            height: 100% !important;
-            width: 100% !important;
-            object-fit: contain !important;
-            aspect-ratio: 1 !important;
-        }
         .visualization-container {
-            height: 50vh !important;
-            max-height: 600px !important;
-            min-height: 300px !important;
+            height: 85vh !important;
+            max-height: 900px !important;
+            min-height: 600px !important;
             background-color: #f8f9fa;
             border-radius: 10px;
-            padding: 15px;
+            padding: 25px;  /* Increased padding */
             box-shadow: 0 2px 4px rgba(0,0,0,0.1);
             overflow: hidden;
-            margin-left: 10px !important;  /* Add small gap between gallery and visualization */
+            margin: 0 auto !important;  /* Center the visualization */
         }
         .visualization-container .plot {
             height: 100% !important;
@@ -381,18 +445,13 @@ def build_app():
             margin-bottom: 15px;
             padding-bottom: 10px;
             border-bottom: 2px solid #e9ecef;
+            text-align: center;  /* Center the title */
         }
         /* Add container for the entire app */
         .container {
             max-width: 1400px;
             margin: 0 auto;
             padding: 0 20px;
-        }
-        /* Add flex layout for the row containing gallery and visualization */
-        .gallery-viz-row {
-            display: flex !important;
-            align-items: center !important;
-            gap: 20px !important;  /* Add consistent gap between components */
         }
     """) as demo:
         gr.Markdown("# 🎮 Game Arena: Gaming Agent 🎲")
@@ -401,39 +460,20 @@ def build_app():
             with gr.Tab("🏆 Leaderboard"):
                 # Visualization section at the very top
                 with gr.Row():
-                    gr.Markdown("### 📊 Gallery")
-                with gr.Row(elem_classes="gallery-viz-row"):
-                    # Split into two columns
-                    with gr.Column(scale=3):
-                        gallery = gr.Gallery(
-                            value=GIF_PATHS,
-                            label="Game Demos",
-                            show_label=True,
-                            elem_id="gallery",
-                            elem_classes="gallery-container",
-                            columns=1,
-                            rows=1,
-                            min_width=100,
-                            container=True,
-                            allow_preview=True,
-                            object_fit='contain',
-                            show_download_button=False,
-                            show_share_button=False,
-                            show_fullscreen_button=True
-                        )
-                    with gr.Column(scale=4):
-                        visualization = gr.Plot(
-                            value=get_combined_leaderboard_with_group_bar(rank_data, {
-                                "Super Mario Bros": True,
-                                "Sokoban": True,
-                                "2048": True,
-                                "Candy Crash": True,
-                                "Tetris (complete)": True,
-                                "Tetris (planning only)": True
-                            })[1],
-                            label="Performance Visualization",
-                            elem_classes="visualization-container"
-                        )
+                    gr.Markdown("### 📊 Data Visualization")
+                with gr.Row():
+                    visualization = gr.Plot(
+                        value=get_combined_leaderboard_with_group_bar(rank_data, {
+                            "Super Mario Bros": True,
+                            "Sokoban": True,
+                            "2048": True,
+                            "Candy Crash": True,
+                            "Tetris (complete)": True,
+                            "Tetris (planning only)": True
+                        })[1],
+                        label="Performance Visualization",
+                        elem_classes="visualization-container"
+                    )
 
                 # Game selection section
                 with gr.Row():
@@ -469,14 +509,7 @@ def build_app():
                 with gr.Row():
                     with gr.Column(scale=2):
                         gr.Markdown("**⏰ Time Tracker**")
-                        time_slider = gr.Slider(
-                            minimum=0,
-                            maximum=1,
-                            value=1,
-                            step=1,
-                            label="Model Time Point",
-                            info="Current Time: 03/25/2025"
-                        )
+                        timeline = create_timeline_slider()
                     with gr.Column(scale=1):
                         gr.Markdown("**🔄 Controls**")
                         clear_btn = gr.Button("Reset Filters", variant="secondary")
@@ -515,14 +548,14 @@ def build_app():
                     checkbox.change(
                         fn=update_leaderboard,
                         inputs=checkbox_list,
-                        outputs=[leaderboard_board, visualization, gallery] + checkbox_list
+                        outputs=[leaderboard_board, visualization] + checkbox_list
                     )
 
                 # Update both when clear button is clicked
                 clear_btn.click(
                     fn=clear_filters,
                     inputs=[],
-                    outputs=[leaderboard_board, visualization, gallery] + checkbox_list
+                    outputs=[leaderboard_board, visualization] + checkbox_list
                 )
 
     return demo

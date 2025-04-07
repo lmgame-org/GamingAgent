@@ -4,6 +4,8 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import seaborn as sns
+import json
+import os
 from leaderboard_utils import (
     get_organization,
     get_mario_leaderboard,
@@ -15,6 +17,10 @@ from leaderboard_utils import (
     get_combined_leaderboard,
     GAME_ORDER
 )
+
+# Load model colors
+with open('assets/model_color.json', 'r') as f:
+    MODEL_COLORS = json.load(f)
 
 # Define game score columns mapping
 GAME_SCORE_COLUMNS = {
@@ -69,7 +75,7 @@ def create_horizontal_bar_chart(df, game_name):
     # Set style
     plt.style.use('default')
     # Increase figure width to accommodate long model names
-    fig, ax = plt.subplots(figsize=(10, 6))
+    fig, ax = plt.subplots(figsize=(20, 11))
     
     # Sort by score
     if game_name == "Super Mario Bros":
@@ -401,8 +407,16 @@ def create_group_bar_chart(df):
     
     # Create figure and axis with better styling
     sns.set_style("whitegrid")
-    fig = plt.figure(figsize=(16, 9))
-    ax = plt.gca()
+    fig = plt.figure(figsize=(20, 11))
+    
+    # Create subplot with specific spacing
+    ax = plt.subplot(111)
+    
+    # Adjust the subplot parameters
+    plt.subplots_adjust(top=0.90,    # Add more space at the top
+                       bottom=0.15,   # Add more space at the bottom
+                       right=0.85,   # Add more space for legend
+                       left=0.05)     # Add space on the left
 
     # Get unique models
     models = df['Player'].unique()
@@ -410,17 +424,13 @@ def create_group_bar_chart(df):
     # Get active games (those that have score columns in the DataFrame)
     active_games = []
     for game in GAME_ORDER:
-        score_col = f"{game} Average Score" if game == "Candy Crash" else f"{game} Score"
+        score_col = f"{game} Score"  # Use the same column name for all games
         if score_col in df.columns:
             active_games.append(game)
     
     n_games = len(active_games)
     if n_games == 0:
         return fig  # Return empty figure if no games are selected
-
-    # Define a professional color palette
-    colors = ['#2E86C1', '#E74C3C', '#27AE60', '#F39C12', '#8E44AD',
-              '#16A085', '#D35400', '#2980B9', '#C0392B', '#2ECC71']
 
     # Keep track of which models have data in any game
     models_with_data = set()
@@ -430,8 +440,8 @@ def create_group_bar_chart(df):
         # Get all scores for this game
         game_scores = []
         
-        # Get the score column based on the game
-        score_col = f"{game} Average Score" if game == "Candy Crash" else f"{game} Score"
+        # Use the same score column name for all games
+        score_col = f"{game} Score"
             
         for model in models:
             try:
@@ -468,10 +478,13 @@ def create_group_bar_chart(df):
             # Only add to legend if first appearance and model has data
             should_label = model in models_with_data and model not in [l.get_text() for l in ax.get_legend().get_texts()] if ax.get_legend() else True
             
+            # Get color from MODEL_COLORS, use a default if not found
+            color = MODEL_COLORS.get(model, f"C{i % 10}")  # Use matplotlib default colors as fallback
+            
             ax.bar(game_idx + i*bar_width, score, 
                   width=bar_width, 
-                  label=model if should_label else "",  # Add to legend only if first appearance
-                  color=colors[i % len(colors)],
+                  label=model if should_label else "",
+                  color=color,
                   alpha=0.8)
 
     # Customize the plot
@@ -491,7 +504,7 @@ def create_group_bar_chart(df):
     # Sort models by their first appearance in active games
     model_order = []
     for game in active_games:
-        score_col = f"{game} Average Score" if game == "Candy Crash" else f"{game} Score"
+        score_col = f"{game} Score"  # Use the same column name for all games
         for model in models:
             try:
                 score = df[df['Player'] == model][score_col].values[0]
@@ -505,14 +518,13 @@ def create_group_bar_chart(df):
     sorted_labels = [model for model in model_order if model in by_label]
     
     ax.legend(sorted_handles, sorted_labels, 
-              bbox_to_anchor=(1.05, 1), 
+              bbox_to_anchor=(1.00, 1),  # Moved from (1.15, 1) to (1.05, 1) to shift left
               loc='upper left',
               fontsize=9,
               title='AI Models',
               title_fontsize=10)
 
-    # Adjust layout to prevent label cutoff
-    plt.tight_layout()
+    # No need for tight_layout() as we're manually controlling the spacing
     
     return fig
 

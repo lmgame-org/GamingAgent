@@ -1,0 +1,17 @@
+{
+    "claude-3-7-sonnet-20250219": "#4A90E2", 
+    "claude-3-7-sonnet-20250219(thinking)": "#2E5C8A",
+    "claude-3-5-haiku-20241022": "#7FB5E6",
+    "claude-3-5-sonnet-20241022": "#1A4C7C", 
+    "gemini-2.0-flash": "#FF4081",
+    "gemini-2.0-flash-thinking-exp-1219": "#C2185B",
+    "gemini-2.5-pro-exp-03-25": "#FF80AB", 
+    "gpt-4o-2024-11-20": "#00BFA5", 
+    "gpt-4.5-preview-2025-02-27": "#00796B", 
+    "o1-2024-12-17": "#4DB6AC",
+    "o1-mini-2024-09-12": "#26A69A", 
+    "o3-mini-2025-01-31(medium)": "#80CBC4",
+    "deepseek-v3": "#FFC107",
+    "deepseek-r1": "#FFA000", 
+    "Llama-4-Maverick-17B-128E-Instruct-FP8": "#8E24AA"
+}

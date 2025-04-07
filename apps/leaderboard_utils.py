@@ -199,4 +199,90 @@ def calculate_rank_and_completeness(rank_data, selected_games):
     return df_results
 
 def get_combined_leaderboard(rank_data, selected_games):
-    return calculate_rank_and_completeness(rank_data, selected_games)
+    """
+    Get combined leaderboard for selected games
+    
+    Args:
+        rank_data (dict): Dictionary containing rank data
+        selected_games (dict): Dictionary of game names and their selection status
+        
+    Returns:
+        pd.DataFrame: Combined leaderboard DataFrame
+    """
+    # Dictionary to store DataFrames for each game
+    game_dfs = {}
+    
+    # Get DataFrames for selected games
+    if selected_games.get("Super Mario Bros"):
+        game_dfs["Super Mario Bros"] = get_mario_leaderboard(rank_data)
+    if selected_games.get("Sokoban"):
+        game_dfs["Sokoban"] = get_sokoban_leaderboard(rank_data)
+    if selected_games.get("2048"):
+        game_dfs["2048"] = get_2048_leaderboard(rank_data)
+    if selected_games.get("Candy Crash"):
+        game_dfs["Candy Crash"] = get_candy_leaderboard(rank_data)
+    if selected_games.get("Tetris (complete)"):
+        game_dfs["Tetris (complete)"] = get_tetris_leaderboard(rank_data)
+    if selected_games.get("Tetris (planning only)"):
+        game_dfs["Tetris (planning only)"] = get_tetris_planning_leaderboard(rank_data)
+
+    # Get all unique players
+    all_players = set()
+    for df in game_dfs.values():
+        all_players.update(df["Player"].unique())
+    all_players = sorted(list(all_players))
+
+    # Create results DataFrame
+    results = []
+    for player in all_players:
+        player_data = {
+            "Player": player,
+            "Organization": get_organization(player)
+        }
+
+        # Add scores for each game
+        for game in GAME_ORDER:
+            if game in game_dfs:
+                df = game_dfs[game]
+                if player in df["Player"].values:
+                    if game == "Super Mario Bros":
+                        player_data[f"{game} Score"] = df[df["Player"] == player]["Score"].iloc[0]
+                    elif game == "Sokoban":
+                        # Parse Sokoban score string and get maximum level
+                        levels_str = df[df["Player"] == player]["Levels Cracked"].iloc[0]
+                        try:
+                            levels = [int(x.strip()) for x in levels_str.split(";") if x.strip()]
+                            player_data[f"{game} Score"] = max(levels) if levels else 0
+                        except:
+                            player_data[f"{game} Score"] = 0
+                    elif game == "2048":
+                        player_data[f"{game} Score"] = df[df["Player"] == player]["Score"].iloc[0]
+                    elif game == "Candy Crash":
+                        player_data[f"{game} Score"] = df[df["Player"] == player]["Average Score"].iloc[0]
+                    elif game in ["Tetris (complete)", "Tetris (planning only)"]:
+                        player_data[f"{game} Score"] = df[df["Player"] == player]["Score"].iloc[0]
+                else:
+                    player_data[f"{game} Score"] = "_"
+
+        results.append(player_data)
+
+    # Create DataFrame
+    df_results = pd.DataFrame(results)
+    
+    # Sort by total score across all games
+    if not df_results.empty:
+        # Calculate total score for each player
+        df_results["Total Score"] = 0
+        for game in GAME_ORDER:
+            if f"{game} Score" in df_results.columns:
+                df_results["Total Score"] += df_results[f"{game} Score"].apply(
+                    lambda x: float(x) if x != "_" else 0
+                )
+        
+        # Sort by total score in descending order
+        df_results = df_results.sort_values("Total Score", ascending=False)
+        
+        # Drop the temporary total score column
+        df_results = df_results.drop("Total Score", axis=1)
+
+    return df_results
