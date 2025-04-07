@@ -12,3 +12,4 @@ google-generativeai==0.8.4
 google.genai==1.5.0
 
 
+
