@@ -3,6 +3,7 @@ matplotlib.use('Agg')  # Use Agg backend for thread safety
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
+import seaborn as sns
 from leaderboard_utils import (
     get_organization,
     get_mario_leaderboard,
@@ -24,6 +25,25 @@ GAME_SCORE_COLUMNS = {
     "Tetris (complete)": "Score",
     "Tetris (planning only)": "Score"
 }
+
+def normalize_values(values, mean, std):
+    """
+    Normalize values using z-score and scale to 0-100 range
+    
+    Args:
+        values (list): List of values to normalize
+        mean (float): Mean value for normalization
+        std (float): Standard deviation for normalization
+        
+    Returns:
+        list: Normalized values scaled to 0-100 range
+    """
+    if std == 0:
+        return [50 if v > 0 else 0 for v in values]  # Handle zero std case
+    z_scores = [(v - mean) / std for v in values]
+    # Scale z-scores to 0-100 range, with mean at 50
+    scaled_values = [max(0, min(100, (z * 30) + 50)) for z in z_scores]
+    return scaled_values
 
 def simplify_model_name(model_name):
     """
@@ -192,17 +212,6 @@ def create_radar_charts(df):
     fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(10, 6), subplot_kw=dict(projection='polar'))
     fig.patch.set_facecolor('white')  # Set figure background to white
     
-    def normalize_values(values, mean, std):
-        """
-        Normalize values using z-score and scale to 0-100 range
-        """
-        if std == 0:
-            return [50 if v > 0 else 0 for v in values]  # Handle zero std case
-        z_scores = [(v - mean) / std for v in values]
-        # Scale z-scores to 0-100 range, with mean at 50
-        scaled_values = [max(0, min(100, (z * 30) + 30)) for z in z_scores]
-        return scaled_values
-
     def get_game_stats(df, game_col):
         """
         Get mean and std for a game column, handling missing values
@@ -376,6 +385,151 @@ def create_player_radar_chart(rank_data, player_name):
     
     # Create radar chart for the player
     return create_radar_charts(player_df)
+
+def create_group_bar_chart(df):
+    """
+    Create a grouped bar chart comparing AI model performance across different games
+    
+    Args:
+        df (pd.DataFrame): DataFrame containing the combined leaderboard data
+        
+    Returns:
+        matplotlib.figure.Figure: The generated group bar chart figure
+    """
+    # Close any existing figures to prevent memory leaks
+    plt.close('all')
+    
+    # Create figure and axis with better styling
+    sns.set_style("whitegrid")
+    fig = plt.figure(figsize=(16, 9))
+    ax = plt.gca()
+
+    # Get unique models
+    models = df['Player'].unique()
+    
+    # Get active games (those that have score columns in the DataFrame)
+    active_games = []
+    for game in GAME_ORDER:
+        score_col = f"{game} Average Score" if game == "Candy Crash" else f"{game} Score"
+        if score_col in df.columns:
+            active_games.append(game)
+    
+    n_games = len(active_games)
+    if n_games == 0:
+        return fig  # Return empty figure if no games are selected
+
+    # Define a professional color palette
+    colors = ['#2E86C1', '#E74C3C', '#27AE60', '#F39C12', '#8E44AD',
+              '#16A085', '#D35400', '#2980B9', '#C0392B', '#2ECC71']
+
+    # Keep track of which models have data in any game
+    models_with_data = set()
+
+    # Calculate normalized scores for each game
+    for game_idx, game in enumerate(active_games):
+        # Get all scores for this game
+        game_scores = []
+        
+        # Get the score column based on the game
+        score_col = f"{game} Average Score" if game == "Candy Crash" else f"{game} Score"
+            
+        for model in models:
+            try:
+                score = df[df['Player'] == model][score_col].values[0]
+                if score != '_' and float(score) > 0:  # Only include non-zero scores
+                    game_scores.append((model, float(score)))
+                    models_with_data.add(model)  # Add model to set if it has valid data
+            except (IndexError, ValueError):
+                continue
+        
+        if not game_scores:  # Skip if no valid scores for this game
+            continue
+            
+        # Sort scores from highest to lowest
+        game_scores.sort(key=lambda x: x[1], reverse=True)
+        
+        # Extract sorted models and scores
+        sorted_models = [x[0] for x in game_scores]
+        scores = [x[1] for x in game_scores]
+        
+        # Calculate mean and std for normalization
+        mean = np.mean(scores)
+        std = np.std(scores)
+        
+        # Normalize scores
+        normalized_scores = normalize_values(scores, mean, std)
+        
+        # Calculate bar width based on number of models in this game
+        n_models_in_game = len(sorted_models)
+        bar_width = 0.8 / n_models_in_game if n_models_in_game > 0 else 0.8
+        
+        # Plot bars for each model
+        for i, (model, score) in enumerate(zip(sorted_models, normalized_scores)):
+            # Only add to legend if first appearance and model has data
+            should_label = model in models_with_data and model not in [l.get_text() for l in ax.get_legend().get_texts()] if ax.get_legend() else True
+            
+            ax.bar(game_idx + i*bar_width, score, 
+                  width=bar_width, 
+                  label=model if should_label else "",  # Add to legend only if first appearance
+                  color=colors[i % len(colors)],
+                  alpha=0.8)
+
+    # Customize the plot
+    ax.set_xticks(np.arange(n_games))
+    ax.set_xticklabels(active_games, rotation=45, ha='right', fontsize=10)
+    ax.set_ylabel('Normalized Performance Score', fontsize=12)
+    ax.set_title('AI Model Performance Comparison Across Gaming Tasks', 
+                 fontsize=14, pad=20)
+
+    # Add grid lines
+    ax.grid(True, axis='y', linestyle='--', alpha=0.3)
+
+    # Create legend with unique entries
+    handles, labels = ax.get_legend_handles_labels()
+    by_label = dict(zip(labels, handles))
+    
+    # Sort models by their first appearance in active games
+    model_order = []
+    for game in active_games:
+        score_col = f"{game} Average Score" if game == "Candy Crash" else f"{game} Score"
+        for model in models:
+            try:
+                score = df[df['Player'] == model][score_col].values[0]
+                if score != '_' and float(score) > 0 and model not in model_order:
+                    model_order.append(model)
+            except (IndexError, ValueError):
+                continue
+    
+    # Create legend with sorted models
+    sorted_handles = [by_label[model] for model in model_order if model in by_label]
+    sorted_labels = [model for model in model_order if model in by_label]
+    
+    ax.legend(sorted_handles, sorted_labels, 
+              bbox_to_anchor=(1.05, 1), 
+              loc='upper left',
+              fontsize=9,
+              title='AI Models',
+              title_fontsize=10)
+
+    # Adjust layout to prevent label cutoff
+    plt.tight_layout()
+    
+    return fig
+
+def get_combined_leaderboard_with_group_bar(rank_data, selected_games):
+    """
+    Get combined leaderboard and create group bar chart
+    
+    Args:
+        rank_data (dict): Dictionary containing rank data
+        selected_games (dict): Dictionary of game names and their selection status
+        
+    Returns:
+        tuple: (DataFrame, matplotlib.figure.Figure) containing the leaderboard data and group bar chart
+    """
+    df = get_combined_leaderboard(rank_data, selected_games)
+    group_bar_fig = create_group_bar_chart(df)
+    return df, group_bar_fig
 
 def save_visualization(fig, filename):
     """

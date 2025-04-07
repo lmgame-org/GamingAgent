@@ -20,11 +20,12 @@ from leaderboard_utils import (
     GAME_ORDER
 )
 from data_visualization import (
-    get_combined_leaderboard_with_radar,
+    get_combined_leaderboard_with_group_bar,
     create_organization_radar_chart,
     create_top_players_radar_chart,
     create_player_radar_chart,
-    create_horizontal_bar_chart
+    create_horizontal_bar_chart,
+    normalize_values
 )
 
 # Define time points and their corresponding data files
@@ -248,8 +249,7 @@ def update_leaderboard(mario_overall, mario_details,
         chart = create_horizontal_bar_chart(df, leaderboard_state["current_game"])
     else:
         # For overall view
-        df = get_combined_leaderboard(rank_data, selected_games)
-        _, chart = get_combined_leaderboard_with_radar(rank_data, selected_games)
+        df, chart = get_combined_leaderboard_with_group_bar(rank_data, selected_games)
     
     return (df, chart, filtered_gifs,
             current_overall["Super Mario Bros"], current_details["Super Mario Bros"],
@@ -283,24 +283,17 @@ def clear_filters():
     global leaderboard_state
     
     # Reset all checkboxes to default state and get fresh data
-    df = get_combined_leaderboard(rank_data, {
+    selected_games = {
         "Super Mario Bros": True,
         "Sokoban": True,
         "2048": True,
         "Candy Crash": True,
         "Tetris (complete)": True,
         "Tetris (planning only)": True
-    })
+    }
     
-    # Get the radar chart visualization
-    _, chart = get_combined_leaderboard_with_radar(rank_data, {
-        "Super Mario Bros": True,
-        "Sokoban": True,
-        "2048": True,
-        "Candy Crash": True,
-        "Tetris (complete)": True,
-        "Tetris (planning only)": True
-    })
+    # Get the combined leaderboard and group bar chart
+    df, chart = get_combined_leaderboard_with_group_bar(rank_data, selected_games)
     
     # Reset the leaderboard state to match the default checkbox states
     leaderboard_state = {
@@ -430,7 +423,7 @@ def build_app():
                         )
                     with gr.Column(scale=4):
                         visualization = gr.Plot(
-                            value=get_combined_leaderboard_with_radar(rank_data, {
+                            value=get_combined_leaderboard_with_group_bar(rank_data, {
                                 "Super Mario Bros": True,
                                 "Sokoban": True,
                                 "2048": True,
