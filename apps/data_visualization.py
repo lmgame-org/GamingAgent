@@ -419,9 +419,9 @@ def create_group_bar_chart(df):
     
     # Adjust the subplot parameters
     plt.subplots_adjust(top=0.90,    # Add more space at the top
-                       bottom=0.15,   # Add more space at the bottom
+                       bottom=0.25,   # Increased from 0.15 to 0.25 to add more space at the bottom
                        right=0.70,   # Reduced from 0.75 to 0.70 to make more space for legend
-                       left=0.05)     # Add space on the left
+                       left=0.1)     # Add space on the left
 
     # Get unique models
     models = df['Player'].unique()
@@ -494,7 +494,7 @@ def create_group_bar_chart(df):
 
     # Customize the plot
     ax.set_xticks(np.arange(n_games))
-    ax.set_xticklabels(active_games, rotation=45, ha='right', fontsize=10)
+    ax.set_xticklabels(active_games, rotation=45, ha='right', fontsize=10, fontweight='bold')
     ax.set_ylabel('Normalized Performance Score', fontsize=12)
     ax.set_title('AI Model Performance Across Games', 
                  fontsize=14, pad=20, fontweight='bold')
