@@ -496,8 +496,8 @@ def create_group_bar_chart(df):
     ax.set_xticks(np.arange(n_games))
     ax.set_xticklabels(active_games, rotation=45, ha='right', fontsize=10)
     ax.set_ylabel('Normalized Performance Score', fontsize=12)
-    ax.set_title('AI Model Performance Comparison Across Gaming Tasks', 
-                 fontsize=14, pad=20)
+    ax.set_title('AI Model Performance Across Games', 
+                 fontsize=14, pad=20, fontweight='bold')
 
     # Add grid lines
     ax.grid(True, axis='y', linestyle='--', alpha=0.3)
@@ -523,11 +523,11 @@ def create_group_bar_chart(df):
     sorted_labels = [model for model in model_order if model in by_label]
     
     ax.legend(sorted_handles, sorted_labels, 
-              bbox_to_anchor=(1.00, 1),  # Moved from (1.15, 1) to (1.05, 1) to shift left
+              bbox_to_anchor=(1.00, 1),
               loc='upper left',
               fontsize=9,
               title='AI Models',
-              title_fontsize=10)
+              title_fontsize=10)  # Added bold font weight for model names
 
     # No need for tight_layout() as we're manually controlling the spacing
     
@@ -686,7 +686,7 @@ def create_single_radar_chart(df, selected_games=None, highlight_models=None):
         ax.fill(angles, values, alpha=0.25, color='red')
     
     # Add title
-    plt.title('AI Models Performance Across Selected Games\n(Normalized Scores)',
+    plt.title('AI Models Performance Across Games\n(Normalized Scores)',
               pad=20, fontsize=14, fontweight='bold')
     
     # Get handles and labels for legend
@@ -713,13 +713,10 @@ def create_single_radar_chart(df, selected_games=None, highlight_models=None):
     # Add legend with reordered handles and labels
     legend = plt.legend(handles, labels,
                        loc='center left',
-                       bbox_to_anchor=(0.95, 1),  # Moved from (1.2, 0.5) to (1.1, 0.5) to shift left
+                       bbox_to_anchor=(0.95, 1),
                        fontsize=8,
                        title='AI Models',
-                       title_fontsize=10)
-    
-    # Make the legend title bold
-    legend.get_title().set_fontweight('bold')
+                       title_fontsize=10)  # Added bold font weight for model names
     
     # Adjust layout to prevent label cutoff
     plt.subplots_adjust(right=0.8)  # Added subplot adjustment to give more space on the right
@@ -750,3 +747,4 @@ def save_visualization(fig, filename):
     Save visualization to file
     """
     fig.savefig(filename, bbox_inches='tight', dpi=300)
+

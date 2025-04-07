@@ -133,12 +133,7 @@ def load_rank_data(time_point):
             return None
     return None
 
-def update_leaderboard(mario_overall, mario_details,
-                       sokoban_overall, sokoban_details,
-                       _2048_overall, _2048_details,
-                       candy_overall, candy_details,
-                       tetris_overall, tetris_details,
-                       tetris_plan_overall, tetris_plan_details):
+def update_leaderboard(mario_overall, sokoban_overall, _2048_overall, candy_overall, tetris_overall, tetris_plan_overall):
     global leaderboard_state
     
     # Convert current checkbox states to dictionary for easier comparison
@@ -151,92 +146,6 @@ def update_leaderboard(mario_overall, mario_details,
         "Tetris (planning only)": tetris_plan_overall
     }
     
-    current_details = {
-        "Super Mario Bros": mario_details,
-        "Sokoban": sokoban_details,
-        "2048": _2048_details,
-        "Candy Crash": candy_details,
-        "Tetris (complete)": tetris_details,
-        "Tetris (planning only)": tetris_plan_details
-    }
-    
-    # Find which game's state changed
-    changed_game = None
-    for game in current_overall.keys():
-        if (current_overall[game] != leaderboard_state["previous_overall"][game] or 
-            current_details[game] != leaderboard_state["previous_details"][game]):
-            changed_game = game
-            break
-    
-    if changed_game:
-        # If a game's details checkbox was checked
-        if current_details[changed_game] and not leaderboard_state["previous_details"][changed_game]:
-            # Reset all other games' states
-            for game in current_overall.keys():
-                if game != changed_game:
-                    current_overall[game] = False
-                    current_details[game] = False
-                    leaderboard_state["previous_overall"][game] = False
-                    leaderboard_state["previous_details"][game] = False
-            
-            # Update state for the selected game
-            leaderboard_state["current_game"] = changed_game
-            leaderboard_state["previous_overall"][changed_game] = True
-            leaderboard_state["previous_details"][changed_game] = True
-            current_overall[changed_game] = True
-        
-        # If a game's overall checkbox was checked
-        elif current_overall[changed_game] and not leaderboard_state["previous_overall"][changed_game]:
-            # If we were in details view for another game, switch to overall view
-            if leaderboard_state["current_game"] and leaderboard_state["previous_details"][leaderboard_state["current_game"]]:
-                # Reset previous game's details
-                leaderboard_state["previous_details"][leaderboard_state["current_game"]] = False
-                current_details[leaderboard_state["current_game"]] = False
-                leaderboard_state["current_game"] = None
-            
-            # Update state
-            leaderboard_state["previous_overall"][changed_game] = True
-            leaderboard_state["previous_details"][changed_game] = False
-        
-        # If a game's overall checkbox was unchecked
-        elif not current_overall[changed_game] and leaderboard_state["previous_overall"][changed_game]:
-            # If we're in details view, don't allow unchecking the overall checkbox
-            if leaderboard_state["current_game"] == changed_game:
-                current_overall[changed_game] = True
-            else:
-                leaderboard_state["previous_overall"][changed_game] = False
-                if leaderboard_state["current_game"] == changed_game:
-                    leaderboard_state["current_game"] = None
-        
-        # If a game's details checkbox was unchecked
-        elif not current_details[changed_game] and leaderboard_state["previous_details"][changed_game]:
-            leaderboard_state["previous_details"][changed_game] = False
-            if leaderboard_state["current_game"] == changed_game:
-                leaderboard_state["current_game"] = None
-                # When exiting details view, reset to show all games
-                for game in current_overall.keys():
-                    current_overall[game] = True
-                    current_details[game] = False
-                    leaderboard_state["previous_overall"][game] = True
-                    leaderboard_state["previous_details"][game] = False
-    
-    # Special case: If all games are selected and we're trying to view details
-    all_games_selected = all(current_overall.values()) and not any(current_details.values())
-    if all_games_selected and changed_game and current_details[changed_game]:
-        # Reset all other games' states
-        for game in current_overall.keys():
-            if game != changed_game:
-                current_overall[game] = False
-                current_details[game] = False
-                leaderboard_state["previous_overall"][game] = False
-                leaderboard_state["previous_details"][game] = False
-        
-        # Update state for the selected game
-        leaderboard_state["current_game"] = changed_game
-        leaderboard_state["previous_overall"][changed_game] = True
-        leaderboard_state["previous_details"][changed_game] = True
-        current_overall[changed_game] = True
-    
     # Build dictionary for selected games
     selected_games = {
         "Super Mario Bros": current_overall["Super Mario Bros"],
@@ -247,42 +156,18 @@ def update_leaderboard(mario_overall, mario_details,
         "Tetris (planning only)": current_overall["Tetris (planning only)"]
     }
     
-    # Get the appropriate DataFrame and charts based on current state
-    if leaderboard_state["current_game"]:
-        # For detailed view
-        if leaderboard_state["current_game"] == "Super Mario Bros":
-            df = get_mario_leaderboard(rank_data)
-        elif leaderboard_state["current_game"] == "Sokoban":
-            df = get_sokoban_leaderboard(rank_data)
-        elif leaderboard_state["current_game"] == "2048":
-            df = get_2048_leaderboard(rank_data)
-        elif leaderboard_state["current_game"] == "Candy Crash":
-            df = get_candy_leaderboard(rank_data)
-        elif leaderboard_state["current_game"] == "Tetris (complete)":
-            df = get_tetris_leaderboard(rank_data)
-        else:  # Tetris (planning only)
-            df = get_tetris_planning_leaderboard(rank_data)
-        
-        # Always create a new chart for detailed view
-        chart = create_horizontal_bar_chart(df, leaderboard_state["current_game"])
-        # For detailed view, we'll use the same chart for all visualizations
-        radar_chart = chart
-        group_bar_chart = chart
-    else:
-        # For overall view
-        df, group_bar_chart = get_combined_leaderboard_with_group_bar(rank_data, selected_games)
-        # Use the same selected_games for radar chart
-        _, radar_chart = get_combined_leaderboard_with_single_radar(rank_data, selected_games)
-        chart = group_bar_chart
+    # Get the appropriate DataFrame and charts
+    df, group_bar_chart = get_combined_leaderboard_with_group_bar(rank_data, selected_games)
+    _, radar_chart = get_combined_leaderboard_with_single_radar(rank_data, selected_games)
     
-    # Return exactly 16 values to match the expected outputs
-    return (df, chart, radar_chart, group_bar_chart,
-            current_overall["Super Mario Bros"], current_details["Super Mario Bros"],
-            current_overall["Sokoban"], current_details["Sokoban"],
-            current_overall["2048"], current_details["2048"],
-            current_overall["Candy Crash"], current_details["Candy Crash"],
-            current_overall["Tetris (complete)"], current_details["Tetris (complete)"],
-            current_overall["Tetris (planning only)"], current_details["Tetris (planning only)"])
+    # Return exactly 9 values to match the expected outputs
+    return (df, radar_chart, group_bar_chart,
+            current_overall["Super Mario Bros"],
+            current_overall["Sokoban"],
+            current_overall["2048"],
+            current_overall["Candy Crash"],
+            current_overall["Tetris (complete)"],
+            current_overall["Tetris (planning only)"])
 
 def update_leaderboard_with_time(time_point, mario_overall, mario_details,
                                sokoban_overall, sokoban_details,
@@ -297,12 +182,9 @@ def update_leaderboard_with_time(time_point, mario_overall, mario_details,
         rank_data = new_rank_data
     
     # Use the existing update_leaderboard function
-    return update_leaderboard(mario_overall, mario_details,
-                            sokoban_overall, sokoban_details,
-                            _2048_overall, _2048_details,
-                            candy_overall, candy_details,
-                            tetris_overall, tetris_details,
-                            tetris_plan_overall, tetris_plan_details)
+    return update_leaderboard(mario_overall, sokoban_overall,
+                            _2048_overall, candy_overall,
+                            tetris_overall, tetris_plan_overall)
 
 def get_initial_state():
     """Get the initial state for the leaderboard"""
@@ -348,14 +230,9 @@ def clear_filters():
     # Reset the leaderboard state to match the default checkbox states
     leaderboard_state = get_initial_state()
     
-    # Return exactly 16 values to match the expected outputs
-    return (df, group_bar_chart, radar_chart, group_bar_chart,
-            True, False,  # mario
-            True, False,  # sokoban
-            True, False,  # 2048
-            True, False,  # candy
-            True, False,  # tetris
-            True, False)  # tetris plan
+    # Return exactly 9 values to match the expected outputs
+    return (df, radar_chart, group_bar_chart,
+            True, True, True, True, True, True)
 
 def create_timeline_slider():
     """Create a custom timeline slider component"""
@@ -708,8 +585,8 @@ def build_app():
     with gr.Blocks(css="""
         .visualization-container {
             height: 70vh !important;  /* Reduced from 85vh to 70vh */
-            max-height: 700px !important;  /* Reduced from 900px to 700px */
-            min-height: 500px !important;  /* Reduced from 600px to 500px */
+            max-height: 600px !important;  /* Reduced from 900px to 700px */
+            min-height: 400px !important;  /* Reduced from 600px to 500px */
             background-color: #f8f9fa;
             border-radius: 10px;
             padding: 20px;  /* Reduced padding from 25px to 20px */
@@ -745,13 +622,6 @@ def build_app():
                 with gr.Row():
                     gr.Markdown("### 📊 Data Visualization")
                 
-                # Detailed view visualization (single chart)
-                detailed_visualization = gr.Plot(
-                    label="Performance Visualization",
-                    visible=False,
-                    elem_classes="visualization-container"
-                )
-                
                 # Overall view visualizations (two charts)
                 with gr.Row(visible=True) as overall_visualizations:
                     with gr.Column(scale=1):
@@ -772,27 +642,21 @@ def build_app():
                     with gr.Column():
                         gr.Markdown("**🎮 Super Mario Bros**")
                         mario_overall = gr.Checkbox(label="Super Mario Bros Score", value=True)
-                        mario_details = gr.Checkbox(label="Super Mario Bros Details", value=False)
                     with gr.Column():
                         gr.Markdown("**📦 Sokoban**")
                         sokoban_overall = gr.Checkbox(label="Sokoban Score", value=True)
-                        sokoban_details = gr.Checkbox(label="Sokoban Details", value=False)
                     with gr.Column():
                         gr.Markdown("**🔢 2048**")
                         _2048_overall = gr.Checkbox(label="2048 Score", value=True)
-                        _2048_details = gr.Checkbox(label="2048 Details", value=False)
                     with gr.Column():
                         gr.Markdown("**🍬 Candy Crash**")
                         candy_overall = gr.Checkbox(label="Candy Crash Score", value=True)
-                        candy_details = gr.Checkbox(label="Candy Crash Details", value=False)
                     with gr.Column():
                         gr.Markdown("**🎯 Tetris (complete)**")
                         tetris_overall = gr.Checkbox(label="Tetris (complete) Score", value=True)
-                        tetris_details = gr.Checkbox(label="Tetris (complete) Details", value=False)
                     with gr.Column():
                         gr.Markdown("**📋 Tetris (planning)**")
                         tetris_plan_overall = gr.Checkbox(label="Tetris (planning) Score", value=True)
-                        tetris_plan_details = gr.Checkbox(label="Tetris (planning) Details", value=False)
                 
                 # Controls
                 with gr.Row():
@@ -822,26 +686,19 @@ def build_app():
                 
                 # List of all checkboxes
                 checkbox_list = [
-                    mario_overall, mario_details,
-                    sokoban_overall, sokoban_details,
-                    _2048_overall, _2048_details,
-                    candy_overall, candy_details,
-                    tetris_overall, tetris_details,
-                    tetris_plan_overall, tetris_plan_details
+                    mario_overall,
+                    sokoban_overall,
+                    _2048_overall,
+                    candy_overall,
+                    tetris_overall,
+                    tetris_plan_overall
                 ]
                 
                 # Update visualizations when checkboxes change
                 def update_visualizations(*checkbox_states):
-                    # Check if any details checkbox is selected
-                    is_details_view = any([
-                        checkbox_states[1], checkbox_states[3], checkbox_states[5],
-                        checkbox_states[7], checkbox_states[9], checkbox_states[11]
-                    ])
-                    
-                    # Update visibility of visualization blocks
+                    # Always show overall view with both charts
                     return {
-                        detailed_visualization: gr.update(visible=is_details_view),
-                        overall_visualizations: gr.update(visible=not is_details_view)
+                        overall_visualizations: gr.update(visible=True)
                     }
                 
                 # Add change event to all checkboxes
@@ -849,7 +706,7 @@ def build_app():
                     checkbox.change(
                         update_visualizations,
                         inputs=checkbox_list,
-                        outputs=[detailed_visualization, overall_visualizations]
+                        outputs=[overall_visualizations]
                     )
                 
                 # Update leaderboard and visualizations when checkboxes change
@@ -859,7 +716,6 @@ def build_app():
                         inputs=checkbox_list,
                         outputs=[
                             leaderboard_df,
-                            detailed_visualization,
                             radar_visualization,
                             group_bar_visualization
                         ] + checkbox_list
@@ -871,7 +727,6 @@ def build_app():
                     inputs=[],
                     outputs=[
                         leaderboard_df,
-                        detailed_visualization,
                         radar_visualization,
                         group_bar_visualization
                     ] + checkbox_list
@@ -883,7 +738,6 @@ def build_app():
                     inputs=[],
                     outputs=[
                         leaderboard_df,
-                        detailed_visualization,
                         radar_visualization,
                         group_bar_visualization
                     ] + checkbox_list
