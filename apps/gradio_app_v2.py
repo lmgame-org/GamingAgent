@@ -79,6 +79,10 @@ for gif_path in GIF_PATHS:
     else:
         print(f"✗ Missing: {gif_path}")
 
+# Load video links
+with open('assets/game_video_link.json', 'r') as f:
+    VIDEO_LINKS = json.load(f)
+
 def load_gif(gif_path):
     """Load a GIF file and return it as a PIL Image"""
     try:
@@ -421,6 +425,93 @@ def create_timeline_slider():
     """
     return gr.HTML(timeline_html)
 
+def create_video_gallery():
+    """Create a custom HTML/JS component for video gallery"""
+    # Extract video IDs
+    mario_id = VIDEO_LINKS["super_mario"].split("?v=")[1]
+    sokoban_id = VIDEO_LINKS["sokoban"].split("?v=")[1]
+    game_2048_id = VIDEO_LINKS["2048"].split("?v=")[1]
+    candy_id = VIDEO_LINKS["candy"].split("?v=")[1]
+    
+    gallery_html = f'''
+    <div class="video-gallery-container">
+        <style>
+            .video-gallery-container {{
+                width: 100%;
+                max-width: 1400px;
+                margin: 0 auto;
+                padding: 20px;
+            }}
+            .video-grid {{
+                display: grid;
+                grid-template-columns: repeat(2, 1fr);
+                gap: 20px;
+                margin-top: 20px;
+            }}
+            .video-card {{
+                background: #ffffff;
+                border-radius: 10px;
+                box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+                overflow: hidden;
+                transition: transform 0.2s;
+            }}
+            .video-card:hover {{
+                transform: translateY(-5px);
+            }}
+            .video-wrapper {{
+                position: relative;
+                padding-bottom: 56.25%;
+                height: 0;
+                overflow: hidden;
+            }}
+            .video-wrapper iframe {{
+                position: absolute;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                border: none;
+            }}
+            .video-title {{
+                padding: 15px;
+                font-size: 1.2em;
+                font-weight: bold;
+                color: #2c3e50;
+                text-align: center;
+                background: #f8f9fa;
+                border-top: 1px solid #eee;
+            }}
+        </style>
+        <div class="video-grid">
+            <div class="video-card">
+                <div class="video-wrapper">
+                    <iframe src="https://www.youtube.com/embed/{mario_id}"></iframe>
+                </div>
+                <div class="video-title">🎮 Super Mario Bros</div>
+            </div>
+            <div class="video-card">
+                <div class="video-wrapper">
+                    <iframe src="https://www.youtube.com/embed/{sokoban_id}"></iframe>
+                </div>
+                <div class="video-title">📦 Sokoban</div>
+            </div>
+            <div class="video-card">
+                <div class="video-wrapper">
+                    <iframe src="https://www.youtube.com/embed/{game_2048_id}"></iframe>
+                </div>
+                <div class="video-title">🔢 2048</div>
+            </div>
+            <div class="video-card">
+                <div class="video-wrapper">
+                    <iframe src="https://www.youtube.com/embed/{candy_id}"></iframe>
+                </div>
+                <div class="video-title">🍬 Candy Crash</div>
+            </div>
+        </div>
+    </div>
+    '''
+    return gr.HTML(gallery_html)
+
 def build_app():
     with gr.Blocks(css="""
         .visualization-container {
@@ -557,6 +648,9 @@ def build_app():
                     inputs=[],
                     outputs=[leaderboard_board, visualization] + checkbox_list
                 )
+
+            with gr.Tab("🎥 Gallery"):
+                video_gallery = create_video_gallery()
 
     return demo
 
