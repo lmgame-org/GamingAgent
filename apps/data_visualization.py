@@ -75,7 +75,7 @@ def create_horizontal_bar_chart(df, game_name):
     # Set style
     plt.style.use('default')
     # Increase figure width to accommodate long model names
-    fig, ax = plt.subplots(figsize=(20, 11))
+    fig, ax = plt.subplots(figsize=(20, 7))
     
     # Sort by score
     if game_name == "Super Mario Bros":
@@ -114,7 +114,7 @@ def create_horizontal_bar_chart(df, game_name):
     bars = ax.barh(range(len(df_sorted)), df_sorted[score_col], color=colors)
     
     # Add more space for labels on the left
-    plt.subplots_adjust(left=0.3)
+    plt.subplots_adjust(left=0.3, top=0.85, bottom=0.3)
     
     # Customize the chart
     ax.set_yticks(range(len(df_sorted)))
@@ -145,6 +145,11 @@ def create_horizontal_bar_chart(df, game_name):
         else:
             score_text = f'{width:.0f}'
             
+        # Get color for model from MODEL_COLORS, use default if not found
+        model_name = df_sorted.iloc[i]['Player']
+        color = MODEL_COLORS.get(model_name, '#808080')  # Default to gray if color not found
+        bar.set_color(color)  # Set the bar color
+        
         ax.text(width, bar.get_y() + bar.get_height()/2, 
                 score_text,
                 ha='left', va='center',
@@ -317,7 +322,7 @@ def create_radar_charts(df):
                     fontweight='bold')  # Bold title
         
         legend = ax.legend(loc='upper right',
-                          bbox_to_anchor=(1.3, 1.1),
+                          bbox_to_anchor=(0.9, 1.1),
                           fontsize=7,  # Slightly larger legend
                           framealpha=0.9,  # More opaque legend
                           edgecolor='#404040',  # Darker edge
@@ -407,7 +412,7 @@ def create_group_bar_chart(df):
     
     # Create figure and axis with better styling
     sns.set_style("whitegrid")
-    fig = plt.figure(figsize=(20, 11))
+    fig = plt.figure(figsize=(10, 7))
     
     # Create subplot with specific spacing
     ax = plt.subplot(111)
@@ -415,7 +420,7 @@ def create_group_bar_chart(df):
     # Adjust the subplot parameters
     plt.subplots_adjust(top=0.90,    # Add more space at the top
                        bottom=0.15,   # Add more space at the bottom
-                       right=0.85,   # Add more space for legend
+                       right=0.70,   # Reduced from 0.75 to 0.70 to make more space for legend
                        left=0.05)     # Add space on the left
 
     # Get unique models
@@ -566,7 +571,7 @@ def create_single_radar_chart(df, selected_games=None, highlight_models=None):
     categories = selected_games
     
     # Create figure
-    fig, ax = plt.subplots(figsize=(12, 8), subplot_kw=dict(projection='polar'))
+    fig, ax = plt.subplots(figsize=(8, 7), subplot_kw=dict(projection='polar'))
     fig.patch.set_facecolor('white')
     ax.set_facecolor('white')
     
@@ -708,7 +713,7 @@ def create_single_radar_chart(df, selected_games=None, highlight_models=None):
     # Add legend with reordered handles and labels
     legend = plt.legend(handles, labels,
                        loc='center left',
-                       bbox_to_anchor=(1.2, 0.5),
+                       bbox_to_anchor=(0.95, 1),  # Moved from (1.2, 0.5) to (1.1, 0.5) to shift left
                        fontsize=8,
                        title='AI Models',
                        title_fontsize=10)
@@ -717,6 +722,7 @@ def create_single_radar_chart(df, selected_games=None, highlight_models=None):
     legend.get_title().set_fontweight('bold')
     
     # Adjust layout to prevent label cutoff
+    plt.subplots_adjust(right=0.8)  # Added subplot adjustment to give more space on the right
     plt.tight_layout()
     
     return fig

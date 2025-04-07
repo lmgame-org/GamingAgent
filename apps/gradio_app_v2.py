@@ -473,6 +473,12 @@ def create_video_gallery():
     game_2048_id = VIDEO_LINKS["2048"].split("?v=")[1]
     candy_id = VIDEO_LINKS["candy"].split("?v=")[1]
     
+    # Get the latest video from news data
+    latest_news = NEWS_DATA["news"][0]  # First item is the latest
+    latest_video_id = latest_news["video_link"].split("?v=")[1]
+    latest_date = datetime.strptime(latest_news["date"], "%Y-%m-%d")
+    formatted_latest_date = latest_date.strftime("%B %d, %Y")
+    
     # Generate news HTML
     news_items = []
     for item in NEWS_DATA["news"]:
@@ -507,6 +513,37 @@ def create_video_gallery():
                 width: 100%;
                 max-width: 1400px;
                 margin: 0 auto;
+                padding: 20px;
+            }}
+            .highlight-section {{
+                margin-bottom: 40px;
+            }}
+            .highlight-card {{
+                background: #ffffff;
+                border-radius: 10px;
+                box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+                overflow: hidden;
+                transition: transform 0.3s;
+                border: 2px solid #2196F3;
+            }}
+            .highlight-card:hover {{
+                transform: translateY(-5px);
+            }}
+            .highlight-header {{
+                background: #2196F3;
+                color: white;
+                padding: 15px 20px;
+                font-size: 1.2em;
+                font-weight: bold;
+                display: flex;
+                align-items: center;
+                gap: 10px;
+            }}
+            .highlight-date {{
+                font-size: 0.9em;
+                opacity: 0.9;
+            }}
+            .highlight-content {{
                 padding: 20px;
             }}
             .video-grid {{
@@ -588,7 +625,7 @@ def create_video_gallery():
                 flex: 1;
                 display: flex;
                 align-items: center;
-                min-height: 169px;  /* Match 16:9 video height */
+                min-height: 169px;
             }}
             .twitter-link {{
                 color: #2c3e50;
@@ -608,6 +645,29 @@ def create_video_gallery():
                 color: #1da1f2;
             }}
         </style>
+        
+        <!-- Highlight Section -->
+        <div class="highlight-section">
+            <div class="highlight-card">
+                <div class="highlight-header">
+                    <span>🌟 Latest Update</span>
+                    <span class="highlight-date">{formatted_latest_date}</span>
+                </div>
+                <div class="highlight-content">
+                    <div class="video-wrapper">
+                        <iframe src="https://www.youtube.com/embed/{latest_video_id}"></iframe>
+                    </div>
+                    <div class="video-title">
+                        <a href="{latest_news["twitter_link"]}" target="_blank" class="twitter-link">
+                            <span class="twitter-icon">📢</span>
+                            {latest_news["twitter_text"]}
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Regular Video Grid -->
         <div class="video-grid">
             <div class="video-card">
                 <div class="video-wrapper">
@@ -634,6 +694,8 @@ def create_video_gallery():
                 <div class="video-title">🍬 Candy Crash</div>
             </div>
         </div>
+        
+        <!-- News Section -->
         <div class="news-section">
             <div class="news-section-title">📰 Latest News</div>
             {news_html}
@@ -645,19 +707,20 @@ def create_video_gallery():
 def build_app():
     with gr.Blocks(css="""
         .visualization-container {
-            height: 85vh !important;
-            max-height: 900px !important;
-            min-height: 600px !important;
+            height: 70vh !important;  /* Reduced from 85vh to 70vh */
+            max-height: 700px !important;  /* Reduced from 900px to 700px */
+            min-height: 500px !important;  /* Reduced from 600px to 500px */
             background-color: #f8f9fa;
             border-radius: 10px;
-            padding: 25px;  /* Increased padding */
+            padding: 20px;  /* Reduced padding from 25px to 20px */
             box-shadow: 0 2px 4px rgba(0,0,0,0.1);
             overflow: hidden;
-            margin: 0 auto !important;  /* Center the visualization */
+            margin: 0 auto !important;
         }
         .visualization-container .plot {
             height: 100% !important;
             width: 100% !important;
+            object-fit: contain !important;  /* Added to ensure proper scaling */
         }
         .section-title {
             font-size: 1.5em;
@@ -666,9 +729,8 @@ def build_app():
             margin-bottom: 15px;
             padding-bottom: 10px;
             border-bottom: 2px solid #e9ecef;
-            text-align: center;  /* Center the title */
+            text-align: center;
         }
-        /* Add container for the entire app */
         .container {
             max-width: 1400px;
             margin: 0 auto;
@@ -679,59 +741,34 @@ def build_app():
         
         with gr.Tabs():
             with gr.Tab("🏆 Leaderboard"):
-                # Visualization section at the very top
+                # Visualization section
                 with gr.Row():
                     gr.Markdown("### 📊 Data Visualization")
-                with gr.Row():
-                    visualization = gr.Plot(
-                        value=get_combined_leaderboard_with_group_bar(rank_data, {
-                            "Super Mario Bros": True,
-                            "Sokoban": True,
-                            "2048": True,
-                            "Candy Crash": True,
-                            "Tetris (complete)": True,
-                            "Tetris (planning only)": True
-                        })[1],
-                        label="Performance Visualization",
-                        elem_classes="visualization-container"
-                    )
-
-                # Add new visualization block with radar and group bar charts
-                with gr.Row():
-                    gr.Markdown("### 📈 Comparative Analysis")
-                with gr.Row():
+                
+                # Detailed view visualization (single chart)
+                detailed_visualization = gr.Plot(
+                    label="Performance Visualization",
+                    visible=False,
+                    elem_classes="visualization-container"
+                )
+                
+                # Overall view visualizations (two charts)
+                with gr.Row(visible=True) as overall_visualizations:
                     with gr.Column(scale=1):
                         radar_visualization = gr.Plot(
-                            value=get_combined_leaderboard_with_single_radar(rank_data, {
-                                "Super Mario Bros": True,
-                                "Sokoban": True,
-                                "2048": True,
-                                "Candy Crash": True,
-                                "Tetris (complete)": True,
-                                "Tetris (planning only)": True
-                            })[1],
-                            label="Radar Chart Visualization",
+                            label="Comparative Analysis (Radar Chart)",
                             elem_classes="visualization-container"
                         )
                     with gr.Column(scale=1):
                         group_bar_visualization = gr.Plot(
-                            value=get_combined_leaderboard_with_group_bar(rank_data, {
-                                "Super Mario Bros": True,
-                                "Sokoban": True,
-                                "2048": True,
-                                "Candy Crash": True,
-                                "Tetris (complete)": True,
-                                "Tetris (planning only)": True
-                            })[1],
-                            label="Group Bar Chart Visualization",
+                            label="Comparative Analysis (Group Bar Chart)",
                             elem_classes="visualization-container"
                         )
-
+                
                 # Game selection section
                 with gr.Row():
                     gr.Markdown("### 🎮 Game Selection")
                 with gr.Row():
-                    # For each game, we have two checkboxes: one for overall and one for detailed view.
                     with gr.Column():
                         gr.Markdown("**🎮 Super Mario Bros**")
                         mario_overall = gr.Checkbox(label="Super Mario Bros Score", value=True)
@@ -756,8 +793,8 @@ def build_app():
                         gr.Markdown("**📋 Tetris (planning)**")
                         tetris_plan_overall = gr.Checkbox(label="Tetris (planning) Score", value=True)
                         tetris_plan_details = gr.Checkbox(label="Tetris (planning) Details", value=False)
-
-                # Time progression display and control buttons - Moved below game selection
+                
+                # Controls
                 with gr.Row():
                     with gr.Column(scale=2):
                         gr.Markdown("**⏰ Time Tracker**")
@@ -765,12 +802,12 @@ def build_app():
                     with gr.Column(scale=1):
                         gr.Markdown("**🔄 Controls**")
                         clear_btn = gr.Button("Reset Filters", variant="secondary")
-
-                # Leaderboard table section
+                
+                # Leaderboard table
                 with gr.Row():
                     gr.Markdown("### 📋 Detailed Results")
                 with gr.Row():
-                    leaderboard_board = gr.DataFrame(
+                    leaderboard_df = gr.DataFrame(
                         value=get_combined_leaderboard(rank_data, {
                             "Super Mario Bros": True,
                             "Sokoban": True,
@@ -779,44 +816,82 @@ def build_app():
                             "Tetris (complete)": True,
                             "Tetris (planning only)": True
                         }),
-                        interactive=True,
-                        wrap=True,
-                        label="Leaderboard"
+                        label="Leaderboard",
+                        interactive=False
                     )
-
-                # List of all checkboxes (in order)
-                checkbox_list = [mario_overall, mario_details,
-                                sokoban_overall, sokoban_details,
-                                _2048_overall, _2048_details,
-                                candy_overall, candy_details,
-                                tetris_overall, tetris_details,
-                                tetris_plan_overall, tetris_plan_details]
-
-                # Initialize the leaderboard state when the app starts
+                
+                # List of all checkboxes
+                checkbox_list = [
+                    mario_overall, mario_details,
+                    sokoban_overall, sokoban_details,
+                    _2048_overall, _2048_details,
+                    candy_overall, candy_details,
+                    tetris_overall, tetris_details,
+                    tetris_plan_overall, tetris_plan_details
+                ]
+                
+                # Update visualizations when checkboxes change
+                def update_visualizations(*checkbox_states):
+                    # Check if any details checkbox is selected
+                    is_details_view = any([
+                        checkbox_states[1], checkbox_states[3], checkbox_states[5],
+                        checkbox_states[7], checkbox_states[9], checkbox_states[11]
+                    ])
+                    
+                    # Update visibility of visualization blocks
+                    return {
+                        detailed_visualization: gr.update(visible=is_details_view),
+                        overall_visualizations: gr.update(visible=not is_details_view)
+                    }
+                
+                # Add change event to all checkboxes
+                for checkbox in checkbox_list:
+                    checkbox.change(
+                        update_visualizations,
+                        inputs=checkbox_list,
+                        outputs=[detailed_visualization, overall_visualizations]
+                    )
+                
+                # Update leaderboard and visualizations when checkboxes change
+                for checkbox in checkbox_list:
+                    checkbox.change(
+                        update_leaderboard,
+                        inputs=checkbox_list,
+                        outputs=[
+                            leaderboard_df,
+                            detailed_visualization,
+                            radar_visualization,
+                            group_bar_visualization
+                        ] + checkbox_list
+                    )
+                
+                # Update when clear button is clicked
+                clear_btn.click(
+                    clear_filters,
+                    inputs=[],
+                    outputs=[
+                        leaderboard_df,
+                        detailed_visualization,
+                        radar_visualization,
+                        group_bar_visualization
+                    ] + checkbox_list
+                )
+                
+                # Initialize the app
                 demo.load(
                     fn=clear_filters,
                     inputs=[],
-                    outputs=[leaderboard_board, visualization, radar_visualization, group_bar_visualization] + checkbox_list
+                    outputs=[
+                        leaderboard_df,
+                        detailed_visualization,
+                        radar_visualization,
+                        group_bar_visualization
+                    ] + checkbox_list
                 )
-
-                # Update both the leaderboard and visualizations when checkboxes change
-                for checkbox in checkbox_list:
-                    checkbox.change(
-                        fn=update_leaderboard,
-                        inputs=checkbox_list,
-                        outputs=[leaderboard_board, visualization, radar_visualization, group_bar_visualization] + checkbox_list
-                    )
-
-                # Update both when clear button is clicked
-                clear_btn.click(
-                    fn=clear_filters,
-                    inputs=[],
-                    outputs=[leaderboard_board, visualization, radar_visualization, group_bar_visualization] + checkbox_list
-                )
-
+            
             with gr.Tab("🎥 Gallery"):
                 video_gallery = create_video_gallery()
-
+    
     return demo
 
 if __name__ == "__main__":
