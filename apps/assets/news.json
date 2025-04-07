@@ -1,22 +1,34 @@
 {
     "news": [
         {
-            "date": "2025-03-25",
-            "video_link": "https://www.youtube.com/watch?v=nixMIJZYAgg",
-            "twitter_text": "Claude-3 achieves new high score in Super Mario Bros! Watch the full gameplay here",
-            "twitter_link": "https://twitter.com/AnthropicAI/status/1234567890"
+            "date": "2025-04-01",
+            "video_link": "https://www.youtube.com/watch?v=uFVpNor7l_E",
+            "twitter_text": "Google's Gemini 2.5 Pro redefines AI gameplay: its multi-modal edge outperforms o1 & Claude 3.7 in Sokoban.",
+            "twitter_link": "https://x.com/haoailab/status/1907140718650704204"
         },
         {
-            "date": "2025-03-24",
-            "video_link": "https://www.youtube.com/watch?v=59enV32MBUE",
-            "twitter_text": "Breaking: GPT-4 solves complex Sokoban puzzles with strategic planning",
-            "twitter_link": "https://twitter.com/OpenAI/status/1234567891"
+            "date": "2025-03-18",
+            "video_link": "https://www.youtube.com/watch?v=b-Uyz3W4yIg",
+            "twitter_text": "Candy Crush Saga's Hidden Complexity: Top AI Models Take the Challenge",
+            "twitter_link": "https://x.com/haoailab/status/1902095369808601551"
         },
         {
-            "date": "2025-03-23",
+            "date": "2025-03-14",
             "video_link": "https://www.youtube.com/watch?v=3aYDCSa3AWI",
-            "twitter_text": "Gemini demonstrates exceptional performance in 2048 game",
-            "twitter_link": "https://twitter.com/Google/status/1234567892"
+            "twitter_text": "2048 Mastery: Only Two AI Models Crack the Code to Surpass Random Play",
+            "twitter_link": "https://x.com/haoailab/status/1900645722095317255"
+        },
+        {
+            "date": "2025-03-06",
+            "video_link": "https://www.youtube.com/watch?v=59enV32MBUE",
+            "twitter_text": "Sokoban Showdown: o3-mini Dominates by Reaching Level 4",
+            "twitter_link": "https://x.com/haoailab/status/1897792946646421514"
+        },
+        {
+            "date": "2025-02-28",
+            "video_link": "https://www.youtube.com/watch?v=nixMIJZYAgg",
+            "twitter_text": "Super Mario AI Revolution: Claude-3.7 Sets Unprecedented Gameplay Benchmarks",
+            "twitter_link": "https://x.com/haoailab/status/1895557913621795076"
         }
     ]
-} 
+}
