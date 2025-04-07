@@ -79,9 +79,12 @@ for gif_path in GIF_PATHS:
     else:
         print(f"✗ Missing: {gif_path}")
 
-# Load video links
+# Load video links and news data
 with open('assets/game_video_link.json', 'r') as f:
     VIDEO_LINKS = json.load(f)
+
+with open('assets/news.json', 'r') as f:
+    NEWS_DATA = json.load(f)
 
 def load_gif(gif_path):
     """Load a GIF file and return it as a PIL Image"""
@@ -433,6 +436,33 @@ def create_video_gallery():
     game_2048_id = VIDEO_LINKS["2048"].split("?v=")[1]
     candy_id = VIDEO_LINKS["candy"].split("?v=")[1]
     
+    # Generate news HTML
+    news_items = []
+    for item in NEWS_DATA["news"]:
+        video_id = item["video_link"].split("?v=")[1]
+        date_obj = datetime.strptime(item["date"], "%Y-%m-%d")
+        formatted_date = date_obj.strftime("%B %d, %Y")
+        news_items.append(f'''
+            <div class="news-item">
+                <div class="news-date">{formatted_date}</div>
+                <div class="news-content">
+                    <div class="news-video">
+                        <div class="video-wrapper">
+                            <iframe src="https://www.youtube.com/embed/{video_id}"></iframe>
+                        </div>
+                    </div>
+                    <div class="news-text">
+                        <a href="{item["twitter_link"]}" target="_blank" class="twitter-link">
+                            <span class="twitter-icon">📢</span>
+                            {item["twitter_text"]}
+                        </a>
+                    </div>
+                </div>
+            </div>
+        ''')
+    
+    news_html = '\n'.join(news_items)
+    
     gallery_html = f'''
     <div class="video-gallery-container">
         <style>
@@ -447,6 +477,7 @@ def create_video_gallery():
                 grid-template-columns: repeat(2, 1fr);
                 gap: 20px;
                 margin-top: 20px;
+                margin-bottom: 40px;
             }}
             .video-card {{
                 background: #ffffff;
@@ -481,6 +512,64 @@ def create_video_gallery():
                 background: #f8f9fa;
                 border-top: 1px solid #eee;
             }}
+            .news-section {{
+                margin-top: 40px;
+                border-top: 2px solid #e9ecef;
+                padding-top: 20px;
+            }}
+            .news-section-title {{
+                font-size: 1.8em;
+                font-weight: bold;
+                color: #2c3e50;
+                margin-bottom: 20px;
+                text-align: center;
+            }}
+            .news-item {{
+                background: #ffffff;
+                border-radius: 10px;
+                box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+                margin-bottom: 20px;
+                overflow: hidden;
+            }}
+            .news-date {{
+                padding: 10px 20px;
+                background: #f8f9fa;
+                color: #666;
+                font-size: 0.9em;
+                border-bottom: 1px solid #eee;
+            }}
+            .news-content {{
+                display: flex;
+                padding: 20px;
+                align-items: center;
+                gap: 30px;
+            }}
+            .news-video {{
+                flex: 0 0 300px;
+            }}
+            .news-text {{
+                flex: 1;
+                display: flex;
+                align-items: center;
+                min-height: 169px;  /* Match 16:9 video height */
+            }}
+            .twitter-link {{
+                color: #2c3e50;
+                text-decoration: none;
+                display: flex;
+                align-items: center;
+                gap: 15px;
+                font-size: 1.4em;
+                font-weight: 600;
+                line-height: 1.4;
+            }}
+            .twitter-link:hover {{
+                color: #1da1f2;
+            }}
+            .twitter-icon {{
+                font-size: 1.5em;
+                color: #1da1f2;
+            }}
         </style>
         <div class="video-grid">
             <div class="video-card">
@@ -507,6 +596,10 @@ def create_video_gallery():
                 </div>
                 <div class="video-title">🍬 Candy Crash</div>
             </div>
+        </div>
+        <div class="news-section">
+            <div class="news-section-title">📰 Latest News</div>
+            {news_html}
         </div>
     </div>
     '''

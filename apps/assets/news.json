@@ -1,0 +1,22 @@
+{
+    "news": [
+        {
+            "date": "2025-03-25",
+            "video_link": "https://www.youtube.com/watch?v=nixMIJZYAgg",
+            "twitter_text": "Claude-3 achieves new high score in Super Mario Bros! Watch the full gameplay here",
+            "twitter_link": "https://twitter.com/AnthropicAI/status/1234567890"
+        },
+        {
+            "date": "2025-03-24",
+            "video_link": "https://www.youtube.com/watch?v=59enV32MBUE",
+            "twitter_text": "Breaking: GPT-4 solves complex Sokoban puzzles with strategic planning",
+            "twitter_link": "https://twitter.com/OpenAI/status/1234567891"
+        },
+        {
+            "date": "2025-03-23",
+            "video_link": "https://www.youtube.com/watch?v=3aYDCSa3AWI",
+            "twitter_text": "Gemini demonstrates exceptional performance in 2048 game",
+            "twitter_link": "https://twitter.com/Google/status/1234567892"
+        }
+    ]
+} 
