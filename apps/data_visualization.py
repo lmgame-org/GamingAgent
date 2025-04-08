@@ -30,13 +30,24 @@ def get_model_prefix(name):
     return name.split('-')[0]
 
 
-def normalize_values(values, mean=None, std=None):
-    min_val = min(values)
-    max_val = max(values)
-    if max_val == min_val:
-        return [100 for _ in values]  # or 50
-    return [(v - min_val) / (max_val - min_val) * 100 for v in values]
-
+def normalize_values(values, mean, std):
+    """
+    Normalize values using z-score and scale to 0-100 range
+    
+    Args:
+        values (list): List of values to normalize
+        mean (float): Mean value for normalization
+        std (float): Standard deviation for normalization
+        
+    Returns:
+        list: Normalized values scaled to 0-100 range
+    """
+    if std == 0:
+        return [50 if v > 0 else 0 for v in values]  # Handle zero std case
+    z_scores = [(v - mean) / std for v in values]
+    # Scale z-scores to 0-100 range, with mean at 50
+    scaled_values = [max(0, min(100, (z * 30) + 50)) for z in z_scores]
+    return scaled_values
 def simplify_model_name(name):
     if name == "claude-3-7-sonnet-20250219(thinking)":
         name ="claude-3-7-thinking"
