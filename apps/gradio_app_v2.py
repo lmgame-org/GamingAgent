@@ -627,11 +627,14 @@ def build_app():
 
                 # Add leaderboard search box in its own row
                 with gr.Row():
-                    search_box = gr.Textbox(
-                        label="🔍 Search by Player or Organization",
-                        placeholder="Type to filter the table...",
-                        show_label=True
-                    )
+                    with gr.Column(scale=8):
+                        search_box = gr.Textbox(
+                            label="🔍 Search by Player or Organization",
+                            placeholder="Type to filter the table...",
+                            show_label=True
+                        )
+                    with gr.Column(scale=1):
+                        search_clear_btn = gr.Button("Clear", variant="secondary")
                 
                 # Get initial leaderboard dataframe
                 initial_df = get_combined_leaderboard(rank_data, {
@@ -682,6 +685,16 @@ def build_app():
                     filter_table,
                     inputs=[search_box, leaderboard_df],
                     outputs=[leaderboard_df]
+                )
+                
+                # Clear search button functionality
+                def clear_search():
+                    return "", initial_display_df
+                
+                search_clear_btn.click(
+                    clear_search,
+                    inputs=[],
+                    outputs=[search_box, leaderboard_df]
                 )
                 
                 # List of all checkboxes
