@@ -86,6 +86,10 @@ def load_rank_data(time_point):
             return None
     return None
 
+# Add a note about score values
+def add_score_note():
+    return gr.Markdown("*Note: '-1' in the table indicates no data point for that model.*", elem_classes="score-note")
+
 # Function to prepare DataFrame for display
 def prepare_dataframe_for_display(df, for_game=None):
     """Format DataFrame for better display in the UI"""
@@ -654,16 +658,23 @@ def build_app():
                         height=800
                     )
                 
+                # Add the score note below the table
+                with gr.Row():
+                    score_note = add_score_note()
+                
                 # Add search functionality
                 def filter_table(search_term, current_df):
-                    if not search_term:
-                        return current_df
+                    # Create a fresh copy of the DataFrame to avoid modifying the original
+                    filtered_df = current_df.copy()
                     
-                    # Filter the DataFrame by Player or Organization
-                    filtered_df = current_df[
-                        current_df["Player"].str.contains(search_term, case=False) | 
-                        current_df["Organization"].str.contains(search_term, case=False)
-                    ]
+                    # Only apply search if a term is provided
+                    if search_term:
+                        # Filter the DataFrame by Player or Organization
+                        filtered_df = filtered_df[
+                            filtered_df["Player"].str.contains(search_term, case=False) | 
+                            filtered_df["Organization"].str.contains(search_term, case=False)
+                        ]
+                    
                     return filtered_df
                 
                 # Connect search box to the table
