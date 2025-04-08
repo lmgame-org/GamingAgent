@@ -113,6 +113,11 @@ def prepare_dataframe_for_display(df, for_game=None):
     
     return display_df
 
+# Helper function to ensure leaderboard updates maintain consistent height
+def update_df_with_height(df):
+    """Update DataFrame with consistent height parameter."""
+    return gr.update(value=df, height=700)
+
 def update_leaderboard(mario_overall, mario_details,
                        sokoban_overall, sokoban_details,
                        _2048_overall, _2048_details,
@@ -261,7 +266,7 @@ def update_leaderboard(mario_overall, mario_details,
         chart = group_bar_chart
     
     # Return exactly 16 values to match the expected outputs
-    return (display_df, chart, radar_chart, group_bar_chart,
+    return (update_df_with_height(display_df), chart, radar_chart, group_bar_chart,
             current_overall["Super Mario Bros"], current_details["Super Mario Bros"],
             current_overall["Sokoban"], current_details["Sokoban"],
             current_overall["2048"], current_details["2048"],
@@ -337,7 +342,7 @@ def clear_filters():
     leaderboard_state = get_initial_state()
     
     # Return exactly 16 values to match the expected outputs
-    return (display_df, group_bar_chart, radar_chart, group_bar_chart,
+    return (update_df_with_height(display_df), group_bar_chart, radar_chart, group_bar_chart,
             True, False,  # mario
             True, False,  # sokoban
             True, False,  # 2048
@@ -492,6 +497,9 @@ def build_app():
             margin-bottom: 20px;
             border-radius: 8px;
             box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            height: 500px !important;  /* Fixed height for consistency */
+            min-height: 700px !important;
+            max-height: 800px !important;
         }
         .table-container table {
             width: 100%;
@@ -621,7 +629,8 @@ def build_app():
                         elem_id="leaderboard-table",
                         elem_classes="table-container",
                         wrap=True,
-                        column_widths={"Player": "25%", "Organization": "20%"}
+                        column_widths={"Player": "25%", "Organization": "20%"},
+                        height=700
                     )
                     
                     # Add search functionality

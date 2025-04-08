@@ -264,7 +264,7 @@ def get_combined_leaderboard(rank_data, selected_games):
                     elif game in ["Tetris (complete)", "Tetris (planning only)"]:
                         player_data[f"{game} Score"] = df[df["Player"] == player]["Score"].iloc[0]
                 else:
-                    player_data[f"{game} Score"] = "_"
+                    player_data[f"{game} Score"] = -1
 
         results.append(player_data)
 
@@ -278,7 +278,7 @@ def get_combined_leaderboard(rank_data, selected_games):
         for game in GAME_ORDER:
             if f"{game} Score" in df_results.columns:
                 df_results["Total Score"] += df_results[f"{game} Score"].apply(
-                    lambda x: float(x) if x != "_" else 0
+                    lambda x: float(x) if x != -1 else 0
                 )
         
         # Sort by total score in descending order
