@@ -151,7 +151,7 @@ def update_df_with_height(df):
                      show_fullscreen_button=True,
                      line_breaks=True,
                      show_search="search",
-                     max_height=700,
+                     max_height=None,  # Remove height limitation
                      column_widths=col_widths)
 
 def update_leaderboard(mario_overall, mario_details,
@@ -499,9 +499,10 @@ def build_app():
     with gr.Blocks(css="""
         /* Fix for disappearing scrollbar */
         html, body {
-            overflow-y: scroll !important;
+            overflow-y: auto !important;
+            overflow-x: hidden !important;
+            width: 100% !important;
             height: 100% !important;
-            min-height: 100vh !important;
         }
         
         /* Prevent content from shrinking to center */
@@ -513,27 +514,34 @@ def build_app():
             min-height: 100vh !important;
         }
         
-        /* Force table to maintain width */
+        /* Clean up table styling */
         .table-container {
             width: 100% !important;
-            min-width: 100% !important;
+            overflow: visible !important;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
         }
         
-        .table-container table {
-            width: 100% !important;
+        /* Remove duplicate scrollbars */
+        .gradio-dataframe [data-testid="table"],
+        [data-testid="dataframe"] [data-testid="table"],
+        .gradio-dataframe tbody,
+        [data-testid="dataframe"] tbody,
+        .table-container > div,
+        .table-container > div > div {
+            overflow: visible !important;
+            max-height: none !important;
         }
         
+        /* Visualization styling */
         .visualization-container .js-plotly-plot {
             margin-left: auto !important;
             margin-right: auto !important;
             display: block !important;
-        }
-
-        /* Optional: limit width for better layout on large screens */
-        .visualization-container .js-plotly-plot {
             max-width: 1000px;
         }
-
+        
+        /* Section styling */
         .section-title {
             font-size: 1.5em;
             font-weight: bold;
@@ -543,103 +551,6 @@ def build_app():
             border-bottom: 2px solid #e9ecef;
             text-align: center;
         }
-        .container {
-            max-width: 1400px;
-            margin: 0 auto;
-            padding: 0 20px;
-        }
-        
-        /* Enhanced table styling - SIMPLIFIED */
-        .table-container {
-            height: auto !important;
-            min-height: auto !important;
-            max-height: none !important;
-            overflow: visible !important;
-            border-radius: 8px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-        }
-        
-        /* Target the specific table elements */
-        .gradio-dataframe [data-testid="table"],
-        [data-testid="dataframe"] [data-testid="table"] {
-            display: block !important;
-            height: auto !important;
-            max-height: none !important;
-        }
-        
-        /* Target the tbody that contains the rows */
-        .gradio-dataframe tbody,
-        [data-testid="dataframe"] tbody {
-            display: table-row-group !important;
-            max-height: none !important;
-        }
-        
-        /* Responsive height adjustments for different screen sizes */
-        @media screen and (min-height: 600px) {
-            .gradio-dataframe [data-testid="table"],
-            [data-testid="dataframe"] [data-testid="table"] {
-                min-height: 400px !important;
-            }
-        }
-        
-        @media screen and (min-height: 800px) {
-            .gradio-dataframe [data-testid="table"],
-            [data-testid="dataframe"] [data-testid="table"] {
-                min-height: 600px !important;
-            }
-        }
-        
-        @media screen and (min-height: 1000px) {
-            .gradio-dataframe [data-testid="table"],
-            [data-testid="dataframe"] [data-testid="table"] {
-                min-height: 800px !important;
-            }
-        }
-        
-        @media screen and (min-height: 1200px) {
-            .gradio-dataframe [data-testid="table"],
-            [data-testid="dataframe"] [data-testid="table"] {
-                min-height: 950px !important;
-            }
-        }
-        
-        @media screen and (min-height: 1400px) {
-            .gradio-dataframe [data-testid="table"],
-            [data-testid="dataframe"] [data-testid="table"] {
-                min-height: 1100px !important;
-            }
-        }
-        
-        /* Remove unnecessary container styles */
-        .table-container > div,
-        .table-container > div > div,
-        .gradio-dataframe > div,
-        [data-testid="dataframe"] > div {
-            overflow: visible !important;
-            height: auto !important;
-            max-height: none !important;
-        }
-        
-        /* Target Gradio's pagination system and disable it */
-        .table-container [data-testid="pagination"],
-        .gradio-container [data-testid="pagination"] {
-            display: none !important;
-        }
-        
-        /* Large screen adjustments */
-        @media screen and (min-height: 1200px) {
-            .table-container {
-                height: auto !important;
-                max-height: none !important;
-                overflow: visible !important;
-            }
-            
-            .gradio-container {
-                height: auto !important;
-                max-height: none !important;
-                overflow: visible !important;
-            }
-        }
         
         /* Fix table styling */
         .table-container table {
@@ -647,26 +558,6 @@ def build_app():
             border-collapse: separate;
             border-spacing: 0;
             table-layout: fixed !important;
-        }
-        
-        /* Targeting row number column directly */
-        table th[role="cell"][aria-colindex="1"],
-        table td[role="cell"][aria-colindex="1"],
-        table col[data-col-index="0"],
-        .table-container tr > *:first-child[aria-colindex="1"],
-        th[scope="row"],
-        th[aria-sort],
-        td[data-index],
-        th[data-row-header] {
-            width: 30px !important;
-            min-width: 30px !important;
-            max-width: 30px !important;
-            padding: 2px 4px !important;
-            font-size: 0.85em !important;
-            text-align: center !important;
-            overflow: hidden !important;
-            text-overflow: ellipsis !important;
-            white-space: nowrap !important;
         }
         
         /* Column width customization - adjust for row numbers being first column */
@@ -727,15 +618,7 @@ def build_app():
             background-color: #f8fafc;
         }
         
-        /* Row containing the table */
-        .gradio-container .gr-row {
-            min-height: auto !important;
-            height: auto !important;
-            overflow: visible !important;
-            margin-bottom: 20px;
-        }
-        
-        /* Additional specific selectors for row numbers */
+        /* Row number column styling */
         .gradio-dataframe thead tr th[id="0"],
         .gradio-dataframe tbody tr td:nth-child(1),
         [data-testid="dataframe"] thead tr th[id="0"],
@@ -748,26 +631,6 @@ def build_app():
             padding: 4px !important;
             text-align: center !important;
             font-size: 0.85em !important;
-        }
-        
-        /* Fix overflow issues */
-        .table-container {
-            overflow: auto !important;
-            max-height: 700px !important;
-        }
-        
-        body, html {
-            overflow-x: hidden !important;
-            overflow-y: auto !important;
-            height: 100% !important;
-            width: 100% !important;
-            margin: 0 !important;
-            padding: 0 !important;
-        }
-        
-        .gradio-container {
-            overflow: visible !important;
-            max-height: none !important;
         }
     """) as demo:
         gr.Markdown("# 🎮 Game Arena: Gaming Agent 🎲")
@@ -880,7 +743,7 @@ def build_app():
                         show_row_numbers=True,
                         show_fullscreen_button=True,
                         line_breaks=True,
-                        max_height=700,
+                        max_height=None,  # Remove height limitation to avoid scrollbar
                         show_search="search",
                         column_widths=col_widths
                     )
