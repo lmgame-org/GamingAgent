@@ -497,21 +497,26 @@ def create_timeline_slider():
 
 def build_app():
     with gr.Blocks(css="""
-        /* Fix for disappearing scrollbar */
+        /* Fix for scrolling issues */
         html, body {
-            overflow-y: auto !important;
+            overflow-y: scroll !important;
             overflow-x: hidden !important;
             width: 100% !important;
             height: 100% !important;
+            max-height: none !important;
+            position: relative !important;
         }
         
-        /* Prevent content from shrinking to center */
-        .gradio-container {
+        /* Force scrolling to work on the main container */
+        .gradio-container, #root, #app {
             width: 100% !important;
             max-width: 1200px !important;
             margin-left: auto !important;
             margin-right: auto !important;
-            min-height: 100vh !important;
+            min-height: auto !important;
+            height: auto !important;
+            overflow: visible !important;
+            position: relative !important;
         }
         
         /* Clean up table styling */
@@ -526,7 +531,7 @@ def build_app():
         .gradio-dataframe [data-testid="table"],
         [data-testid="dataframe"] [data-testid="table"],
         .gradio-dataframe tbody,
-        [data-testid="dataframe"] tbody,
+        [stid="dataframe"] tbody,
         .table-container > div,
         .table-container > div > div {
             overflow: visible !important;
@@ -631,6 +636,13 @@ def build_app():
             padding: 4px !important;
             text-align: center !important;
             font-size: 0.85em !important;
+        }
+        
+        /* Fix for Gradio footer causing scroll issues */
+        footer {
+            position: relative !important;
+            width: 100% !important;
+            margin-top: 40px !important;
         }
     """) as demo:
         gr.Markdown("# 🎮 Game Arena: Gaming Agent 🎲")
