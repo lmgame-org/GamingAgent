@@ -29,6 +29,17 @@ from data_visualization import (
     get_combined_leaderboard_with_single_radar
 )
 
+# Try to import enhanced leaderboard, use standard DataFrame if not available
+try:
+    from gradio_leaderboard import Leaderboard, SelectColumns, ColumnFilter
+    from leaderboard_config import ON_LOAD_COLUMNS, TYPES
+    HAS_ENHANCED_LEADERBOARD = True
+    print("Enhanced leaderboard component available")
+except ImportError:
+    HAS_ENHANCED_LEADERBOARD = False
+    print("Using standard DataFrame as leaderboard (gradio_leaderboard not installed)")
+    print("To use the enhanced leaderboard component, run: pip install gradio_leaderboard")
+
 # Define time points and their corresponding data files
 TIME_POINTS = {
     "03/25/2025": "rank_data_03_25_2025.json",
@@ -276,6 +287,7 @@ def update_leaderboard(mario_overall, mario_details,
         chart = group_bar_chart
     
     # Return exactly 16 values to match the expected outputs
+    # Always return the DataFrame directly without gr.update()
     return (df, chart, radar_chart, group_bar_chart,
             current_overall["Super Mario Bros"], current_details["Super Mario Bros"],
             current_overall["Sokoban"], current_details["Sokoban"],
@@ -348,7 +360,7 @@ def clear_filters():
     # Reset the leaderboard state to match the default checkbox states
     leaderboard_state = get_initial_state()
     
-    # Return exactly 16 values to match the expected outputs
+    # Always return the DataFrame directly without gr.update()
     return (df, group_bar_chart, radar_chart, group_bar_chart,
             True, False,  # mario
             True, False,  # sokoban
@@ -806,19 +818,44 @@ def build_app():
                 # Leaderboard table
                 with gr.Row():
                     gr.Markdown("### 📋 Detailed Results")
-                with gr.Row():
-                    leaderboard_df = gr.DataFrame(
-                        value=get_combined_leaderboard(rank_data, {
-                            "Super Mario Bros": True,
-                            "Sokoban": True,
-                            "2048": True,
-                            "Candy Crash": True,
-                            "Tetris (complete)": True,
-                            "Tetris (planning only)": True
-                        }),
-                        label="Leaderboard",
-                        interactive=False
-                    )
+                with gr.Blocks():
+                    if HAS_ENHANCED_LEADERBOARD:
+                        # Enhanced leaderboard component
+                        leaderboard_df = Leaderboard(
+                            value=get_combined_leaderboard(rank_data, {
+                                "Super Mario Bros": True,
+                                "Sokoban": True,
+                                "2048": True,
+                                "Candy Crash": True,
+                                "Tetris (complete)": True,
+                                "Tetris (planning only)": True
+                            }),
+                            select_columns=SelectColumns(
+                                default_selection=ON_LOAD_COLUMNS,
+                                cant_deselect=["Player", "Organization"],
+                                label="Select Columns to Display:",
+                            ),
+                            search_columns=["Player", "Organization"],
+                            filter_columns=[
+                                ColumnFilter("Organization", type="categorical"),
+                            ],
+                            datatype=TYPES,
+                            column_widths={"Player": "25%", "Organization": "20%"}
+                        )
+                    else:
+                        # Standard DataFrame as fallback
+                        leaderboard_df = gr.DataFrame(
+                            value=get_combined_leaderboard(rank_data, {
+                                "Super Mario Bros": True,
+                                "Sokoban": True,
+                                "2048": True,
+                                "Candy Crash": True,
+                                "Tetris (complete)": True,
+                                "Tetris (planning only)": True
+                            }),
+                            label="Leaderboard",
+                            interactive=False
+                        )
                 
                 # List of all checkboxes
                 checkbox_list = [
