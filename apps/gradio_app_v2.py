@@ -116,7 +116,7 @@ def prepare_dataframe_for_display(df, for_game=None):
 # Helper function to ensure leaderboard updates maintain consistent height
 def update_df_with_height(df):
     """Update DataFrame with consistent height parameter."""
-    return gr.update(value=df, height=700)
+    return gr.update(value=df, height=1000)
 
 def update_leaderboard(mario_overall, mario_details,
                        sokoban_overall, sokoban_details,
@@ -497,27 +497,98 @@ def build_app():
             margin-bottom: 20px;
             border-radius: 8px;
             box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-            height: 500px !important;  /* Fixed height for consistency */
-            min-height: 700px !important;
-            max-height: 800px !important;
+            height: 1000px !important;  /* Fixed height for consistency */
+            min-height: 1000px !important;
+            max-height: 1000px !important;
         }
+        
+        /* Fix for Gradio collapsing containers */
+        .gradio-container .prose,
+        .gradio-container [id^="component-"],
+        .gradio-container .block,
+        .gradio-container .form,
+        .gradio-container .generate-box,
+        .gradio-container .gap,
+        .gradio-container .container,
+        .gradio-container .gr-block,
+        .gradio-container .gr-form,
+        .gradio-container .gr-group,
+        .gradio-container .gr-box,
+        .gradio-container .gr-panel {
+            min-height: auto !important;
+            height: auto !important;
+        }
+        
+        /* Prevent dataframe collapse - target both class and data attribute */
+        .gradio-dataframe,
+        [data-testid="dataframe"] {
+            min-height: 1000px !important;
+            height: 1000px !important;
+            contain: none !important; /* Prevent CSS containment from affecting height */
+        }
+        
+        /* Force tbody to take up space */
+        .table-container tbody,
+        .gradio-dataframe tbody {
+            display: table-row-group !important;
+            min-height: 900px !important;
+        }
+        
+        /* Target table wrappers that might be collapsing */
+        .wrap-table,
+        .svelte-1g805jl,
+        .svelte-1l8xhl8,
+        .table-wrap,
+        .scroll-container {
+            min-height: 900px !important;
+            height: 900px !important;
+            overflow: auto !important;
+        }
+        
         .table-container table {
             width: 100%;
-            border-collapse: collapse;
+            border-collapse: separate;
+            border-spacing: 0;
+            table-layout: fixed;
+            margin: 0;
+            padding: 0;
+            border: 1px solid #e0e0e0;
         }
+        
+        /* Fix for table row collapsing */
+        .table-container tr {
+            height: auto !important;
+            display: table-row !important;
+        }
+        
+        /* Fix for table cells collapsing */
+        .table-container td, 
+        .table-container th {
+            height: auto !important;
+            display: table-cell !important;
+            box-sizing: border-box;
+            padding: 10px 12px;
+            border-bottom: 1px solid #e9ecef;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        
+        /* Additional styles for headers */
         .table-container th {
             background-color: #f8f9fa;
             position: sticky;
             top: 0;
-            padding: 12px;
-            text-align: left;
+            z-index: 10;
             font-weight: bold;
             border-bottom: 2px solid #e9ecef;
+            text-align: left;
         }
+        
+        /* Remove redundant CSS */
         .table-container td {
-            padding: 10px 12px;
-            border-bottom: 1px solid #e9ecef;
+            /* Styles already defined in the combined selector above */
         }
+        
         .table-container tr:hover {
             background-color: #f1f3f4;
         }
@@ -630,8 +701,51 @@ def build_app():
                         elem_classes="table-container",
                         wrap=True,
                         column_widths={"Player": "25%", "Organization": "20%"},
-                        height=700
+                        height=1000
                     )
+                    
+                    # Add a lightweight onload script to maintain height
+                    gr.HTML("""
+                    <div style="display:none">
+                        <script>
+                            window.addEventListener('load', function() {
+                                // Run once when page is fully loaded
+                                setTimeout(function() {
+                                    var table = document.querySelector('#leaderboard-table');
+                                    var parents = [];
+                                    
+                                    // Walk up the DOM to find all parent containers
+                                    var el = table;
+                                    while (el && el !== document.body) {
+                                        parents.push(el);
+                                        el = el.parentElement;
+                                    }
+                                    
+                                    // Set min-height on all parent containers
+                                    parents.forEach(function(parent) {
+                                        if (parent.offsetHeight < 1000) {
+                                            parent.style.minHeight = '1000px';
+                                        }
+                                    });
+                                    
+                                    // Monitor scroll events to fix height issues
+                                    document.addEventListener('scroll', function() {
+                                        var dataframe = document.querySelector('.gradio-dataframe');
+                                        if (dataframe && dataframe.offsetHeight < 900) {
+                                            dataframe.style.height = '1000px';
+                                            dataframe.style.minHeight = '1000px';
+                                        }
+                                    }, {passive: true});
+                                }, 1000);
+                            });
+                        </script>
+                    </div>
+                    
+                    <!-- Invisible spacer to prevent collapse -->
+                    <div aria-hidden="true" style="height: 0px; overflow: hidden;">
+                        <iframe src="about:blank" frameborder="0" style="width: 100%; height: 1000px; visibility: hidden;"></iframe>
+                    </div>
+                    """)
                     
                     # Add search functionality
                     def filter_table(search_term, current_df):
