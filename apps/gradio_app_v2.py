@@ -748,14 +748,18 @@ def build_app():
                 )
                 
                 with gr.Column(visible=True) as overall_visualizations:
-                    radar_visualization = gr.Plot(
-                            label="Comparative Analysis (Radar Chart)",
-                            elem_classes="visualization-container"
-                        )
-                    group_bar_visualization = gr.Plot(
-                            label="Comparative Analysis (Group Bar Chart)",
-                            elem_classes="visualization-container"
-                        )
+                    with gr.Tabs():
+                        with gr.Tab("📈 Radar Chart"):
+                            radar_visualization = gr.Plot(
+                                label="Comparative Analysis (Radar Chart)",
+                                elem_classes="visualization-container"
+                            )
+                        with gr.Tab("📊 Group Bar Chart"):
+                            group_bar_visualization = gr.Plot(
+                                label="Comparative Analysis (Group Bar Chart)",
+                                elem_classes="visualization-container"
+                            )
+
 
                 # Game selection section
                 with gr.Row():

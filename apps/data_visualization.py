@@ -26,6 +26,9 @@ GAME_SCORE_COLUMNS = {
     "Tetris (complete)": "Score",
     "Tetris (planning only)": "Score"
 }
+def get_model_prefix(name):
+    return name.split('-')[0]
+
 
 def normalize_values(values, mean, std):
     if std == 0:
@@ -34,22 +37,45 @@ def normalize_values(values, mean, std):
     return [max(0, min(100, (z * 30) + 50)) for z in z_scores]
 
 def simplify_model_name(name):
+    if name == "claude-3-7-sonnet-20250219(thinking)":
+        name ="claude-3-7-thinking"
     parts = name.split('-')
     return '-'.join(parts[:4]) + '-...' if len(parts) > 4 else name
 
 def create_horizontal_bar_chart(df, game_name):
-    score_col = "Average Score" if game_name == "Candy Crash" else "Score"
-    if game_name == "Sokoban":
+
+
+    if game_name == "Super Mario Bros":
+        score_col = "Score"
+        df_sorted = df.sort_values(by=score_col, ascending=True)
+    elif game_name == "Sokoban":
+        # Process Sokoban scores by splitting and getting max level
         def get_max_level(levels_str):
             try:
+                # Split by semicolon, strip whitespace, filter empty strings, convert to integers
                 levels = [int(x.strip()) for x in levels_str.split(";") if x.strip()]
                 return max(levels) if levels else 0
             except:
                 return 0
+        
+        # Create a temporary column with max levels
         df['Max Level'] = df['Levels Cracked'].apply(get_max_level)
-        score_col = "Max Level"
+        df_sorted = df.sort_values(by='Max Level', ascending=True)
+        score_col = 'Max Level'
+    elif game_name == "2048":
+        score_col = "Score"
+        df_sorted = df.sort_values(by=score_col, ascending=True)
+    elif game_name == "Candy Crash":
+        score_col = "Average Score"
+        df_sorted = df.sort_values(by=score_col, ascending=True)
+    elif game_name in ["Tetris (complete)", "Tetris (planning only)"]:
+        score_col = "Score"
+        df_sorted = df.sort_values(by=score_col, ascending=True)
+    else:
+        return None
 
-    df_sorted = df.sort_values(by=score_col, ascending=True)
+
+
     x = df_sorted[score_col]
     y = [f"{simplify_model_name(row['Player'])} [{row['Organization']}]" for _, row in df_sorted.iterrows()]
     colors = [MODEL_COLORS.get(row['Player'], '#808080') for _, row in df_sorted.iterrows()]
@@ -100,14 +126,22 @@ def create_radar_charts(df):
 
     fig = go.Figure()
     for _, row in df.iterrows():
+        player = row["Player"]
         r = [row[f"norm_{c}"] for c in game_cols]
+
+        color = MODEL_COLORS.get(player, '#808080')  # fallback to gray
         fig.add_trace(go.Scatterpolar(
             r=r + [r[0]],
             theta=categories + [categories[0]],
             mode='lines+markers',
             fill='toself',
-            name=simplify_model_name(row["Player"])
+            name=player,
+            line=dict(color=color, width=2),
+            marker=dict(color=color),
+            fillcolor=color + '33',  # add transparency to fill (33 = ~20% opacity)
+            opacity=0.8
         ))
+
 
     fig.update_layout(
         autosize=False,
@@ -148,10 +182,14 @@ def create_group_bar_chart(df):
 
     fig = go.Figure()
     for _, row in df.iterrows():
+        player = row["Player"]
+        color = MODEL_COLORS.get(player, '#808080')  # Default to gray if missing
+
         fig.add_trace(go.Bar(
             name=simplify_model_name(row["Player"]),
             x=active_games,
-            y=[row[f"norm_{g} Score"] for g in active_games]
+            y=[row[f"norm_{g} Score"] for g in active_games],
+            marker_color=color
         ))
 
     fig.update_layout(
@@ -183,28 +221,62 @@ def create_group_bar_chart(df):
 def get_combined_leaderboard_with_group_bar(rank_data, selected_games):
     df = get_combined_leaderboard(rank_data, selected_games)
     return df, create_group_bar_chart(df)
+def hex_to_rgba(hex_color, alpha=0.2):
+    hex_color = hex_color.lstrip('#')
+    r = int(hex_color[0:2], 16)
+    g = int(hex_color[2:4], 16)
+    b = int(hex_color[4:6], 16)
+    return f'rgba({r}, {g}, {b}, {alpha})'
 
-def create_single_radar_chart(df, selected_games, highlight_models=None):
-    game_cols = [f"{g} Score" for g in selected_games]
+
+def create_single_radar_chart(df, selected_games=None, highlight_models=None):
+    if selected_games is None:
+        selected_games = ['Super Mario Bros', '2048', 'Candy Crash', 'Sokoban']
+
+    game_cols = [f"{game} Score" for game in selected_games]
     categories = selected_games
-
+    
+    # Normalize
     for col in game_cols:
         vals = df[col].replace("_", 0).astype(float)
         mean, std = vals.mean(), vals.std()
         df[f"norm_{col}"] = normalize_values(vals, mean, std)
 
+    # Group players by prefix
+    model_groups = {}
+    for player in df["Player"]:
+        prefix = get_model_prefix(player)
+        model_groups.setdefault(prefix, []).append(player)
+
+    # Order: grouped by prefix, then alphabetically
+    grouped_players = []
+    for prefix in sorted(model_groups):
+        grouped_players.extend(sorted(model_groups[prefix]))
+
     fig = go.Figure()
-    for _, row in df.iterrows():
-        highlight = highlight_models and row["Player"] in highlight_models
+
+    for player in grouped_players:
+        row = df[df["Player"] == player]
+        if row.empty:
+            continue
+        row = row.iloc[0]
+
+        is_highlighted = highlight_models and player in highlight_models
+        color = 'red' if is_highlighted else MODEL_COLORS.get(player, '#808080')
+        fillcolor = 'rgba(255, 0, 0, 0.3)' if is_highlighted else hex_to_rgba(color, 0.2)
+
         r = [row[f"norm_{col}"] for col in game_cols]
+
         fig.add_trace(go.Scatterpolar(
             r=r + [r[0]],
             theta=categories + [categories[0]],
             mode='lines+markers',
             fill='toself',
             name=simplify_model_name(row["Player"]),
-            line=dict(width=4 if highlight else 2),
-            opacity=1.0 if highlight else 0.4
+            line=dict(color=color, width=4 if is_highlighted else 2),
+            marker=dict(color=color),
+            fillcolor=fillcolor,
+            opacity=1.0 if is_highlighted else 0.7
         ))
 
     fig.update_layout(
@@ -229,6 +301,7 @@ def create_single_radar_chart(df, selected_games, highlight_models=None):
             borderwidth=1
         )
     )
+
     return fig
 
 def get_combined_leaderboard_with_single_radar(rank_data, selected_games, highlight_models=None):
