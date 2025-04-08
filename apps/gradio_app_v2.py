@@ -118,17 +118,41 @@ def prepare_dataframe_for_display(df, for_game=None):
             # Filter out models that didn't participate
             display_df = display_df[~display_df[score_col].isna()]
     
+    # Add line breaks to column headers
+    new_columns = {}
+    for col in display_df.columns:
+        if col.endswith(' Score'):
+            # Replace 'Game Name Score' with 'Game Name\nScore'
+            game_name = col.replace(' Score', '')
+            new_col = f"{game_name}\nScore"
+            new_columns[col] = new_col
+        elif col == 'Organization':
+            new_columns[col] = 'Organi-\nzation'
+    
+    # Rename columns with new line breaks
+    if new_columns:
+        display_df = display_df.rename(columns=new_columns)
+    
     return display_df
 
 # Helper function to ensure leaderboard updates maintain consistent height
 def update_df_with_height(df):
     """Update DataFrame with consistent height parameter."""
+    # Create column widths array
+    col_widths = ["40px"]  # Row number column width
+    col_widths.append("230px")  # Player column - reduced by 20px
+    col_widths.append("120px")  # Organization column
+    # Add game score columns
+    for _ in range(len(df.columns) - 2):
+        col_widths.append("120px")
+    
     return gr.update(value=df, 
                      show_row_numbers=True, 
                      show_fullscreen_button=True,
-                    line_breaks=True,
-                    show_search="search",
-                    max_height=700)
+                     line_breaks=True,
+                     show_search="search",
+                     max_height=700,
+                     column_widths=col_widths)
 
 def update_leaderboard(mario_overall, mario_details,
                        sokoban_overall, sokoban_details,
@@ -472,6 +496,32 @@ def create_timeline_slider():
 
 def build_app():
     with gr.Blocks(css="""
+        /* Fix for disappearing scrollbar */
+        html, body {
+            overflow-y: scroll !important;
+            height: 100% !important;
+            min-height: 100vh !important;
+        }
+        
+        /* Prevent content from shrinking to center */
+        .gradio-container {
+            width: 100% !important;
+            max-width: 1200px !important;
+            margin-left: auto !important;
+            margin-right: auto !important;
+            min-height: 100vh !important;
+        }
+        
+        /* Force table to maintain width */
+        .table-container {
+            width: 100% !important;
+            min-width: 100% !important;
+        }
+        
+        .table-container table {
+            width: 100% !important;
+        }
+        
         .visualization-container .js-plotly-plot {
             margin-left: auto !important;
             margin-right: auto !important;
@@ -595,6 +645,53 @@ def build_app():
             width: 100%;
             border-collapse: separate;
             border-spacing: 0;
+            table-layout: fixed !important;
+        }
+        
+        /* Targeting row number column directly */
+        table th[role="cell"][aria-colindex="1"],
+        table td[role="cell"][aria-colindex="1"],
+        table col[data-col-index="0"],
+        .table-container tr > *:first-child[aria-colindex="1"],
+        th[scope="row"],
+        th[aria-sort],
+        td[data-index],
+        th[data-row-header] {
+            width: 30px !important;
+            min-width: 30px !important;
+            max-width: 30px !important;
+            padding: 2px 4px !important;
+            font-size: 0.85em !important;
+            text-align: center !important;
+            overflow: hidden !important;
+            text-overflow: ellipsis !important;
+            white-space: nowrap !important;
+        }
+        
+        /* Column width customization - adjust for row numbers being first column */
+        .table-container th:nth-child(2), 
+        .table-container td:nth-child(2) {
+            width: 230px !important;
+            min-width: 200px !important;
+            max-width: 280px !important;
+            padding-left: 8px !important;
+            padding-right: 8px !important;
+        }
+        
+        .table-container th:nth-child(3), 
+        .table-container td:nth-child(3) {
+            width: 120px !important;
+            min-width: 100px !important;
+            max-width: 140px !important;
+        }
+        
+        /* Game score columns */
+        .table-container th:nth-child(n+4), 
+        .table-container td:nth-child(n+4) {
+            width: 120px !important;
+            min-width: 100px !important;
+            max-width: 140px !important;
+            text-align: center !important;
         }
         
         /* Make headers sticky */
@@ -604,13 +701,19 @@ def build_app():
             background-color: #f8f9fa !important;
             z-index: 10 !important;
             font-weight: bold;
-            padding: 12px;
+            padding: 16px 10px !important;
             border-bottom: 2px solid #e9ecef;
+            white-space: pre-wrap !important;
+            word-wrap: break-word !important;
+            line-height: 1.2 !important;
+            height: auto !important;
+            min-height: 60px !important;
+            vertical-align: middle !important;
         }
         
         /* Simple cell styling */
         .table-container td {
-            padding: 10px 12px;
+            padding: 8px 8px;
             border-bottom: 1px solid #e9ecef;
         }
         
@@ -629,6 +732,41 @@ def build_app():
             height: auto !important;
             overflow: visible !important;
             margin-bottom: 20px;
+        }
+        
+        /* Additional specific selectors for row numbers */
+        .gradio-dataframe thead tr th[id="0"],
+        .gradio-dataframe tbody tr td:nth-child(1),
+        [data-testid="dataframe"] thead tr th[id="0"],
+        [data-testid="dataframe"] tbody tr td:nth-child(1),
+        .svelte-1gfkn6j thead tr th:first-child,
+        .svelte-1gfkn6j tbody tr td:first-child {
+            width: 40px !important;
+            min-width: 40px !important;
+            max-width: 40px !important;
+            padding: 4px !important;
+            text-align: center !important;
+            font-size: 0.85em !important;
+        }
+        
+        /* Fix overflow issues */
+        .table-container {
+            overflow: auto !important;
+            max-height: 700px !important;
+        }
+        
+        body, html {
+            overflow-x: hidden !important;
+            overflow-y: auto !important;
+            height: 100% !important;
+            width: 100% !important;
+            margin: 0 !important;
+            padding: 0 !important;
+        }
+        
+        .gradio-container {
+            overflow: visible !important;
+            max-height: none !important;
         }
     """) as demo:
         gr.Markdown("# 🎮 Game Arena: Gaming Agent 🎲")
@@ -719,6 +857,14 @@ def build_app():
                 # Format the DataFrame for display
                 initial_display_df = prepare_dataframe_for_display(initial_df)
                 
+                # Custom column widths including row numbers
+                col_widths = ["40px"]  # Row number column width
+                col_widths.append("230px")  # Player column - reduced by 20px
+                col_widths.append("120px")  # Organization column
+                # Add game score columns
+                for _ in range(len(initial_display_df.columns) - 2):
+                    col_widths.append("120px")
+                
                 # Create a standard DataFrame component with enhanced styling
                 with gr.Row():
                     leaderboard_df = gr.DataFrame(
@@ -731,7 +877,8 @@ def build_app():
                         show_fullscreen_button=True,
                         line_breaks=True,
                         max_height=700,
-                        show_search="search"
+                        show_search="search",
+                        column_widths=col_widths
                     )
                 
                 # Add the score note below the table
@@ -815,4 +962,10 @@ def build_app():
 if __name__ == "__main__":
     demo_app = build_app()
     # Add file serving configuration
-    demo_app.launch(debug=True, show_error=True, share=True)
+    demo_app.launch(
+        debug=True, 
+        show_error=True, 
+        share=True,
+        height="100%",
+        width="100%"
+    )
