@@ -33,7 +33,7 @@ from gallery_tab import create_video_gallery
 # Try to import enhanced leaderboard, use standard DataFrame if not available
 
 from gradio_leaderboard import Leaderboard, SelectColumns, ColumnFilter
-from leaderboard_config import ON_LOAD_COLUMNS, TYPES
+
 HAS_ENHANCED_LEADERBOARD = True
 
 
