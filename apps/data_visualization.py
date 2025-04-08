@@ -169,7 +169,9 @@ def create_radar_charts(df):
 
 def get_combined_leaderboard_with_radar(rank_data, selected_games):
     df = get_combined_leaderboard(rank_data, selected_games)
-    return df, create_radar_charts(df)
+    # Create a copy for visualization to avoid modifying the original
+    df_viz = df.copy()
+    return df, create_radar_charts(df_viz)
 
 def create_group_bar_chart(df):
     active_games = [g for g in GAME_ORDER if f"{g} Score" in df.columns]
@@ -220,7 +222,10 @@ def create_group_bar_chart(df):
 
 def get_combined_leaderboard_with_group_bar(rank_data, selected_games):
     df = get_combined_leaderboard(rank_data, selected_games)
-    return df, create_group_bar_chart(df)
+    # Create a copy for visualization to avoid modifying the original
+    df_viz = df.copy()
+    return df, create_group_bar_chart(df_viz)
+
 def hex_to_rgba(hex_color, alpha=0.2):
     hex_color = hex_color.lstrip('#')
     r = int(hex_color[0:2], 16)
@@ -307,7 +312,9 @@ def create_single_radar_chart(df, selected_games=None, highlight_models=None):
 def get_combined_leaderboard_with_single_radar(rank_data, selected_games, highlight_models=None):
     df = get_combined_leaderboard(rank_data, selected_games)
     selected_game_names = [g for g, sel in selected_games.items() if sel]
-    return df, create_single_radar_chart(df, selected_game_names, highlight_models)
+    # Create a copy for visualization to avoid modifying the original
+    df_viz = df.copy()
+    return df, create_single_radar_chart(df_viz, selected_game_names, highlight_models)
 
 def create_organization_radar_chart(rank_data):
     df = get_combined_leaderboard(rank_data, {g: True for g in GAME_ORDER})

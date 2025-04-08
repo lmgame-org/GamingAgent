@@ -92,6 +92,11 @@ def prepare_dataframe_for_display(df, for_game=None):
     # Clone the DataFrame to avoid modifying the original
     display_df = df.copy()
     
+    # Filter out normalized score columns
+    norm_columns = [col for col in display_df.columns if col.startswith('norm_')]
+    if norm_columns:
+        display_df = display_df.drop(columns=norm_columns)
+    
     # Replace '_' with '-' for better display
     for col in display_df.columns:
         if col.endswith(' Score'):
