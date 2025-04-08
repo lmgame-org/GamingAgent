@@ -460,22 +460,17 @@ def create_timeline_slider():
 
 def build_app():
     with gr.Blocks(css="""
-        .visualization-container {
-            height: 70vh !important;  /* Reduced from 85vh to 70vh */
-            max-height: 700px !important;  /* Reduced from 900px to 700px */
-            min-height: 500px !important;  /* Reduced from 600px to 500px */
-            background-color: #f8f9fa;
-            border-radius: 10px;
-            padding: 20px;  /* Reduced padding from 25px to 20px */
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-            overflow: hidden;
-            margin: 0 auto !important;
+        .visualization-container .js-plotly-plot {
+            margin-left: auto !important;
+            margin-right: auto !important;
+            display: block !important;
         }
-        .visualization-container .plot {
-            height: 100% !important;
-            width: 100% !important;
-            object-fit: contain !important;  /* Added to ensure proper scaling */
+
+        /* Optional: limit width for better layout on large screens */
+        .visualization-container .js-plotly-plot {
+            max-width: 1000px;
         }
+
         .section-title {
             font-size: 1.5em;
             font-weight: bold;
@@ -565,19 +560,20 @@ def build_app():
                     elem_classes="visualization-container"
                 )
                 
-                # Overall view visualizations (two charts)
-                with gr.Row(visible=True) as overall_visualizations:
-                    with gr.Column(scale=1):
-                        radar_visualization = gr.Plot(
-                            label="Comparative Analysis (Radar Chart)",
-                            elem_classes="visualization-container"
-                        )
-                    with gr.Column(scale=1):
-                        group_bar_visualization = gr.Plot(
-                            label="Comparative Analysis (Group Bar Chart)",
-                            elem_classes="visualization-container"
-                        )
-                
+                with gr.Column(visible=True) as overall_visualizations:
+                    with gr.Tabs():
+                        with gr.Tab("📈 Radar Chart"):
+                            radar_visualization = gr.Plot(
+                                label="Comparative Analysis (Radar Chart)",
+                                elem_classes="visualization-container"
+                            )
+                        with gr.Tab("📊 Group Bar Chart"):
+                            group_bar_visualization = gr.Plot(
+                                label="Comparative Analysis (Group Bar Chart)",
+                                elem_classes="visualization-container"
+                            )
+
+
                 # Game selection section
                 with gr.Row():
                     gr.Markdown("### 🎮 Game Selection")
