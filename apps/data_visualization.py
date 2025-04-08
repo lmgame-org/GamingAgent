@@ -203,7 +203,21 @@ def create_group_bar_chart(df):
 
     # Build consistent game order (X-axis)
     sorted_games = [game for game in GAME_ORDER if f"norm_{game} Score" in df.columns]
-
+    
+    # Format game names with line breaks
+    formatted_games = []
+    for game in sorted_games:
+        if len(game) > 10 and ' ' in game:
+            parts = game.split(' ')
+            midpoint = len(parts) // 2
+            formatted_name = ' '.join(parts[:midpoint]) + '<br>' + ' '.join(parts[midpoint:])
+            formatted_games.append(formatted_name)
+        else:
+            formatted_games.append(game)
+    
+    # Create mapping from original to formatted names
+    game_display_map = dict(zip(sorted_games, formatted_games))
+    
     # Group models by prefix, then sort alphabetically
     model_groups = {}
     for player in df["Player"].unique():
@@ -233,13 +247,13 @@ def create_group_bar_chart(df):
 
         if not has_data:
             continue
-
+            
         fig.add_trace(go.Bar(
             name=simplify_model_name(player),
-            x=sorted_games,
+            x=[game_display_map[game] for game in sorted_games],
             y=y_vals,
             marker_color=MODEL_COLORS.get(player, '#808080'),
-            hovertemplate="%{x}<br>%{y:.1f}<extra></extra>"
+            hovertemplate="<b>%{fullData.name}</b><br>Score: %{y:.1f}<extra></extra>"
         ))
 
     fig.update_layout(
@@ -252,9 +266,13 @@ def create_group_bar_chart(df):
         yaxis_title="Normalized Score",
         xaxis=dict(
             categoryorder='array',
-            categoryarray=sorted_games
+            categoryarray=[game_display_map[g] for g in sorted_games],
+            tickangle=0  # Keep text horizontal since we're using line breaks
         ),
         barmode='group',
+        bargap=0.2,        # Gap between game categories
+        bargroupgap=0.05,  # Gap between bars in a group
+        uniformtext=dict(mode='hide', minsize=8),  # Hide text that doesn't fit
         legend=dict(
             font=dict(size=9),
             itemsizing='trace',
