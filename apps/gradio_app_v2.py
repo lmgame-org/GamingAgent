@@ -499,7 +499,7 @@ def build_app():
     with gr.Blocks(css="""
         /* Fix for scrolling issues */
         html, body {
-            overflow-y: scroll !important;
+            overflow-y: auto !important;
             overflow-x: hidden !important;
             width: 100% !important;
             height: 100% !important;
@@ -519,10 +519,39 @@ def build_app():
             position: relative !important;
         }
         
+        /* Remove ALL inner scrollbars - very important! */
+        .gradio-container * {
+            scrollbar-width: none !important;  /* Firefox */
+        }
+        
+        /* Hide scrollbars for Chrome, Safari and Opera */
+        .gradio-container *::-webkit-scrollbar {
+            display: none !important;
+        }
+        
+        /* Only allow scrollbar on body */
+        body::-webkit-scrollbar {
+            display: block !important;
+            width: 10px !important;
+        }
+        
+        body::-webkit-scrollbar-track {
+            background: #f1f1f1 !important;
+        }
+        
+        body::-webkit-scrollbar-thumb {
+            background: #888 !important;
+            border-radius: 5px !important;
+        }
+        
+        body::-webkit-scrollbar-thumb:hover {
+            background: #555 !important;
+        }
+        
         /* Clean up table styling */
         .table-container {
             width: 100% !important;
-            overflow: visible !important;
+            overflow: hidden !important;
             border-radius: 8px;
             box-shadow: 0 2px 10px rgba(0,0,0,0.1);
         }
@@ -531,11 +560,19 @@ def build_app():
         .gradio-dataframe [data-testid="table"],
         [data-testid="dataframe"] [data-testid="table"],
         .gradio-dataframe tbody,
-        [stid="dataframe"] tbody,
+        [data-testid="dataframe"] tbody,
         .table-container > div,
         .table-container > div > div {
+            overflow: hidden !important;
+            max-height: none !important;
+        }
+        
+        /* Ensure table contents are visible without scrollbars */
+        .gradio-dataframe,
+        [data-testid="dataframe"] {
             overflow: visible !important;
             max-height: none !important;
+            border: none !important;
         }
         
         /* Visualization styling */
@@ -646,6 +683,126 @@ def build_app():
         }
     """) as demo:
         gr.Markdown("# 🎮 Game Arena: Gaming Agent 🎲")
+        
+        # Add custom JavaScript for table header line breaks
+        gr.HTML("""
+        <script>
+        // Function to add line breaks to table headers
+        function formatTableHeaders() {
+            // Find all table headers in the document
+            const headers = document.querySelectorAll('th');
+            
+            headers.forEach(header => {
+                let text = header.textContent || '';
+                
+                // Skip if already processed
+                if (header.getAttribute('data-processed') === 'true') {
+                    return;
+                }
+                
+                // Store original content for reference
+                if (!header.getAttribute('data-original')) {
+                    header.setAttribute('data-original', header.innerHTML);
+                }
+                
+                let newContent = header.innerHTML;
+                
+                // Format Super Mario Bros header
+                if (text.includes('Super Mario Bros')) {
+                    newContent = newContent.replace(/Super\s+Mario\s+Bros/g, 'Super<br>Mario Bros');
+                }
+                
+                // Format Tetris headers
+                if (text.includes('Tetris (complete)')) {
+                    newContent = newContent.replace(/Tetris\s+\(complete\)/g, 'Tetris<br>(complete)');
+                }
+                
+                if (text.includes('Tetris (planning only)')) {
+                    newContent = newContent.replace(/Tetris\s+\(planning\s+only\)/g, 'Tetris<br>(planning)');
+                }
+                
+                // Format Candy Crash header
+                if (text.includes('Candy Crash')) {
+                    newContent = newContent.replace(/Candy\s+Crash/g, 'Candy<br>Crash');
+                }
+                
+                // Make Organization header wider
+                if (text.includes('Organization')) {
+                    header.style.minWidth = '150px';
+                    header.style.width = '150px';
+                }
+                
+                // Update content if changed
+                if (newContent !== header.innerHTML) {
+                    header.innerHTML = newContent;
+                    header.setAttribute('data-processed', 'true');
+                    
+                    // Also ensure headers have proper styling
+                    header.style.whiteSpace = 'normal';
+                    header.style.lineHeight = '1.2';
+                    header.style.verticalAlign = 'middle';
+                    header.style.minHeight = '70px';
+                    header.style.fontSize = '0.9em';
+                }
+            });
+        }
+        
+        // Function to fix player name cells to prevent line breaking
+        function fixPlayerCells() {
+            // Find all table cells in the document
+            const tables = document.querySelectorAll('table');
+            
+            tables.forEach(table => {
+                // Process rows starting from index 1 (skip header)
+                const rows = table.querySelectorAll('tr');
+                
+                rows.forEach((row, index) => {
+                    // Skip header row
+                    if (index === 0) return;
+                    
+                    // Get the player cell (typically 2nd cell)
+                    const playerCell = row.querySelector('td:nth-child(2)');
+                    const orgCell = row.querySelector('td:nth-child(3)');
+                    
+                    if (playerCell) {
+                        playerCell.style.whiteSpace = 'nowrap';
+                        playerCell.style.overflow = 'hidden';
+                        playerCell.style.textOverflow = 'ellipsis';
+                        playerCell.style.maxWidth = '230px';
+                        playerCell.style.textAlign = 'left';
+                    }
+                    
+                    if (orgCell) {
+                        orgCell.style.whiteSpace = 'nowrap';
+                        orgCell.style.overflow = 'hidden';
+                        orgCell.style.textOverflow = 'ellipsis';
+                        orgCell.style.minWidth = '150px';
+                        orgCell.style.width = '150px';
+                    }
+                });
+            });
+        }
+        
+        // Function to run all formatting
+        function formatTable() {
+            formatTableHeaders();
+            fixPlayerCells();
+        }
+        
+        // Run on load and then periodically to catch any new tables
+        setInterval(formatTable, 500);
+        
+        // Also run when the DOM content is loaded
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', formatTable);
+        } else {
+            formatTable();
+        }
+        
+        // Run when the page is fully loaded with resources
+        window.addEventListener('load', formatTable);
+        </script>
+        """)
         
         with gr.Tabs():
             with gr.Tab("🏆 Leaderboard"):
