@@ -127,6 +127,7 @@ def update_df_with_height(df):
                      show_row_numbers=True, 
                      show_fullscreen_button=True,
                     line_breaks=True,
+                    show_search="search",
                     max_height=700)
 
 def update_leaderboard(mario_overall, mario_details,
@@ -701,17 +702,6 @@ def build_app():
                 with gr.Row():
                     gr.Markdown("### 📋 Detailed Results")
 
-                # Add leaderboard search box in its own row
-                with gr.Row():
-                    with gr.Column(scale=8):
-                        search_box = gr.Textbox(
-                            label="🔍 Search by Player or Organization",
-                            placeholder="Type to filter the table...",
-                            show_label=True
-                        )
-                    with gr.Column(scale=1):
-                        search_clear_btn = gr.Button("Clear", variant="secondary")
-                
                 # Get initial leaderboard dataframe
                 initial_df = get_combined_leaderboard(rank_data, {
                     "Super Mario Bros": True,
@@ -736,44 +726,13 @@ def build_app():
                         show_row_numbers=True,
                         show_fullscreen_button=True,
                         line_breaks=True,
-                        max_height=700
+                        max_height=700,
+                        show_search="search"
                     )
                 
                 # Add the score note below the table
                 with gr.Row():
                     score_note = add_score_note()
-                
-                # Add search functionality
-                def filter_table(search_term, current_df):
-                    # Create a fresh copy of the DataFrame to avoid modifying the original
-                    filtered_df = current_df.copy()
-                    
-                    # Only apply search if a term is provided
-                    if search_term:
-                        # Filter the DataFrame by Player or Organization
-                        filtered_df = filtered_df[
-                            filtered_df["Player"].str.contains(search_term, case=False) | 
-                            filtered_df["Organization"].str.contains(search_term, case=False)
-                        ]
-                    
-                    return filtered_df
-                
-                # Connect search box to the table
-                search_box.change(
-                    filter_table,
-                    inputs=[search_box, leaderboard_df],
-                    outputs=[leaderboard_df]
-                )
-                
-                # Clear search button functionality
-                def clear_search():
-                    return "", initial_display_df
-                
-                search_clear_btn.click(
-                    clear_search,
-                    inputs=[],
-                    outputs=[search_box, leaderboard_df]
-                )
                 
                 # List of all checkboxes
                 checkbox_list = [
