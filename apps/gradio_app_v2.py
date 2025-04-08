@@ -67,25 +67,6 @@ leaderboard_state = {
     }
 }
 
-# Define GIF paths for the carousel
-GIF_PATHS = [
-    "assets/super_mario_bros/super_mario.gif",
-    "assets/sokoban/sokoban.gif",
-    "assets/2048/2048.gif",
-    "assets/candy/candy.gif",
-    "assets/tetris/tetris.gif"
-]
-
-# Print and verify GIF paths
-print("\nChecking GIF paths:")
-for gif_path in GIF_PATHS:
-    if os.path.exists(gif_path):
-        print(f"✓ Found: {gif_path}")
-        # Print file size
-        size = os.path.getsize(gif_path)
-        print(f"  Size: {size / (1024*1024):.2f} MB")
-    else:
-        print(f"✗ Missing: {gif_path}")
 
 # Load video links and news data
 with open('assets/game_video_link.json', 'r') as f:
@@ -93,42 +74,6 @@ with open('assets/game_video_link.json', 'r') as f:
 
 with open('assets/news.json', 'r') as f:
     NEWS_DATA = json.load(f)
-
-def load_gif(gif_path):
-    """Load a GIF file and return it as a PIL Image"""
-    try:
-        img = Image.open(gif_path)
-        print(f"Successfully loaded GIF: {gif_path}")
-        return img
-    except Exception as e:
-        print(f"Error loading GIF {gif_path}: {e}")
-        return None
-
-def create_gif_carousel():
-    """Create a custom HTML/JS component for GIF carousel"""
-    print("\nCreating GIF carousel with paths:", GIF_PATHS)
-    html = f"""
-    <div id="gif-carousel" style="width: 100%; height: 300px; position: relative; background-color: #f0f0f0;">
-        <img id="current-gif" style="width: 100%; height: 100%; object-fit: contain;" onerror="console.error('Failed to load GIF:', this.src);">
-    </div>
-    <script>
-        const gifs = {json.dumps(GIF_PATHS)};
-        let currentIndex = 0;
-        
-        function updateGif() {{
-            const img = document.getElementById('current-gif');
-            console.log('Loading GIF:', gifs[currentIndex]);
-            img.src = gifs[currentIndex];
-            currentIndex = (currentIndex + 1) % gifs.length;
-        }}
-        
-        // Update GIF every 5 seconds
-        setInterval(updateGif, 5000);
-        // Initial load
-        updateGif();
-    </script>
-    """
-    return gr.HTML(html)
 
 def load_rank_data(time_point):
     """Load rank data for a specific time point"""

@@ -22,6 +22,8 @@ def get_organization(model_name):
         return "openai"
     elif "deepseek" in m:
         return "deepseek"
+    elif "llama" in m:
+        return "meta"
     else:
         return "unknown"
 
@@ -173,7 +175,7 @@ def calculate_rank_and_completeness(rank_data, selected_games):
                     ranks.append(rank)
                     player_data[f"{game} Score"] = player_score
                 else:
-                    player_data[f"{game} Score"] = "_"
+                    player_data[f"{game} Score"] = -1
 
         # Calculate average rank and completeness for sorting only
         if ranks:
