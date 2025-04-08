@@ -30,11 +30,12 @@ def get_model_prefix(name):
     return name.split('-')[0]
 
 
-def normalize_values(values, mean, std):
-    if std == 0:
-        return [50 if v > 0 else 0 for v in values]
-    z_scores = [(v - mean) / std for v in values]
-    return [max(0, min(100, (z * 30) + 50)) for z in z_scores]
+def normalize_values(values, mean=None, std=None):
+    min_val = min(values)
+    max_val = max(values)
+    if max_val == min_val:
+        return [100 for _ in values]  # or 50
+    return [(v - min_val) / (max_val - min_val) * 100 for v in values]
 
 def simplify_model_name(name):
     if name == "claude-3-7-sonnet-20250219(thinking)":
@@ -170,39 +171,86 @@ def create_radar_charts(df):
 def get_combined_leaderboard_with_radar(rank_data, selected_games):
     df = get_combined_leaderboard(rank_data, selected_games)
     return df, create_radar_charts(df)
-
 def create_group_bar_chart(df):
-    active_games = [g for g in GAME_ORDER if f"{g} Score" in df.columns]
-    game_cols = [f"{g} Score" for g in active_games]
+    game_cols = {}
+    for game in GAME_ORDER:
+        col = f"{game} Score"
+        if col in df.columns:
+            df[col] = df[col].replace("_", np.nan).astype(float)
+            if df[col].notna().any():
+                game_cols[game] = col
 
-    for col in game_cols:
-        vals = df[col].replace("_", 0).astype(float)
-        mean, std = vals.mean(), vals.std()
-        df[f"norm_{col}"] = normalize_values(vals, mean, std)
+    if not game_cols:
+        return go.Figure().update_layout(title="No data available")
 
+    # Drop players with no data
+    df = df.dropna(subset=game_cols.values(), how='all')
+
+    # Normalize scores per game
+    for game, col in game_cols.items():
+        valid = df[col].dropna()
+        norm_col = f"norm_{col}"
+        if valid.empty:
+            df[norm_col] = np.nan
+        else:
+            mean, std = valid.mean(), valid.std()
+            normalized = normalize_values(valid, mean, std)
+            df[norm_col] = np.nan
+            df.loc[valid.index, norm_col] = normalized
+
+    # Build consistent game order (X-axis)
+    sorted_games = [game for game in GAME_ORDER if f"norm_{game} Score" in df.columns]
+
+    # Group models by prefix, then sort alphabetically
+    model_groups = {}
+    for player in df["Player"].unique():
+        prefix = player.split('-')[0]
+        model_groups.setdefault(prefix, []).append(player)
+
+    ordered_players = []
+    for prefix in sorted(model_groups):
+        ordered_players.extend(sorted(model_groups[prefix]))
+
+    # Create one trace per player
     fig = go.Figure()
-    for _, row in df.iterrows():
-        player = row["Player"]
-        color = MODEL_COLORS.get(player, '#808080')  # Default to gray if missing
+    for player in ordered_players:
+        row = df[df["Player"] == player]
+        if row.empty:
+            continue
+        row = row.iloc[0]
+
+        y_vals = []
+        has_data = False
+        for game in sorted_games:
+            col = f"norm_{game} Score"
+            val = row.get(col, np.nan)
+            if not np.isnan(val):
+                has_data = True
+            y_vals.append(val if not np.isnan(val) else 0)
+
+        if not has_data:
+            continue
 
         fig.add_trace(go.Bar(
-            name=simplify_model_name(row["Player"]),
-            x=active_games,
-            y=[row[f"norm_{g} Score"] for g in active_games],
-            marker_color=color
+            name=simplify_model_name(player),
+            x=sorted_games,
+            y=y_vals,
+            marker_color=MODEL_COLORS.get(player, '#808080'),
+            hovertemplate="%{x}<br>%{y:.1f}<extra></extra>"
         ))
 
     fig.update_layout(
         autosize=False,
-        width=800,
+        width=1000,
         height=600,
         margin=dict(l=80, r=150, t=40, b=200),
-        title=dict(
-            text="Grouped Bar Chart of AI Models",
-            pad=dict(t=10)
-        ),
+        title=dict(text="Grouped Bar Chart of AI Models (Consistent Trace Grouping)", pad=dict(t=10)),
         xaxis_title="Games",
         yaxis_title="Normalized Score",
+        xaxis=dict(
+            categoryorder='array',
+            categoryarray=sorted_games
+        ),
         barmode='group',
         legend=dict(
             font=dict(size=9),
@@ -216,7 +264,10 @@ def create_group_bar_chart(df):
             borderwidth=1
         )
     )
+
     return fig
+
+
 
 def get_combined_leaderboard_with_group_bar(rank_data, selected_games):
     df = get_combined_leaderboard(rank_data, selected_games)
