@@ -1,6 +1,12 @@
 {
     "news": [
         {
+            "date": "2025-04-08",
+            "video_link": "https://youtu.be/yoEo2Bk7PGA",
+            "twitter_text": "LLaMA 4 Maverick dazzles on static tasks but stumbles on dynamic gameplay—our transparent leaderboard exposes the true AI challenge.",
+            "twitter_link": "https://x.com/haoailab"
+        },
+        {
             "date": "2025-04-01",
             "video_link": "https://www.youtube.com/watch?v=uFVpNor7l_E",
             "twitter_text": "Google's Gemini 2.5 Pro redefines AI gameplay: its multi-modal edge outperforms o1 & Claude 3.7 in Sokoban.",

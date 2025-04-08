@@ -289,20 +289,21 @@ def update_leaderboard(mario_overall, mario_details,
         
         # Always create a new chart for detailed view
         chart = create_horizontal_bar_chart(df, leaderboard_state["current_game"])
-        # For detailed view, we'll use the same chart for all visualizations
+        # Use the same chart for all visualizations in detailed view
         radar_chart = chart
         group_bar_chart = chart
     else:
         # For overall view
-        df, group_bar_chart = get_combined_leaderboard_with_group_bar(rank_data, selected_games)
+        df, _ = get_combined_leaderboard_with_group_bar(rank_data, selected_games)
         # Format the DataFrame for display
         display_df = prepare_dataframe_for_display(df)
         # Use the same selected_games for radar chart
         _, radar_chart = get_combined_leaderboard_with_single_radar(rank_data, selected_games)
-        chart = group_bar_chart
+        chart = radar_chart
+        group_bar_chart = radar_chart  # Use radar chart instead of bar chart
     
     # Return exactly 16 values to match the expected outputs
-    return (update_df_with_height(display_df), chart, radar_chart, group_bar_chart,
+    return (update_df_with_height(display_df), chart, radar_chart, radar_chart,
             current_overall["Super Mario Bros"], current_details["Super Mario Bros"],
             current_overall["Sokoban"], current_details["Sokoban"],
             current_overall["2048"], current_details["2048"],
@@ -378,7 +379,7 @@ def clear_filters():
     leaderboard_state = get_initial_state()
     
     # Return exactly 16 values to match the expected outputs
-    return (update_df_with_height(display_df), group_bar_chart, radar_chart, group_bar_chart,
+    return (update_df_with_height(display_df), radar_chart, radar_chart, radar_chart,
             True, False,  # mario
             True, False,  # sokoban
             True, False,  # 2048
@@ -791,12 +792,15 @@ def build_app():
                                 label="Comparative Analysis (Radar Chart)",
                                 elem_classes="visualization-container"
                             )
-                        with gr.Tab("📊 Group Bar Chart"):
-                            group_bar_visualization = gr.Plot(
-                                label="Comparative Analysis (Group Bar Chart)",
-                                elem_classes="visualization-container"
-                            )
+                        # Comment out the Group Bar Chart tab
+                        # with gr.Tab("📊 Group Bar Chart"):
+                        #     group_bar_visualization = gr.Plot(
+                        #         label="Comparative Analysis (Group Bar Chart)",
+                        #         elem_classes="visualization-container"
+                        #     )
 
+                # Hidden placeholder for group bar visualization (to maintain code references)
+                group_bar_visualization = gr.Plot(visible=False)
 
                 # Game selection section
                 with gr.Row():
