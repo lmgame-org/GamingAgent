@@ -126,8 +126,9 @@ def prepare_dataframe_for_display(df, for_game=None):
             game_name = col.replace(' Score', '')
             new_col = f"{game_name}\nScore"
             new_columns[col] = new_col
-        elif col == 'Organization':
-            new_columns[col] = 'Organi-\nzation'
+        # Keep Organization without line breaks
+        # elif col == 'Organization':
+        #    new_columns[col] = 'Organi-\nzation'
     
     # Rename columns with new line breaks
     if new_columns:
@@ -726,10 +727,15 @@ def build_app():
                     newContent = newContent.replace(/Candy\s+Crash/g, 'Candy<br>Crash');
                 }
                 
-                // Make Organization header wider
-                if (text.includes('Organization')) {
+                // Make Organization header wider and fix its name
+                if (text.includes('Organization') || text.includes('Organi-zation')) {
                     header.style.minWidth = '150px';
                     header.style.width = '150px';
+                    
+                    // Fix the Organization header name if it has a line break
+                    if (text.includes('Organi-') || text.includes('zation')) {
+                        newContent = newContent.replace(/Organi-<br>zation|Organi-zation/, 'Organization');
+                    }
                 }
                 
                 // Update content if changed
