@@ -30,15 +30,11 @@ from data_visualization import (
 )
 
 # Try to import enhanced leaderboard, use standard DataFrame if not available
-try:
-    from gradio_leaderboard import Leaderboard, SelectColumns, ColumnFilter
-    from leaderboard_config import ON_LOAD_COLUMNS, TYPES
-    HAS_ENHANCED_LEADERBOARD = True
-    print("Enhanced leaderboard component available")
-except ImportError:
-    HAS_ENHANCED_LEADERBOARD = False
-    print("Using standard DataFrame as leaderboard (gradio_leaderboard not installed)")
-    print("To use the enhanced leaderboard component, run: pip install gradio_leaderboard")
+
+from gradio_leaderboard import Leaderboard, SelectColumns, ColumnFilter
+from leaderboard_config import ON_LOAD_COLUMNS, TYPES
+HAS_ENHANCED_LEADERBOARD = True
+
 
 # Define time points and their corresponding data files
 TIME_POINTS = {
@@ -143,6 +139,33 @@ def load_rank_data(time_point):
         except FileNotFoundError:
             return None
     return None
+
+# Function to prepare DataFrame for display
+def prepare_dataframe_for_display(df, for_game=None):
+    """Format DataFrame for better display in the UI"""
+    # Clone the DataFrame to avoid modifying the original
+    display_df = df.copy()
+    
+    # Replace '_' with '-' for better display
+    for col in display_df.columns:
+        if col.endswith(' Score'):
+            display_df[col] = display_df[col].apply(lambda x: '-' if x == '_' else x)
+    
+    # If we're in detailed view, add a formatted rank column
+    if for_game:
+        # Sort by relevant score column
+        score_col = f"{for_game} Score"
+        if score_col in display_df.columns:
+            # Convert to numeric for sorting, treating '-' as NaN
+            display_df[score_col] = pd.to_numeric(display_df[score_col], errors='coerce')
+            # Sort by score in descending order
+            display_df = display_df.sort_values(by=score_col, ascending=False)
+            # Add rank column based on the sort
+            display_df.insert(0, 'Rank', range(1, len(display_df) + 1))
+            # Filter out models that didn't participate
+            display_df = display_df[~display_df[score_col].isna()]
+    
+    return display_df
 
 def update_leaderboard(mario_overall, mario_details,
                        sokoban_overall, sokoban_details,
@@ -274,6 +297,9 @@ def update_leaderboard(mario_overall, mario_details,
         else:  # Tetris (planning only)
             df = get_tetris_planning_leaderboard(rank_data)
         
+        # Format the DataFrame for display
+        display_df = prepare_dataframe_for_display(df, leaderboard_state["current_game"])
+        
         # Always create a new chart for detailed view
         chart = create_horizontal_bar_chart(df, leaderboard_state["current_game"])
         # For detailed view, we'll use the same chart for all visualizations
@@ -282,13 +308,14 @@ def update_leaderboard(mario_overall, mario_details,
     else:
         # For overall view
         df, group_bar_chart = get_combined_leaderboard_with_group_bar(rank_data, selected_games)
+        # Format the DataFrame for display
+        display_df = prepare_dataframe_for_display(df)
         # Use the same selected_games for radar chart
         _, radar_chart = get_combined_leaderboard_with_single_radar(rank_data, selected_games)
         chart = group_bar_chart
     
     # Return exactly 16 values to match the expected outputs
-    # Always return the DataFrame directly without gr.update()
-    return (df, chart, radar_chart, group_bar_chart,
+    return (display_df, chart, radar_chart, group_bar_chart,
             current_overall["Super Mario Bros"], current_details["Super Mario Bros"],
             current_overall["Sokoban"], current_details["Sokoban"],
             current_overall["2048"], current_details["2048"],
@@ -354,14 +381,17 @@ def clear_filters():
     # Get the combined leaderboard and group bar chart
     df, group_bar_chart = get_combined_leaderboard_with_group_bar(rank_data, selected_games)
     
+    # Format the DataFrame for display
+    display_df = prepare_dataframe_for_display(df)
+    
     # Get the radar chart using the same selected games
     _, radar_chart = get_combined_leaderboard_with_single_radar(rank_data, selected_games)
     
     # Reset the leaderboard state to match the default checkbox states
     leaderboard_state = get_initial_state()
     
-    # Always return the DataFrame directly without gr.update()
-    return (df, group_bar_chart, radar_chart, group_bar_chart,
+    # Return exactly 16 values to match the expected outputs
+    return (display_df, group_bar_chart, radar_chart, group_bar_chart,
             True, False,  # mario
             True, False,  # sokoban
             True, False,  # 2048
@@ -748,6 +778,42 @@ def build_app():
             margin: 0 auto;
             padding: 0 20px;
         }
+        
+        /* Enhanced table styling */
+        .table-container {
+            overflow-x: auto;
+            margin-bottom: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .table-container table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        .table-container th {
+            background-color: #f8f9fa;
+            position: sticky;
+            top: 0;
+            padding: 12px;
+            text-align: left;
+            font-weight: bold;
+            border-bottom: 2px solid #e9ecef;
+        }
+        .table-container td {
+            padding: 10px 12px;
+            border-bottom: 1px solid #e9ecef;
+        }
+        .table-container tr:hover {
+            background-color: #f1f3f4;
+        }
+        /* Add a class for numeric columns to right-align them */
+        .table-container .numeric {
+            text-align: right;
+        }
+        /* Add alternating row colors */
+        .table-container tr:nth-child(even) {
+            background-color: #f8fafc;
+        }
     """) as demo:
         gr.Markdown("# 🎮 Game Arena: Gaming Agent 🎲")
         
@@ -818,44 +884,57 @@ def build_app():
                 # Leaderboard table
                 with gr.Row():
                     gr.Markdown("### 📋 Detailed Results")
+
                 with gr.Blocks():
-                    if HAS_ENHANCED_LEADERBOARD:
-                        # Enhanced leaderboard component
-                        leaderboard_df = Leaderboard(
-                            value=get_combined_leaderboard(rank_data, {
-                                "Super Mario Bros": True,
-                                "Sokoban": True,
-                                "2048": True,
-                                "Candy Crash": True,
-                                "Tetris (complete)": True,
-                                "Tetris (planning only)": True
-                            }),
-                            select_columns=SelectColumns(
-                                default_selection=ON_LOAD_COLUMNS,
-                                cant_deselect=["Player", "Organization"],
-                                label="Select Columns to Display:",
-                            ),
-                            search_columns=["Player", "Organization"],
-                            filter_columns=[
-                                ColumnFilter("Organization", type="categorical"),
-                            ],
-                            datatype=TYPES,
-                            column_widths={"Player": "25%", "Organization": "20%"}
+                    # Add leaderboard search box
+                    with gr.Row():
+                        search_box = gr.Textbox(
+                            label="🔍 Search by Player or Organization",
+                            placeholder="Type to filter the table...",
+                            show_label=True
                         )
-                    else:
-                        # Standard DataFrame as fallback
-                        leaderboard_df = gr.DataFrame(
-                            value=get_combined_leaderboard(rank_data, {
-                                "Super Mario Bros": True,
-                                "Sokoban": True,
-                                "2048": True,
-                                "Candy Crash": True,
-                                "Tetris (complete)": True,
-                                "Tetris (planning only)": True
-                            }),
-                            label="Leaderboard",
-                            interactive=False
-                        )
+                    
+                    # Get initial leaderboard dataframe
+                    initial_df = get_combined_leaderboard(rank_data, {
+                        "Super Mario Bros": True,
+                        "Sokoban": True,
+                        "2048": True,
+                        "Candy Crash": True,
+                        "Tetris (complete)": True,
+                        "Tetris (planning only)": True
+                    })
+                    
+                    # Format the DataFrame for display
+                    initial_display_df = prepare_dataframe_for_display(initial_df)
+                    
+                    # Create a standard DataFrame component with enhanced styling
+                    leaderboard_df = gr.DataFrame(
+                        value=initial_display_df,
+                        interactive=True,
+                        elem_id="leaderboard-table",
+                        elem_classes="table-container",
+                        wrap=True,
+                        column_widths={"Player": "25%", "Organization": "20%"}
+                    )
+                    
+                    # Add search functionality
+                    def filter_table(search_term, current_df):
+                        if not search_term:
+                            return current_df
+                        
+                        # Filter the DataFrame by Player or Organization
+                        filtered_df = current_df[
+                            current_df["Player"].str.contains(search_term, case=False) | 
+                            current_df["Organization"].str.contains(search_term, case=False)
+                        ]
+                        return filtered_df
+                    
+                    # Connect search box to the table
+                    search_box.change(
+                        filter_table,
+                        inputs=[search_box, leaderboard_df],
+                        outputs=[leaderboard_df]
+                    )
                 
                 # List of all checkboxes
                 checkbox_list = [
