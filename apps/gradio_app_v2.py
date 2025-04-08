@@ -30,9 +30,7 @@ from data_visualization import (
 )
 from gallery_tab import create_video_gallery
 
-# Try to import enhanced leaderboard, use standard DataFrame if not available
 
-from gradio_leaderboard import Leaderboard, SelectColumns, ColumnFilter
 
 HAS_ENHANCED_LEADERBOARD = True
 
@@ -125,7 +123,7 @@ def prepare_dataframe_for_display(df, for_game=None):
 # Helper function to ensure leaderboard updates maintain consistent height
 def update_df_with_height(df):
     """Update DataFrame with consistent height parameter."""
-    return gr.update(value=df, height=800)
+    return gr.update(value=df)
 
 def update_leaderboard(mario_overall, mario_details,
                        sokoban_overall, sokoban_details,
@@ -497,20 +495,58 @@ def build_app():
         
         /* Enhanced table styling - SIMPLIFIED */
         .table-container {
-            height: 800px !important;
-            max-height: 1000px !important;
-            overflow-y: auto !important;  /* ONLY the outer container gets scrolling */
+            height: auto !important;
+            min-height: auto !important;
+            max-height: none !important;
+            overflow: visible !important;
             border-radius: 8px;
             box-shadow: 0 2px 10px rgba(0,0,0,0.1);
         }
         
-        /* Prevent inner containers from having scrollbars */
+        /* Target the specific table elements */
+        .gradio-dataframe [data-testid="table"],
+        [data-testid="dataframe"] [data-testid="table"] {
+            display: block !important;
+            height: auto !important;
+            max-height: none !important;
+        }
+        
+        /* Target the tbody that contains the rows */
+        .gradio-dataframe tbody,
+        [data-testid="dataframe"] tbody {
+            display: table-row-group !important;
+            max-height: none !important;
+        }
+        
+        /* Remove unnecessary container styles */
         .table-container > div,
         .table-container > div > div,
         .gradio-dataframe > div,
         [data-testid="dataframe"] > div {
             overflow: visible !important;
             height: auto !important;
+            max-height: none !important;
+        }
+        
+        /* Target Gradio's pagination system and disable it */
+        .table-container [data-testid="pagination"],
+        .gradio-container [data-testid="pagination"] {
+            display: none !important;
+        }
+        
+        /* Large screen adjustments */
+        @media screen and (min-height: 1200px) {
+            .table-container {
+                height: auto !important;
+                max-height: none !important;
+                overflow: visible !important;
+            }
+            
+            .gradio-container {
+                height: auto !important;
+                max-height: none !important;
+                overflow: visible !important;
+            }
         }
         
         /* Fix table styling */
@@ -656,9 +692,7 @@ def build_app():
                         interactive=True,
                         elem_id="leaderboard-table",
                         elem_classes="table-container",
-                        wrap=True,
-                        column_widths={"Player": "25%", "Organization": "20%"},
-                        height=800
+                        wrap=True
                     )
                 
                 # Add the score note below the table
