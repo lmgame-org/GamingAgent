@@ -123,7 +123,11 @@ def prepare_dataframe_for_display(df, for_game=None):
 # Helper function to ensure leaderboard updates maintain consistent height
 def update_df_with_height(df):
     """Update DataFrame with consistent height parameter."""
-    return gr.update(value=df)
+    return gr.update(value=df, 
+                     show_row_numbers=True, 
+                     show_fullscreen_button=True,
+                    line_breaks=True,
+                    max_height=700)
 
 def update_leaderboard(mario_overall, mario_details,
                        sokoban_overall, sokoban_details,
@@ -518,6 +522,42 @@ def build_app():
             max-height: none !important;
         }
         
+        /* Responsive height adjustments for different screen sizes */
+        @media screen and (min-height: 600px) {
+            .gradio-dataframe [data-testid="table"],
+            [data-testid="dataframe"] [data-testid="table"] {
+                min-height: 400px !important;
+            }
+        }
+        
+        @media screen and (min-height: 800px) {
+            .gradio-dataframe [data-testid="table"],
+            [data-testid="dataframe"] [data-testid="table"] {
+                min-height: 600px !important;
+            }
+        }
+        
+        @media screen and (min-height: 1000px) {
+            .gradio-dataframe [data-testid="table"],
+            [data-testid="dataframe"] [data-testid="table"] {
+                min-height: 800px !important;
+            }
+        }
+        
+        @media screen and (min-height: 1200px) {
+            .gradio-dataframe [data-testid="table"],
+            [data-testid="dataframe"] [data-testid="table"] {
+                min-height: 950px !important;
+            }
+        }
+        
+        @media screen and (min-height: 1400px) {
+            .gradio-dataframe [data-testid="table"],
+            [data-testid="dataframe"] [data-testid="table"] {
+                min-height: 1100px !important;
+            }
+        }
+        
         /* Remove unnecessary container styles */
         .table-container > div,
         .table-container > div > div,
@@ -692,7 +732,11 @@ def build_app():
                         interactive=True,
                         elem_id="leaderboard-table",
                         elem_classes="table-container",
-                        wrap=True
+                        wrap=True,
+                        show_row_numbers=True,
+                        show_fullscreen_button=True,
+                        line_breaks=True,
+                        max_height=700
                     )
                 
                 # Add the score note below the table
