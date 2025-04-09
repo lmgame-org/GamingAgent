@@ -382,7 +382,7 @@ def create_single_radar_chart(df, selected_games=None, highlight_models=None):
         autosize=False,
         width=1000,
         height=600,
-        margin=dict(l=80, r=400, t=20, b=20),
+        margin=dict(l=400, r=80, t=20, b=20),
         title=dict(
             text="AI Normalized Performance Across Games",
             x=0.5,
@@ -400,7 +400,7 @@ def create_single_radar_chart(df, selected_games=None, highlight_models=None):
                 tickfont=dict(size=12),
                 gridcolor='lightgray',
                 gridwidth=1,
-                angle=45  # Rotate the radial axis by 45 degrees
+                angle=45
             ),
             angularaxis=dict(
                 tickfont=dict(size=14, weight='bold'),
@@ -411,13 +411,20 @@ def create_single_radar_chart(df, selected_games=None, highlight_models=None):
             font=dict(size=12),
             title="Choose your model: ",
             itemsizing='trace',
-            x=1.2,
+            x=-1.2,
             y=0.8,
             xanchor='left',
             yanchor='top',
             bgcolor='rgba(255,255,255,0.6)',
             bordercolor='gray',
             borderwidth=1
+        )
+    )
+
+    fig.update_layout(
+        legend=dict(
+            itemclick="toggleothers",  # This will make clicked item the only visible one
+            itemdoubleclick="toggle"   # Double click toggles visibility
         )
     )
 
