@@ -358,7 +358,7 @@ def create_single_radar_chart(df, selected_games=None, highlight_models=None):
             theta=categories + [categories[0]],
             mode='lines+markers',
             fill='toself',
-            name=simplify_model_name(row["Player"]),
+            name=row["Player"],
             line=dict(color=color, width=4 if is_highlighted else 2),
             marker=dict(color=color),
             fillcolor=fillcolor,
@@ -367,19 +367,26 @@ def create_single_radar_chart(df, selected_games=None, highlight_models=None):
 
     fig.update_layout(
         autosize=False,
-        width=800,
-        height=600,
-        margin=dict(l=80, r=150, t=40, b=100),
+        width=850,
+        height=650,
+        margin=dict(l=100, r=100, t=20, b=30),
         title=dict(
-            text="Single Radar Chart (Normalized Performance)",
-            pad=dict(t=10)
+            text="Radar Chart (Normalized Performance)",
+            x=0.5,              # Center the title
+            xanchor='center',
+            yanchor='top',
+            y=0.95,             # Slightly above the top of the plot
+            font=dict(size=20), # Optional: Increase font size
+            pad=dict(b=10)      # Add some space below the title
         ),
+
         polar=dict(radialaxis=dict(visible=True, range=[0, 100])),
         legend=dict(
-            font=dict(size=9),
+            font=dict(size=10),
+            title="Choose your model: ",
             itemsizing='trace',
-            x=1.4,
-            y=1,
+            x=-0.9,
+            y=0.8,
             xanchor='left',
             yanchor='top',
             bgcolor='rgba(255,255,255,0.6)',
