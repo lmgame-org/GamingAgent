@@ -317,19 +317,13 @@ def create_single_radar_chart(df, selected_games=None, highlight_models=None):
     if selected_games is None:
         selected_games = ['Super Mario Bros', '2048', 'Candy Crash', 'Sokoban']
 
-    # Format game names with line breaks
+    # Format game names
     formatted_games = []
     for game in selected_games:
         if game == 'Super Mario Bros':
-            formatted_games.append('Super<br>Mario')
-        elif game == 'Candy Crash':
-            formatted_games.append('Candy<br>Crash')
-        elif game == 'Tetris (complete)':
-            formatted_games.append('Tetris<br>(complete)')
-        elif game == 'Tetris (planning only)':
-            formatted_games.append('Tetris<br>(planning)')
+            formatted_games.append('Super Mario')  # Simplified name
         else:
-            formatted_games.append(game)
+            formatted_games.append(game)  # Keep other names as is
 
     game_cols = [f"{game} Score" for game in selected_games]
     categories = formatted_games
@@ -382,7 +376,7 @@ def create_single_radar_chart(df, selected_games=None, highlight_models=None):
         autosize=False,
         width=1000,
         height=600,
-        margin=dict(l=400, r=80, t=20, b=20),
+        margin=dict(l=400, r=200, t=20, b=20),
         title=dict(
             text="AI Normalized Performance Across Games",
             x=0.5,
