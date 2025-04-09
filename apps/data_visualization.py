@@ -46,7 +46,7 @@ def normalize_values(values, mean, std):
         return [50 if v > 0 else 0 for v in values]  # Handle zero std case
     z_scores = [(v - mean) / std for v in values]
     # Scale z-scores to 0-100 range, with mean at 50
-    scaled_values = [max(0, min(100, (z * 30) + 50)) for z in z_scores]
+    scaled_values = [max(0, min(100, (z * 30) + 35)) for z in z_scores]
     return scaled_values
 def simplify_model_name(name):
     if name == "claude-3-7-sonnet-20250219(thinking)":
@@ -55,8 +55,6 @@ def simplify_model_name(name):
     return '-'.join(parts[:4]) + '-...' if len(parts) > 4 else name
 
 def create_horizontal_bar_chart(df, game_name):
-
-
     if game_name == "Super Mario Bros":
         score_col = "Score"
         df_sorted = df.sort_values(by=score_col, ascending=True)
@@ -86,10 +84,8 @@ def create_horizontal_bar_chart(df, game_name):
     else:
         return None
 
-
-
     x = df_sorted[score_col]
-    y = [f"{simplify_model_name(row['Player'])} [{row['Organization']}]" for _, row in df_sorted.iterrows()]
+    y = [f"{row['Player']} [{row['Organization']}]" for _, row in df_sorted.iterrows()]
     colors = [MODEL_COLORS.get(row['Player'], '#808080') for _, row in df_sorted.iterrows()]
     texts = [f"{v:.1f}" if game_name == "Candy Crash" else f"{int(v)}" for v in x]
 
@@ -105,16 +101,17 @@ def create_horizontal_bar_chart(df, game_name):
 
     fig.update_layout(
         autosize=False,
-        width=800,
+        width=1000,
         height=600,
-        margin=dict(l=150, r=150, t=40, b=200),
+        margin=dict(l=200, r=200, t=20, b=20),
         title=dict(
             text=f"{game_name} Performance",
-            pad=dict(t=10)
+            pad=dict(t=10),
+            font=dict(size=20)
         ),
         yaxis=dict(automargin=True),
         legend=dict(
-            font=dict(size=9),
+            font=dict(size=12),
             itemsizing='trace',
             x=1.1,
             y=1,
@@ -132,7 +129,7 @@ def create_radar_charts(df):
     categories = [c.replace(" Score", "") for c in game_cols]
 
     for col in game_cols:
-        vals = df[col].replace("_", 0).astype(float)
+        vals = df[col].replace("n/a", 0).astype(float)
         mean, std = vals.mean(), vals.std()
         df[f"norm_{col}"] = normalize_values(vals, mean, std)
 
@@ -159,7 +156,7 @@ def create_radar_charts(df):
         autosize=False,
         width=800,
         height=600,
-        margin=dict(l=80, r=150, t=40, b=100),
+        margin=dict(l=80, r=150, t=20, b=20),
         title=dict(
             text="Radar Chart of AI Performance (Normalized)",
             pad=dict(t=10)
@@ -190,7 +187,8 @@ def create_group_bar_chart(df):
     for game in GAME_ORDER:
         col = f"{game} Score"
         if col in df.columns:
-            df[col] = df[col].replace("_", np.nan).astype(float)
+            # Replace "n/a" with np.nan and handle downcasting properly
+            df[col] = df[col].replace("n/a", np.nan).infer_objects(copy=False).astype(float)
             if df[col].notna().any():
                 game_cols[game] = col
 
@@ -260,7 +258,7 @@ def create_group_bar_chart(df):
             continue
             
         fig.add_trace(go.Bar(
-            name=simplify_model_name(player),
+            name=row["Player"],
             x=[game_display_map[game] for game in sorted_games],
             y=y_vals,
             marker_color=MODEL_COLORS.get(player, '#808080'),
@@ -270,8 +268,8 @@ def create_group_bar_chart(df):
     fig.update_layout(
         autosize=False,
         width=1000,
-        height=600,
-        margin=dict(l=80, r=150, t=40, b=200),
+        height=800,
+        margin=dict(l=200, r=200, t=20, b=20),
         title=dict(text="Grouped Bar Chart of AI Models (Consistent Trace Grouping)", pad=dict(t=10)),
         xaxis_title="Games",
         yaxis_title="Normalized Score",
@@ -285,7 +283,7 @@ def create_group_bar_chart(df):
         bargroupgap=0.05,  # Gap between bars in a group
         uniformtext=dict(mode='hide', minsize=8),  # Hide text that doesn't fit
         legend=dict(
-            font=dict(size=9),
+            font=dict(size=12),
             itemsizing='trace',
             x=1.1,
             y=1,
@@ -319,12 +317,26 @@ def create_single_radar_chart(df, selected_games=None, highlight_models=None):
     if selected_games is None:
         selected_games = ['Super Mario Bros', '2048', 'Candy Crash', 'Sokoban']
 
+    # Format game names with line breaks
+    formatted_games = []
+    for game in selected_games:
+        if game == 'Super Mario Bros':
+            formatted_games.append('Super<br>Mario')
+        elif game == 'Candy Crash':
+            formatted_games.append('Candy<br>Crash')
+        elif game == 'Tetris (complete)':
+            formatted_games.append('Tetris<br>(complete)')
+        elif game == 'Tetris (planning only)':
+            formatted_games.append('Tetris<br>(planning)')
+        else:
+            formatted_games.append(game)
+
     game_cols = [f"{game} Score" for game in selected_games]
-    categories = selected_games
-    
+    categories = formatted_games
+
     # Normalize
     for col in game_cols:
-        vals = df[col].replace("_", 0).astype(float)
+        vals = df[col].replace("n/a", 0).infer_objects(copy=False).astype(float)
         mean, std = vals.mean(), vals.std()
         df[f"norm_{col}"] = normalize_values(vals, mean, std)
 
@@ -358,34 +370,48 @@ def create_single_radar_chart(df, selected_games=None, highlight_models=None):
             theta=categories + [categories[0]],
             mode='lines+markers',
             fill='toself',
-            name=row["Player"],
+            name=player,
             line=dict(color=color, width=4 if is_highlighted else 2),
             marker=dict(color=color),
             fillcolor=fillcolor,
-            opacity=1.0 if is_highlighted else 0.7
+            opacity=1.0 if is_highlighted else 0.7,
+            hovertemplate='<b>%{fullData.name}</b><br>Game: %{theta}<br>Score: %{r:.1f}<extra></extra>'
         ))
 
     fig.update_layout(
         autosize=False,
-        width=850,
-        height=650,
-        margin=dict(l=100, r=100, t=20, b=30),
+        width=1000,
+        height=600,
+        margin=dict(l=80, r=400, t=20, b=20),
         title=dict(
-            text="Radar Chart (Normalized Performance)",
-            x=0.5,              # Center the title
+            text="AI Normalized Performance Across Games",
+            x=0.5,
             xanchor='center',
             yanchor='top',
-            y=0.95,             # Slightly above the top of the plot
-            font=dict(size=20), # Optional: Increase font size
-            pad=dict(b=10)      # Add some space below the title
+            y=0.95,
+            font=dict(size=20),
+            pad=dict(b=20)
         ),
-
-        polar=dict(radialaxis=dict(visible=True, range=[0, 100])),
+        polar=dict(
+            radialaxis=dict(
+                visible=True, 
+                range=[0, 100],
+                tickangle=45,
+                tickfont=dict(size=12),
+                gridcolor='lightgray',
+                gridwidth=1,
+                angle=45  # Rotate the radial axis by 45 degrees
+            ),
+            angularaxis=dict(
+                tickfont=dict(size=14, weight='bold'),
+                tickangle=0
+            )
+        ),
         legend=dict(
-            font=dict(size=10),
+            font=dict(size=12),
             title="Choose your model: ",
             itemsizing='trace',
-            x=-0.9,
+            x=1.2,
             y=0.8,
             xanchor='left',
             yanchor='top',
@@ -412,7 +438,7 @@ def create_organization_radar_chart(rank_data):
 
     avg_df = pd.DataFrame([
         {
-            **{col: df[df["Organization"] == org][col].replace("_", 0).astype(float).mean() for col in game_cols},
+            **{col: df[df["Organization"] == org][col].replace("n/a", 0).infer_objects(copy=False).astype(float).mean() for col in game_cols},
             "Organization": org
         }
         for org in orgs
@@ -438,7 +464,7 @@ def create_organization_radar_chart(rank_data):
         autosize=False,
         width=800,
         height=600,
-        margin=dict(l=80, r=150, t=40, b=200),
+        margin=dict(l=80, r=150, t=20, b=20),
         title=dict(
             text="Radar Chart: Organization Performance (Normalized)",
             pad=dict(t=10)
@@ -467,7 +493,8 @@ def create_top_players_radar_chart(rank_data, n=5):
     categories = [g.replace(" Score", "") for g in game_cols]
 
     for col in game_cols:
-        vals = top_df[col].replace("_", 0).astype(float)
+        # Replace "n/a" with 0 and handle downcasting properly
+        vals = top_df[col].replace("n/a", 0).infer_objects(copy=False).astype(float)
         mean, std = vals.mean(), vals.std()
         top_df[f"norm_{col}"] = normalize_values(vals, mean, std)
 
@@ -479,14 +506,14 @@ def create_top_players_radar_chart(rank_data, n=5):
             theta=categories + [categories[0]],
             mode='lines+markers',
             fill='toself',
-            name=simplify_model_name(row["Player"])
+            name=row["Player"]
         ))
 
     fig.update_layout(
         autosize=False,
         width=800,
         height=600,
-        margin=dict(l=80, r=150, t=40, b=200),
+        margin=dict(l=80, r=150, t=20, b=20),
         title=dict(
             text=f"Top {n} Players Radar Chart (Normalized)",
             pad=dict(t=10)
@@ -522,8 +549,9 @@ def create_player_radar_chart(rank_data, player_name):
     categories = [g.replace(" Score", "") for g in game_cols]
 
     for col in game_cols:
-        vals = player_df[col].replace("_", 0).astype(float)
-        mean, std = df[col].replace("_", 0).astype(float).mean(), df[col].replace("_", 0).astype(float).std()
+        # Replace "n/a" with 0 and handle downcasting properly
+        vals = player_df[col].replace("n/a", 0).infer_objects(copy=False).astype(float)
+        mean, std = df[col].replace("n/a", 0).infer_objects(copy=False).astype(float).mean(), df[col].replace("n/a", 0).infer_objects(copy=False).astype(float).std()
         player_df[f"norm_{col}"] = normalize_values(vals, mean, std)
 
     fig = go.Figure()
@@ -534,16 +562,16 @@ def create_player_radar_chart(rank_data, player_name):
             theta=categories + [categories[0]],
             mode='lines+markers',
             fill='toself',
-            name=simplify_model_name(row["Player"])
+            name=row["Player"]
         ))
 
     fig.update_layout(
         autosize=False,
         width=800,
         height=600,
-        margin=dict(l=80, r=150, t=40, b=200),
+        margin=dict(l=80, r=150, t=20, b=20),
         title=dict(
-            text=f"{simplify_model_name(player_name)} Radar Chart (Normalized)",
+            text=f"{row['Player']} Radar Chart (Normalized)",
             pad=dict(t=10)
         ),
         polar=dict(radialaxis=dict(visible=True, range=[0, 100])),

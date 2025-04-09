@@ -86,7 +86,7 @@ def load_rank_data(time_point):
 
 # Add a note about score values
 def add_score_note():
-    return gr.Markdown("*Note: '-1' in the table indicates no data point for that model.*", elem_classes="score-note")
+    return gr.Markdown("*Note: 'n/a' in the table indicates no data point for that model.*", elem_classes="score-note")
 
 # Function to prepare DataFrame for display
 def prepare_dataframe_for_display(df, for_game=None):
