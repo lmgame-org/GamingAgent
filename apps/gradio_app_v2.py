@@ -633,32 +633,38 @@ def build_app():
         .table-container th {
             position: sticky !important;
             top: 0 !important;
-            background-color: #f8f9fa !important;
+            background-color: var(--header-bg, #f8f9fa) !important;
             z-index: 10 !important;
             font-weight: bold;
             padding: 16px 10px !important;
-            border-bottom: 2px solid #e9ecef;
+            border-bottom: 2px solid var(--border-color, #e9ecef);
             white-space: pre-wrap !important;
             word-wrap: break-word !important;
             line-height: 1.2 !important;
             height: auto !important;
             min-height: 60px !important;
             vertical-align: middle !important;
+            color: var(--header-text, #2c3e50) !important;
+        }
+        
+        /* Dark mode specific styles */
+        .dark .table-container th {
+            --header-bg: #2d3748;
+            --header-text: #e2e8f0;
+            --border-color: #4a5568;
+        }
+        
+        /* Light mode specific styles */
+        .light .table-container th {
+            --header-bg: #f8f9fa;
+            --header-text: #2c3e50;
+            --border-color: #e9ecef;
         }
         
         /* Simple cell styling */
         .table-container td {
             padding: 8px 8px;
-            border-bottom: 1px solid #e9ecef;
-        }
-        
-        /* Visual enhancements */
-        .table-container tr:hover {
-            background-color: #f1f3f4;
-        }
-        
-        .table-container tr:nth-child(even) {
-            background-color: #f8fafc;
+            border-bottom: 1px solid var(--border-color, #e9ecef);
         }
         
         /* Row number column styling */

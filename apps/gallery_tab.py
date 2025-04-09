@@ -98,7 +98,7 @@ def create_video_gallery():
                 margin-bottom: 40px;
             }}
             .video-card {{
-                background: #ffffff;
+                background: var(--card-bg, #ffffff);
                 border-radius: 10px;
                 box-shadow: 0 2px 10px rgba(0,0,0,0.1);
                 overflow: hidden;
@@ -125,10 +125,10 @@ def create_video_gallery():
                 padding: 15px;
                 font-size: 1.2em;
                 font-weight: bold;
-                color: #2c3e50;
+                color: var(--title-text, #2c3e50);
                 text-align: center;
-                background: #f8f9fa;
-                border-top: 1px solid #eee;
+                background: var(--title-bg, #f8f9fa);
+                border-top: 1px solid var(--border-color, #eee);
             }}
             .news-section {{
                 margin-top: 40px;
@@ -187,6 +187,22 @@ def create_video_gallery():
             .twitter-icon {{
                 font-size: 1.5em;
                 color: #1da1f2;
+            }}
+
+            /* Dark mode specific styles */
+            .dark .video-card {{
+                --card-bg: #2d3748;
+                --title-bg: #1a202c;
+                --title-text: #e2e8f0;
+                --border-color: #4a5568;
+            }}
+
+            /* Light mode specific styles */
+            .light .video-card {{
+                --card-bg: #ffffff;
+                --title-bg: #f8f9fa;
+                --title-text: #2c3e50;
+                --border-color: #eee;
             }}
         </style>
         
