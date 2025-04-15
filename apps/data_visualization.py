@@ -24,7 +24,8 @@ GAME_SCORE_COLUMNS = {
     "2048": "Score",
     "Candy Crash": "Average Score",
     "Tetris (complete)": "Score",
-    "Tetris (planning only)": "Score"
+    "Tetris (planning only)": "Score",
+    "Ace Attorney": "Score"
 }
 def get_model_prefix(name):
     return name.split('-')[0]
@@ -79,6 +80,9 @@ def create_horizontal_bar_chart(df, game_name):
         score_col = "Average Score"
         df_sorted = df.sort_values(by=score_col, ascending=True)
     elif game_name in ["Tetris (complete)", "Tetris (planning only)"]:
+        score_col = "Score"
+        df_sorted = df.sort_values(by=score_col, ascending=True)
+    elif game_name == "Ace Attorney":
         score_col = "Score"
         df_sorted = df.sort_values(by=score_col, ascending=True)
     else:
@@ -315,7 +319,7 @@ def hex_to_rgba(hex_color, alpha=0.2):
 
 def create_single_radar_chart(df, selected_games=None, highlight_models=None):
     if selected_games is None:
-        selected_games = ['Super Mario Bros', '2048', 'Candy Crash', 'Sokoban']
+        selected_games = ['Super Mario Bros', '2048', 'Candy Crash', 'Sokoban', 'Ace Attorney']
 
     # Format game names
     formatted_games = []

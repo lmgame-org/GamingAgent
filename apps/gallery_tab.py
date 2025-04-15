@@ -16,7 +16,8 @@ def create_video_gallery():
     sokoban_id = VIDEO_LINKS["sokoban"].split("?v=")[1]
     game_2048_id = VIDEO_LINKS["2048"].split("?v=")[1]
     candy_id = VIDEO_LINKS["candy"].split("?v=")[1]
-    
+    ace_attorney_id = VIDEO_LINKS["ace_attorney"].split("?v=")[1]
+
     # Get the latest video from news data
     latest_news = NEWS_DATA["news"][0]  # First item is the latest
     latest_video_id = latest_news["video_link"].split("?v=")[1]
@@ -252,6 +253,12 @@ def create_video_gallery():
                     <iframe src="https://www.youtube.com/embed/{candy_id}"></iframe>
                 </div>
                 <div class="video-title">🍬 Candy Crash</div>
+            </div>
+            <div class="video-card">
+                <div class="video-wrapper">
+                    <iframe src="https://www.youtube.com/embed/{ace_attorney_id}"></iframe>
+                </div>
+                <div class="video-title">⚖️ Ace Attorney</div>
             </div>
         </div>
         

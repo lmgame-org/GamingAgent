@@ -9,7 +9,8 @@ GAME_ORDER = [
     "2048",
     "Candy Crash",
     "Tetris (complete)",
-    "Tetris (planning only)"
+    "Tetris (planning only)",
+    "Ace Attorney"
 ]
 
 def get_organization(model_name):
@@ -102,6 +103,21 @@ def get_tetris_planning_leaderboard(rank_data):
     df = df[["Player", "Organization", "Score", "Steps"]]
     return df
 
+def get_ace_attorney_leaderboard(rank_data):
+    data = rank_data.get("Ace Attorney", {}).get("results", [])
+    df = pd.DataFrame(data)
+    df = df.rename(columns={
+        "model": "Player",
+        "levels_cracked": "Levels Cracked",
+        "lives_left": "Lives Left",
+        "cracked_details": "Progress",
+        "score": "Score",
+        "note": "Notes"
+    })
+    df["Organization"] = df["Player"].apply(get_organization)
+    df = df[["Player", "Organization", "Levels Cracked", "Lives Left", "Progress", "Score", "Notes"]]
+    return df
+
 def calculate_rank_and_completeness(rank_data, selected_games):
     # Dictionary to store DataFrames for each game
     game_dfs = {}
@@ -119,6 +135,8 @@ def calculate_rank_and_completeness(rank_data, selected_games):
         game_dfs["Tetris (complete)"] = get_tetris_leaderboard(rank_data)
     if selected_games.get("Tetris (planning only)"):
         game_dfs["Tetris (planning only)"] = get_tetris_planning_leaderboard(rank_data)
+    if selected_games.get("Ace Attorney"):
+        game_dfs["Ace Attorney"] = get_ace_attorney_leaderboard(rank_data)
 
     # Get all unique players
     all_players = set()
@@ -165,10 +183,10 @@ def calculate_rank_and_completeness(rank_data, selected_games):
                     elif game == "Candy Crash":
                         player_score = df[df["Player"] == player]["Average Score"].iloc[0]
                         rank = len(df[df["Average Score"] > player_score]) + 1
-                    elif game == "Tetris (complete)":
+                    elif game in ["Tetris (complete)", "Tetris (planning only)"]:
                         player_score = df[df["Player"] == player]["Score"].iloc[0]
                         rank = len(df[df["Score"] > player_score]) + 1
-                    elif game == "Tetris (planning only)":
+                    elif game == "Ace Attorney":
                         player_score = df[df["Player"] == player]["Score"].iloc[0]
                         rank = len(df[df["Score"] > player_score]) + 1
 
@@ -227,6 +245,8 @@ def get_combined_leaderboard(rank_data, selected_games):
         game_dfs["Tetris (complete)"] = get_tetris_leaderboard(rank_data)
     if selected_games.get("Tetris (planning only)"):
         game_dfs["Tetris (planning only)"] = get_tetris_planning_leaderboard(rank_data)
+    if selected_games.get("Ace Attorney"):
+        game_dfs["Ace Attorney"] = get_ace_attorney_leaderboard(rank_data)
 
     # Get all unique players
     all_players = set()
@@ -262,6 +282,8 @@ def get_combined_leaderboard(rank_data, selected_games):
                     elif game == "Candy Crash":
                         player_data[f"{game} Score"] = df[df["Player"] == player]["Average Score"].iloc[0]
                     elif game in ["Tetris (complete)", "Tetris (planning only)"]:
+                        player_data[f"{game} Score"] = df[df["Player"] == player]["Score"].iloc[0]
+                    elif game == "Ace Attorney":
                         player_data[f"{game} Score"] = df[df["Player"] == player]["Score"].iloc[0]
                 else:
                     player_data[f"{game} Score"] = 'n/a'

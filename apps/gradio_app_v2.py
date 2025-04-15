@@ -16,6 +16,7 @@ from leaderboard_utils import (
     get_candy_leaderboard,
     get_tetris_leaderboard,
     get_tetris_planning_leaderboard,
+    get_ace_attorney_leaderboard,
     get_combined_leaderboard,
     GAME_ORDER
 )
@@ -54,7 +55,8 @@ leaderboard_state = {
         "2048": True,
         "Candy Crash": True,
         "Tetris (complete)": True,
-        "Tetris (planning only)": True
+        "Tetris (planning only)": True,
+        "Ace Attorney": True
     },
     "previous_details": {
         "Super Mario Bros": False,
@@ -62,7 +64,8 @@ leaderboard_state = {
         "2048": False,
         "Candy Crash": False,
         "Tetris (complete)": False,
-        "Tetris (planning only)": False
+        "Tetris (planning only)": False,
+        "Ace Attorney": False
     }
 }
 
@@ -160,7 +163,8 @@ def update_leaderboard(mario_overall, mario_details,
                        _2048_overall, _2048_details,
                        candy_overall, candy_details,
                        tetris_overall, tetris_details,
-                       tetris_plan_overall, tetris_plan_details):
+                       tetris_plan_overall, tetris_plan_details,
+                       ace_attorney_overall, ace_attorney_details):
     global leaderboard_state
     
     # Convert current checkbox states to dictionary for easier comparison
@@ -170,7 +174,8 @@ def update_leaderboard(mario_overall, mario_details,
         "2048": _2048_overall,
         "Candy Crash": candy_overall,
         "Tetris (complete)": tetris_overall,
-        "Tetris (planning only)": tetris_plan_overall
+        "Tetris (planning only)": tetris_plan_overall,
+        "Ace Attorney": ace_attorney_overall
     }
     
     current_details = {
@@ -179,7 +184,8 @@ def update_leaderboard(mario_overall, mario_details,
         "2048": _2048_details,
         "Candy Crash": candy_details,
         "Tetris (complete)": tetris_details,
-        "Tetris (planning only)": tetris_plan_details
+        "Tetris (planning only)": tetris_plan_details,
+        "Ace Attorney": ace_attorney_details
     }
     
     # Find which game's state changed
@@ -235,12 +241,11 @@ def update_leaderboard(mario_overall, mario_details,
             leaderboard_state["previous_details"][changed_game] = False
             if leaderboard_state["current_game"] == changed_game:
                 leaderboard_state["current_game"] = None
-                # When exiting details view, reset to show all games
-                for game in current_overall.keys():
-                    current_overall[game] = True
-                    current_details[game] = False
-                    leaderboard_state["previous_overall"][game] = True
-                    leaderboard_state["previous_details"][game] = False
+                # When exiting details view, only reset the current game's state
+                current_overall[changed_game] = True
+                current_details[changed_game] = False
+                leaderboard_state["previous_overall"][changed_game] = True
+                leaderboard_state["previous_details"][changed_game] = False
     
     # Special case: If all games are selected and we're trying to view details
     all_games_selected = all(current_overall.values()) and not any(current_details.values())
@@ -266,7 +271,8 @@ def update_leaderboard(mario_overall, mario_details,
         "2048": current_overall["2048"],
         "Candy Crash": current_overall["Candy Crash"],
         "Tetris (complete)": current_overall["Tetris (complete)"],
-        "Tetris (planning only)": current_overall["Tetris (planning only)"]
+        "Tetris (planning only)": current_overall["Tetris (planning only)"],
+        "Ace Attorney": current_overall["Ace Attorney"]
     }
     
     # Get the appropriate DataFrame and charts based on current state
@@ -282,8 +288,10 @@ def update_leaderboard(mario_overall, mario_details,
             df = get_candy_leaderboard(rank_data)
         elif leaderboard_state["current_game"] == "Tetris (complete)":
             df = get_tetris_leaderboard(rank_data)
-        else:  # Tetris (planning only)
+        elif leaderboard_state["current_game"] == "Tetris (planning only)":
             df = get_tetris_planning_leaderboard(rank_data)
+        elif leaderboard_state["current_game"] == "Ace Attorney":
+            df = get_ace_attorney_leaderboard(rank_data)
         
         # Format the DataFrame for display
         display_df = prepare_dataframe_for_display(df, leaderboard_state["current_game"])
@@ -303,21 +311,23 @@ def update_leaderboard(mario_overall, mario_details,
         chart = radar_chart
         group_bar_chart = radar_chart  # Use radar chart instead of bar chart
     
-    # Return exactly 16 values to match the expected outputs
+    # Return exactly 18 values to match the expected outputs
     return (update_df_with_height(display_df), chart, radar_chart, radar_chart,
             current_overall["Super Mario Bros"], current_details["Super Mario Bros"],
             current_overall["Sokoban"], current_details["Sokoban"],
             current_overall["2048"], current_details["2048"],
             current_overall["Candy Crash"], current_details["Candy Crash"],
             current_overall["Tetris (complete)"], current_details["Tetris (complete)"],
-            current_overall["Tetris (planning only)"], current_details["Tetris (planning only)"])
+            current_overall["Tetris (planning only)"], current_details["Tetris (planning only)"],
+            current_overall["Ace Attorney"], current_details["Ace Attorney"])
 
 def update_leaderboard_with_time(time_point, mario_overall, mario_details,
                                sokoban_overall, sokoban_details,
                                _2048_overall, _2048_details,
                                candy_overall, candy_details,
                                tetris_overall, tetris_details,
-                               tetris_plan_overall, tetris_plan_details):
+                               tetris_plan_overall, tetris_plan_details,
+                               ace_attorney_overall, ace_attorney_details):
     # Load rank data for the selected time point
     global rank_data
     new_rank_data = load_rank_data(time_point)
@@ -330,7 +340,8 @@ def update_leaderboard_with_time(time_point, mario_overall, mario_details,
                             _2048_overall, _2048_details,
                             candy_overall, candy_details,
                             tetris_overall, tetris_details,
-                            tetris_plan_overall, tetris_plan_details)
+                            tetris_plan_overall, tetris_plan_details,
+                            ace_attorney_overall, ace_attorney_details)
 
 def get_initial_state():
     """Get the initial state for the leaderboard"""
@@ -342,7 +353,8 @@ def get_initial_state():
             "2048": True,
             "Candy Crash": True,
             "Tetris (complete)": True,
-            "Tetris (planning only)": True
+            "Tetris (planning only)": True,
+            "Ace Attorney": True
         },
         "previous_details": {
             "Super Mario Bros": False,
@@ -350,7 +362,8 @@ def get_initial_state():
             "2048": False,
             "Candy Crash": False,
             "Tetris (complete)": False,
-            "Tetris (planning only)": False
+            "Tetris (planning only)": False,
+            "Ace Attorney": False
         }
     }
 
@@ -364,7 +377,8 @@ def clear_filters():
         "2048": True,
         "Candy Crash": True,
         "Tetris (complete)": True,
-        "Tetris (planning only)": True
+        "Tetris (planning only)": True,
+        "Ace Attorney": True
     }
     
     # Get the combined leaderboard and group bar chart
@@ -386,7 +400,8 @@ def clear_filters():
             True, False,  # 2048
             True, False,  # candy
             True, False,  # tetris
-            True, False)  # tetris plan
+            True, False,  # tetris plan
+            True, False)  # ace attorney
 
 def create_timeline_slider():
     """Create a custom timeline slider component"""
@@ -874,6 +889,10 @@ def build_app():
                         gr.Markdown("**📋 Tetris (planning)**")
                         tetris_plan_overall = gr.Checkbox(label="Tetris (planning) Score", value=True)
                         tetris_plan_details = gr.Checkbox(label="Tetris (planning) Details", value=False)
+                    with gr.Column():
+                        gr.Markdown("**⚖️ Ace Attorney**")
+                        ace_attorney_overall = gr.Checkbox(label="Ace Attorney Score", value=True)
+                        ace_attorney_details = gr.Checkbox(label="Ace Attorney Details", value=False)
                 
                 # Controls
                 with gr.Row():
@@ -899,7 +918,8 @@ def build_app():
                     "2048": True,
                     "Candy Crash": True,
                     "Tetris (complete)": True,
-                    "Tetris (planning only)": True
+                    "Tetris (planning only)": True,
+                    "Ace Attorney": True
                 })
                 
                 # Format the DataFrame for display
@@ -940,7 +960,8 @@ def build_app():
                     _2048_overall, _2048_details,
                     candy_overall, candy_details,
                     tetris_overall, tetris_details,
-                    tetris_plan_overall, tetris_plan_details
+                    tetris_plan_overall, tetris_plan_details,
+                    ace_attorney_overall, ace_attorney_details
                 ]
                 
                 # Update visualizations when checkboxes change
@@ -948,7 +969,8 @@ def build_app():
                     # Check if any details checkbox is selected
                     is_details_view = any([
                         checkbox_states[1], checkbox_states[3], checkbox_states[5],
-                        checkbox_states[7], checkbox_states[9], checkbox_states[11]
+                        checkbox_states[7], checkbox_states[9], checkbox_states[11],
+                        checkbox_states[13]  # Ace Attorney details checkbox
                     ])
                     
                     # Update visibility of visualization blocks

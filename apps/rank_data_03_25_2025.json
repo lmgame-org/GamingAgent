@@ -320,5 +320,82 @@
                 "rank": 11
             }
         ]
+    },
+    "Ace Attorney": {
+        "runs": 2,
+        "results": [
+            {
+                "model": "o1-2024-12-17",
+                "levels_cracked": "3; 3",
+                "lives_left": "[5, 3, 3, 0],[4, 5, 3, 0]",
+                "cracked_details": "4: 7/8",
+                "rank": 1,
+                "score": 26,
+                "note": "stuck at the end not present evidence"
+            },
+            {
+                "model": "gemini-2.5-pro-exp-03-25",
+                "levels_cracked": "2; 3",
+                "lives_left": "[5,5,0]; [5, 5, 4, 0]",
+                "cracked_details": "4: 0/8",
+                "rank": 2,
+                "score": 20,
+                "note": "failed to present evidence"
+            },
+            {
+                "model": "claude-3-7-sonnet-20250219(thinking)",
+                "levels_cracked": "1; 1",
+                "lives_left": "[3,0]; [5,0]",
+                "cracked_details": "2: 3/9",
+                "rank": 3,
+                "score": 8,
+                "note": "failed to present evidence"
+            },
+            {
+                "model": "claude-3-5-sonnet-20241022",
+                "levels_cracked": "1",
+                "lives_left": "5, 5",
+                "cracked_details": "1:1/8",
+                "rank": 4,
+                "score": 6,
+                "note": "stuck in loop"
+            },
+            {
+                "model": "gpt-4.1-2025-04-14",
+                "levels_cracked": "1",
+                "lives_left": "[4,5]",
+                "cracked_details": "1: 1/8",
+                "rank": 5,
+                "score": 6,
+                "note": "stuck in loop"
+            },
+            {
+                "model": "gemini-2.0-flash-thinking-exp-1219",
+                "levels_cracked": "0",
+                "lives_left": "0",
+                "cracked_details": "1: 4/5",
+                "rank": 6,
+                "score": 4,
+                "note": "stuck in the last option section"
+            },
+            {
+                "model": "deepseek-r1",
+                "levels_cracked": "0",
+                "lives_left": "0",
+                "cracked_details": "1: 4/5",
+                "rank": 7,
+                "score": 4,
+                "note": "stuck in the 3rd evidence present"
+            },
+            {
+                "model": "Llama-4-Maverick-17B-128E-Instruct-FP8",
+                "levels_cracked": "0",
+                "lives_left": "0",
+                "cracked_details": "0:0/5",
+                "rank": 8,
+                "score": 0,
+                "note": "failed to present evidence"
+            }
+        ]
     }
 }
