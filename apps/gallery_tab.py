@@ -252,7 +252,7 @@ def create_video_gallery():
                 <div class="video-wrapper">
                     <iframe src="https://www.youtube.com/embed/{candy_id}"></iframe>
                 </div>
-                <div class="video-title">🍬 Candy Crash</div>
+                <div class="video-title">🍬 Candy Crush</div>
             </div>
             <div class="video-card">
                 <div class="video-wrapper">

@@ -53,7 +53,7 @@ leaderboard_state = {
         "Super Mario Bros": True,
         "Sokoban": True,
         "2048": True,
-        "Candy Crash": True,
+        "Candy Crush": True,
         "Tetris (complete)": True,
         "Tetris (planning only)": True,
         "Ace Attorney": True
@@ -62,7 +62,7 @@ leaderboard_state = {
         "Super Mario Bros": False,
         "Sokoban": False,
         "2048": False,
-        "Candy Crash": False,
+        "Candy Crush": False,
         "Tetris (complete)": False,
         "Tetris (planning only)": False,
         "Ace Attorney": False
@@ -172,7 +172,7 @@ def update_leaderboard(mario_overall, mario_details,
         "Super Mario Bros": mario_overall,
         "Sokoban": sokoban_overall,
         "2048": _2048_overall,
-        "Candy Crash": candy_overall,
+        "Candy Crush": candy_overall,
         "Tetris (complete)": tetris_overall,
         "Tetris (planning only)": tetris_plan_overall,
         "Ace Attorney": ace_attorney_overall
@@ -182,7 +182,7 @@ def update_leaderboard(mario_overall, mario_details,
         "Super Mario Bros": mario_details,
         "Sokoban": sokoban_details,
         "2048": _2048_details,
-        "Candy Crash": candy_details,
+        "Candy Crush": candy_details,
         "Tetris (complete)": tetris_details,
         "Tetris (planning only)": tetris_plan_details,
         "Ace Attorney": ace_attorney_details
@@ -269,7 +269,7 @@ def update_leaderboard(mario_overall, mario_details,
         "Super Mario Bros": current_overall["Super Mario Bros"],
         "Sokoban": current_overall["Sokoban"],
         "2048": current_overall["2048"],
-        "Candy Crash": current_overall["Candy Crash"],
+        "Candy Crush": current_overall["Candy Crush"],
         "Tetris (complete)": current_overall["Tetris (complete)"],
         "Tetris (planning only)": current_overall["Tetris (planning only)"],
         "Ace Attorney": current_overall["Ace Attorney"]
@@ -284,7 +284,7 @@ def update_leaderboard(mario_overall, mario_details,
             df = get_sokoban_leaderboard(rank_data)
         elif leaderboard_state["current_game"] == "2048":
             df = get_2048_leaderboard(rank_data)
-        elif leaderboard_state["current_game"] == "Candy Crash":
+        elif leaderboard_state["current_game"] == "Candy Crush":
             df = get_candy_leaderboard(rank_data)
         elif leaderboard_state["current_game"] == "Tetris (complete)":
             df = get_tetris_leaderboard(rank_data)
@@ -316,7 +316,7 @@ def update_leaderboard(mario_overall, mario_details,
             current_overall["Super Mario Bros"], current_details["Super Mario Bros"],
             current_overall["Sokoban"], current_details["Sokoban"],
             current_overall["2048"], current_details["2048"],
-            current_overall["Candy Crash"], current_details["Candy Crash"],
+            current_overall["Candy Crush"], current_details["Candy Crush"],
             current_overall["Tetris (complete)"], current_details["Tetris (complete)"],
             current_overall["Tetris (planning only)"], current_details["Tetris (planning only)"],
             current_overall["Ace Attorney"], current_details["Ace Attorney"])
@@ -351,7 +351,7 @@ def get_initial_state():
             "Super Mario Bros": True,
             "Sokoban": True,
             "2048": True,
-            "Candy Crash": True,
+            "Candy Crush": True,
             "Tetris (complete)": True,
             "Tetris (planning only)": True,
             "Ace Attorney": True
@@ -360,7 +360,7 @@ def get_initial_state():
             "Super Mario Bros": False,
             "Sokoban": False,
             "2048": False,
-            "Candy Crash": False,
+            "Candy Crush": False,
             "Tetris (complete)": False,
             "Tetris (planning only)": False,
             "Ace Attorney": False
@@ -375,7 +375,7 @@ def clear_filters():
         "Super Mario Bros": True,
         "Sokoban": True,
         "2048": True,
-        "Candy Crash": True,
+        "Candy Crush": True,
         "Tetris (complete)": True,
         "Tetris (planning only)": True,
         "Ace Attorney": True
@@ -743,8 +743,8 @@ def build_app():
                     newContent = newContent.replace(/Tetris\s+\(planning\s+only\)/g, 'Tetris<br>(planning)');
                 }
                 
-                // Format Candy Crash header
-                if (text.includes('Candy Crash')) {
+                // Format Candy Crush header
+                if (text.includes('Candy Crush')) {
                     newContent = newContent.replace(/Candy\s+Crash/g, 'Candy<br>Crash');
                 }
                 
@@ -878,9 +878,9 @@ def build_app():
                         _2048_overall = gr.Checkbox(label="2048 Score", value=True)
                         _2048_details = gr.Checkbox(label="2048 Details", value=False)
                     with gr.Column():
-                        gr.Markdown("**🍬 Candy Crash**")
-                        candy_overall = gr.Checkbox(label="Candy Crash Score", value=True)
-                        candy_details = gr.Checkbox(label="Candy Crash Details", value=False)
+                        gr.Markdown("**🍬 Candy Crush**")
+                        candy_overall = gr.Checkbox(label="Candy Crush Score", value=True)
+                        candy_details = gr.Checkbox(label="Candy Crush Details", value=False)
                     with gr.Column():
                         gr.Markdown("**🎯 Tetris (complete)**")
                         tetris_overall = gr.Checkbox(label="Tetris (complete) Score", value=True)
@@ -916,7 +916,7 @@ def build_app():
                     "Super Mario Bros": True,
                     "Sokoban": True,
                     "2048": True,
-                    "Candy Crash": True,
+                    "Candy Crush": True,
                     "Tetris (complete)": True,
                     "Tetris (planning only)": True,
                     "Ace Attorney": True

@@ -22,7 +22,7 @@ GAME_SCORE_COLUMNS = {
     "Super Mario Bros": "Score",
     "Sokoban": "Levels Cracked",
     "2048": "Score",
-    "Candy Crash": "Average Score",
+    "Candy Crush": "Average Score",
     "Tetris (complete)": "Score",
     "Tetris (planning only)": "Score",
     "Ace Attorney": "Score"
@@ -76,7 +76,7 @@ def create_horizontal_bar_chart(df, game_name):
     elif game_name == "2048":
         score_col = "Score"
         df_sorted = df.sort_values(by=score_col, ascending=True)
-    elif game_name == "Candy Crash":
+    elif game_name == "Candy Crush":
         score_col = "Average Score"
         df_sorted = df.sort_values(by=score_col, ascending=True)
     elif game_name in ["Tetris (complete)", "Tetris (planning only)"]:
@@ -91,7 +91,7 @@ def create_horizontal_bar_chart(df, game_name):
     x = df_sorted[score_col]
     y = [f"{row['Player']} [{row['Organization']}]" for _, row in df_sorted.iterrows()]
     colors = [MODEL_COLORS.get(row['Player'], '#808080') for _, row in df_sorted.iterrows()]
-    texts = [f"{v:.1f}" if game_name == "Candy Crash" else f"{int(v)}" for v in x]
+    texts = [f"{v:.1f}" if game_name == "Candy Crush" else f"{int(v)}" for v in x]
 
     fig = go.Figure(go.Bar(
         x=x,
@@ -319,7 +319,7 @@ def hex_to_rgba(hex_color, alpha=0.2):
 
 def create_single_radar_chart(df, selected_games=None, highlight_models=None):
     if selected_games is None:
-        selected_games = ['Super Mario Bros', '2048', 'Candy Crash', 'Sokoban', 'Ace Attorney']
+        selected_games = ['Super Mario Bros', '2048', 'Candy Crush', 'Sokoban', 'Ace Attorney']
 
     # Format game names
     formatted_games = []
