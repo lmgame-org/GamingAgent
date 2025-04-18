@@ -45,7 +45,7 @@ class GameEnv:
         elif self.game_name == "tetris":
             from src.game_agents.tetris_agent import TetrisAgent
             return TetrisAgent(self.model_name, self.provider)
-        elif self.game_name == "2048":
+        elif self.game_name == "tile_2048":
             from src.game_agents.tile_2048_agent import Tile2048Agent
             return Tile2048Agent(self.model_name, self.provider)
         elif self.game_name == "candy":

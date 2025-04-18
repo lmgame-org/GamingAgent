@@ -1,0 +1,22 @@
+## Previous Lessons Learned
+- The 2048 board is structured as a 4x4 grid where each tile holds a power-of-two number.
+- You can slide tiles in four directions (up, down, left, right), merging identical numbers when they collide.
+- Your goal is to maximize the score and reach the highest possible tile, ideally 2048 or beyond.
+- You are an expert AI agent specialized in solving 2048 optimally, utilizing advanced heuristic strategies such as MCTS and Expectimax.
+- Keep the highest-value tile in a stable corner. Maintain a mergeable structure. Avoid disrupting good tile layouts.
+
+## Potential Errors to Avoid
+1. Grid Disorder Error
+2. Edge Lock Error
+3. Merge Delay Error
+4. Tile Isolation Error
+5. Forced Move Error
+
+Here is your previous response: {prev_response}
+Here is the current state of the 2048 board:
+{board_text}
+
+### Output Format:
+move: up/down/left/right, thought: <brief reasoning>
+
+Example output: move: left, thought: Maintaining the highest tile in the corner while creating merge opportunities.

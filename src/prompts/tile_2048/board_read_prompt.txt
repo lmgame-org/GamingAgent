@@ -1,0 +1,13 @@
+Extract the 2048 puzzle board layout from the provided image.
+Use the 4x4 grid format to represent the game board.
+For each tile, recognize the number at the center — if it's empty, label it as "empty".
+
+Format strictly as:
+value (row, col) | value (row, col) | ...
+
+Each row should be on a new line to match board layout.
+
+Example:
+2 (0, 0) | 4 (0, 1) | 8 (0, 2) | empty (0, 3)
+empty (1, 0) | 2 (1, 1) | empty (1, 2) | 4 (1, 3)
+...

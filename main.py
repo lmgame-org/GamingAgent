@@ -14,8 +14,8 @@ def parse_args():
     return parser.parse_args()
 
 def maybe_launch_game(game, platform):
-    if platform == "pygame" and game in ["sokoban", "all"]:
-        game_path = os.path.join("src", "pygame", f"{game}.py")
+    if platform == "pygame" and game in ["sokoban", "tile_2048", "all"]:
+        game_path = os.path.join("src", "pygame", f'{game}',f"{game}.py")
         if os.path.exists(game_path):
             print(f"[main.py] Launching game window: {game_path}")
             subprocess.Popen([sys.executable, game_path])
