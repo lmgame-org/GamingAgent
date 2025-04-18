@@ -63,7 +63,8 @@ class APIManager:
         game_name: str, 
         base_cache_dir: str = "cache",
         enable_logging: bool = True,
-        info: Optional[Dict[str, Any]] = None
+        info: Optional[Dict[str, Any]] = None,
+        session_dir: Optional[str] = None
     ):
         """
         Initialize the API Manager.
@@ -74,6 +75,8 @@ class APIManager:
             enable_logging (bool): Whether to enable logging
             info (Dict, optional): Additional information for customizing directory structure
                                    Can include 'model_name', 'modality', 'datetime', etc.
+            session_dir (str, optional): Optional path to an existing session directory.
+                                         If provided, the directory structure setup is skipped.
         """
         self.game_name = game_name
         self.base_cache_dir = base_cache_dir
@@ -83,8 +86,12 @@ class APIManager:
         # Create timestamp for this session (use from info if provided)
         self.timestamp = self.info.get('datetime', datetime.datetime.now().strftime("%Y%m%d_%H%M%S"))
         
-        # Set up cache directories
-        self._setup_directories()
+        # Set up session directory
+        if session_dir:
+            self._set_session_dir(session_dir)
+        else:
+            # Set up cache directories
+            self._setup_directories()
         
         # Configure session logger
         self._setup_logger()
@@ -100,13 +107,36 @@ class APIManager:
         # Directory for this session's logs (will be created when needed)
         self.session_dir = None
     
+    def _set_session_dir(self, session_dir: str) -> None:
+        """
+        Set the session directory directly, bypassing the directory creation logic.
+        
+        Args:
+            session_dir (str): Path to the existing session directory
+        """
+        # Ensure the directory exists
+        os.makedirs(session_dir, exist_ok=True)
+        
+        # Set session directory
+        self.session_dir = session_dir
+        
+        # Extract game directory from session directory path
+        # This is a best guess assuming the session_dir follows a similar structure
+        self.game_dir = os.path.dirname(os.path.dirname(os.path.dirname(session_dir)))
+        
+        logger.info(f"Using provided session directory: {session_dir}")
+    
     def _setup_logger(self):
         """Set up logger with file handler for this session."""
         if not self.enable_logging:
             return
         
-        # Create a log file for the manager
-        log_file = os.path.join(self.game_dir, f"{self.game_name}_api_manager.log")
+        if self.session_dir:
+            # Only create logs in the session directory - no global logs
+            log_file = os.path.join(self.session_dir, f"{self.game_name}_api_manager.log")
+        else:
+            # Create a log file for the manager in the game directory
+            log_file = os.path.join(self.game_dir, f"{self.game_name}_api_manager.log")
         
         # Create file handler
         file_handler = logging.FileHandler(log_file)
@@ -184,8 +214,11 @@ class APIManager:
         if not self.enable_logging:
             return {}
         
-        # Get or create session directory
-        session_dir = self._get_model_session_dir(model_name, session_name, modality)
+        # If session_dir is already set, use it directly; otherwise get/create one
+        if not self.session_dir:
+            session_dir = self._get_model_session_dir(model_name, session_name, modality)
+        else:
+            session_dir = self.session_dir
         
         # Create file paths
         json_file = os.path.join(session_dir, "api_call.json")
@@ -246,10 +279,7 @@ class APIManager:
         with open(cost_log_file, "a", encoding="utf-8") as f:
             f.write(cost_log_entry)
         
-        # Also maintain a main game cost log for overall tracking
-        main_cost_log = os.path.join(self.game_dir, f"{self.game_name}_api_costs.log")
-        with open(main_cost_log, "a", encoding="utf-8") as f:
-            f.write(cost_log_entry)
+        # No longer write to a main game cost log - keep logs only in session directory
         
         logger.info(f"Logged API call ({modality}) to {json_file} and costs to {cost_log_file}")
         

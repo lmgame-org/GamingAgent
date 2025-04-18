@@ -31,6 +31,7 @@ class GameEnv:
         thinking: bool = False,
         custom_agent: Optional[Type[BaseGameAgent]] = None,
         base_cache_dir: str = "cache",
+        game_config: Optional[Dict[str, Any]] = None
     ):
         """
         Initialize the game environment.
@@ -43,7 +44,7 @@ class GameEnv:
             thinking: Whether to use thinking mode (special for Claude)
             custom_agent: Optional custom agent class to use instead of default
             base_cache_dir: Base directory for caching game data and API responses
-            capture_frequency: How often to capture observations (every N steps)
+            game_config: Optional dictionary containing game-specific configuration
         """
         self.game_name = game_name
         self.model_name = model_name
@@ -52,6 +53,7 @@ class GameEnv:
         self.thinking = thinking
         self.custom_agent = custom_agent
         self.base_cache_dir = base_cache_dir
+        self.game_config = game_config or {}
         self.timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
         
         # Tracking variables
@@ -60,7 +62,7 @@ class GameEnv:
         self.screenshots_dir = None
 
         # Set up cache directories
-        self._setup_cache_directories()
+        self.cache_dirs = self._setup_cache_directories()
         
         # Initialize the appropriate agent
         self.agent = self._initialize_agent()
@@ -92,17 +94,23 @@ class GameEnv:
         # Create screenshots directory inside session directory
         self.screenshots_dir = os.path.join(self.session_dir, "screenshots")
         os.makedirs(self.screenshots_dir, exist_ok=True)
+
+        return {"session_dir": self.session_dir, "screenshots_dir": self.screenshots_dir}
     
     def _initialize_agent(self) -> BaseGameAgent:
         """
         Initialize the appropriate agent based on game name or custom agent.
+        All necessary parameters are passed directly to the agent constructor.
         
         Returns:
             BaseGameAgent: The initialized agent instance
         """
+        # Get agent parameters
+        agent_params = self._get_agent_params()
+        
         if self.custom_agent:
-            # Use the provided custom agent
-            return self.custom_agent()
+            # Use the provided custom agent with parameters
+            return self.custom_agent(**agent_params)
         
         # Get the agent class name from the mapping
         agent_class_name = self.GAME_AGENT_MAP.get(self.game_name)
@@ -114,29 +122,49 @@ class GameEnv:
             # Assuming agents are in the game_agents package
             module = importlib.import_module(f"game_agents.{self.game_name}_agent")
             agent_class = getattr(module, agent_class_name)
-            return agent_class()
+            
+            # Initialize agent with all required parameters
+            return agent_class(**agent_params)
+            
         except (ImportError, AttributeError) as e:
             raise ImportError(f"Failed to initialize agent for {self.game_name}: {str(e)}")
+    
+    def _get_agent_params(self) -> Dict[str, Any]:
+        """
+        Create a dictionary of parameters for initializing the agent.
+        
+        Returns:
+            Dict[str, Any]: Dictionary containing all agent initialization parameters
+        """
+        params = {
+            "game_name": self.game_name,
+            "model_name": self.model_name,
+            "modality": self.modality,
+            "api_provider": self.api_provider,
+            "thinking": self.thinking,
+            "session_dir": self.session_dir
+        }
+        
+        # Add game config if available
+        if self.game_config:
+            params["game_config"] = self.game_config
+            
+        return params
     
     def _get_step_params(self, img_path: str) -> Dict[str, Any]:
         """
         Create a dictionary of parameters for the step method.
+        Now only includes essential parameters not already provided to the agent.
         
         Args:
             img_path: Path to the current screenshot
             
         Returns:
-            Dict[str, Any]: Dictionary containing all step parameters
+            Dict[str, Any]: Dictionary containing step-specific parameters
         """
         return {
             "img_path": img_path,
-            "session_dir": self.session_dir,
-            "model_name": self.model_name,
-            "api_provider": self.api_provider,
-            "modality": self.modality,
-            "game_name": self.game_name,
-            "thinking": self.thinking,
-            "timestamp": self.timestamp
+            "timestamp": self.timestamp,
         }
     
     def step(self, img_path: str) -> Dict[str, Any]:
@@ -148,11 +176,11 @@ class GameEnv:
             img_path: Path to the current screenshot
             
         Returns:
-            Tuple containing:
-                - observation (Dict): Current state observation
-                - reward (float): Reward from the action
-                - done (bool): Whether the episode is finished
-                - info (Dict): Additional information
+            Dict[str, Any]: Results from the agent's step method containing:
+                - thought: str - Agent's thought process
+                - action: str - The action to take
+                - reward: str - Any reward information
+                - done: bool - Whether the episode is finished
         """
         if not self.is_open:
             raise RuntimeError("Environment is closed. Please create a new environment instance.")
@@ -160,10 +188,10 @@ class GameEnv:
         # Increment the step counter
         self.step_count += 1
         
-        # Get step parameters
+        # Get step parameters (only the essential ones not already provided to agent)
         step_params = self._get_step_params(img_path)
         
-        # Execute the agent's step method with unpacked parameters
+        # Execute the agent's step method with minimal parameters
         step_result = self.agent.step(**step_params)
 
         return step_result
