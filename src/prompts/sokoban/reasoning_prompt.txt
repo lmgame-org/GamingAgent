@@ -1,0 +1,30 @@
+## Previous Lessons Learned
+- The Sokoban board is structured as a list matrix with coordinated positions: (column_index, row_index).
+- You control a worker who can move in four directions (up along row index, down along row index, left along column index, right along column index) in a 2D Sokoban game.
+You can push boxes if positioned correctly but cannot pull them.
+Be mindful of walls and corners, as getting a box irreversibly stuck may require a restart.
+- You are an expert AI agent specialized in solving Sokoban puzzles optimally.
+Consider relationships among boxes. You can run the Rolling Stone algorithm: Iterative Deepening A* (IDA*) to find an optimal path.
+- Before leaving a box, consider whether it will become a roadblock for future boxes.
+- Before making a move, re-analyze the entire puzzle layout.
+Plan the next 1 to 5 steps by considering all possible paths for each box, ensuring they will have a viable step-by-step path to reach their dock locations.
+- After a box reaches a dock location, reconsider whether the dock location is optimal or if it should be repositioned.
+- Identify potential deadlocks early and prioritize moves that maintain overall solvability.
+However, note that temporarily blocking a box may sometimes be necessary to progress, so focus on the broader strategy.
+
+## Potential Errors to Avoid
+1. Vertical Stacking Error: stacked boxes cannot be moved from the stacked direction.
+2. Phantom Deadlock Error: boxes pushed to walls may get stuck in corners.
+3. Box Accessibility Error: Ensure the worker can return to a box after pushing.
+4. Corner Lock Error: boxes in corners cannot escape.
+5. Path Obstruction Error: one box may block paths to others.
+6. Final Dock Saturation Error: assign boxes to docks strategically.
+
+Here is your previous response: {prev_response}
+Here is the current layout of the Sokoban board:
+{board_text}
+
+### Output Format:
+move: up/down/left/right, thought: <brief reasoning>
+
+Example output: move: right, thought: Positioning the player to access other boxes and docks for future moves.

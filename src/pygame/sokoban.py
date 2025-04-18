@@ -15,13 +15,13 @@ os.makedirs(CACHE_DIR, exist_ok=True)
 original_size = 32  # Original tile size
 scale_factor = 1  # Default scaling factor
 
-wall_original = pygame.image.load('games/sokoban/images/wall.png')
-floor_original = pygame.image.load('games/sokoban/images/floor.png')
-box_original = pygame.image.load('games/sokoban/images/box.png')
-box_docked_original = pygame.image.load('games/sokoban/images/box_docked.png')
-worker_original = pygame.image.load('games/sokoban/images/worker.png')
-worker_docked_original = pygame.image.load('games/sokoban/images/worker_dock.png')
-docker_original = pygame.image.load('games/sokoban/images/dock.png')
+wall_original = pygame.image.load('src/pygame/images/wall.png')
+floor_original = pygame.image.load('src/pygame/images/floor.png')
+box_original = pygame.image.load('src/pygame/images/box.png')
+box_docked_original = pygame.image.load('src/pygame/images/box_docked.png')
+worker_original = pygame.image.load('src/pygame/images/worker.png')
+worker_docked_original = pygame.image.load('src/pygame/images/worker_dock.png')
+docker_original = pygame.image.load('src/pygame/images/dock.png')
 
 _last_saved_matrix = None
 
@@ -34,7 +34,7 @@ print(level_dict)
 with open(current_level_path, 'w') as file:
     json.dump(level_dict, file)
 
-levels_filename = 'games/sokoban/levels'
+levels_filename = 'src/pygame/levels'
 
 def save_levels_dimensions(levels_filename, max_level=52):
     """
@@ -343,14 +343,15 @@ def get_key():
         if event.type == pygame.KEYDOWN:
             return event.key
 
+
 # Load images and initialize pygame
-wall = pygame.image.load('games/sokoban/images/wall.png')
-floor = pygame.image.load('games/sokoban/images/floor.png')
-box = pygame.image.load('games/sokoban/images/box.png')
-box_docked = pygame.image.load('games/sokoban/images/box_docked.png')
-worker = pygame.image.load('games/sokoban/images/worker.png')
-worker_docked = pygame.image.load('games/sokoban/images/worker_dock.png')
-docker = pygame.image.load('games/sokoban/images/dock.png')
+wall = pygame.image.load('src/pygame/images/wall.png')
+floor = pygame.image.load('src/pygame/images/floor.png')
+box = pygame.image.load('src/pygame/images/box.png')
+box_docked = pygame.image.load('src/pygame/images/box_docked.png')
+worker = pygame.image.load('src/pygame/images/worker.png')
+worker_docked = pygame.image.load('src/pygame/images/worker_dock.png')
+docker = pygame.image.load('src/pygame/images/dock.png')
 background = (255, 226, 191)
 pygame.init()
 
