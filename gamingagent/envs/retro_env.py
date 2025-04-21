@@ -1,10 +1,11 @@
 import os
 import retro
 import time
-from typing import Any, Dict, Optional, Tuple
+from typing import Any, Dict, Optional, Tuple, Union
 import numpy as np
 from gymnasium import Env
 from gymnasium.spaces import Box, Discrete
+import threading
 
 class ClassicVideoGameEnv(Env):
     """Classic video game environment using Gymnasium."""
@@ -23,6 +24,8 @@ class ClassicVideoGameEnv(Env):
         'MasterSystem': '.sms'
     }
     
+    metadata = {"render_modes": ["human", "rgb_array"], "video.frames_per_second": 60.0}
+    
     def __init__(
         self,
         game: str,
@@ -30,9 +33,20 @@ class ClassicVideoGameEnv(Env):
         scenario: str = "scenario",
         record: bool = False,
         render_mode: Optional[str] = None,
-        frame_delay: float = 0.016  # 60 FPS
+        frame_delay: float = 0.016,  # 60 FPS
+        **kwargs
     ):
-        """Initialize the environment."""
+        """Initialize the environment.
+        
+        Args:
+            game: The name or path for the game to run
+            state: The initial state file to load, minus the extension
+            scenario: The scenario file to load, minus the extension
+            record: Whether to record gameplay
+            render_mode: The render mode to use
+            frame_delay: The delay between frames
+            **kwargs: Additional arguments to pass to the environment
+        """
         super().__init__()
         
         # Add custom integration path
@@ -50,7 +64,8 @@ class ClassicVideoGameEnv(Env):
             state=state,
             scenario=scenario,
             record=record,
-            render_mode=render_mode
+            render_mode=render_mode,
+            **kwargs
         )
         
         # Set up action and observation spaces
@@ -61,6 +76,41 @@ class ClassicVideoGameEnv(Env):
         self.frame_delay = frame_delay
         self.last_frame_time = time.time()
         
+        # Get button information from the environment
+        self.buttons = self.env.buttons
+        self.num_buttons = len(self.buttons)
+        
+        # Initialize state
+        self._state = None
+        self._info = None
+        self._terminated = False
+        self._truncated = False
+        
+        # Initialize step count
+        self.step_count = 0
+        
+    def render(self, mode: Optional[str] = None) -> Union[np.ndarray, None]:
+        """Render the environment.
+        
+        Args:
+            mode: The render mode to use. If None, uses the default mode.
+            
+        Returns:
+            If mode is "rgb_array", returns the current frame as a numpy array.
+            Otherwise, returns None and renders to the screen.
+        """
+        if mode == "rgb_array":
+            return self.env.get_screen()
+        return self.env.render()
+        
+    def get_observation(self) -> np.ndarray:
+        """Get the current observation as an RGB frame.
+        
+        Returns:
+            The current frame as a numpy array
+        """
+        return self.render(mode="rgb_array")
+        
     def step(self, action):
         """Take a step in the environment."""
         # Add frame delay to control speed
@@ -70,17 +120,15 @@ class ClassicVideoGameEnv(Env):
             time.sleep(self.frame_delay - elapsed)
         self.last_frame_time = time.time()
         
-        # Take the step
+        # Take the step and increment count
+        self.step_count += 1
         return self.env.step(action)
         
     def reset(self, **kwargs):
         """Reset the environment."""
         self.last_frame_time = time.time()
+        self.step_count = 0  # Reset step count
         return self.env.reset(**kwargs)
-        
-    def render(self):
-        """Render the environment."""
-        return self.env.render()
         
     def close(self):
         """Close the environment."""
@@ -102,3 +150,201 @@ class ClassicVideoGameEnv(Env):
     def unwrapped(self):
         """Return the base environment."""
         return self
+
+class RealTimeClassicVideoGameEnv(ClassicVideoGameEnv):
+    """A real-time version of the classic video game environment with frame skipping and FPS control.
+    
+    This environment extends ClassicVideoGameEnv to provide better real-time control
+    by implementing frame skipping and FPS management. It ensures the game runs at
+    a consistent speed regardless of the agent's processing time.
+    """
+    
+    def __init__(
+        self,
+        game: str,
+        state: str = retro.State.DEFAULT,
+        scenario: str = "scenario",
+        record: bool = False,
+        render_mode: Optional[str] = None,
+        target_fps: float = 60.0,
+        frame_skip: int = 1,
+        **kwargs
+    ):
+        """Initialize the real-time environment.
+        
+        Args:
+            game: The name or path for the game to run
+            state: The initial state file to load, minus the extension
+            scenario: The scenario file to load, minus the extension
+            record: Whether to record gameplay
+            render_mode: The render mode to use
+            target_fps: Target frames per second for the game
+            frame_skip: Number of frames to skip between actions
+            **kwargs: Additional arguments to pass to the environment
+        """
+        super().__init__(
+            game=game,
+            state=state,
+            scenario=scenario,
+            record=record,
+            render_mode=render_mode,
+            frame_delay=1.0/target_fps,
+            **kwargs
+        )
+        
+        self.target_fps = target_fps
+        self.frame_skip = frame_skip
+        self.last_frame_time = time.time()
+        self.frame_count = 0
+        
+        # Thread-safe buffers for latest frame and step result
+        self._latest_frame = None
+        self._step_result = None
+        self._frame_lock = threading.Lock()
+        self._step_lock = threading.Lock()
+        
+        # Simulation thread control
+        self._stop_event = threading.Event()
+        self._sim_thread = None
+        self.current_action = np.zeros(self.num_buttons, dtype=np.uint8)
+        self._initialized = False
+        
+    def _sim_loop(self):
+        """Main simulation loop that runs in a separate thread."""
+        dt = 1.0 / self.target_fps
+        
+        # Initial reset
+        obs = self.env.reset()
+        if isinstance(obs, tuple):
+            obs = obs[0]
+            
+        with self._frame_lock:
+            self._latest_frame = obs
+        with self._step_lock:
+            self._step_result = (obs, 0.0, False, False, {})
+            
+        self._initialized = True
+        
+        while not self._stop_event.is_set():
+            start_time = time.time()
+            
+            # Get latest action from buffer
+            with self._step_lock:
+                if self._step_result is not None:
+                    _, _, terminated, truncated, _ = self._step_result
+                    if terminated or truncated:
+                        obs = self.env.reset()
+                        if isinstance(obs, tuple):
+                            obs = obs[0]
+                        with self._frame_lock:
+                            self._latest_frame = obs
+                        with self._step_lock:
+                            self._step_result = (obs, 0.0, False, False, {})
+                        continue
+                        
+            # Execute action for frame_skip frames
+            for _ in range(self.frame_skip):
+                obs, reward, terminated, truncated, info = self.env.step(self.current_action)
+                
+                # Get RGB frame
+                frame = self.get_observation()
+                
+                # Update frame buffer
+                with self._frame_lock:
+                    self._latest_frame = frame
+                    
+                # Update step result
+                with self._step_lock:
+                    self._step_result = (obs, reward, terminated, truncated, info)
+                    
+                if terminated or truncated:
+                    break
+                    
+            # Control timing
+            elapsed = time.time() - start_time
+            if elapsed < dt:
+                time.sleep(dt - elapsed)
+                
+    def start(self):
+        """Start the simulation thread."""
+        if self._sim_thread is None:
+            self._sim_thread = threading.Thread(target=self._sim_loop, daemon=True)
+            self._sim_thread.start()
+            
+    def step(self, action):
+        """Take a step in the environment.
+        
+        Args:
+            action: The action to take
+            
+        Returns:
+            The latest step result
+        """
+        # Store the action for the simulation thread
+        self.current_action = action
+        
+        # Wait for initialization
+        while not self._initialized:
+            time.sleep(0.1)
+            
+        # Return the latest step result
+        return self.get_step_result()
+        
+    def reset(self, **kwargs):
+        """Reset the environment."""
+        self.last_frame_time = time.time()
+        self.frame_count = 0
+        self.step_count = 0
+        self._initialized = False
+        
+        # Reset the environment
+        obs = super().reset(**kwargs)
+        if isinstance(obs, tuple):
+            obs = obs[0]
+            
+        # Start simulation thread if not already running
+        if self._sim_thread is None:
+            self.start()
+            
+        # Wait for initialization
+        while not self._initialized:
+            time.sleep(0.1)
+            
+        return obs
+        
+    def get_latest_frame(self) -> Optional[np.ndarray]:
+        """Get the latest frame from the environment.
+        
+        Returns:
+            The latest frame as a numpy array, or None if no frame is available
+        """
+        with self._frame_lock:
+            return self._latest_frame
+            
+    def get_step_result(self) -> Optional[Tuple]:
+        """Get the latest step result from the environment.
+        
+        Returns:
+            Tuple of (observation, reward, terminated, truncated, info), or None if no result is available
+        """
+        with self._step_lock:
+            return self._step_result
+            
+    def close(self):
+        """Clean up resources."""
+        if self._stop_event is not None:
+            self._stop_event.set()
+        if self._sim_thread is not None:
+            self._sim_thread.join(timeout=1.0)
+        super().close()
+        
+    def get_fps(self) -> float:
+        """Get the current actual FPS of the environment.
+        
+        Returns:
+            The current frames per second
+        """
+        if self.frame_count == 0:
+            return 0.0
+        elapsed = time.time() - self.last_frame_time
+        return self.frame_count / elapsed if elapsed > 0 else 0.0

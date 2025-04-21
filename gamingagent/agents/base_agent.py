@@ -3,6 +3,8 @@ import json
 from typing import Any, Dict, Optional, Union, Tuple
 import numpy as np
 from datetime import datetime
+import logging
+from gamingagent.utils.logger import Logger
 
 class BaseAgent:
     """Base class for all agents."""
@@ -11,39 +13,50 @@ class BaseAgent:
         self,
         env: Any,
         game_name: str,
-        api_provider: str,
-        model_name: str
+        api_provider: Optional[str] = None,
+        model_name: Optional[str] = None
     ):
         """Initialize the base agent.
         
         Args:
             env: The environment to interact with
             game_name: Name of the game
-            api_provider: Name of the API provider
-            model_name: Name of the model to use
+            api_provider: Optional name of the API provider
+            model_name: Optional name of the model
         """
         self.env = env
         self.game_name = game_name
         self.api_provider = api_provider
         self.model_name = model_name
         
-        # Set up cache directory
-        self._setup_cache_directory()
+        # Get current datetime for subdirectory
+        current_time = datetime.now()
+        datetime_str = current_time.strftime("%Y%m%d_%H%M%S")
         
-    def _setup_cache_directory(self) -> None:
-        """Set up the cache directory structure."""
-        # Create base cache directory
-        self.cache_dir = os.path.join("cache", self.game_name)
+        # Set up cache directory
+        if api_provider is None or model_name is None:
+            self.cache_dir = os.path.join("cache", game_name, "random_play", datetime_str)
+        else:
+            self.cache_dir = os.path.join("cache", game_name, api_provider, model_name, datetime_str)
+            
         os.makedirs(self.cache_dir, exist_ok=True)
         
-        # Create subdirectories
-        self.logs_dir = os.path.join(self.cache_dir, "logs")
+        # Set up subdirectories
         self.actions_dir = os.path.join(self.cache_dir, "actions")
         self.states_dir = os.path.join(self.cache_dir, "states")
+        self.logs_dir = os.path.join(self.cache_dir, "logs")
         
-        os.makedirs(self.logs_dir, exist_ok=True)
+        # Create all directories
         os.makedirs(self.actions_dir, exist_ok=True)
         os.makedirs(self.states_dir, exist_ok=True)
+        os.makedirs(self.logs_dir, exist_ok=True)
+        
+        # Initialize logging
+        self.logger = Logger(
+            name=f"{game_name}_agent",
+            log_dir=self.logs_dir,
+            level=logging.INFO
+        )
         
         # Save agent configuration
         self._save_config()
@@ -54,7 +67,8 @@ class BaseAgent:
             "game_name": self.game_name,
             "api_provider": self.api_provider,
             "model_name": self.model_name,
-            "timestamp": datetime.now().isoformat()
+            "timestamp": datetime.now().isoformat(),
+            "cache_dir": self.cache_dir
         }
         
         config_path = os.path.join(self.cache_dir, "config.json")
@@ -78,16 +92,27 @@ class BaseAgent:
         with open(action_path, "w") as f:
             json.dump(action_data, f, indent=4)
             
-    def log_state(self, observation: np.ndarray, step: int) -> None:
+    def log_state(self, observation: Union[np.ndarray, Tuple[np.ndarray, dict]], step: int) -> None:
         """Log the current state/observation.
         
         Args:
-            observation: The current observation
+            observation: The current observation (can be numpy array or tuple)
             step: The current step number
         """
+        # Handle both numpy array and tuple observations
+        if isinstance(observation, tuple):
+            # For tuple observations (RAM), log the shape of the first element
+            obs_shape = observation[0].shape
+            obs_type = "ram"
+        else:
+            # For numpy array observations (image)
+            obs_shape = observation.shape
+            obs_type = "image"
+            
         state_data = {
             "step": step,
-            "observation_shape": observation.shape,
+            "observation_shape": obs_shape,
+            "observation_type": obs_type,
             "timestamp": datetime.now().isoformat()
         }
         
