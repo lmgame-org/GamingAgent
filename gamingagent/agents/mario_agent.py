@@ -1,389 +1,473 @@
-import os
 import time
-import json
-import base64
 import numpy as np
-import cv2
+from typing import Any, Dict, Optional, Tuple, Union, List
+from .base_agent import BaseAgent
+from gamingagent.providers import APIProviderManager
+from gamingagent.utils.utils import encode_image
+import threading
+import asyncio
+import concurrent.futures
+from queue import Queue
+import json
+import os
 from datetime import datetime
-from io import BytesIO
-from PIL import Image
-from typing import Any, List, Dict, Optional, Tuple
 
-from .base_agent import LLMAgent
-from gamingagent.utils.logger import Logger
-
-class MarioAgent(LLMAgent):
-    """LLM-powered agent for Super Mario Bros with action timing and caching."""
+class MarioAgent(BaseAgent):
+    """Mario agent that uses API providers for decision making with async workers."""
     
     def __init__(
-        self,
+        self, 
         env: Any,
-        provider: Any,  # BaseProvider from providers
-        logger: Logger,
-        cache_dir: str = "cache/mario",
+        provider_manager: APIProviderManager,
+        model_name: str = "claude-3-opus-20240229",
         max_tokens: int = 1000,
         temperature: float = 0.7,
-        top_p: float = 0.9,
-        frequency_penalty: float = 0.0,
-        presence_penalty: float = 0.0,
-        action_hold_time: int = 4,  # Number of frames to hold an action
-        test_pattern: Optional[List[str]] = None,
-        use_test_pattern: bool = True,  # Default to test pattern for smooth gameplay
-        action_hold_times: Optional[Dict[str, float]] = None,
-        save_interval: int = 100,  # Save less frequently
-        frame_skip: int = 2,      # Skip 2 frames between actions
-        target_fps: int = 30,     # Target 30 FPS
-        api_call_interval: int = 60  # Call API less frequently
+        num_threads: int = 4,
+        concurrency_interval: float = 1.0,
+        api_response_latency_estimate: float = 7.0,
+        record_bk2: bool = False
     ):
-        """
-        Initialize Mario agent.
+        """Initialize Mario agent with API provider."""
+        super().__init__(
+            env=env,
+            game_name="SuperMarioBros-Nes",
+            api_provider="anthropic",
+            model_name=model_name
+        )
         
-        Args:
-            env: Game environment
-            provider: LLM provider instance
-            logger: Logger instance
-            cache_dir: Directory for caching observations and actions
-            max_tokens: Maximum tokens for LLM response
-            temperature: LLM temperature
-            top_p: LLM top_p parameter
-            frequency_penalty: LLM frequency penalty
-            presence_penalty: LLM presence penalty
-            action_hold_time: Frames to hold each action
-            test_pattern: Optional test pattern for actions
-            use_test_pattern: Whether to use test pattern instead of LLM
-            action_hold_times: Dictionary of action-specific hold times
-            save_interval: Save every 30 frames instead of every frame
-            frame_skip: Skip 2 frames between actions
-            target_fps: Target 30 FPS
-            api_call_interval: Call API every 60 frames
-        """
-        super().__init__(env, provider)
-        self.logger = logger
-        self.cache_dir = cache_dir
+        self.provider_manager = provider_manager
+        self.model_name = model_name
         self.max_tokens = max_tokens
         self.temperature = temperature
-        self.top_p = top_p
-        self.frequency_penalty = frequency_penalty
-        self.presence_penalty = presence_penalty
-        self.action_hold_time = action_hold_time
-        self.test_pattern = test_pattern or []
-        self.use_test_pattern = use_test_pattern
-        self.action_hold_times = action_hold_times or {}
-        self.test_pattern_index = 0
-        self.current_action = None
-        self.action_counter = 0
-        self.total_actions = 0
-        self.save_interval = save_interval
-        self.frame_skip = frame_skip
-        self.target_fps = target_fps
-        self.render_interval = 1.0 / target_fps
-        self.last_render_time = 0
-        self.api_call_interval = api_call_interval
+        self.record_bk2 = record_bk2
+        
+        # Action queues and locks
+        self.short_term_queue = Queue(maxsize=5)  # Store up to 5 short-term actions
+        self.long_term_queue = Queue(maxsize=5)   # Store up to 5 long-term actions
+        self.action_lock = threading.Lock()
+        
+        # Store current observation
+        self.current_observation = None
+        self.observation_lock = threading.Lock()
+        
+        # Game state control
+        self.is_running = True
+        self.game_done = False
+        self.state_lock = threading.Lock()
+        
+        # Rate limiting
         self.last_api_call_time = 0
+        self.min_api_call_interval = 1.0
         
-        # Create cache directories
-        self.setup_cache_dirs()
+        # Set number of threads and calculate offsets
+        self.num_threads = num_threads
+        self.offsets = [i * concurrency_interval for i in range(self.num_threads)]
         
-    def setup_cache_dirs(self):
-        """Setup cache directory structure"""
-        # Create timestamp-based run directory
-        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-        self.run_dir = os.path.join(self.cache_dir, f'run_{timestamp}')
+        # Event loop for async operations
+        self.loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(self.loop)
         
-        # Create subdirectories
-        self.obs_dir = os.path.join(self.run_dir, 'observations')
-        self.state_dir = os.path.join(self.run_dir, 'states')
-        self.metadata_dir = os.path.join(self.run_dir, 'metadata')
+        # Create API logs directory
+        self.api_logs_dir = os.path.join(self.cache_dir, "api_logs")
+        os.makedirs(self.api_logs_dir, exist_ok=True)
         
-        # Create all directories
-        for directory in [self.obs_dir, self.state_dir, self.metadata_dir]:
-            os.makedirs(directory, exist_ok=True)
-            
-        self.logger.info(f"Cache directories created at: {self.run_dir}")
+        # Create BK2 recording directory if needed
+        if self.record_bk2:
+            self.bk2_dir = os.path.join(self.cache_dir, "recordings")
+            os.makedirs(self.bk2_dir, exist_ok=True)
+            self.current_recording_path = None
         
-    def reset(self) -> None:
-        """Reset agent's internal state."""
-        super().reset()  # Reset conversation history from LLMAgent
-        self.test_pattern_index = 0
-        self.current_action = None
-        self.action_counter = 0
-        self.total_actions = 0
+        # Start worker threads
+        self.executor = concurrent.futures.ThreadPoolExecutor(max_workers=self.num_threads)
+        self.start_workers()
         
-    def _extract_game_state(self, observation: Tuple[np.ndarray, Dict]) -> Dict:
-        """Extract game state from observation tuple."""
-        # Get the game state from the observation tuple
-        game_state = observation[1]  # The second element is the info dict
-        
-        # Extract relevant information
-        state = {
-            "xscrollLo": game_state.get("xscrollLo", 0),
-            "yscrollLo": game_state.get("yscrollLo", 0),
-            "enemies": game_state.get("enemies", []),
-            "coins": game_state.get("coins", []),
-            "score": game_state.get("score", 0),
-            "lives": game_state.get("lives", 3)
-        }
-        
-        return state
-        
-    def _image_to_base64(self, image: np.ndarray) -> str:
-        """Convert numpy array image to base64 string efficiently."""
+    def _log_api_interaction(self, prompt: str, response: str, thread_type: str, step: int) -> None:
+        """Log API interaction details to file."""
         try:
-            # Handle nested tuple observation format
-            if isinstance(image, tuple):
-                # The observation tuple contains (screen, info)
-                # screen might be a tuple itself, so we need to get the actual numpy array
-                screen = image[0]
-                while isinstance(screen, tuple):
-                    screen = screen[0]
-                
-                if not isinstance(screen, np.ndarray):
-                    raise ValueError(f"Could not find numpy array in observation. Final type: {type(screen)}")
-                image = screen
-            
-            # Ensure image is a numpy array
-            if not isinstance(image, np.ndarray):
-                raise ValueError(f"Image is not a numpy array. Type: {type(image)}")
-            
-            # Convert to PIL Image
-            img = Image.fromarray(image)
-            
-            # Convert to PNG bytes
-            buffered = BytesIO()
-            img.save(buffered, format="PNG")
-            base64_image = base64.b64encode(buffered.getvalue()).decode()
-            
-            return base64_image
-            
-        except Exception as e:
-            self.logger.error(f"Error converting image to base64: {e}")
-            self.logger.error(f"Image type: {type(image)}")
-            if isinstance(image, tuple):
-                self.logger.error(f"Tuple length: {len(image)}")
-                self.logger.error(f"First element type: {type(image[0])}")
-                if isinstance(image[0], tuple):
-                    self.logger.error(f"Nested tuple length: {len(image[0])}")
-                    self.logger.error(f"Nested first element type: {type(image[0][0])}")
-            return ""
-        
-    def format_prompt(self, observation: np.ndarray) -> str:
-        """Format the observation into a prompt for the LLM."""
-        prompt = """You are controlling Mario in Super Mario Bros. Analyze the game state image and generate the next action.
-The action should be a list of 9 boolean values representing button states: [B, null, SELECT, START, UP, DOWN, LEFT, RIGHT, A]
-
-CRITICAL CONTROLS:
-- To JUMP: Set index 8 (A button) to True
-- To move RIGHT: Set index 7 (RIGHT) to True
-- To RUN: Set index 0 (B button) to True
-
-Action Guidelines:
-1. HOLD actions for sufficient duration:
-   - Running (B): Hold for at least 1 second
-   - Direction (LEFT/RIGHT): Hold for at least 0.5 seconds
-   - Jumping (A): Hold for about 0.3 seconds for small jumps, 0.5 seconds for big jumps
-
-2. Common Action Patterns:
-   - Basic jump right: [False, False, False, False, False, False, False, True, True]
-   - Running jump right: [True, False, False, False, False, False, False, True, True]
-   - Full speed run right: [True, False, False, False, False, False, False, True, False]
-   - Jump in place: [False, False, False, False, False, False, False, False, True]
-
-JUMPING RULES:
-- Jump BEFORE reaching gaps or obstacles
-- Hold jump (A) longer for higher jumps
-- Combine run (B) + jump (A) to jump further
-- Jump on enemies to defeat them
-
-Strategy tips:
-- Progress requires moving RIGHT and JUMPING
-- Jump early rather than late
-- Use running jumps for long gaps
-
-Output ONLY the action list in valid Python syntax, e.g.:
-[True, False, False, False, False, False, False, True, True]"""
-        return prompt
-        
-    def parse_response(self, response: str) -> List[bool]:
-        """Parse the LLM's response into a valid Mario action array."""
-        try:
-            # Clean up response to get just the action list
-            start_idx = response.find("[")
-            end_idx = response.find("]") + 1
-            if start_idx >= 0 and end_idx > start_idx:
-                action_str = response[start_idx:end_idx]
-                action_list = eval(action_str)
-                
-                # Validate action list
-                if isinstance(action_list, list) and len(action_list) == 9 and all(isinstance(x, bool) for x in action_list):
-                    # Prevent LEFT and RIGHT being pressed simultaneously
-                    if action_list[6] and action_list[7]:  # If both LEFT and RIGHT are True
-                        self.logger.warning("Both LEFT and RIGHT pressed, defaulting to RIGHT")
-                        action_list[6] = False  # Disable LEFT
-                    
-                    return action_list
-                    
-        except Exception as e:
-            self.logger.error(f"Error parsing response: {e}")
-            
-        # Default to moving right if parsing fails
-        return [False, False, False, False, False, False, False, True, False]
-        
-    def _should_change_action(self, proposed_action: List[bool]) -> bool:
-        """Determine if we should change the current action based on timing."""
-        if self.current_action is None:
-            return True
-            
-        # Get action-specific hold time
-        hold_time = self.action_hold_time
-        
-        # Check if this is a jump action (A button pressed)
-        if proposed_action[8]:  # A button (jump)
-            hold_time = int(self.action_hold_times.get("jump", 0.3) * 60)  # Convert seconds to frames
-        # Check if this is a run action (B button pressed)
-        elif proposed_action[0]:  # B button (run)
-            hold_time = int(self.action_hold_times.get("run", 0.5) * 60)
-        # Check if this is a direction action (LEFT or RIGHT pressed)
-        elif proposed_action[6] or proposed_action[7]:  # LEFT or RIGHT
-            hold_time = int(self.action_hold_times.get("direction", 0.4) * 60)
-            
-        # Change action if:
-        # 1. We've held the current action long enough
-        # 2. The proposed action is different from current action
-        if self.action_counter >= hold_time or proposed_action != self.current_action:
-            return True
-            
-        return False
-        
-    def get_test_pattern(self) -> List[bool]:
-        """Get the next action from the test pattern."""
-        if not self.test_pattern:
-            return [False, False, False, False, False, False, False, True, False]
-            
-        action = self.test_pattern[self.test_pattern_index]
-        self.test_pattern_index = (self.test_pattern_index + 1) % len(self.test_pattern)
-        return action
-        
-    def select_action(self, observation: np.ndarray) -> List[bool]:
-        """Select the next action based on the observation."""
-        # For smooth gameplay, use test pattern by default
-        if self.use_test_pattern:
-            proposed_action = self.get_test_pattern()
-        else:
-            try:
-                # Only call API every api_call_interval frames
-                if self.total_actions % self.api_call_interval == 0:
-                    # Convert image to base64
-                    image_base64 = self._image_to_base64(observation)
-                    if not image_base64:
-                        raise ValueError("Failed to convert image to base64")
-                    
-                    # Generate action using provider with both image and text
-                    prompt = self.format_prompt(observation)
-                    response = self.provider.generate_with_images(prompt, [image_base64])
-                    
-                    # Log API response
-                    self.logger.info(f"\nAPI Response (Step {self.total_actions}):")
-                    self.logger.info(f"Response: {response}")
-                    
-                    proposed_action = self.parse_response(response)
-                else:
-                    # Reuse last action if not time to update
-                    proposed_action = self.current_action or [False, False, False, False, False, False, False, True, False]
-                
-            except Exception as e:
-                self.logger.error(f"Error processing observation: {e}")
-                # Fall back to test pattern
-                proposed_action = self.get_test_pattern()
-            
-        # Check if we should change the current action based on timing
-        if self._should_change_action(proposed_action):
-            self.current_action = proposed_action
-            self.action_counter = 0
-        else:
-            self.action_counter += 1
-            
-        self.total_actions += 1
-        return self.current_action
-        
-    def _log_action_stats(self, observation: Tuple[np.ndarray, Dict], action: List[bool]) -> None:
-        """Log statistics about the current action."""
-        state = self._extract_game_state(observation)
-        stats = {
-            "action": action,
-            "position": {
-                "x": state["xscrollLo"],
-                "y": state["yscrollLo"]
-            },
-            "score": state["score"],
-            "lives": state["lives"]
-        }
-        self.logger.info(f"Action stats: {json.dumps(stats)}")
-        
-    def save_observation(
-        self,
-        observation: np.ndarray,
-        step: int,
-        reward: float,
-        info: Dict,
-        action: List[bool],
-        env: Any = None,
-        episode_start_time: Optional[str] = None
-    ) -> None:
-        """Save observation image, metadata, and game state."""
-        # Only save every save_interval frames
-        if step % self.save_interval != 0:
-            return
-            
-        try:
-            # Ensure observation is in correct format
-            if isinstance(observation, tuple):
-                observation = observation[0]
-            
-            # Save observation image
-            obs_filename = os.path.join(self.obs_dir, f'obs_{step:06d}.png')
-            cv2.imwrite(obs_filename, observation)
-            
-            # Prepare metadata
-            metadata = {
-                'step': step,
-                'reward': reward,
-                'action': action,
-                'timestamp': datetime.now().isoformat()
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            log_data = {
+                "timestamp": timestamp,
+                "thread_type": thread_type,
+                "step": step,
+                "prompt": prompt,
+                "response": response,
+                "model": self.model_name,
+                "temperature": self.temperature,
+                "max_tokens": self.max_tokens
             }
             
-            # Add info if it's a dictionary
-            if isinstance(info, dict):
-                metadata['info'] = info
-            else:
-                metadata['info'] = str(info)
-            
-            # Save metadata
-            meta_filename = os.path.join(self.metadata_dir, f'meta_{step:06d}.json')
-            with open(meta_filename, 'w') as f:
-                json.dump(metadata, f, indent=2)
+            # Save to JSON file
+            log_file = os.path.join(self.api_logs_dir, f"api_call_{timestamp}_{thread_type}_{step}.json")
+            with open(log_file, "w") as f:
+                json.dump(log_data, f, indent=4)
+                f.flush()  # Ensure data is written to disk
+                os.fsync(f.fileno())  # Force sync to disk
                 
-            # Save state if environment is provided
-            if env is not None and episode_start_time is not None:
-                try:
-                    state = env.em.get_state()
-                    state_path = os.path.join(self.state_dir, f'state_{episode_start_time}_step_{step:06d}.state')
-                    with open(state_path, 'wb') as f:
-                        f.write(state)
-                except Exception as e:
-                    self.logger.error(f"Could not save state at step {step}: {e}")
-                    
         except Exception as e:
-            self.logger.error(f"Error saving observation at step {step}: {e}")
-            self.logger.error(f"Observation type: {type(observation)}")
-            self.logger.error(f"Info type: {type(info)}")
+            print(f"Error logging API interaction: {str(e)}")
+            
+    async def _make_api_call(self, prompt: str, image: str, thread_type: str, step: int) -> Optional[str]:
+        """Make an async API call with rate limiting and logging."""
+        current_time = time.time()
+        time_since_last_call = current_time - self.last_api_call_time
+        
+        if time_since_last_call < self.min_api_call_interval:
+            wait_time = self.min_api_call_interval - time_since_last_call
+            print(f"Rate limiting: waiting {wait_time:.2f}s")
+            await asyncio.sleep(wait_time)
+            
+        try:
+            print(f"Making API call to {self.model_name} (thread: {thread_type}, step: {step})")
+            start_time = time.time()
+            response = await self.loop.run_in_executor(
+                None,
+                lambda: self.provider_manager.anthropic.generate_with_images(
+                    prompt=prompt,
+                    images=[image],
+                    model=self.model_name,
+                    max_tokens=self.max_tokens,
+                    temperature=self.temperature
+                )
+            )
+            end_time = time.time()
+            duration = end_time - start_time
+            
+            self.last_api_call_time = time.time()
+            
+            print(f"API call completed in {duration:.2f}s")
+            print(f"Response length: {len(response)}")
+            print(f"Response preview: {response[:200]}...")
+            
+            # Log full interaction
+            self._log_api_interaction(prompt, response, thread_type, step)
+            
+            return response
+        except Exception as e:
+            print(f"API call error: {str(e)}")
+            if "rate_limit" in str(e).lower():
+                self.min_api_call_interval *= 1.5
+                print(f"Rate limit hit, increasing interval to {self.min_api_call_interval}s")
+            return None
+            
+    async def _short_term_worker(self, thread_id: int, offset: float):
+        """Async worker for short-term decisions."""
+        await asyncio.sleep(offset)
+        print(f"[Thread {thread_id} - SHORT] Starting after {offset}s delay...")
+        
+        step = 0
+        while True:
+            try:
+                with self.observation_lock:
+                    observation = self.current_observation
+                    
+                if observation is None:
+                    await asyncio.sleep(0.1)
+                    continue
+                    
+                print(f"[Thread {thread_id} - SHORT] Making API call at step {step}")
+                prompt = self._format_short_term_prompt()
+                encoded_image = encode_image(observation)
+                
+                response = await self._make_api_call(prompt, encoded_image, "short_term", step)
+                if response:
+                    print(f"[Thread {thread_id} - SHORT] Received response at step {step}")
+                    action = self.parse_response(response)
+                    if not self.short_term_queue.full():
+                        self.short_term_queue.put(action)
+                        print(f"[Thread {thread_id} - SHORT] Action queued at step {step}")
+                    else:
+                        print(f"[Thread {thread_id} - SHORT] Queue full at step {step}")
+                else:
+                    print(f"[Thread {thread_id} - SHORT] No response received at step {step}")
+                        
+                step += 1
+                await asyncio.sleep(0.1)
+            except Exception as e:
+                print(f"[Thread {thread_id} - SHORT] Error: {str(e)}")
+                await asyncio.sleep(0.1)
+                
+    async def _long_term_worker(self, thread_id: int, offset: float):
+        """Async worker for long-term decisions."""
+        await asyncio.sleep(offset)
+        print(f"[Thread {thread_id} - LONG] Starting after {offset}s delay...")
+        
+        step = 0
+        while True:
+            try:
+                with self.observation_lock:
+                    observation = self.current_observation
+                    
+                if observation is None:
+                    await asyncio.sleep(0.1)
+                    continue
+                    
+                print(f"[Thread {thread_id} - LONG] Making API call at step {step}")
+                prompt = self._format_long_term_prompt()
+                encoded_image = encode_image(observation)
+                
+                response = await self._make_api_call(prompt, encoded_image, "long_term", step)
+                if response:
+                    print(f"[Thread {thread_id} - LONG] Received response at step {step}")
+                    action = self.parse_response(response)
+                    if not self.long_term_queue.full():
+                        self.long_term_queue.put(action)
+                        print(f"[Thread {thread_id} - LONG] Action queued at step {step}")
+                    else:
+                        print(f"[Thread {thread_id} - LONG] Queue full at step {step}")
+                else:
+                    print(f"[Thread {thread_id} - LONG] No response received at step {step}")
+                        
+                step += 1
+                await asyncio.sleep(0.1)
+            except Exception as e:
+                print(f"[Thread {thread_id} - LONG] Error: {str(e)}")
+                await asyncio.sleep(0.1)
+                
+    def start_workers(self):
+        """Start async worker tasks."""
+        print("Starting worker threads...")
+        for i in range(self.num_threads):
+            if i % 2 == 0:
+                print(f"Starting long-term worker {i}")
+                self.loop.create_task(self._long_term_worker(i, self.offsets[i]))
+            else:
+                print(f"Starting short-term worker {i}")
+                self.loop.create_task(self._short_term_worker(i, self.offsets[i]))
+                
+        # Start the event loop in a separate thread
+        def run_loop():
+            print("Starting event loop...")
+            self.loop.run_forever()
+            
+        self.worker_thread = threading.Thread(target=run_loop, daemon=True)
+        self.worker_thread.start()
+        print("Worker threads started successfully")
+        
+    async def select_action_async(self, observation: Union[np.ndarray, Tuple[np.ndarray, Dict]]) -> np.ndarray:
+        """Asynchronously select an action based on the current observation."""
+        if isinstance(observation, tuple):
+            obs = observation[0]
+        else:
+            obs = observation
+            
+        # Update current observation
+        with self.observation_lock:
+            self.current_observation = obs
+            print(f"Updated observation")
+            
+        # Get action from appropriate queue
+        try:
+            # Try to get short-term action first
+            if not self.short_term_queue.empty():
+                action = self.short_term_queue.get_nowait()
+                print(f"Got short-term action from queue")
+            # Fall back to long-term action
+            elif not self.long_term_queue.empty():
+                action = self.long_term_queue.get_nowait()
+                print(f"Got long-term action from queue")
+            else:
+                # Default action if no actions in queues
+                print("No actions in queues, using default action")
+                action = np.array([False, False, False, False, False, False, False, True, False], dtype=np.uint8)
+                
+            # Log the action
+            self.log_action(action, 0)
+            self.log_state(obs, 0)
+            
+            return action
+        except Exception as e:
+            print(f"Error selecting action: {str(e)}")
+            return np.array([False, False, False, False, False, False, False, True, False], dtype=np.uint8)
+        
+    async def reset_async(self) -> None:
+        """Asynchronously reset the agent's state."""
+        # Clear action queues
+        while not self.short_term_queue.empty():
+            self.short_term_queue.get_nowait()
+        while not self.long_term_queue.empty():
+            self.long_term_queue.get_nowait()
+            
+        # Reset observation
+        with self.observation_lock:
+            self.current_observation = None
+            
+        # Reset rate limiting
+        self.last_api_call_time = 0
+        self.min_api_call_interval = 1.0
+        
+        # Stop any ongoing recording
+        self.stop_recording()
+        
+    async def close_async(self) -> None:
+        """Asynchronously clean up resources."""
+        # Stop any ongoing recording
+        self.stop_recording()
+        
+        # Stop the event loop
+        print("Stopping event loop...")
+        self.loop.stop()
+        
+        # Cancel all running tasks
+        for task in asyncio.all_tasks(self.loop):
+            task.cancel()
+            
+        # Wait for tasks to complete
+        await asyncio.gather(*asyncio.all_tasks(self.loop), return_exceptions=True)
+        
+        # Shutdown executor
+        self.executor.shutdown(wait=True)
+        
+    def select_action(self, observation: Union[np.ndarray, Tuple[np.ndarray, Dict]]) -> np.ndarray:
+        """Synchronously select an action based on the current observation."""
+        if isinstance(observation, tuple):
+            obs = observation[0]
+        else:
+            obs = observation
+            
+        # Update current observation
+        with self.observation_lock:
+            self.current_observation = obs
+            
+        # Get action from appropriate queue
+        try:
+            # Try to get short-term action first
+            if not self.short_term_queue.empty():
+                action = self.short_term_queue.get_nowait()
+            # Fall back to long-term action
+            elif not self.long_term_queue.empty():
+                action = self.long_term_queue.get_nowait()
+            else:
+                # Default action if no actions in queues
+                action = np.array([False, False, False, False, False, False, False, True, False], dtype=np.uint8)
+                
+            # Log the action
+            self.log_action(action, 0)
+            self.log_state(obs, 0)
+            
+            return action
+        except Exception as e:
+            print(f"Error selecting action: {str(e)}")
+            return np.array([False, False, False, False, False, False, False, True, False], dtype=np.uint8)
+        
+    def reset(self) -> None:
+        """Synchronously reset the agent's state."""
+        super().reset()
         
     def close(self) -> None:
-        """Clean up resources."""
-        pass  # No cleanup needed for now
+        """Synchronously clean up resources."""
+        super().close()
 
-    def step(self, observation: np.ndarray) -> List[bool]:
-        """Execute action for multiple frames with frame skip."""
-        # Get action from agent without frame timing control
-        # Let the environment handle frame timing
-        action = self.select_action(observation)
-        return action
+    def _format_short_term_prompt(self) -> str:
+        """Format prompt for short-term decisions."""
+        return """Analyze the current game state and generate the next action for Mario for the next 1 second.
+Focus on immediate obstacles, enemies, and hazards.
+
+Game State Analysis:
+1. Look for:
+   - Immediate obstacles or enemies
+   - Gaps or pits that need immediate jumping
+   - Power-ups that can be quickly collected
+   - Enemies that are about to hit Mario
+
+2. Short-term Strategy:
+   - React quickly to immediate threats
+   - Make small adjustments to avoid obstacles
+   - Use quick jumps to avoid enemies
+   - Collect nearby power-ups
+   - If in immediate danger, move left to avoid
+
+Controls:
+- A (index 8): Jump - Use for quick jumps over enemies or gaps
+- B (index 0): Run - Use for quick acceleration
+- RIGHT (index 7): Move right - Use for forward movement
+- LEFT (index 6): Move left - Use to avoid immediate threats
+- UP (index 4): Look up - Use to check for overhead threats
+- DOWN (index 5): Crouch - Use to avoid projectiles
+
+Output Format:
+Return ONLY a Python list of 9 boolean values: [B, null, SELECT, START, UP, DOWN, LEFT, RIGHT, A]"""
+        
+    def _format_long_term_prompt(self) -> str:
+        """Format prompt for long-term decisions."""
+        return """Analyze the current game state and generate the next action for Mario for the next 2 seconds.
+Focus on strategic planning and progress.
+
+Game State Analysis:
+1. Look for:
+   - Upcoming obstacles or enemies
+   - Strategic positions for jumps
+   - Power-up locations
+   - Safe paths forward
+   - Areas that need preparation
+
+2. Long-term Strategy:
+   - Plan ahead for upcoming obstacles
+   - Position Mario for optimal jumps
+   - Look for opportunities to collect power-ups
+   - Identify safe paths forward
+   - Prepare for upcoming challenges
+   - If unsure, take a defensive position
+
+Controls:
+- A (index 8): Jump - Use for planned jumps over gaps
+- B (index 0): Run - Use for building momentum
+- RIGHT (index 7): Move right - Use for steady progress
+- LEFT (index 6): Move left - Use for strategic positioning
+- UP (index 4): Look up - Use to plan ahead
+- DOWN (index 5): Crouch - Use for strategic positioning
+
+Output Format:
+Return ONLY a Python list of 9 boolean values: [B, null, SELECT, START, UP, DOWN, LEFT, RIGHT, A]"""
+                
+    def parse_response(self, response: str) -> np.ndarray:
+        """Parse the API response into a valid action."""
+        try:
+            print(f"Received response: {response}")
+            
+            # Find the last occurrence of '[' in the response
+            start = response.rfind('[')
+            end = response.rfind(']') + 1
+            
+            if start >= 0 and end > start:
+                action_str = response[start:end]
+                print(f"Extracted action string: {action_str}")
+                
+                # Clean up the action string by removing any non-bracket characters
+                action_str = ''.join(c for c in action_str if c in '[],TrueFalse')
+                
+                try:
+                    action = eval(action_str)
+                    if isinstance(action, list) and len(action) == 9:
+                        print(f"Parsed action: {action}")
+                        # Print the model's analysis
+                        if start > 0:
+                            print("Model's analysis:")
+                            print(response[:start].strip())
+                        return np.array(action, dtype=np.uint8)
+                except Exception as e:
+                    print(f"Error evaluating action string: {e}")
+                    print(f"Action string was: {action_str}")
+        except Exception as e:
+            print(f"Error parsing response: {e}")
+            
+        # Default to moving right if parsing fails
+        print("Using default action: moving right")
+        return np.array([False, False, False, False, False, False, False, True, False], dtype=np.uint8)
+
+    def start_recording(self, episode: int) -> None:
+        """Start recording a new BK2 file."""
+        if self.record_bk2:
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            self.current_recording_path = os.path.join(
+                self.bk2_dir, 
+                f"episode_{episode}_{timestamp}.bk2"
+            )
+            self.env.unwrapped.record_movie(self.current_recording_path)
+            print(f"Started recording episode {episode} to {self.current_recording_path}")
+            
+    def stop_recording(self) -> None:
+        """Stop recording the current BK2 file."""
+        if self.record_bk2 and self.current_recording_path:
+            self.env.unwrapped.stop_record()
+            print(f"Stopped recording to {self.current_recording_path}")
+            self.current_recording_path = None

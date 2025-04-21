@@ -2,7 +2,8 @@ import os
 import json
 import logging
 from datetime import datetime
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, Union
+import numpy as np
 from pathlib import Path
 
 class Logger:
@@ -110,4 +111,107 @@ class Logger:
         Args:
             exception (Exception): Exception to log
         """
-        self.error(f"Exception occurred: {str(exception)}", exc_info=True) 
+        self.error(f"Exception occurred: {str(exception)}", exc_info=True)
+        
+    # Agent-specific logging methods
+    def log_agent_config(self, config: Dict[str, Any]) -> None:
+        """
+        Log agent configuration.
+        
+        Args:
+            config (Dict[str, Any]): Agent configuration
+        """
+        self.info("Agent configuration", extra={"config": config})
+        
+    def log_action(self, action: np.ndarray, step: int, action_dir: str) -> None:
+        """
+        Log agent action.
+        
+        Args:
+            action (np.ndarray): Action taken
+            step (int): Current step
+            action_dir (str): Directory to save action file
+        """
+        action_data = {
+            "step": step,
+            "action": action.tolist(),
+            "timestamp": self.get_timestamp()
+        }
+        
+        # Save to file
+        action_path = os.path.join(action_dir, f"action_{step:06d}.json")
+        with open(action_path, "w") as f:
+            json.dump(action_data, f, indent=4)
+            
+        # Log action
+        self.info(f"Action taken at step {step}", extra={"action": action_data})
+        
+    def log_state(self, observation: np.ndarray, step: int, state_dir: str) -> None:
+        """
+        Log agent state/observation.
+        
+        Args:
+            observation (np.ndarray): Current observation
+            step (int): Current step
+            state_dir (str): Directory to save state file
+        """
+        state_data = {
+            "step": step,
+            "observation_shape": observation.shape,
+            "timestamp": self.get_timestamp()
+        }
+        
+        # Save to file
+        state_path = os.path.join(state_dir, f"state_{step:06d}.json")
+        with open(state_path, "w") as f:
+            json.dump(state_data, f, indent=4)
+            
+        # Log state
+        self.info(f"State observed at step {step}", extra={"state": state_data})
+        
+    def log_api_call(self, 
+                    model: str, 
+                    max_tokens: int, 
+                    temperature: float, 
+                    prompt_length: int, 
+                    image_size: int,
+                    response_time: float,
+                    response_length: int,
+                    response_preview: str) -> None:
+        """
+        Log API call details.
+        
+        Args:
+            model (str): Model name
+            max_tokens (int): Max tokens used
+            temperature (float): Temperature setting
+            prompt_length (int): Length of prompt
+            image_size (int): Size of image
+            response_time (float): Time taken for response
+            response_length (int): Length of response
+            response_preview (str): Preview of response
+        """
+        api_data = {
+            "model": model,
+            "max_tokens": max_tokens,
+            "temperature": temperature,
+            "prompt_length": prompt_length,
+            "image_size": image_size,
+            "response_time": response_time,
+            "response_length": response_length,
+            "response_preview": response_preview
+        }
+        self.info("API call details", extra={"api_call": api_data})
+        
+    def log_rate_limit(self, wait_time: float, new_interval: Optional[float] = None) -> None:
+        """
+        Log rate limiting information.
+        
+        Args:
+            wait_time (float): Time to wait
+            new_interval (Optional[float]): New rate limit interval if changed
+        """
+        rate_data = {"wait_time": wait_time}
+        if new_interval is not None:
+            rate_data["new_interval"] = new_interval
+        self.info("Rate limiting", extra={"rate_limit": rate_data}) 

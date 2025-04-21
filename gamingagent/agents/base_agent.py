@@ -1,97 +1,115 @@
-from abc import ABC, abstractmethod
-from typing import Any, Dict, Optional, List
+import os
+import json
+from typing import Any, Dict, Optional, Union, Tuple
 import numpy as np
+from datetime import datetime
 
-class BaseAgent(ABC):
-    """Base class for all game-playing agents."""
+class BaseAgent:
+    """Base class for all agents."""
     
-    def __init__(self, env: Any):
-        """
-        Initialize agent.
+    def __init__(
+        self,
+        env: Any,
+        game_name: str,
+        api_provider: str,
+        model_name: str
+    ):
+        """Initialize the base agent.
         
         Args:
-            env: Game environment the agent will interact with
+            env: The environment to interact with
+            game_name: Name of the game
+            api_provider: Name of the API provider
+            model_name: Name of the model to use
         """
         self.env = env
+        self.game_name = game_name
+        self.api_provider = api_provider
+        self.model_name = model_name
         
-    @abstractmethod
+        # Set up cache directory
+        self._setup_cache_directory()
+        
+    def _setup_cache_directory(self) -> None:
+        """Set up the cache directory structure."""
+        # Create base cache directory
+        self.cache_dir = os.path.join("cache", self.game_name)
+        os.makedirs(self.cache_dir, exist_ok=True)
+        
+        # Create subdirectories
+        self.logs_dir = os.path.join(self.cache_dir, "logs")
+        self.actions_dir = os.path.join(self.cache_dir, "actions")
+        self.states_dir = os.path.join(self.cache_dir, "states")
+        
+        os.makedirs(self.logs_dir, exist_ok=True)
+        os.makedirs(self.actions_dir, exist_ok=True)
+        os.makedirs(self.states_dir, exist_ok=True)
+        
+        # Save agent configuration
+        self._save_config()
+        
+    def _save_config(self) -> None:
+        """Save agent configuration to cache directory."""
+        config = {
+            "game_name": self.game_name,
+            "api_provider": self.api_provider,
+            "model_name": self.model_name,
+            "timestamp": datetime.now().isoformat()
+        }
+        
+        config_path = os.path.join(self.cache_dir, "config.json")
+        with open(config_path, "w") as f:
+            json.dump(config, f, indent=4)
+            
+    def log_action(self, action: np.ndarray, step: int) -> None:
+        """Log an action taken by the agent.
+        
+        Args:
+            action: The action taken
+            step: The current step number
+        """
+        action_data = {
+            "step": step,
+            "action": action.tolist(),
+            "timestamp": datetime.now().isoformat()
+        }
+        
+        action_path = os.path.join(self.actions_dir, f"action_{step:06d}.json")
+        with open(action_path, "w") as f:
+            json.dump(action_data, f, indent=4)
+            
+    def log_state(self, observation: np.ndarray, step: int) -> None:
+        """Log the current state/observation.
+        
+        Args:
+            observation: The current observation
+            step: The current step number
+        """
+        state_data = {
+            "step": step,
+            "observation_shape": observation.shape,
+            "timestamp": datetime.now().isoformat()
+        }
+        
+        state_path = os.path.join(self.states_dir, f"state_{step:06d}.json")
+        with open(state_path, "w") as f:
+            json.dump(state_data, f, indent=4)
+            
+    def select_action(self, observation: Union[np.ndarray, Tuple[np.ndarray, Dict]]) -> np.ndarray:
+        """Select an action based on the current observation.
+        
+        Args:
+            observation: The current observation
+            
+        Returns:
+            The selected action
+        """
+        raise NotImplementedError("Subclasses must implement select_action")
+        
     def reset(self) -> None:
-        """Reset agent's internal state."""
+        """Reset the agent's state."""
         pass
         
-    @abstractmethod
-    def select_action(self, observation: Any) -> Any:
-        """
-        Select action based on current observation.
-        
-        Args:
-            observation: Current environment observation
-            
-        Returns:
-            Action to take in the environment
-        """
+    def close(self) -> None:
+        """Clean up resources."""
         pass
-        
-    def update(self, observation: Any, reward: float, done: bool, info: Dict) -> None:
-        """
-        Update agent's internal state after taking an action.
-        
-        Args:
-            observation: Current observation
-            reward: Reward received
-            done: Whether episode is done
-            info: Additional information
-        """
-        pass
-
-class LLMAgent(BaseAgent):
-    """Base class for LLM-based agents."""
-    
-    def __init__(self, env: Any, provider: Any, **kwargs):
-        """
-        Initialize LLM agent.
-        
-        Args:
-            env: Game environment
-            provider: LLM provider for decision making
-            **kwargs: Additional configuration
-        """
-        super().__init__(env)
-        self.provider = provider
-        self.conversation_history = []
-        
-    def reset(self) -> None:
-        """Reset conversation history."""
-        self.conversation_history = []
-        
-    @abstractmethod
-    def format_prompt(self, observation: Any) -> str:
-        """
-        Format observation into LLM prompt.
-        
-        Args:
-            observation: Environment observation
-            
-        Returns:
-            str: Formatted prompt for LLM
-        """
-        pass
-        
-    @abstractmethod
-    def parse_response(self, response: str) -> Any:
-        """
-        Parse LLM response into action.
-        
-        Args:
-            response: Raw LLM response
-            
-        Returns:
-            Valid action for the environment
-        """
-        pass
-        
-    def select_action(self, observation: Any) -> Any:
-        """Get action from LLM based on observation."""
-        prompt = self.format_prompt(observation)
-        response = self.provider.generate(prompt)
-        return self.parse_response(response)

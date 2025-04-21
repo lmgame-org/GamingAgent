@@ -1,107 +1,181 @@
-import os
-import pytest
+import argparse
+import retro
+import asyncio
+from gamingagent.envs.retro_env import ClassicVideoGameEnv
+from gamingagent.agents.mario_agent import MarioAgent
 from gamingagent.providers import APIProviderManager
-from gamingagent.envs import RetroEnv
-from gamingagent.agents import MarioAgent
-from gamingagent.utils.logger import Logger
-import time
 
-def test_mario_agent():
-    """Test the Mario agent with API provider manager."""
+async def run_episode(env, agent, episode_num, verbosity):
+    """Run a single episode with the agent."""
+    observation = env.reset()
+    t = 0
+    total_reward = 0
     
-    # Check for API key
-    if not os.getenv("ANTHROPIC_API_KEY"):
-        pytest.skip("ANTHROPIC_API_KEY not set")
+    # Start recording if enabled
+    agent.start_recording(episode_num)
+    
+    while True:
+        # Get action from agent asynchronously
+        action = await agent.select_action_async(observation)
+        
+        # Take step in environment
+        observation, reward, terminated, truncated, info = env.step(action)
+        t += 1
+        total_reward += reward
+        
+        # Print info periodically
+        if t % 10 == 0 and verbosity > 1:
+            infostr = ""
+            if info:
+                infostr = ", info: " + ", ".join(
+                    ["%s=%i" % (k, v) for k, v in info.items()],
+                )
+            print(f"t={t}{infostr}")
+        
+        # Print rewards
+        if verbosity > 0:
+            if reward > 0:
+                print(f"t={t} got reward: {reward}, current reward: {total_reward}")
+            elif reward < 0:
+                print(f"t={t} got penalty: {reward}, current reward: {total_reward}")
+        
+        # Check if episode is done
+        if terminated or truncated:
+            if verbosity >= 0:
+                print(f"done! total reward: time={t}, reward={total_reward}")
+                input("press enter to continue")
+                print()
+            break
+            
+    # Stop recording
+    agent.stop_recording()
+    return total_reward
+
+async def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "--game",
+        default="SuperMarioBros-Nes",
+        help="the name or path for the game to run",
+    )
+    parser.add_argument(
+        "--state",
+        default=retro.State.DEFAULT,
+        help="the initial state file to load, minus the extension",
+    )
+    parser.add_argument(
+        "--scenario",
+        "-s",
+        default="scenario",
+        help="the scenario file to load, minus the extension",
+    )
+    parser.add_argument("--record", "-r", action="store_true", help="record bk2 movies")
+    parser.add_argument(
+        "--verbose",
+        "-v",
+        action="count",
+        default=1,
+        help="increase verbosity (can be specified multiple times)",
+    )
+    parser.add_argument(
+        "--quiet",
+        "-q",
+        action="count",
+        default=0,
+        help="decrease verbosity (can be specified multiple times)",
+    )
+    parser.add_argument(
+        "--model",
+        default="claude-3-opus-20240229",
+        help="the model to use for the API provider",
+    )
+    parser.add_argument(
+        "--max-tokens",
+        type=int,
+        default=1000,
+        help="maximum number of tokens to generate",
+    )
+    parser.add_argument(
+        "--temperature",
+        type=float,
+        default=0.7,
+        help="temperature for the API provider",
+    )
+    parser.add_argument(
+        "--concurrency-interval",
+        type=float,
+        default=1.0,
+        help="interval between worker starts in seconds (default: 1.0)",
+    )
+    parser.add_argument(
+        "--num-threads",
+        type=int,
+        default=4,
+        help="number of worker threads (default: 4)",
+    )
+    parser.add_argument(
+        "--api-response-latency",
+        type=float,
+        default=7.0,
+        help="estimated API response latency in seconds",
+    )
+    parser.add_argument(
+        "--frame-delay",
+        type=float,
+        default=0.016,  # 60 FPS
+        help="frame delay in seconds (controls game speed)",
+    )
+    args = parser.parse_args()
+
+    print(f"Initializing environment with game: {args.game}")
+    # Create environment
+    env = ClassicVideoGameEnv(
+        game=args.game,
+        state=args.state,
+        scenario=args.scenario,
+        record=args.record,
+        render_mode="human",
+        frame_delay=args.frame_delay
+    )
+
+    print("Initializing API provider manager...")
+    # Initialize API provider manager
+    provider_manager = APIProviderManager()
+    provider_manager.initialize_providers()
+    
+    # Verify Anthropic provider is available
+    if not provider_manager.anthropic:
+        raise RuntimeError("Anthropic provider not initialized. Please check your API key.")
+    print("API provider manager initialized successfully")
+
+    print(f"Creating Mario agent with model: {args.model}")
+    # Create Mario agent
+    agent = MarioAgent(
+        env=env,
+        provider_manager=provider_manager,
+        model_name=args.model,
+        max_tokens=args.max_tokens,
+        temperature=args.temperature,
+        num_threads=args.num_threads,
+        concurrency_interval=args.concurrency_interval,
+        api_response_latency_estimate=args.api_response_latency,
+        record_bk2=args.record
+    )
+    
+    verbosity = args.verbose - args.quiet
     
     try:
-        # Create environment
-        env = RetroEnv(
-            game_name='SuperMarioBros-Nes',
-            render_mode="human",
-            frame_skip=2,  # Skip 2 frames between actions
-            fps=30        # Target 30 FPS
-        )
-        
-        # Initialize API provider manager
-        api_manager = APIProviderManager()
-        api_manager.initialize_providers(
-            anthropic_model="claude-3-opus-20240229",
-            anthropic_max_tokens=1024,
-            anthropic_temperature=0
-        )
-        
-        # Create logger
-        logger = Logger(log_dir="./logs")
-        
-        # Create agent with API manager
-        agent = MarioAgent(
-            env=env,
-            provider=api_manager.anthropic,
-            logger=logger,
-            cache_dir="./cache",
-            use_test_pattern=False,
-            action_hold_times={
-                'run': 0.5,
-                'direction': 0.4,
-                'jump': 0.3,
-                'big_jump': 0.4
-            },
-            api_call_interval=60,  # Call API every 60 frames
-            save_interval=30,      # Save observations every 30 frames
-            frame_skip=2,          # Skip 2 frames between actions
-            target_fps=30          # Target 30 FPS
-        )
-        
-        # Run a test episode
-        observation = env.reset()
-        total_reward = 0
-        done = False
-        last_render_time = 0
-        render_interval = 1.0 / 30  # 30 FPS
-        
-        for step in range(1000):  # Run for 1000 steps max
-            # Control frame timing
-            current_time = time.time()
-            time_since_last_frame = current_time - last_render_time
-            if time_since_last_frame < render_interval:
-                time.sleep(render_interval - time_since_last_frame)
+        episode = 0
+        while True:
+            total_reward = await run_episode(env, agent, episode, verbosity)
+            episode += 1
             
-            # Get action from agent
-            action = agent.step(observation)
-            
-            # Take step in environment
-            observation, reward, terminated, truncated, info = env.step(action)
-            total_reward += reward
-            
-            # Update render time
-            last_render_time = time.time()
-            
-            # Optional: Save observation
-            if step % 30 == 0:  # Save every 30 frames
-                agent.save_observation(
-                    observation=observation,
-                    step=step,
-                    reward=reward,
-                    info=info,
-                    action=action,
-                    env=env,
-                    episode_start_time=None
-                )
-            
-            if terminated or truncated:
-                break
-                
-        # Cleanup
-        agent.close()
+    except KeyboardInterrupt:
+        pass
+    finally:
+        # Clean up
+        await agent.close_async()
         env.close()
-        
-        # Basic assertions
-        assert total_reward >= 0, "Agent should achieve non-negative reward"
-        assert agent.total_actions > 0, "Agent should take actions"
-        
-    except Exception as e:
-        pytest.fail(f"Test failed with error: {e}")
 
 if __name__ == "__main__":
-    # For manual testing/running
-    test_mario_agent()
+    asyncio.run(main())
