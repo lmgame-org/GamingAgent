@@ -196,18 +196,21 @@ class RealTimeClassicVideoGameEnv(ClassicVideoGameEnv):
         self.frame_skip = frame_skip
         self.last_frame_time = time.time()
         self.frame_count = 0
+        self.fps_start_time = time.time()
         
         # Thread-safe buffers for latest frame and step result
         self._latest_frame = None
         self._step_result = None
         self._frame_lock = threading.Lock()
         self._step_lock = threading.Lock()
+        self._action_lock = threading.Lock()
         
         # Simulation thread control
         self._stop_event = threading.Event()
         self._sim_thread = None
         self.current_action = np.zeros(self.num_buttons, dtype=np.uint8)
         self._initialized = False
+        self._last_step_time = time.time()
         
     def _sim_loop(self):
         """Main simulation loop that runs in a separate thread."""
@@ -228,23 +231,18 @@ class RealTimeClassicVideoGameEnv(ClassicVideoGameEnv):
         while not self._stop_event.is_set():
             start_time = time.time()
             
-            # Get latest action from buffer
-            with self._step_lock:
-                if self._step_result is not None:
-                    _, _, terminated, truncated, _ = self._step_result
-                    if terminated or truncated:
-                        obs = self.env.reset()
-                        if isinstance(obs, tuple):
-                            obs = obs[0]
-                        with self._frame_lock:
-                            self._latest_frame = obs
-                        with self._step_lock:
-                            self._step_result = (obs, 0.0, False, False, {})
-                        continue
-                        
+            # Get current action safely
+            with self._action_lock:
+                current_action = self.current_action.copy()
+            
             # Execute action for frame_skip frames
             for _ in range(self.frame_skip):
-                obs, reward, terminated, truncated, info = self.env.step(self.current_action)
+                if self._stop_event.is_set():
+                    break
+                    
+                # Execute the action directly
+                obs, reward, terminated, truncated, info = self.env.step(current_action)
+                self.step_count += 1
                 
                 # Get RGB frame
                 frame = self.get_observation()
@@ -257,13 +255,30 @@ class RealTimeClassicVideoGameEnv(ClassicVideoGameEnv):
                 with self._step_lock:
                     self._step_result = (obs, reward, terminated, truncated, info)
                     
+                # Update frame count and FPS
+                self.frame_count += 1
+                
                 if terminated or truncated:
+                    obs = self.env.reset()
+                    if isinstance(obs, tuple):
+                        obs = obs[0]
+                    with self._frame_lock:
+                        self._latest_frame = obs
+                    with self._step_lock:
+                        self._step_result = (obs, 0.0, False, False, {})
                     break
-                    
-            # Control timing
-            elapsed = time.time() - start_time
-            if elapsed < dt:
-                time.sleep(dt - elapsed)
+                
+                # Control timing within frame skip
+                elapsed = time.time() - start_time
+                if elapsed < dt:
+                    time.sleep(dt - elapsed)
+            
+            # Update FPS counter every second
+            current_time = time.time()
+            if current_time - self.fps_start_time >= 1.0:
+                self.last_frame_time = current_time
+                self.fps_start_time = current_time
+                self.frame_count = 0
                 
     def start(self):
         """Start the simulation thread."""
@@ -272,23 +287,28 @@ class RealTimeClassicVideoGameEnv(ClassicVideoGameEnv):
             self._sim_thread.start()
             
     def step(self, action):
-        """Take a step in the environment.
-        
-        Args:
-            action: The action to take
-            
-        Returns:
-            The latest step result
-        """
+        """Take a step in the environment."""
         # Store the action for the simulation thread
-        self.current_action = action
+        with self._action_lock:
+            self.current_action = action.copy()
         
         # Wait for initialization
         while not self._initialized:
             time.sleep(0.1)
             
-        # Return the latest step result
-        return self.get_step_result()
+        # Get the latest step result
+        step_result = self.get_step_result()
+        if step_result is None:
+            return None
+            
+        # Add frame delay to control speed
+        current_time = time.time()
+        elapsed = current_time - self.last_frame_time
+        if elapsed < self.frame_delay:
+            time.sleep(self.frame_delay - elapsed)
+        self.last_frame_time = time.time()
+        
+        return step_result
         
     def reset(self, **kwargs):
         """Reset the environment."""
@@ -344,7 +364,8 @@ class RealTimeClassicVideoGameEnv(ClassicVideoGameEnv):
         Returns:
             The current frames per second
         """
-        if self.frame_count == 0:
-            return 0.0
-        elapsed = time.time() - self.last_frame_time
-        return self.frame_count / elapsed if elapsed > 0 else 0.0
+        current_time = time.time()
+        elapsed = current_time - self.fps_start_time
+        if elapsed > 0:
+            return self.frame_count / elapsed
+        return 0.0

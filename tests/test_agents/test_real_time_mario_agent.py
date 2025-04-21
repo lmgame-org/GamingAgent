@@ -40,7 +40,7 @@ def main():
     parser.add_argument(
         "--target-fps",
         type=float,
-        default=60.0,
+        default=30.0,
         help="target frames per second for the game",
     )
     parser.add_argument(
@@ -64,8 +64,7 @@ def main():
         scenario=args.scenario,
         record=args.record,
         render_mode="human",
-        target_fps=args.target_fps,
-        frame_skip=2  # Default frame skip for short worker
+        target_fps=args.target_fps
     )
 
     # Create real-time Mario agent
@@ -79,55 +78,64 @@ def main():
     verbosity = args.verbose - args.quiet
     
     try:
+        # Reset environment and start simulation thread
+        observation = env.reset()
+        print("Environment reset complete")
+        
+        # Print button mapping for debugging
+        print("Button mapping:", env.buttons)
+        print("Number of buttons:", env.num_buttons)
+        
+        # For FPS monitoring
+        last_fps_print = time.time()
+        frame_count = 0
+        
+        # Start the agent's worker threads
+        agent.start()
+        print("Agent worker threads started")
+        
+        # Main loop to execute actions
         while True:
-            # Reset environment and start simulation thread
-            observation = env.reset()
-            t = 0
-            total_reward = 0
+            # Get current frame
+            current_frame = env.get_latest_frame()
+            if current_frame is None:
+                continue
+                
+            # Get action from agent
+            action = agent.select_action(current_frame)
             
-            while True:
-                # Get action from agent
-                action = agent.select_action(observation)
-                
-                # Take step in environment
-                step_result = env.step(action)
-                if step_result is None:
-                    time.sleep(0.1)  # Wait for simulation thread
-                    continue
-                    
-                observation, reward, terminated, truncated, info = step_result
-                t += 1
-                total_reward += reward
-                
-                # Print info periodically
-                if t % 10 == 0 and verbosity > 1:
-                    infostr = ""
-                    if info:
-                        infostr = ", info: " + ", ".join(
-                            ["%s=%i" % (k, v) for k, v in info.items()],
-                        )
-                    print(f"t={t}{infostr}, fps={env.get_fps():.1f}")
-                
-                # Print rewards
+            # Execute action
+            step_result = env.step(action)
+            frame_count += 1
+            
+            # Print FPS and action info every second
+            current_time = time.time()
+            if current_time - last_fps_print >= 1.0:
+                fps = frame_count / (current_time - last_fps_print)
                 if verbosity > 0:
-                    if reward > 0:
-                        print(f"t={t} got reward: {reward}, current reward: {total_reward}")
-                    elif reward < 0:
-                        print(f"t={t} got penalty: {reward}, current reward: {total_reward}")
-                
-                # Check if episode is done
+                    print(f"Game running at {fps:.1f} FPS")
+                    if isinstance(step_result, tuple):
+                        obs, reward, terminated, truncated, info = step_result
+                        print(f"Step: {env.step_count}")
+                        print(f"Action state: {action}")
+                        if info:
+                            print(f"Info: {info}")
+                frame_count = 0
+                last_fps_print = current_time
+            
+            # Check if episode is done
+            if isinstance(step_result, tuple):
+                _, _, terminated, truncated, _ = step_result
                 if terminated or truncated:
-                    if verbosity >= 0:
-                        print(f"done! total reward: time={t}, reward={total_reward}")
-                        input("press enter to continue")
-                        print()
-                    break
-                    
+                    print("Episode done, resetting...")
+                    env.reset()
+            
     except KeyboardInterrupt:
-        pass
+        print("\nStopping agent...")
     finally:
-        env.close()
         agent.close()
+        env.close()
+        print("Cleanup complete")
 
 if __name__ == "__main__":
     main()
