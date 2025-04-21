@@ -54,3 +54,20 @@ pip-delete-this-directory.txt
 .DS_Store
 Thumbs.db
 desktop.ini
+
+# 📝 Environment Variables
+setup_env.sh
+
+# 🎮 ROM and Game Files
+*.md
+*.sfc
+*.nes
+*.a26
+*.gb
+*.gba
+*.gbc
+*.gg
+*.pce
+*.sms
+*.bk2
+custom_integrations/roms/
