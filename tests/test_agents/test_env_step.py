@@ -1,8 +1,9 @@
 import argparse
 import retro
-from gamingagent.envs.retro_env import RealTimeClassicVideoGameEnv
 import numpy as np
 import time
+import sys
+from gamingagent.envs.real_time_video_game_env import RealTimeVideoGameEnv
 
 class Action:
     """Class to handle different actions in the game."""
@@ -57,16 +58,16 @@ def main():
     )
     args = parser.parse_args()
 
-    # Create real-time environment
-    env = RealTimeClassicVideoGameEnv(
-        game=args.game,
-        state=args.state,
-        scenario=args.scenario,
-        render_mode="human",
-        target_fps=args.target_fps
-    )
-
     try:
+        # Create real-time environment
+        env = RealTimeVideoGameEnv(
+            game=args.game,
+            state=args.state,
+            scenario=args.scenario,
+            render_mode="human",
+            target_fps=args.target_fps
+        )
+
         # Reset environment
         observation = env.reset()
         print("Environment reset complete")
@@ -128,8 +129,12 @@ def main():
             
     except KeyboardInterrupt:
         print("\nStopping test...")
+    except Exception as e:
+        print(f"Error occurred: {str(e)}", file=sys.stderr)
+        sys.exit(1)
     finally:
-        env.close()
+        if 'env' in locals():
+            env.close()
         print("Cleanup complete")
 
 if __name__ == "__main__":

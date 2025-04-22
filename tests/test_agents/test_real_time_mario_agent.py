@@ -1,6 +1,6 @@
 import argparse
 import retro
-from gamingagent.envs.retro_env import RealTimeClassicVideoGameEnv
+from gamingagent.envs.real_time_video_game_env import RealTimeVideoGameEnv
 from gamingagent.agents.real_time_mario_agent import RealTimeMarioAgent
 import time
 
@@ -58,7 +58,7 @@ def main():
     args = parser.parse_args()
 
     # Create real-time environment
-    env = RealTimeClassicVideoGameEnv(
+    env = RealTimeVideoGameEnv(
         game=args.game,
         state=args.state,
         scenario=args.scenario,

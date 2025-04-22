@@ -51,6 +51,10 @@ class BaseAgent:
         os.makedirs(self.states_dir, exist_ok=True)
         os.makedirs(self.logs_dir, exist_ok=True)
         
+        # Initialize actions log file
+        self.actions_log_file = os.path.join(self.actions_dir, "actions.json")
+        self.actions_log = []
+        
         # Initialize logging
         self.logger = Logger(
             name=f"{game_name}_agent",
@@ -88,9 +92,12 @@ class BaseAgent:
             "timestamp": datetime.now().isoformat()
         }
         
-        action_path = os.path.join(self.actions_dir, f"action_{step:06d}.json")
-        with open(action_path, "w") as f:
-            json.dump(action_data, f, indent=4)
+        # Append to actions log
+        self.actions_log.append(action_data)
+        
+        # Write entire log to file
+        with open(self.actions_log_file, 'w') as f:
+            json.dump(self.actions_log, f, indent=4)
             
     def log_state(self, observation: Union[np.ndarray, Tuple[np.ndarray, dict]], step: int) -> None:
         """Log the current state/observation.

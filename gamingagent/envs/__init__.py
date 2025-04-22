@@ -1,4 +1,5 @@
 from .base_env import BaseEnv
-from .retro_env import ClassicVideoGameEnv
+from .classic_video_game_env import ClassicVideoGameEnv
+from .real_time_video_game_env import RealTimeVideoGameEnv
 
-__all__ = ['BaseEnv', 'ClassicVideoGameEnv']
+__all__ = ['BaseEnv', 'ClassicVideoGameEnv', 'RealTimeVideoGameEnv']

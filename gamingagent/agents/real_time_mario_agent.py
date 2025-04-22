@@ -9,6 +9,8 @@ from gamingagent.agents.base_agent import BaseAgent
 from gamingagent.providers.api_provider_manager import APIProviderManager
 import os
 from datetime import datetime
+import json
+from concurrent.futures import ThreadPoolExecutor  # for async planning tasks
 
 class RealTimeMarioAgent(BaseAgent):
     """A real-time version of the Mario agent that uses two workers to execute actions.
@@ -24,8 +26,8 @@ class RealTimeMarioAgent(BaseAgent):
         game_name: str,
         api_provider: str = "anthropic",
         model_name: str = "claude-3-opus-20240229",
-        short_worker_frame_skip: int = 15,  # 0.5s at 30fps
-        long_worker_frame_skip: int = 30    # 1s at 30fps
+        short_worker_frame_skip: int = 20,  # 0.5s at 30fps
+        long_worker_frame_skip: int = 35    # 1s at 30fps
     ):
         """Initialize the real-time Mario agent.
         
@@ -68,6 +70,7 @@ class RealTimeMarioAgent(BaseAgent):
         self._action_lock = threading.Lock()
         self._last_short_worker_time = 0
         self._last_long_worker_time = 0
+        self._last_generated_action = None  # Store last generated action
         
         # Action queue
         self._action_queue = []
@@ -79,6 +82,11 @@ class RealTimeMarioAgent(BaseAgent):
         self.logger.info(f"Created observations directory at {self.observations_dir}")
         
         self.logger.info("RealTimeMarioAgent initialization complete")
+        
+        # Executor for async planning tasks and scheduling thresholds
+        self._executor = ThreadPoolExecutor(max_workers=2)
+        self._planning_threshold_short = self.short_worker_frame_skip
+        self._planning_threshold_long = self.long_worker_frame_skip
         
     def _encode_frame(self, frame: np.ndarray) -> str:
         """Encode a frame as a base64 PNG string.
@@ -110,6 +118,13 @@ class RealTimeMarioAgent(BaseAgent):
             The action array, or None if the API call fails
         """
         try:
+            # Get the absolute latest frame right before API call
+            latest_frame = self.env.get_latest_frame()
+            if latest_frame is not None:
+                frame = latest_frame
+                # Save the latest frame
+                self._save_observation(frame, "latest")
+            
             # Encode frame
             b64_image = self._encode_frame(frame)
             
@@ -233,18 +248,22 @@ class RealTimeMarioAgent(BaseAgent):
             worker_type: Type of worker that generated the frame (short/long)
         """
         try:
-            # Create timestamp
+            # Save both latest.png and timestamped version
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
             
-            # Create filename
-            filename = f"{worker_type}_worker_{timestamp}.png"
-            filepath = os.path.join(self.observations_dir, filename)
-            
-            # Convert frame to PIL Image and save
+            # Save latest.png (overwrites previous)
+            latest_path = os.path.join(self.observations_dir, "latest.png")
             img = Image.fromarray(frame)
-            img.save(filepath)
+            img.save(latest_path)
             
-            self.logger.debug(f"Saved observation to {filepath}")
+            # Save timestamped version if it's a worker input
+            if "worker" in worker_type:
+                filename = f"{worker_type}_{timestamp}.png"
+                filepath = os.path.join(self.observations_dir, filename)
+                img.save(filepath)
+                self.logger.debug(f"Saved worker observation to {filepath}")
+            
+            self.logger.debug(f"Saved latest observation to {latest_path}")
         except Exception as e:
             self.logger.error(f"Error saving observation: {str(e)}")
             
@@ -257,40 +276,45 @@ class RealTimeMarioAgent(BaseAgent):
         worker_name = "Short" if is_short else "Long"
         frame_skip = self.short_worker_frame_skip if is_short else self.long_worker_frame_skip
         last_time_key = "_last_short_worker_time" if is_short else "_last_long_worker_time"
+        last_obs_time = 0
+        obs_interval = 0.1  # Save observation every 0.1 seconds
         
         while not self._stop_event.is_set():
-            current_time = time.time()
-            last_time = getattr(self, last_time_key)
+            now = time.time()
+            last = getattr(self, last_time_key)
             
-            # Check if enough time has passed since last run
-            if current_time - last_time < self._worker_interval:
-                time.sleep(0.1)  # Small sleep to prevent busy waiting
+            # Save observation periodically
+            if now - last_obs_time >= obs_interval:
+                frame = self.env.get_latest_frame()
+                if frame is not None:
+                    self._save_observation(frame, f"{worker_name.lower()}_worker_live")
+                last_obs_time = now
+            
+            # Throttle scheduling to once per interval
+            if now - last < self._worker_interval:
+                time.sleep(0.01)
                 continue
-                
-            # Get current frame
-            frame = self.env.get_latest_frame()
-            if frame is None:
-                self.logger.debug(f"{worker_name} worker: No frame available, waiting...")
-                time.sleep(0.1)
-                continue
-                
-            # Save the observation
-            self._save_observation(frame, worker_name.lower())
-                
-            # Get action from API
-            action = self._get_action_from_frame(frame, frame_skip)
-            if action is None:
-                self.logger.error(f"{worker_name} worker: Failed to get action")
-                time.sleep(0.1)
-                continue
-                
-            # Add action to queue for frame_skip frames
+            
+            # Get current buffer size
             with self._action_queue_lock:
-                for _ in range(frame_skip):
-                    self._action_queue.append(action)
-                    
-            setattr(self, last_time_key, current_time)
-            self.logger.info(f"{worker_name} worker: Added action for {frame_skip} frames to queue")
+                queue_len = len(self._action_queue)
+            
+            # Decide threshold
+            threshold = (self._planning_threshold_short if is_short
+                         else self._planning_threshold_long)
+            
+            # If buffer is below threshold, dispatch async planning
+            if queue_len < threshold:
+                # Get a fresh observation for this worker
+                frame = self.env.get_latest_frame()
+                if frame is not None:
+                    # schedule async planning and cache observation
+                    worker_type = "short" if is_short else "long"
+                    self._executor.submit(self._plan_task, frame, frame_skip, worker_type)
+                setattr(self, last_time_key, now)
+            else:
+                # buffer OK, small back-off
+                time.sleep(0.01)
             
     def start(self):
         """Start the worker threads."""
@@ -320,6 +344,27 @@ class RealTimeMarioAgent(BaseAgent):
         if self._long_worker_thread is not None:
             self._long_worker_thread.join(timeout=1.0)
         super().close()
+        
+        # Shutdown planner executor
+        try:
+            self._executor.shutdown(wait=False)
+        except Exception:
+            pass
+        
+    def _plan_task(self, frame: np.ndarray, frame_skip: int, worker_type: str) -> None:
+        """Async planning task: call LLM and enqueue results without blocking scheduler."""
+        # save this frame to the correct worker folder
+        self._save_observation(frame, worker_type)
+        try:
+            action = self._get_action_from_frame(frame, frame_skip)
+            if action is None:
+                return
+            with self._action_queue_lock:
+                for _ in range(frame_skip):
+                    self._action_queue.append(action)
+            self.logger.info(f"Async plan: enqueued {frame_skip} frames")
+        except Exception as e:
+            self.logger.error(f"Async planning error: {e}")
 
     def select_action(self, observation: Union[np.ndarray, Tuple[np.ndarray, Dict]]) -> np.ndarray:
         """Select an action based on the current observation.
@@ -334,12 +379,11 @@ class RealTimeMarioAgent(BaseAgent):
         with self._action_queue_lock:
             if not self._action_queue:
                 # If no actions in queue, return no buttons pressed
-                return np.zeros(self.env.num_buttons, dtype=np.uint8)
-            
-            # Get the next action from the queue
-            action = self._action_queue.pop(0)
-            
-        # Log the selected action
-        self.logger.info(f"Selected action: {action}")
-        
+                action = np.zeros(self.env.num_buttons, dtype=np.uint8)
+            else:
+                # Get the next action from the queue
+                action = self._action_queue.pop(0)
+                # Comment out action logging to reduce I/O latency
+                self.log_action(action, self.env.step_count)
+                self.logger.info(f"Selected action: {action} and step count: {self.env.step_count}")
         return action 

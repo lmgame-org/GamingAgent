@@ -24,7 +24,7 @@ from pyglet import gl
 from pyglet.window import key as keycodes
 
 import retro
-from gamingagent.envs.retro_env import ClassicVideoGameEnv
+from gamingagent.envs.classic_video_game_env import ClassicVideoGameEnv
 
 
 class Interactive(abc.ABC):
