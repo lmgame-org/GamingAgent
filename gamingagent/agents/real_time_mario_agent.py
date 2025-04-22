@@ -27,7 +27,7 @@ class RealTimeMarioAgent(BaseAgent):
         api_provider: str = "anthropic",
         model_name: str = "claude-3-opus-20240229",
         short_worker_frame_skip: int = 20,  # 0.5s at 30fps
-        long_worker_frame_skip: int = 35    # 1s at 30fps
+        long_worker_frame_skip: int = 40    # 1s at 30fps
     ):
         """Initialize the real-time Mario agent.
         
