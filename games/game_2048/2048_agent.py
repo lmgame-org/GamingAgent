@@ -59,7 +59,7 @@ def main():
     parser.add_argument("--num_threads", type=int, default=1, help="Number of parallel threads to launch.")
     args = parser.parse_args()
 
-    prev_responses = deque(maxlen=1)
+    prev_responses = deque(maxlen=3)
     level = None
 
     def perform_move(move):

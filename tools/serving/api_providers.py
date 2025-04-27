@@ -207,14 +207,14 @@ def openai_completion(system_prompt, model_name, base64_image, prompt, temperatu
             }
         ]
 
-    token_param = "max_completion_tokens" if "o1" in model_name else "max_tokens"
+    token_param = "max_completion_tokens" if "o1" in model_name or "o4" in model_name else "max_tokens"
     request_params = {
         "model": model_name,
         "messages": messages,
-        token_param: 4096,
+        token_param: 100000,
     }
 
-    if "o1" not in model_name:
+    if "o1" not in model_name and "o4" not in model_name:
         request_params["temperature"] = temperature
 
     response = client.chat.completions.create(**request_params)
@@ -600,3 +600,42 @@ def together_ai_completion(system_prompt, model_name, prompt, base64_image=None,
     generated_str = response.choices[0].message.content
      
     return generated_str
+
+def xai_text_completion(system_prompt, model_name, prompt, temperature=1, reasoning_effort=None):
+    client = OpenAI(
+        api_key=os.getenv("XAI_API_KEY"),
+        base_url="https://api.x.ai/v1"
+    )
+    
+    messages = [
+        {
+            "role": "system",
+            "content": system_prompt
+        },
+        {
+            "role": "user",
+            "content": [
+                {
+                    "type": "text",
+                    "text": prompt
+                }
+            ]
+        }
+    ]
+
+    # Prepare request parameters
+    request_params = {
+        "model": model_name,
+        "messages": messages,
+        "temperature": temperature,
+        "max_tokens": 100000
+    }
+
+    # Add reasoning_effort only for supported models
+    if reasoning_effort and model_name in ["grok-3-mini-beta", "grok-3-mini-fast-beta"]:
+        request_params["reasoning_effort"] = reasoning_effort
+
+    response = client.chat.completions.create(**request_params)
+
+    # Always return just the generated text
+    return response.choices[0].message.content

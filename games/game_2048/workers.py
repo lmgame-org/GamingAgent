@@ -4,7 +4,7 @@ import pyautogui
 import numpy as np
 
 from tools.utils import encode_image, log_output, get_annotate_img
-from tools.serving.api_providers import anthropic_completion, anthropic_text_completion, openai_completion, openai_text_reasoning_completion, gemini_completion, gemini_text_completion, deepseek_text_reasoning_completion
+from tools.serving.api_providers import anthropic_completion, anthropic_text_completion, openai_completion, openai_text_reasoning_completion, gemini_completion, gemini_text_completion, deepseek_text_reasoning_completion, xai_text_completion
 import re
 import json
 
@@ -37,6 +37,7 @@ def game_2048_read_worker(system_prompt, api_provider, model_name, image_path, m
         "Example format: \n2 (0, 0) | 4 (1, 0)| 16 (2, 0) | 8 (3, 0) \nempty (0,1) | 2 (1, 1)| empty (2, 1)... "
     )
     
+
     # Call the LLM API based on the selected provider.
     if api_provider == "anthropic" and modality=="text-only":
         response = anthropic_text_completion(system_prompt, model_name, prompt, thinking)
@@ -52,6 +53,8 @@ def game_2048_read_worker(system_prompt, api_provider, model_name, image_path, m
         response = gemini_completion(system_prompt, model_name, base64_image, prompt)
     elif api_provider == "deepseek":
         response = deepseek_text_reasoning_completion(system_prompt, model_name, prompt)
+    elif api_provider == "xai":
+        response = xai_text_completion(system_prompt, model_name, prompt, reasoning_effort='high')
     else:
         raise NotImplementedError(f"API provider: {api_provider} is not supported.")
     
@@ -88,33 +91,38 @@ def game_2048_worker(system_prompt, api_provider, model_name,
     print(f"-------------- TABLE --------------\n{table}\n")
     print(f"-------------- prev response --------------\n{prev_response}\n")
 
+    # Include the most recent board table in the previous response
+    prev_response = f"{prev_response}\nPrevious board representation:\n{table}"
+
     prompt = (
-    "## Previous Lessons Learned\n"
-    "- The 2048 board is structured as a 4x4 grid where each tile holds a power-of-two number.\n"
-    "- You can slide tiles in four directions (up, down, left, right), merging identical numbers when they collide.\n"
-    "- Your goal is to maximize the score and reach the highest possible tile, ideally 2048 or beyond.\n"
-    "- You are an expert AI agent specialized in solving 2048 optimally, utilizing advanced heuristic strategies such as the Monte Carlo Tree Search (MCTS) and Expectimax algorithm.\n"
-    "- Before making a move, evaluate all possible board states and consider which action maximizes the likelihood of long-term success.\n"
-    "- Prioritize maintaining an ordered grid structure to prevent the board from filling up prematurely.\n"
-    "- Always keep the highest-value tile in a stable corner to allow efficient merges and maintain control of the board.\n"
-    "- Minimize unnecessary movements that disrupt tile positioning and reduce future merge opportunities.\n"
-    
-    "**IMPORTANT: You must always try a valid direction that leads to a merge. If there are no available merges in the current direction, moving in that direction is invalid. In such cases, choose a new direction where at least two adjacent tiles can merge. Every move should ensure the merging of two or more neighboring tiles to maintain board control and progress.**\n"
+        f"Previous moves and board state:\n{prev_response}\n\n"
+        "Based on previous moves and the board state, if you are stuck (no merges possible), please try a different move.\n\n"
+        "## Previous Lessons Learned\n"
+        "- The 2048 board is structured as a 4x4 grid where each tile holds a power-of-two number.\n"
+        "- You can slide tiles in four directions (up, down, left, right), merging identical numbers when they collide.\n"
+        "- Your goal is to maximize the score and reach the highest possible tile, ideally 2048 or beyond.\n"
+        "- You are an expert AI agent specialized in solving 2048 optimally, utilizing advanced heuristic strategies such as the Monte Carlo Tree Search (MCTS) and Expectimax algorithm.\n"
+        "- Before making a move, evaluate all possible board states and consider which action maximizes the likelihood of long-term success.\n"
+        "- Prioritize maintaining an ordered grid structure to prevent the board from filling up prematurely.\n"
+        "- Always keep the highest-value tile in a stable corner to allow efficient merges and maintain control of the board.\n"
+        "- Minimize unnecessary movements that disrupt tile positioning and reduce future merge opportunities.\n"
+        
+        "**IMPORTANT: You must always try a valid direction that leads to a merge. If there are no available merges in the current direction, moving in that direction is invalid. In such cases, choose a new direction where at least two adjacent tiles can merge. Every move should ensure the merging of two or more neighboring tiles to maintain board control and progress.**\n"
 
-    "## Potential Errors to Avoid:\n"
-    "1. Grid Disorder Error: Moving tiles in a way that disrupts the structured arrangement of numbers, leading to inefficient merges.\n"
-    "2. Edge Lock Error: Moving the highest tile out of a stable corner, reducing long-term strategic control.\n"
-    "3. Merge Delay Error: Failing to merge tiles early, causing a filled board with no valid moves.\n"
-    "4. Tile Isolation Error: Creating a situation where smaller tiles are blocked from merging due to inefficient movement.\n"
-    "5. Forced Move Error: Reaching a state where only one move is possible, reducing strategic flexibility.\n"
+        "## Potential Errors to Avoid:\n"
+        "1. Grid Disorder Error: Moving tiles in a way that disrupts the structured arrangement of numbers, leading to inefficient merges.\n"
+        "2. Edge Lock Error: Moving the highest tile out of a stable corner, reducing long-term strategic control.\n"
+        "3. Merge Delay Error: Failing to merge tiles early, causing a filled board with no valid moves.\n"
+        "4. Tile Isolation Error: Creating a situation where smaller tiles are blocked from merging due to inefficient movement.\n"
+        "5. Forced Move Error: Reaching a state where only one move is possible, reducing strategic flexibility.\n"
 
-    f"Here is your previous response: {prev_response}. Please evaluate your strategy and consider if any adjustments are necessary.\n"
-    "Here is the current state of the 2048 board:\n"
-    f"{table}\n\n"
+        f"Here is your previous response: {prev_response}. Please evaluate your strategy and consider if any adjustments are necessary.\n"
+        "Here is the current state of the 2048 board:\n"
+        f"{table}\n\n"
 
-    "### Output Format:\n"
-    "move: up/down/left/right, thought: <brief reasoning>\n\n"
-    "Example output: move: left, thought: Maintaining the highest tile in the corner while creating merge opportunities."
+        "### Output Format:\n"
+        "move: up/down/left/right, thought: <brief reasoning>\n\n"
+        "Example output: move: left, thought: Maintaining the highest tile in the corner while creating merge opportunities."
     )
 
 
@@ -139,6 +147,8 @@ def game_2048_worker(system_prompt, api_provider, model_name,
         response = gemini_completion(system_prompt, model_name, base64_image, prompt)
     elif api_provider == "deepseek":
         response = deepseek_text_reasoning_completion(system_prompt, model_name, prompt)
+    elif api_provider == "xai":
+        response = xai_text_completion(system_prompt, model_name, prompt, reasoning_effort='high')
     else:
         raise NotImplementedError(f"API provider: {api_provider} is not supported.")
 

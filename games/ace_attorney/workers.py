@@ -2,17 +2,20 @@ import time
 import os
 import pyautogui
 import numpy as np
+import json
+import re
+import datetime
 
 from tools.utils import encode_image, log_output, get_annotate_img, capture_game_window, log_request_cost
 from tools.serving.api_providers import anthropic_completion, anthropic_text_completion, openai_completion, openai_text_reasoning_completion, gemini_completion, gemini_text_completion, deepseek_text_reasoning_completion, together_ai_completion
 from tools.api_cost_calculator import calculate_all_costs_and_tokens, convert_string_to_messsage
-import re
-import json
 
 # Default cache directory (can be overridden by passing cache_dir parameter)
 DEFAULT_CACHE_DIR = "cache/ace_attorney"
 
-
+# Load prompts from JSON file
+with open("games/ace_attorney/ace_attorney_prompts.json", 'r', encoding='utf-8') as f:
+    PROMPTS = json.load(f)
 
 def perform_move(move):
     """
@@ -61,18 +64,8 @@ def vision_evidence_worker(system_prompt, api_provider, model_name, modality, th
 
     base64_image = encode_image(screenshot_path)
     
-    # Construct prompt for LLM
-    prompt = (
-        "You are analyzing the evidence screen in Phoenix Wright: Ace Attorney.\n\n"
-        "Describe ONLY the visual appearance and details of the evidence currently displayed.\n"
-        "Do NOT restate the evidence name or text description from the Court Record.\n\n"
-        "Focus on things like:\n"
-        "- Shape, size, material, color\n"
-        "- Any writing, symbols, damage, or special features\n"
-        "- Context clues that might indicate how the item is used or related to the case\n\n"
-        "Output format:\n"
-        "Evidence Description: <your detailed visual description here>"
-    )
+    # Use prompt from JSON file
+    prompt = PROMPTS["vision_evidence_prompt"]
 
     # print(f"Calling {model_name} API for vision analysis...")
     
@@ -99,24 +92,24 @@ def vision_evidence_worker(system_prompt, api_provider, model_name, modality, th
     else:
         prompt_message = prompt
     # Update completion in cost data
-    cost_data = calculate_all_costs_and_tokens(
-        prompt=prompt_message,
-        completion=response,
-        model=model_name,
-        image_path=screenshot_path if base64_image else None
-    )
+    # cost_data = calculate_all_costs_and_tokens(
+    #     prompt=prompt_message,
+    #     completion=response,
+    #     model=model_name,
+    #     image_path=screenshot_path if base64_image else None
+    # )
     
-    # Log the request costs
-    log_request_cost(
-        num_input=cost_data["prompt_tokens"] + cost_data.get("image_tokens", 0),
-        num_output=cost_data["completion_tokens"],
-        input_cost=float(cost_data["prompt_cost"] + cost_data.get("image_cost", 0)),
-        output_cost=float(cost_data["completion_cost"]),
-        game_name="ace_attorney",
-        input_image_tokens=cost_data.get("image_tokens", 0),
-        model_name = model_name,
-        cache_dir=cache_dir
-    )
+    # # Log the request costs
+    # log_request_cost(
+    #     num_input=cost_data["prompt_tokens"] + cost_data.get("image_tokens", 0),
+    #     num_output=cost_data["completion_tokens"],
+    #     input_cost=float(cost_data["prompt_cost"] + cost_data.get("image_cost", 0)),
+    #     output_cost=float(cost_data["completion_cost"]),
+    #     game_name="ace_attorney",
+    #     input_image_tokens=cost_data.get("image_tokens", 0),
+    #     model_name = model_name,
+    #     cache_dir=cache_dir
+    # )
     
     return {
         "response": response,
@@ -148,61 +141,9 @@ def vision_worker(system_prompt, api_provider, model_name,
         return {"error": "Failed to capture game window"}
 
     base64_image = encode_image(screenshot_path)
-    
-    prompt = (
-            "You are now playing Ace Attorney. Analyze the current scene and provide the following information:\n\n"
-            "Carefully analyze the game state. If any of the indicators are present, determine that it is Cross-Examination mode.\n\n"
-            
-            "1. Game State Detection Rules:\n"
-            "   - Cross-Examination mode is indicated by ANY of these:\n"
-            "     * A blue bar in the upper right corner\n"
-            "     * Only green dialog text\n"
-            "     * Two or more white-text options appearing in the **middle** of the screen (e.g., 'Yes' and 'No')\n"
-            "     * EXACTLY three UI elements at the bottom-right corner: Options, Press, Present\n"
-            "     * An evidence window visible in the middle of the screen\n"
-            "   - If you see an evidence window, it is ALWAYS Cross-Examination mode\n"
-            "   - Conversation mode is indicated by:\n"
-            "     * EXACTLY two UI elements at the bottom-right corner: Options, Court Record\n"
-            "     * Dialog text can be any color (most commonly white, but also blue, red, etc.)\n"
-            "   - If none of the Cross-Examination indicators are present, it is Conversation mode\n\n"
-            
-            "2. Dialog Text Analysis:\n"
-            "   - Look at the bottom-left area where dialog appears\n"
-            "   - Note the color of the dialog text (green/white/blue/red)\n"
-            "   - Extract the speaker's name and their dialog\n"
-            "   - Format must be exactly: Dialog: NAME: dialog text\n\n"
-            
-            "3. Scene Analysis:\n"
-            "   - Describe any visible characters and their expressions/poses\n"
-            "   - Describe any other important visual elements or interactive UI components\n"
-            "   - Describe any options with blue background appearing in the **middle** of the screen\n"
-            "   - You MUST explicitly mention:\n"
-            "     * The color of the dialog text (green/white/blue/red)\n"
-            "     * Whether there is a blue bar in the upper right corner\n"
-            "     * The exact UI elements present at the bottom-right corner (Options, Press, Present for Cross-Examination or Options, Court Record for Conversation)\n"
-            "     * Whether there is an evidence window visible\n"
-            "     * If options appear in the middle of the screen:\n"
-            "       - List the text of each option in order from top to bottom\n"
-            "       - Identify which one is currently selected\n"
-            "       - Use the yellow or gold border around the option to determine selection\n"
-            "       - Do NOT assume the bottom option is selected by default — selection depends entirely on the visual highlight\n"
-            "     * If evidence window is visible:\n"
-            "       - Name of the currently selected evidence\n"
-            "       - Description of the evidence\n"
-            "       - Position in the evidence list (if visible)\n"
-            "       - Whether this is the evidence you intend to present\n\n"
-            
-            "Format your response EXACTLY as:\n"
-            "Game State: <'Cross-Examination' or 'Conversation'>\n"
-            "Dialog: NAME: dialog text\n"
-            "Options: option1, selected; option2, not selected; option3, not selected\n"
-            "Evidence: NAME: description\n"
-            "Scene: <detailed description including dialog color, options text (if exsisit), blue bar presence, UI elements (corresponding keys, like r Present/Court Record or x Present), evidence window status and contents, and other visual elements>"
-            #  "At the end of your Scene description, briefly summarize:\n"
-            # "dialog text is <color>, evidence window is <open/closed>, options are <available/unavailable>"
-            )
 
-
+    # Use prompt from JSON file
+    prompt = PROMPTS["vision_worker_prompt"]
 
     # print(f"Calling {model_name} API for vision analysis...")
     
@@ -229,24 +170,24 @@ def vision_worker(system_prompt, api_provider, model_name,
     else:
         prompt_message = prompt
     # Update completion in cost data
-    cost_data = calculate_all_costs_and_tokens(
-        prompt=prompt_message,
-        completion=response,
-        model=model_name,
-        image_path=screenshot_path if base64_image else None
-    )
+    # cost_data = calculate_all_costs_and_tokens(
+    #     prompt=prompt_message,
+    #     completion=response,
+    #     model=model_name,
+    #     image_path=screenshot_path if base64_image else None
+    # )
     
-    # Log the request costs
-    log_request_cost(
-        num_input=cost_data["prompt_tokens"] + cost_data.get("image_tokens", 0),
-        num_output=cost_data["completion_tokens"],
-        input_cost=float(cost_data["prompt_cost"] + cost_data.get("image_cost", 0)),
-        output_cost=float(cost_data["completion_cost"]),
-        game_name="ace_attorney",
-        input_image_tokens=cost_data.get("image_tokens", 0),
-        model_name=model_name,
-        cache_dir=cache_dir
-    )
+    # # Log the request costs
+    # log_request_cost(
+    #     num_input=cost_data["prompt_tokens"] + cost_data.get("image_tokens", 0),
+    #     num_output=cost_data["completion_tokens"],
+    #     input_cost=float(cost_data["prompt_cost"] + cost_data.get("image_cost", 0)),
+    #     output_cost=float(cost_data["completion_cost"]),
+    #     game_name="ace_attorney",
+    #     input_image_tokens=cost_data.get("image_tokens", 0),
+    #     model_name=model_name,
+    #     cache_dir=cache_dir
+    # )
     
     return {
         "response": response,
@@ -350,10 +291,10 @@ def short_term_memory_worker(system_prompt, api_provider, model_name,
     if "prev_responses" not in dialog_history[episode_name]:
         dialog_history[episode_name]["prev_responses"] = []
     
-    # Add new response and maintain only last 7 responses
+    # Add new response and maintain only last 30 responses
     prev_responses = dialog_history[episode_name]["prev_responses"]
     prev_responses.append(prev_response)
-    if len(prev_responses) > 14:
+    if len(prev_responses) > 20:
         prev_responses.pop(0)  # Remove oldest response
         
     # Save updated dialog history
@@ -410,7 +351,91 @@ def memory_retrieval_worker(system_prompt, api_provider, model_name,
 
     return memory_context
 
-def reasoning_worker(options, system_prompt, api_provider, model_name, game_state, c_statement, scene, memory_context, base64_image=None, modality="vision-text", thinking=True, screenshot_path=None, cache_dir=None):
+def normalize_content(content, episode_name, cache_dir=None):
+    """
+    Normalizes content by replacing specific names with generic ones and evidence with symbols.
+    
+    Args:
+        content (str): The content to normalize
+        episode_name (str): Name of the current episode
+        cache_dir (str, optional): Directory to save cache files
+    
+    Returns:
+        str: Normalized content
+    """
+    # Use provided cache_dir or default
+    cache_dir = cache_dir or DEFAULT_CACHE_DIR
+    
+    # Load episode-specific mapping file
+    mapping_file = os.path.join("games/ace_attorney", f"{episode_name.lower().replace(' ', '_')}_mapping.json")
+    if os.path.exists(mapping_file):
+        with open(mapping_file, 'r', encoding='utf-8') as f:
+            mappings = json.load(f)
+            name_mappings = mappings.get("name_mappings", {})
+            evidence_mappings = mappings.get("evidence_mappings", {})
+    else:
+        raise FileNotFoundError(f"Mapping file not found for episode: {episode_name}")
+    
+    # Replace names with case-insensitive boundaries
+    for original, replacement in name_mappings.items():
+        pattern = re.compile(r"\b" + re.escape(original) + r"\b", re.IGNORECASE)
+        content = pattern.sub(replacement, content)
+    
+    # Replace evidence with case-insensitive boundaries
+    for original, replacement in evidence_mappings.items():
+        pattern = re.compile(r"\b" + re.escape(original) + r"\b", re.IGNORECASE)
+        content = pattern.sub(replacement, content)
+    
+    return content
+
+def update_state_file(game_state, c_statement, scene, memory_context, evidence_details, episode_name, cache_dir=None, is_repeated_statement=False):
+    """
+    Updates the state JSON file in the cache directory with current game state information.
+    
+    Args:
+        game_state (str): Current game state
+        c_statement (str): Current statement
+        scene (str): Scene description
+        memory_context (str): Memory context
+        evidence_details (str): Evidence details
+        episode_name (str): Name of the current episode
+        cache_dir (str, optional): Directory to save cache files
+        is_repeated_statement (bool): Whether the statement is repeated
+    """
+    # Use provided cache_dir or default
+    cache_dir = cache_dir or DEFAULT_CACHE_DIR
+    
+    # Create state file path
+    state_file = os.path.join(cache_dir, "game_state.json")
+    
+    # Load existing state or create new
+    if os.path.exists(state_file):
+        with open(state_file, 'r', encoding='utf-8') as f:
+            state = json.load(f)
+    else:
+        state = {
+            "episode_name": episode_name,
+            "history": []
+        }
+    
+    # Add new state entry
+    state_entry = {
+        "timestamp": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        "game_state": game_state,
+        "current_statement": c_statement,
+        "scene": scene,
+        "memory_context": memory_context,
+        "evidence_details": evidence_details,
+        "is_repeated_statement": is_repeated_statement
+    }
+    
+    state["history"].append(state_entry)
+    
+    # Save updated state
+    with open(state_file, 'w', encoding='utf-8') as f:
+        json.dump(state, f, indent=2, ensure_ascii=False)
+
+def reasoning_worker(options, system_prompt, api_provider, model_name, game_state, c_statement, scene, memory_context, base64_image=None, modality="vision-text", thinking=True, screenshot_path=None, cache_dir=None, episode_name="The First Turnabout"):
     """
     Makes decisions about game moves based on current game state, scene description, and memory context.
     Uses API to generate thoughtful decisions.
@@ -427,163 +452,215 @@ def reasoning_worker(options, system_prompt, api_provider, model_name, game_stat
         thinking (bool): Whether to use deep thinking
         screenshot_path (str, optional): Path to the screenshot
         cache_dir (str, optional): Directory to save logs
+        episode_name (str): Name of the current episode
     
     Returns:
         dict: Contains move and thought
     """
     # Use provided cache_dir or default
     cache_dir = cache_dir or DEFAULT_CACHE_DIR
-    
+
+    # set image as None to avoid data contamination
+    base64_image = None
+
     # Extract and format evidence information
     evidences_section = memory_context.split("Collected Evidences:")[1].strip()
     collected_evidences = [e for e in evidences_section.split("\n") if e.strip()]
     num_collected_evidences = len(collected_evidences)
     
-    # Format evidence details for the prompt
+    # Normalize all content
+    game_state = normalize_content(game_state, episode_name, cache_dir)
+    c_statement = normalize_content(c_statement, episode_name, cache_dir)
+    scene = normalize_content(scene, episode_name, cache_dir)
+    memory_context = normalize_content(memory_context, episode_name, cache_dir)
+    
+    
+    # Format evidence details for the prompt and normalize
     evidence_details = "\n".join([f"Evidence {i+1}: {e}" for i, e in enumerate(collected_evidences)])
-    # print(scene)
-
+    evidence_details = normalize_content(evidence_details, episode_name, cache_dir)
 
     if game_state == "Cross-Examination":
-        prompt = f"""You are Phoenix Wright, a defense attorney in Ace Attorney. Your goal is to prove your client's innocence by finding contradictions in witness testimonies and presenting the right evidence at the right time.
+        # Check if statement exists in dialog history
+        dialog_history_dir = os.path.join(cache_dir, "dialog_history")
+        json_file = os.path.join(dialog_history_dir, f"{episode_name.lower().replace(' ', '_')}.json")
+        
+        is_repeated_statement = False
+        if os.path.exists(json_file):
+            with open(json_file, 'r', encoding='utf-8') as f:
+                dialog_history = json.load(f)
+                case_transcript = dialog_history[episode_name]["Case_Transcript"]
+                # Check if current statement exists in transcript
+                if isinstance(c_statement, dict):
+                    statement_text = f"{c_statement.get('name', '')}: {c_statement.get('text', '')}"
+                else:
+                    statement_text = str(c_statement)
+                is_repeated_statement = any(statement_text in entry for entry in case_transcript)
 
-        CURRENT GAME STATE: {game_state}
+        # Update state file with repeated statement status
+        update_state_file(game_state, c_statement, scene, memory_context, evidence_details, episode_name, cache_dir, is_repeated_statement)
 
-        Your task is to evaluate the **current witness statement** and determine whether it contradicts any evidence in the Court Record.
+        # Define prompt directly instead of loading from JSON
+        prompt = """You are a diligent defense advocate.  
+Forget anything you might recall from popular courtroom-game scripts; such memories may be unreliable here.
+Focus on logical reasoning and evidence-based decision making in your analysis.
 
-        Current Statement: 
-        "{c_statement}"
+CURRENT GAME STATE: {game_state}
 
-        Current options: (determine if there are options, if yes then use 'z' to continue or use 'down' to change)
-        {options}
+Your task is to evaluate the **current witness statement** and determine whether it contradicts any evidence in the Court Record.
 
-        Scene Description: (determine if the evidence window is already opened)
-        {scene}
+Current Statement: 
+"{c_statement}"
 
-        Evidence Status:  
-        - Total Evidence Collected: {num_collected_evidences}  
-        {evidence_details}
+{repeated_statement_warning}
 
-        Memory Context:  
-        {memory_context}
+Current options: (determine if there are options, if yes then use 'z' to continue or use 'down' to change)
+{options}
 
-        Be patient. DO NOT rush to present evidence. Always wait until the **decisive contradiction** becomes clear.
-        You only have 7 chances to make a mistake.  
-        If you've already presented evidence but it wasn't successful, try going to the next statement or switching to a different piece of evidence.
+Scene Description: (determine if the evidence window is already opened)
+{scene}
 
-        You may only present evidence if:
-        - A clear and specific contradiction exists between the current statement and an item in the Court Record
-        - The **correct** evidence item is currently selected
-        - The **evidence window is open**, and you are on the exact item you want to present
+Evidence Status:  
+- Total Evidence Collected: {num_collected_evidences}  
+{evidence_details}
 
-        Never assume the correct evidence is selected. Always confirm it.
+Memory Context:  
+{memory_context}
 
-        Cross-Examination Mode (CURRENT STATE: {game_state}):
-        - ALWAYS compare the witness's statement with the available evidence
-        - For each statement, you have two options:
-        * If you find a clear contradiction with evidence: (Three steps — one per turn)
-            - Step 1: Use 'r' to open the evidence window
-            - Step 2: Navigate through evidence using 'right'
-                * Look at each item carefully
-                * Keep navigating until the evidence that directly contradicts the statement is selected
-            - Step 3: Use 'x' to present the contradicting evidence
-                * Only present if the evidence is currently selected and the contradiction is clear
-        * If you don't find a contradiction or need more context:
-            - Use 'l' to press the witness for more details
-            - Or use 'z' to move to the next statement
-        - If there are on-screen decision options (like "Yes", "No", "Press", "Present"), you must:
-            * Use `'down'` to navigate between them
-            * Use `'z'` to confirm the currently highlighted option
-        * If you don't find a contradiction but the evidence window is mistakely opened:
-            - Use 'b' to close the evidence window
+Be patient. DO NOT rush to present evidence. Always wait until the **decisive contradiction** becomes clear.
+You only have 7 chances to make a mistake.  
+If you've already presented evidence but it wasn't successful, try going to the next statement or switching to a different piece of evidence.
 
-        Additional Rules:
-        - The evidence window will auto-close after presenting
-        - Do NOT use `'x'` or `'r'` unless you are certain
-        - If the evidence window is NOT open, NEVER use `'x'` to present
+You may only present evidence if:
+- A clear and specific contradiction exists between the current statement and an item in the Court Record
+- The **correct** evidence item is currently selected
+- The **evidence window is open**, and you are on the exact item you want to present
 
-        - Always loop through all Cross-Examination statements by using `'z'`.  
-        After reaching the final statement, the game will automatically return to the first one.  
-        This allows you to review all statements before taking action.
+Never assume the correct evidence is selected. Always confirm it.
 
-        Available moves:
-        * `'l'`: Question the witness about their statement
-        * `'z'`: Move to the next statement OR confirm a selected option
-        * `'r'`: Open the evidence window (press `'b'` to cancel if unsure)
-        * `'b'`: Close the evidence window or cancel a mistake
-        * `'x'`: Present evidence (only after confirming it's correct)
-        * `'right'`: Navigate through the evidence items
-        * `'down'`: Navigate between options (like Yes/No or Press/Present) when visible
+Cross-Examination Mode (CURRENT STATE: {game_state}):
+- ALWAYS compare the witness's statement with the available evidence
+- For each statement, you have two options:
+* If you find a clear contradiction with evidence: (Three steps — one per turn)
+    - Step 1: Use 'r' to open the evidence window
+    - Step 2: Navigate through evidence using 'right'
+        * Look at each item carefully
+        * Keep navigating until the evidence that directly contradicts the statement is selected
+    - Step 3: Use 'x' to present the contradicting evidence
+        * Only present if the evidence is currently selected and the contradiction is clear
+* If you don't find a contradiction or need more context:
+    - Use 'l' to press the witness for more details
+    - Or use 'z' to move to the next statement
+- If there are on-screen decision options (like "Yes", "No", "Press", "Present"), you must:
+    * Use `'down'` to navigate between them
+    * Use `'z'` to confirm the currently highlighted option
+* If you don't find a contradiction but the evidence window is mistakely opened:
+    - Use 'b' to close the evidence window
 
-        Before using `'x'`, always ask:
-        - "Is the currently selected evidence exactly the one I want to present?"
+Additional Rules:
+- The evidence window will auto-close after presenting
+- Do NOT use `'x'` or `'r'` unless you are certain
+- If the evidence window is NOT open, NEVER use `'x'` to present
 
-        If not:
-        - Use `'right'` to select the correct evidence
-        - DO NOT use `'x'` until it's confirmed
+- Always loop through all Cross-Examination statements by using `'z'`.  
+After reaching the final statement, the game will automatically return to the first one.  
+This allows you to review all statements before taking action.
 
-        Response Format (strict):
-        move: <move>
-        thought: <your internal reasoning>
+Available moves:
+* `'l'`: Question the witness about their statement
+* `'z'`: Move to the next statement OR confirm a selected option
+* `'r'`: Open the evidence window (press `'b'` to cancel if unsure)
+* `'b'`: Close the evidence window or cancel a mistake
+* `'x'`: Present evidence (only after confirming it's correct)
+* `'right'`: Navigate through the evidence items
+* `'down'`: Navigate between options (like Yes/No or Press/Present) when visible
 
-        IMPORTANT:
-        - If the evidence window is already open, do NOT use 'r' again
-        - Check what evidence is selected (based on scene description)
-        - Use 'right' to navigate if it's not the correct one
-        - Only use 'x' when the right evidence is selected
-        - If options are on screen, navigate with 'down', confirm with 'z'
+Before using `'x'`, always ask:
+- "Is the currently selected evidence exactly the one I want to present?"
 
-        Example 1:
-        Scene says: "The currently selected evidence is 'Attorney's Badge'."
-        But I want to present: "Cindy's Autopsy Report"
+If not:
+- Use `'right'` to select the correct evidence
+- DO NOT use `'x'` until it's confirmed
 
-        Turn 1:  
-        move: right  
-        thought: The Autopsy Report is not selected yet. I'll navigate to it.
+Response Format (strict):
+move: <move>
 
-        Turn 2:  
-        move: x  
-        thought: The Autopsy Report is now selected. I'll present it to contradict the witness.
+thought: Cause: <detailed explanation>; Evidence: <current state and target>; Effect: <expected outcome>; Reflection: <how this move relates to previous actions and maintains coherence>
 
-        Example 2 - Clear Contradiction with No Evidence Window:
-        Memory Context:
-        Witness: "I was at home at 8 PM last night."
-        Evidence: "Security Camera Footage: Shows the witness at the crime scene at 8 PM."
+self_evaluation: <Yes / No>   # "Yes" if the Effect truly follows from the Cause + Evidence
 
-        Scene: "Dialog text is green. There is a blue bar in the upper right corner. There are exactly three UI elements at the bottom-right corner: Options, Press, Present. No evidence window is visible. The witness is sweating and looking nervous."
+IMPORTANT:
+- If the evidence window is already open, do NOT use 'r' again
+- Check what evidence is selected (based on scene description)
+- Use 'right' to navigate if it's not the correct one
+- Only use 'x' when the right evidence is selected
+- If options are on screen, navigate with 'down', confirm with 'z'
 
-        Turn 1:
-        move: r
-        thought: I see a clear contradiction between the witness's statement and our security camera footage. We're in cross-examination mode, but the evidence window isn't open. I'll open it first.
+Example 1:
+Scene says: "The currently selected evidence is E1."
+But I want to present: "E2"
 
-        Turn 2:
-        move: right
-        thought: I need to navigate to the security camera footage.
+Turn 1:  
+move: right  
+thought: Cause: Need to present E2 to contradict witness's alibi; Evidence: Currently on E1, need to navigate to E2; Effect: Will be able to present the correct evidence that shows witness was at crime scene
+self_evaluation: Yes
 
-        Turn 3:
-        move: x
-        thought: I've selected the right evidence. Presenting it now to contradict the witness.
+Turn 2:  
+move: x  
+thought: Cause: E2 is now selected and directly contradicts witness's statement; Evidence: E2 shows witness at crime scene at 8 PM; Effect: Will expose the contradiction in witness's alibi
+self_evaluation: Yes
 
-        Example 3 - Using 'down' to select an option before confirming:
+Example 2 - Clear Contradiction with No Evidence Window:
+Memory Context:
+Witness: "I was at home at 8 PM last night."
+Evidence: "E1: Security Camera Footage shows the witness at the crime scene at 8 PM."
 
-        Scene: "Two white-text options appear in the middle of the screen: 'Yes' and 'No'. 'No' is currently highlighted. Dialog text is white. This is Cross-Examination mode."
+Scene: "Dialog text is green. There is a blue bar in the upper right corner. There are exactly three UI elements at the bottom-right corner: Options, Press, Present. No evidence window is visible. The witness is sweating and looking nervous."
 
-        I want to answer yes, so I need to switch to 'Yes' before confirming.
+Turn 1:
+move: r
+thought: Cause: Witness claims to be at home at 8 PM but E1 shows otherwise; Evidence: E1 (Security Camera) not yet accessible; Effect: Need to open evidence window to present E1
+self_evaluation: Yes
 
-        Turn 1:
-        move: down
-        thought: 'No' is selected by default, but I want to choose 'Yes'. I'll navigate to it.
+Turn 2:
+move: right
+thought: Cause: Need to find E1 to contradict witness's alibi; Evidence: Currently on first evidence, must navigate to E1; Effect: Will be able to present the security camera footage
+self_evaluation: Yes
 
-        Turn 2:
-        move: z
-        thought: 'Yes' is now selected. I'll confirm the choice.
+Turn 3:
+move: x
+thought: Cause: E1 is now selected and directly contradicts witness's statement; Evidence: E1 shows witness at crime scene at 8 PM; Effect: Will expose the contradiction in witness's alibi
+self_evaluation: Yes
 
-        Stuck Situation Handling:
-        - If no progress has been made in the last 5 responses with cross-examination game state (check prev_responses about whether they are the same.)
-        - If the agent seems stuck in a loop or unable to advance
-        - Use 'b' to break out of the loop
-        - This helps the agent recover and move forward in the game
-    """
+Example 3 - Using 'down' to select an option before confirming:
+
+Scene: "Two white-text options appear in the middle of the screen: 'Yes' and 'No'. 'No' is currently highlighted. Dialog text is white. This is Cross-Examination mode."
+
+I want to answer yes, so I need to switch to 'Yes' before confirming.
+
+Turn 1:
+move: down
+thought: Cause: Need to select 'Yes' to proceed with questioning; Evidence: Currently on 'No' option; Effect: Will be able to confirm the correct choice
+self_evaluation: Yes
+
+Turn 2:
+move: z
+thought: Cause: 'Yes' is now selected and is the correct choice; Evidence: Option is highlighted; Effect: Will proceed with the questioning
+self_evaluation: Yes
+
+Stuck Situation Handling:
+- If no progress has been made in the last 5 responses with cross-examination game state (check prev_responses about whether they are the same.)
+- If the agent seems stuck in a loop or unable to advance
+- Use 'b' to break out of the loop
+- This helps the agent recover and move forward in the game""".format(
+            game_state=game_state,
+            c_statement=c_statement,
+            repeated_statement_warning="WARNING: This statement has been repeated during cross-examination. This often indicates a potential contradiction point. If you don't find a clear contradiction, use 'l' to press for more details." if is_repeated_statement else "",
+            options=options,
+            scene=scene,
+            num_collected_evidences=num_collected_evidences,
+            evidence_details=evidence_details,
+            memory_context=memory_context
+        )
 
         # Call the API
         if api_provider == "anthropic" and modality=="text-only":
@@ -608,25 +685,25 @@ def reasoning_worker(options, system_prompt, api_provider, model_name, game_stat
             prompt_message = convert_string_to_messsage(prompt)
         else:
             prompt_message = prompt
-        # Update completion in cost data
-        cost_data = calculate_all_costs_and_tokens(
-            prompt=prompt_message,
-            completion=response,
-            model=model_name,
-            image_path=screenshot_path if base64_image else None
-        )
+        # # Update completion in cost data
+        # cost_data = calculate_all_costs_and_tokens(
+        #     prompt=prompt_message,
+        #     completion=response,
+        #     model=model_name,
+        #     image_path=screenshot_path if base64_image else None
+        # )
         
-        # Log the request costs
-        log_request_cost(
-            num_input=cost_data["prompt_tokens"] + cost_data.get("image_tokens", 0),
-            num_output=cost_data["completion_tokens"],
-            input_cost=float(cost_data["prompt_cost"] + cost_data.get("image_cost", 0)),
-            output_cost=float(cost_data["completion_cost"]),
-            game_name="ace_attorney",
-            input_image_tokens=cost_data.get("image_tokens", 0),
-            model_name=model_name,
-            cache_dir=cache_dir
-        )
+        # # Log the request costs
+        # log_request_cost(
+        #     num_input=cost_data["prompt_tokens"] + cost_data.get("image_tokens", 0),
+        #     num_output=cost_data["completion_tokens"],
+        #     input_cost=float(cost_data["prompt_cost"] + cost_data.get("image_cost", 0)),
+        #     output_cost=float(cost_data["completion_cost"]),
+        #     game_name="ace_attorney",
+        #     input_image_tokens=cost_data.get("image_tokens", 0),
+        #     model_name=model_name,
+        #     cache_dir=cache_dir
+        # )
 
         # Extract move and thought from response
         move_match = re.search(r"move:\s*(.+?)(?=\n|$)", response)
@@ -641,6 +718,8 @@ def reasoning_worker(options, system_prompt, api_provider, model_name, game_stat
         }
     
     else:
+        # For non-cross-examination states, update state file with is_repeated_statement=False
+        update_state_file(game_state, c_statement, scene, memory_context, evidence_details, episode_name, cache_dir, False)
         time.sleep(1)
         return {
             "move": "z",
@@ -749,7 +828,14 @@ def ace_attorney_worker(system_prompt, api_provider, model_name,
     5) Makes decisions about game moves.
     
     Args:
-        episode_name (str): Name of the current episode (default: "The First Turnabout")
+        system_prompt (str): System prompt for the API
+        api_provider (str): API provider to use
+        model_name (str): Model name to use
+        prev_response (str): Previous response from the API
+        thinking (bool): Whether to use deep thinking
+        modality (str): Modality to use (vision-text or text-only)
+        episode_name (str): Name of the current episode
+        decision_state (dict, optional): Current decision state
         cache_dir (str, optional): Directory to save cache files
     """
     assert modality in ["text-only", "vision-text"], f"modality {modality} is not supported."
@@ -908,7 +994,8 @@ def ace_attorney_worker(system_prompt, api_provider, model_name,
         modality='text-only',
         screenshot_path=vision_result["screenshot_path"],
         thinking=thinking,
-        cache_dir=cache_dir
+        cache_dir=cache_dir,
+        episode_name=episode_name
     )
 
     # In your reasoning loop, track moves:
@@ -1111,77 +1198,12 @@ def vision_only_reasoning_worker(system_prompt, api_provider, model_name,
     num_collected_evidences = len(collected_evidences)
     evidence_details = "\n".join([f"Evidence {i+1}: {e}" for i, e in enumerate(collected_evidences)])
 
-    # Construct combined prompt for vision analysis and reasoning
-    prompt = f"""You are Phoenix Wright, a defense attorney in Ace Attorney. Your goal is to prove your client's innocence by finding contradictions in witness testimonies and presenting the right evidence at the right time.
-
-        First, analyze the current game screen and provide the following information:
-
-        1. Game State Detection Rules:
-           - Cross-Examination mode is indicated by ANY of these:
-             * A blue bar in the upper right corner
-             * Only Green dialog text
-             * EXACTLY three UI elements at the right down corner: Options, Press, Present
-             * An evidence window visible in the middle of the screen
-           - If you see an evidence window, it is ALWAYS Cross-Examination mode
-           - Conversation mode is indicated by:
-             * EXACTLY two UI elements at the right down corner: Options, Court Record
-             * Dialog text can be any color (most commonly white, but can also be blue, red, etc.)
-           - If you don't see any Cross-Examination indicators, it's Conversation mode
-
-        2. Dialog Text Analysis:
-           - Look at the bottom-left area where dialog appears
-           - Note the color of the dialog text (green/white/blue/red)
-           - Extract the speaker's name and their dialog
-           - Format must be exactly: Dialog: NAME: dialog text
-
-        3. Scene Analysis:
-           - Describe any visible characters and their expressions/poses
-           - Describe any other important visual elements or interactive UI components
-           - You MUST explicitly mention:
-             * The color of the dialog text (green/white/blue/red)
-             * Whether there is a blue bar in the upper right corner
-             * The exact UI elements present at the right down corner
-             * Whether there is an evidence window visible
-             * If evidence window is visible:
-               - Name of the currently selected evidence
-               - Description of the evidence
-               - Position in the evidence list (if visible)
-               - Whether this is the evidence you intend to present
-
-        Then, based on your analysis, make a decision about the next move:
-
-        Evidence Status:  
-        - Total Evidence Collected: {num_collected_evidences}  
-        {evidence_details}
-
-        Memory Context:  
-        {memory_context}
-
-        Be patient. DO NOT rush to present evidence. Always wait until the **decisive contradiction** becomes clear.
-
-        You may only present evidence if:
-        - A clear and specific contradiction exists between the current statement and an item in the Court Record
-        - The **correct** evidence item is currently selected
-        - The **evidence window is open**, and you are on the exact item you want to present
-
-        Never assume the correct evidence is selected. Always confirm it.
-
-        Available moves:
-        * `'l'`: Question the witness about their statement
-        * `'z'`: Move to the next statement
-        * `'r'`: Open the evidence window (press `'b'` to cancel if unsure)
-        * `'b'`: Close the evidence window (if opened unintentionally)
-        * `'x'`: Present evidence (only after confirming it's correct)
-        * `'right'`: Navigate through the evidence
-
-        Format your response EXACTLY as:
-        Game State: <'Cross-Examination' or 'Conversation'>
-        Dialog: NAME: dialog text
-        Evidence: NAME: description
-        Scene: <detailed description>
-        move: <move>
-        thought: <your internal reasoning>
-    """
+    # Use prompt from JSON file and format it with the required variables
+    prompt = PROMPTS["vision_only_reasoning_prompt"].format(
+        num_collected_evidences=num_collected_evidences,
+        evidence_details=evidence_details,
+        memory_context=memory_context
+    )
 
     # Call the API
     if api_provider == "anthropic":
@@ -1198,25 +1220,25 @@ def vision_only_reasoning_worker(system_prompt, api_provider, model_name,
         prompt_message = convert_string_to_messsage(prompt)
     else:
         prompt_message = prompt
-    # Update completion in cost data
-    cost_data = calculate_all_costs_and_tokens(
-        prompt=prompt_message,
-        completion=response,
-        model=model_name,
-        image_path=screenshot_path if base64_image else None
-    )
+    # # Update completion in cost data
+    # cost_data = calculate_all_costs_and_tokens(
+    #     prompt=prompt_message,
+    #     completion=response,
+    #     model=model_name,
+    #     image_path=screenshot_path if base64_image else None
+    # )
     
-    # Log the request costs
-    log_request_cost(
-        num_input=cost_data["prompt_tokens"] + cost_data.get("image_tokens", 0),
-        num_output=cost_data["completion_tokens"],
-        input_cost=float(cost_data["prompt_cost"] + cost_data.get("image_cost", 0)),
-        output_cost=float(cost_data["completion_cost"]),
-        game_name="ace_attorney",
-        input_image_tokens=cost_data.get("image_tokens", 0),
-        model_name=model_name,
-        cache_dir=cache_dir
-    )
+    # # Log the request costs
+    # log_request_cost(
+    #     num_input=cost_data["prompt_tokens"] + cost_data.get("image_tokens", 0),
+    #     num_output=cost_data["completion_tokens"],
+    #     input_cost=float(cost_data["prompt_cost"] + cost_data.get("image_cost", 0)),
+    #     output_cost=float(cost_data["completion_cost"]),
+    #     game_name="ace_attorney",
+    #     input_image_tokens=cost_data.get("image_tokens", 0),
+    #     model_name=model_name,
+    #     cache_dir=cache_dir
+    # )
 
     # Extract all information from response
     game_state_match = re.search(r"Game State:\s*(Cross-Examination|Conversation)", response)

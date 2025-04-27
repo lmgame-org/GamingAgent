@@ -7,9 +7,9 @@ import shutil
 import threading
 from concurrent.futures import ThreadPoolExecutor
 import datetime
+import json
 
 import os
-import json
 import re
 import pyautogui
 # from games.ace_attorney.reflection_worker import ReflectionTracker
@@ -33,6 +33,12 @@ from collections import Counter
 
 # Global base cache directory
 BASE_CACHE_DIR = "cache/ace_attorney"
+
+# Load prompts from JSON file
+with open("games/ace_attorney/ace_attorney_prompts.json", 'r', encoding='utf-8') as f:
+    PROMPTS = json.load(f)
+
+system_prompt = PROMPTS["system_prompt"]
 
 def majority_vote_move(moves_list, prev_move=None):
     """
@@ -58,11 +64,6 @@ def majority_vote_move(moves_list, prev_move=None):
             return tie_moves[0]
     else:
         return tie_moves[0]
-
-# System prompt remains constant
-system_prompt = (
-    "You are an expert AI agent specialized in playing Ace Attorney games. Your goal is to solve cases by gathering evidence, cross-examining witnesses, and presenting the correct evidence at the right time to prove your client's innocence. "
-)
 
 def main():
     # reflection = ReflectionTracker()
@@ -280,7 +281,7 @@ def main():
                 break
             
             # Update previous response with game state, move, thought and scene
-            prev_response = f"game_state: {chosen_game_state}\nmove: {chosen_move}\nthought: {chosen_thought}"
+            prev_response = f"game_state: {chosen_game_state}\ncurrent_statement: {chosen_dialog}\nmove: {chosen_move}\nthought: {chosen_thought}"
 
             # Update short-term memory with the chosen response
             short_term_memory_worker(

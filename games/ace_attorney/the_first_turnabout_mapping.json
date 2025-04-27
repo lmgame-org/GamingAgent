@@ -1,0 +1,41 @@
+{
+    "name_mappings": {
+        "phoenix": "lawyer 1",
+        "mia": "mentor 1",
+        "witness": "witness 1",
+        "phoenix wright": "lawyer 1",
+        "mr. wright": "lawyer 1",
+        "wright": "lawyer 1",
+        "mia fey": "mentor 1",
+        "ms. fey": "mentor 1",
+        "chief": "mentor 1",
+        "judge": "judge 1",
+        "your honor": "judge 1",
+        "larry butz": "defendant 1",
+        "mr. butz": "defendant 1",
+        "the defendant": "defendant 1",
+        "frank sahwit": "witness 1",
+        "mr. sahwit": "witness 1",
+        "sahwit": "witness 1",
+        "sanwit": "witness 1",
+        "the witness": "witness 1",
+        "winston payne": "prosecutor 1",
+        "mr. payne": "prosecutor 1",
+        "payne": "prosecutor 1",
+        "the prosecution": "prosecutor 1",
+        "cindy stone": "victim 1",
+        "ms. stone": "victim 1",
+        "the victim": "victim 1",
+        "the defense": "lawyer 1",
+        "the court": "judge 1",
+        "the killer": "witness 1",
+        "the culprit": "witness 1"
+    },
+    "evidence_mappings": {
+        "ATTORNEY'S BADGE": "E1",
+        "CINDY'S AUTOPSY REPORT": "E2",
+        "STATUE": "E3",
+        "PASSPORT": "E4",
+        "BLACKOUT RECORD": "E5"
+    }
+} 
