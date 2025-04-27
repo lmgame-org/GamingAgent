@@ -548,6 +548,7 @@ Cross-Examination Mode (CURRENT STATE: {game_state}):
     * If it's not the correct evidence, use 'right' to navigate to the evidence that contradicts the statement
     * Only use 'x' when you've found the evidence that directly contradicts the current statement
     * If no evidence contradicts the statement, use 'b' to close the evidence window
+    * You may always try a new piece of evidence that you haven't presented before as an attempt, even if there's no clear contradiction
 - When no options are present and no evidence window is visible:
     * ALWAYS compare the witness's statement with the available evidence
     * Look for contradictions or inconsistencies
