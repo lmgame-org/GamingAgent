@@ -93,24 +93,24 @@ def main():
     
     # Create the cache directory if it doesn't exist
     os.makedirs(BASE_CACHE_DIR, exist_ok=True)
-    # os.makedirs(cache_dir, exist_ok=True)
-    cache_dir = "cache/ace_attorney/20250426_190052_The_First_Turnabout_vision-text_openai_o4-mini-2025-04-16"
+    os.makedirs(cache_dir, exist_ok=True)
+    # cache_dir = "cache/ace_attorney/20250426_190052_The_First_Turnabout_vision-text_openai_o4-mini-2025-04-16"
     # Also ensure the base cache directory exists (for backward compatibility)
     print(f"Using cache directory: {cache_dir}")
 
     thinking_bool = str2bool(args.thinking)
 
     print("--------------------------------Start Evidence Worker--------------------------------")
-    # evidence_result = ace_evidence_worker(
-    #     system_prompt,
-    #     args.api_provider,
-    #     args.model_name,
-    #     prev_response,
-    #     thinking=thinking_bool,
-    #     modality=args.modality,
-    #     episode_name=args.episode_name,
-    #     cache_dir=cache_dir
-    # )
+    evidence_result = ace_evidence_worker(
+        system_prompt,
+        args.api_provider,
+        args.model_name,
+        prev_response,
+        thinking=thinking_bool,
+        modality=args.modality,
+        episode_name=args.episode_name,
+        cache_dir=cache_dir
+    )
     decision_state = None
 
     try:
