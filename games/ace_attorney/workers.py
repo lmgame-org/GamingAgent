@@ -538,7 +538,19 @@ You may only present evidence if:
 Never assume the correct evidence is selected. Always confirm it.
 
 Cross-Examination Mode (CURRENT STATE: {game_state}):
-- ALWAYS compare the witness's statement with the available evidence
+- When there are multiple options available:
+    * Choose the option that best advances your case
+    * Do NOT compare statements with evidence, try to make the best decision based on the options and statements
+    * Focus on the strategic value of each option
+- When the evidence window is visible:
+    * Carefully examine the currently selected evidence
+    * Compare it with the current statement for contradictions
+    * If it's not the correct evidence, use 'right' to navigate to the evidence that contradicts the statement
+    * Only use 'x' when you've found the evidence that directly contradicts the current statement
+    * If no evidence contradicts the statement, use 'b' to close the evidence window
+- When no options are present and no evidence window is visible:
+    * ALWAYS compare the witness's statement with the available evidence
+    * Look for contradictions or inconsistencies
 - For each statement, you have two options:
 * If you find a clear contradiction with evidence: (Three steps — one per turn)
     - Step 1: Use 'r' to open the evidence window
@@ -553,6 +565,9 @@ Cross-Examination Mode (CURRENT STATE: {game_state}):
 - If there are on-screen decision options (like "Yes", "No", "Press", "Present"), you must:
     * Use `'down'` to navigate between them
     * Use `'z'` to confirm the currently highlighted option
+    * If a previous option choice led to no progress or was wrong, try a different option
+    * Keep track of which options you've tried and their outcomes in your prev_responses
+    * Don't repeat options that didn't work unless you have new evidence or context
 * If you don't find a contradiction but the evidence window is mistakely opened:
     - Use 'b' to close the evidence window
 
@@ -584,7 +599,7 @@ If not:
 Response Format (strict):
 move: <move>
 
-thought: Cause: <detailed explanation>; Evidence: <current state and target>; Effect: <expected outcome>; Reflection: <how this move relates to previous actions and maintains coherence>
+thought: Cause: <detailed explanation>; Evidence: <current state and target>; Effect: <expected outcome>; Reflection: <how this move relates to previous actions and maintains coherence>; Selected_Option: <the currently selected option if options are present>; Selected_Evidence: <the currently selected evidence if navigating evidence>; Presented_Evidence: <the evidence being presented when using 'x' move>
 
 self_evaluation: <Yes / No>   # "Yes" if the Effect truly follows from the Cause + Evidence
 
@@ -594,6 +609,12 @@ IMPORTANT:
 - Use 'right' to navigate if it's not the correct one
 - Only use 'x' when the right evidence is selected
 - If options are on screen, navigate with 'down', confirm with 'z'
+- When in Conversation state with options, focus on choosing the best option to advance the story, NOT on evidence comparison
+- If you see the same option again, it means your previous selection was wrong. You should try a different option instead
+- Always include the currently selected option in your thought process when options are present
+- If you find yourself selecting the same evidence multiple times, it likely means your previous evidence choice was wrong. Try a different piece of evidence instead
+- Always include the currently selected evidence in your thought process when navigating evidence
+- Always include the presented evidence in your thought process when using 'x' move
 
 Example 1:
 Scene says: "The currently selected evidence is E1."
@@ -601,12 +622,12 @@ But I want to present: "E2"
 
 Turn 1:  
 move: right  
-thought: Cause: Need to present E2 to contradict witness's alibi; Evidence: Currently on E1, need to navigate to E2; Effect: Will be able to present the correct evidence that shows witness was at crime scene
+thought: Cause: Need to present E2 to contradict witness's alibi; Evidence: Currently on E1, need to navigate to E2; Effect: Will be able to present the correct evidence that shows witness was at crime scene; Reflection: Making a strategic choice to present the most relevant evidence; Selected_Evidence: E2
 self_evaluation: Yes
 
 Turn 2:  
 move: x  
-thought: Cause: E2 is now selected and directly contradicts witness's statement; Evidence: E2 shows witness at crime scene at 8 PM; Effect: Will expose the contradiction in witness's alibi
+thought: Cause: E2 is now selected and directly contradicts witness's statement; Evidence: E2 shows witness at crime scene at 8 PM; Effect: Will expose the contradiction in witness's alibi; Reflection: Confirming the evidence selection; Presented_Evidence: E2
 self_evaluation: Yes
 
 Example 2 - Clear Contradiction with No Evidence Window:
@@ -639,13 +660,14 @@ I want to answer yes, so I need to switch to 'Yes' before confirming.
 
 Turn 1:
 move: down
-thought: Cause: Need to select 'Yes' to proceed with questioning; Evidence: Currently on 'No' option; Effect: Will be able to confirm the correct choice
+thought: Cause: Need to select 'Yes' to proceed with questioning; Evidence: Currently on 'No' option; Effect: Will be able to confirm the correct choice; Reflection: Making a strategic choice to advance the questioning; Selected_Option: 'Yes'
 self_evaluation: Yes
 
 Turn 2:
 move: z
-thought: Cause: 'Yes' is now selected and is the correct choice; Evidence: Option is highlighted; Effect: Will proceed with the questioning
+thought: Cause: 'Yes' is now selected and is the correct choice; Evidence: Option is highlighted; Effect: Will proceed with the questioning; Reflection: Confirming the strategic choice; Selected_Option: 'Yes'
 self_evaluation: Yes
+
 
 Stuck Situation Handling:
 - If no progress has been made in the last 5 responses with cross-examination game state (check prev_responses about whether they are the same.)
