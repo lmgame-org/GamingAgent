@@ -738,7 +738,7 @@ Stuck Situation Handling:
         elif api_provider == "openai" and "o3" in model_name and modality=="text-only":
             response = openai_text_reasoning_completion(system_prompt, model_name, prompt)
         elif api_provider == "openai":
-            response = openai_completion(system_prompt, model_name, base64_image, prompt)
+            response = openai_completion(system_prompt, model_name, base64_image, prompt, reasoning_effort="high")
         elif api_provider == "gemini" and modality=="text-only":
             response = gemini_text_completion(system_prompt, model_name, prompt)
         elif api_provider == "gemini":
