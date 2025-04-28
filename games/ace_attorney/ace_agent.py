@@ -103,16 +103,16 @@ def main():
     thinking_bool = str2bool(args.thinking)
 
     print("--------------------------------Start Evidence Worker--------------------------------")
-    # evidence_result = ace_evidence_worker(
-    #     system_prompt,
-    #     args.api_provider,
-    #     args.model_name,
-    #     prev_response,
-    #     thinking=thinking_bool,
-    #     modality=args.modality,
-    #     episode_name=args.episode_name,
-    #     cache_dir=cache_dir
-    # )
+    evidence_result = ace_evidence_worker(
+        system_prompt,
+        args.api_provider,
+        args.model_name,
+        prev_response,
+        thinking=thinking_bool,
+        modality=args.modality,
+        episode_name=args.episode_name,
+        cache_dir=cache_dir
+    )
     decision_state = None
 
     try:
