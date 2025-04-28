@@ -217,7 +217,7 @@ def openai_completion(system_prompt, model_name, base64_image, prompt, temperatu
     if "o1" not in model_name and "o4" not in model_name:
         request_params["temperature"] = temperature
     else:
-        request_params["reasoning"] = {"effort": reasoning_effort}
+        request_params["reasoning_effort"] = reasoning_effort
 
     response = client.chat.completions.create(**request_params)
     return response.choices[0].message.content
