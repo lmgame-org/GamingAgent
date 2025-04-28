@@ -366,26 +366,36 @@ def normalize_content(content, episode_name, cache_dir=None):
     # Use provided cache_dir or default
     cache_dir = cache_dir or DEFAULT_CACHE_DIR
     
-    # Load episode-specific mapping file
-    mapping_file = os.path.join("games/ace_attorney", f"{episode_name.lower().replace(' ', '_')}_mapping.json")
-    if os.path.exists(mapping_file):
-        with open(mapping_file, 'r', encoding='utf-8') as f:
-            mappings = json.load(f)
-            name_mappings = mappings.get("name_mappings", {})
-            evidence_mappings = mappings.get("evidence_mappings", {})
-    else:
-        raise FileNotFoundError(f"Mapping file not found for episode: {episode_name}")
+    try:
+        with open("games/ace_attorney/mapping.json", 'r', encoding='utf-8') as f:
+            map_elements = json.load(f)
+        
+        episode_elems = map_elements.get(episode_name, {})
+        name_mappings = episode_elems.get("name_mappings", {})
+        evidence_mappings = episode_elems.get("evidence_mappings", {})
+        dialog_mappings = episode_elems.get("dialog", {})
+        
+    except Exception as e:
+        print(f"[ERROR] Failed to check skip conversation: {e}")
+        return None
     
-    # Replace names with case-insensitive boundaries
-    for original, replacement in name_mappings.items():
-        pattern = re.compile(r"\b" + re.escape(original) + r"\b", re.IGNORECASE)
-        content = pattern.sub(replacement, content)
-    
+    # --- Swapped Order: Process Dialog First ---
+    # Replace specific dialog phrases using case-insensitive word boundary matching
+    for original_dialog, replacement_dialog in dialog_mappings.items():
+        pattern = re.compile(r"^" + re.escape(original_dialog) + r"$", re.IGNORECASE)
+        new_content = pattern.sub(replacement_dialog, content)
+        if new_content != content:
+            content = new_content
     # Replace evidence with case-insensitive boundaries
     for original, replacement in evidence_mappings.items():
         pattern = re.compile(r"\b" + re.escape(original) + r"\b", re.IGNORECASE)
         content = pattern.sub(replacement, content)
-    
+
+    # Replace names with case-insensitive boundaries
+    for original, replacement in name_mappings.items():
+        pattern = re.compile(r"\b" + re.escape(original) + r"\b", re.IGNORECASE)
+        content = pattern.sub(replacement, content)
+
     return content
 
 def update_state_file(game_state, c_statement, scene, memory_context, evidence_details, episode_name, cache_dir=None, is_repeated_statement=False):
@@ -467,7 +477,6 @@ def reasoning_worker(options, system_prompt, api_provider, model_name, game_stat
     evidences_section = memory_context.split("Collected Evidences:")[1].strip()
     collected_evidences = [e for e in evidences_section.split("\n") if e.strip()]
     num_collected_evidences = len(collected_evidences)
-    
     # Normalize all content
     game_state = normalize_content(game_state, episode_name, cache_dir)
     c_statement = normalize_content(c_statement, episode_name, cache_dir)
@@ -894,7 +903,12 @@ def ace_attorney_worker(system_prompt, api_provider, model_name,
         "name": dialog_match.group(1) if dialog_match else "",
         "text": dialog_match.group(2).strip() if dialog_match else ""
     }
-    
+    print(dialog['text'])
+    rewrite_match = re.search(r"Rewrite:\s*(.+?)(?=\n[A-Z]|$)", response_text, re.DOTALL)
+    rewrite_text = rewrite_match.group(1).strip() if rewrite_match else ""
+    if rewrite_text and game_state=="Cross-Examination":
+        print('rewrite_text')
+        dialog['text'] = rewrite_text
     # Extract Evidence
     evidence_match = re.search(r"Evidence:\s*([^:\n]+):\s*(.+?)(?=\n|$)", response_text)
     evidence = {
@@ -1001,7 +1015,12 @@ def ace_attorney_worker(system_prompt, api_provider, model_name,
         cache_dir=cache_dir
     )
 
-    c_statement = f"{dialog}"
+    # Format the dialog string properly before passing to reasoning_worker
+    if dialog["name"] and dialog["text"]:
+        formatted_dialog_statement = f"{dialog['name']}: {dialog['text']}"
+    else:
+        formatted_dialog_statement = ""
+
     # -------------------- Reasoning -------------------- #
     # Make decisions about game moves
     reasoning_result = reasoning_worker(
@@ -1010,7 +1029,7 @@ def ace_attorney_worker(system_prompt, api_provider, model_name,
         api_provider,
         model_name,
         game_state,
-        c_statement,
+        formatted_dialog_statement,
         scene,
         complete_memory,
         base64_image=encode_image(vision_result["screenshot_path"]),
