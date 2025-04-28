@@ -23,10 +23,12 @@ from games.ace_attorney.workers import (
     vision_only_reasoning_worker,
     long_term_memory_worker,
     memory_retrieval_worker,
+    normalize_content,
     vision_only_ace_attorney_worker,
     check_end_statement,
     check_skip_conversation,
-    handle_skip_conversation
+    handle_skip_conversation,
+    evaluate_present_evidence
 )
 from tools.utils import str2bool, encode_image, log_output, get_annotate_img, capture_game_window, log_game_event
 from collections import Counter
@@ -114,6 +116,7 @@ def main():
         cache_dir=cache_dir
     )
     decision_state = None
+    move_history = deque(maxlen=10) # Initialize move history (adjust maxlen as needed)
 
     try:
         while True:
@@ -287,9 +290,83 @@ def main():
             print(f"└── Execution Status: Pending")
             print("="*70 + "\n")
             
-            # Log the final decision
+            # --- Evaluate 'x' move BEFORE logging and executing --- 
+            final_move_to_perform = chosen_move # Start with the LLM's choice
+            if chosen_move == 'x':
+                print("--- Initiating 'x' Move Evaluation ---")
+                
+                # 1. Get Normalized Current Statement
+                if isinstance(chosen_dialog, dict) and chosen_dialog.get("name") and chosen_dialog.get("text"):
+                    raw_statement = f"{chosen_dialog['name']}: {chosen_dialog['text']}"
+                    normalized_statement = normalize_content(raw_statement, args.episode_name, cache_dir)
+                else:
+                    normalized_statement = normalize_content(str(chosen_dialog), args.episode_name, cache_dir)
+                print(f"   Normalized Statement for Eval: {normalized_statement}")
+
+                # 2. Get Normalized Scene
+                normalized_scene = normalize_content(chosen_scene, args.episode_name, cache_dir)
+                print(f"   Normalized Scene for Eval: {normalized_scene[:100]}...")
+
+                # 3. Get Normalized Evidence Details (from memory context of the chosen result)
+                # We need the memory context that led to the chosen 'x' move
+                chosen_memory_context = ""
+                if chosen_idx < len(results) and "memory_context" in results[chosen_idx]:
+                    chosen_memory_context = results[chosen_idx]["memory_context"]
+                
+                normalized_evidence_details = "Error: Could not extract evidence details."
+                if chosen_memory_context:
+                    try:
+                        # Memory context should already be normalized by memory_retrieval_worker
+                        evidences_section = chosen_memory_context.split("Collected Evidences:")[1].strip()
+                        collected_evidences_lines = [e for e in evidences_section.split("\n") if e.strip()]
+                        normalized_evidence_details = "\n".join(collected_evidences_lines)
+                        print(f"   Normalized Evidence for Eval: Extracted successfully.")
+                    except IndexError:
+                         print(f"   Normalized Evidence for Eval: Failed to extract from context.")
+                         normalized_evidence_details = ""
+                else:
+                    print(f"   Normalized Evidence for Eval: No memory context found for chosen result.")
+                    normalized_evidence_details = ""
+
+                # 4. Call the evaluator
+                evaluation = evaluate_present_evidence(
+                    move_history=list(move_history), # Pass the actual history as a list
+                    current_thought=chosen_thought,
+                    game_state=chosen_game_state, # Already normalized
+                    current_statement=normalized_statement,
+                    scene=normalized_scene, 
+                    evidence_details=normalized_evidence_details,
+                    api_provider="openai", # Hardcoded for evaluator
+                    model_name="o3-2025-04-16" # Specific O3 model
+                )
+
+                # --- Log Evaluation Result --- 
+                eval_log_file = os.path.join(cache_dir, "evaluator_log.txt")
+                log_timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                log_entry = f"[{log_timestamp}] Eval Target Move: 'x' | Result: {evaluation} | Statement: {normalized_statement} | Thought: {chosen_thought}\n"
+                try:
+                    with open(eval_log_file, 'a', encoding='utf-8') as f:
+                        f.write(log_entry)
+                except Exception as e:
+                    print(f"[ERROR] Failed to write to evaluator log: {e}")
+                # --- End Logging ---
+
+                # 5. Override move if evaluation fails - REMOVED/COMMENTED OUT
+                # if evaluation == 0:
+                #     print("--- Evaluator Result: 'x' move deemed illogical. Overriding to 'z'. ---")
+                #     final_move_to_perform = 'z' 
+                #     # Optionally update the thought to reflect override? 
+                #     # chosen_thought += " [Evaluator Override: Invalid 'x', changed to 'z']"
+                # else:
+                #     print("--- Evaluator Result: 'x' move deemed logical. Proceeding. ---")
+                print("="*70 + "\n") # Separator after evaluation block
+
+            # Log the final decision (always using the original chosen_move now)
             log_game_event(f"Final Decision - State: {chosen_game_state}, Move: {chosen_move}, Thought: {chosen_thought}, Dialog: {chosen_dialog}, Evidence: {chosen_evidence}, Scene: {chosen_scene[:150]}...", 
                           cache_dir=cache_dir)
+
+            # Update move history with the chosen move/thought *before* performing
+            move_history.append({"move": chosen_move, "thought": chosen_thought})
 
             # Perform the chosen move
             perform_move(chosen_move)
@@ -301,7 +378,7 @@ def main():
                 break
             
             # Update previous response with game state, move, thought and scene
-            prev_response = f"game_state: {chosen_game_state}\ncurrent_statement: {chosen_dialog}\nmove: {chosen_move}\nthought: {chosen_thought}"
+            prev_response = f"game_state: {chosen_game_state}\ncurrent_statement: {chosen_dialog}\nmove: {final_move_to_perform}\nthought: {chosen_thought}"
 
             # Update short-term memory with the chosen response
             short_term_memory_worker(
@@ -316,7 +393,7 @@ def main():
             )
 
             # Record presented evidence into long-term memory as dialog format
-            if chosen_move == "x" and chosen_evidence and chosen_evidence.get("name"):
+            if final_move_to_perform == "x" and chosen_evidence and chosen_evidence.get("name"):
                 presentation_dialog = {
                     "name": "Phoenix",
                     "text": f"I present the {chosen_evidence['name']}."
@@ -369,7 +446,7 @@ def main():
                 )
 
 
-            if chosen_move == "z" and decision_state and decision_state.get("has_options"):
+            if final_move_to_perform == "z" and decision_state and decision_state.get("has_options"):
                 decision_state = None  # Reset after confirming choice
             else:
                 # Keep the state if returned by worker

@@ -1500,4 +1500,111 @@ def vision_only_ace_attorney_worker(system_prompt, api_provider, model_name,
     
     return result
 
+def find_last_move_index(move_history, target_move):
+    """Helper function to find the index of the last occurrence of a move."""
+    for i in range(len(move_history) - 1, -1, -1):
+        # Ensure move_history contains dicts with a "move" key
+        if isinstance(move_history[i], dict) and move_history[i].get("move") == target_move:
+            return i
+    return -1
+
+def evaluate_present_evidence(
+    move_history: list,  # List of dicts like {"move": "...", "thought": "..."}
+    current_thought: str, # The thought corresponding to the CURRENT 'x' move being evaluated
+    game_state: str,
+    current_statement: str, # Should be the already normalized statement
+    scene: str, # Should be the already normalized scene description
+    evidence_details: str, # Pre-formatted, normalized string list of available evidence
+    api_provider: str, # Should be "openai" for this specific request
+    model_name: str,   # e.g., "gpt-3.5-turbo-instruct" or your chosen "o3" text model
+) -> int:
+    """
+    Evaluates if pressing 'x' (present evidence) is logical given the history and context.
+    Checks if 'r' was pressed previously without 'b' intervening, and uses an LLM
+    to assess if the presented evidence contradicts the statement based on the thought.
+
+    Args:
+        move_history: List of previous move dicts [{"move": str, "thought": str}].
+        current_thought: The reasoning provided for the 'x' move.
+        game_state: The normalized game state (e.g., "Cross-Examination").
+        current_statement: The normalized witness statement being challenged.
+        scene: The normalized scene description.
+        evidence_details: Normalized string listing all available evidence.
+        api_provider: The API provider (must be 'openai' for this).
+        model_name: The specific OpenAI text model to use (e.g., gpt-3.5-turbo-instruct).
+
+    Returns:
+        1 if the 'x' move seems logically valid in context.
+        0 if the move is illogical (wrong state, window not open, reasoning invalid, or error).
+    """
+    # --- Prerequisite Checks ---
+
+    # 1. Check Game State
+    if game_state != "Cross-Examination":
+        print("[Evaluator] FAIL: 'x' pressed outside Cross-Examination.")
+        return 0 # Cannot present outside cross-examination
+
+    # 2. Check Move History for 'r' without intervening 'b'
+    last_r_index = find_last_move_index(move_history, "r")
+    last_b_index = find_last_move_index(move_history, "b")
+
+    if last_r_index == -1:
+        print("[Evaluator] FAIL: 'x' pressed without preceding 'r'.")
+        return 0 # 'r' must have been pressed at some point
+
+    # Check if 'b' was pressed *after* the last 'r'
+    if last_b_index > last_r_index:
+        print("[Evaluator] FAIL: 'x' pressed after 'b' closed the evidence window.")
+        return 0 # Evidence window was closed
+
+    # --- Extract Presented Evidence from Thought ---
+    presented_evidence_match = re.search(r"Presented_Evidence:\s*(.+?)(?=\n|;|Effect:|Reflection:|$)", current_thought, re.IGNORECASE)
+    if not presented_evidence_match:
+        print(f"[Evaluator] FAIL: Could not extract Presented_Evidence from thought: {current_thought}")
+        return 0
+    presented_evidence_name = presented_evidence_match.group(1).strip()
+    if not presented_evidence_name:
+         print("[Evaluator] FAIL: Extracted Presented_Evidence is empty.")
+         return 0
+
+    # --- LLM Evaluation ---
+    system_prompt_eval = """You are an evaluation assistant for a game-playing AI in a courtroom game. Your task is to determine if the AI's reasoning for presenting a specific piece of evidence during a cross-examination *logically contradicts* the current witness statement, based *only* on the information provided. Do not use external knowledge of the game. Focus solely on the claimed contradiction's plausibility based on the text."""
+
+    user_prompt_eval = f"""Evaluate the following situation:
+    Game State: {game_state}
+    Current Witness Statement: "{current_statement}"
+    Scene Description (provides context on current selection): {scene}
+    All Available Evidence:\n{evidence_details}
+
+    Agent's Action: Present Evidence ('x' move)
+    Agent's Reasoning (Thought): "{current_thought}"
+    Evidence Agent Claims to Present (extracted from thought): "{presented_evidence_name}"
+
+    Question: Based *only* on the Witness Statement, the Agent's Reasoning, and the Available Evidence list, does the agent's stated reason for presenting '{presented_evidence_name}' represent a *plausible logical contradiction* to the statement? Ignore overall strategy or game progression. Focus only on whether the text implies a direct conflict.
+
+    Respond ONLY with:
+    Evaluation: [0 or 1]
+    (1 if the reasoning for the contradiction makes logical sense based *only* on the provided texts, 0 if it does not or seems unrelated/illogical/unsupported by the text)"""
+
+    try:
+        # Ensure using a suitable OpenAI text model
+        # Use a known compatible text model directly for the evaluator
+        
+        response = openai_text_reasoning_completion(system_prompt_eval, model_name, user_prompt_eval)
+
+        print(f"[Evaluator] LLM Response: {response}")
+        evaluation_match = re.search(r"Evaluation:\s*([01])", response)
+
+        if evaluation_match:
+            result = int(evaluation_match.group(1))
+            print(f"[Evaluator] Parsed LLM evaluation: {result}")
+            return result
+        else:
+            print(f"[Evaluator] FAIL: Could not parse LLM evaluation response.")
+            return 0 # Failed to parse
+
+    except Exception as e:
+        print(f"[Evaluator] FAIL: API call or processing error: {e}")
+        return 0 # Error during evaluation
+
 # return move_thought_list
