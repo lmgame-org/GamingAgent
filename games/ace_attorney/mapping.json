@@ -19,7 +19,6 @@
             "mr. sahwit": "witness 1",
             "sahwit": "witness 1",
             "sanwit": "witness 1",
-            "the witness": "witness 1",
             "winston payne": "prosecutor 1",
             "mr. payne": "prosecutor 1",
             "payne": "prosecutor 1",
@@ -89,7 +88,6 @@
             "april may": "witness 1",
             "miss may": "witness 1",
             "bellboy": "witness 2", 
-            "the witness": "witness 1",
             "fey & co. law offices": "law office"
         },
         "evidence_mappings": {

@@ -93,8 +93,8 @@ def main():
     
     # Create the cache directory if it doesn't exist
     os.makedirs(BASE_CACHE_DIR, exist_ok=True)
-    # os.makedirs(cache_dir, exist_ok=True)
-    cache_dir = "cache/ace_attorney/20250427_160335_Turnabout_Sisters_part1_vision-text_gemini_gemini-2.5-pro-preview-03-25"
+    os.makedirs(cache_dir, exist_ok=True)
+    # cache_dir = "cache/ace_attorney/20250427_160335_Turnabout_Sisters_part1_vision-text_gemini_gemini-2.5-pro-preview-03-25"
     # Also ensure the base cache directory exists (for backward compatibility)
     print(f"Using cache directory: {cache_dir}")
 

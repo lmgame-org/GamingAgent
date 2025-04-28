@@ -320,34 +320,43 @@ def memory_retrieval_worker(system_prompt, api_provider, model_name,
     background_file = "games/ace_attorney/ace_attorney_1.json"
     with open(background_file, 'r', encoding='utf-8') as f:
         background_data = json.load(f)
-    background_context = background_data[episode_name]["Case_Transcript"]
+    raw_background_context = background_data.get(episode_name, {}).get("Case_Transcript", [])
 
     # Load current episode memory
     memory_file = os.path.join(cache_dir, "dialog_history", f"{episode_name.lower().replace(' ', '_')}.json")
     if os.path.exists(memory_file):
         with open(memory_file, 'r', encoding='utf-8') as f:
             memory_data = json.load(f)
-        current_episode = memory_data[episode_name]
-        cross_examination_context = current_episode["Case_Transcript"]
-        prev_responses = current_episode.get("prev_responses", [])
-        collected_evidences = current_episode.get("evidences", [])
+        current_episode = memory_data.get(episode_name, {})
+        raw_cross_examination_context = current_episode.get("Case_Transcript", [])
+        raw_prev_responses = current_episode.get("prev_responses", [])
+        raw_collected_evidences = current_episode.get("evidences", [])
     else:
-        cross_examination_context = []
-        prev_responses = []
-        collected_evidences = []
+        raw_cross_examination_context = []
+        raw_prev_responses = []
+        raw_collected_evidences = []
 
-    # Compose complete memory context
+    # --- Normalize each line individually before joining ---
+    normalized_background = [normalize_content(line, episode_name, cache_dir) for line in raw_background_context]
+    normalized_cross_exam = [normalize_content(line, episode_name, cache_dir) for line in raw_cross_examination_context]
+    # prev_responses might contain complex strings, maybe skip full dialog normalization?
+    # For now, let's normalize names/evidence in them, but be cautious.
+    normalized_prev_responses = [normalize_content(line, episode_name, cache_dir) for line in raw_prev_responses]
+    normalized_evidences = [normalize_content(line, episode_name, cache_dir) for line in raw_collected_evidences]
+    # --- End Normalization ---
+
+    # Compose complete memory context using normalized lines
     memory_context = f"""Background Conversation Context:
-        {chr(10).join(background_context)}
+    {chr(10).join(normalized_background)}
 
-        Cross-Examination Conversation Context:
-        {chr(10).join(cross_examination_context)}
+    Cross-Examination Conversation Context:
+    {chr(10).join(normalized_cross_exam)}
 
-        Previous 7 manipulations:
-        {chr(10).join(prev_responses)}
+    Previous {len(normalized_prev_responses)} manipulations:
+    {chr(10).join(normalized_prev_responses)}
 
-        Collected Evidences:
-        {chr(10).join(collected_evidences)}"""
+    Collected Evidences:
+    {chr(10).join(normalized_evidences)}"""
 
     return memory_context
 
@@ -382,10 +391,16 @@ def normalize_content(content, episode_name, cache_dir=None):
     # --- Swapped Order: Process Dialog First ---
     # Replace specific dialog phrases using case-insensitive word boundary matching
     for original_dialog, replacement_dialog in dialog_mappings.items():
+        # Use regex anchored to the start (^) and end ($) for exact full-line matching
         pattern = re.compile(r"^" + re.escape(original_dialog) + r"$", re.IGNORECASE)
+        # If the entire content matches the pattern, replace it
         new_content = pattern.sub(replacement_dialog, content)
         if new_content != content:
             content = new_content
+            # Optional: break early if only one full dialog match is expected per input
+            # break
+
+    # --- Then Process Evidence ---
     # Replace evidence with case-insensitive boundaries
     for original, replacement in evidence_mappings.items():
         pattern = re.compile(r"\b" + re.escape(original) + r"\b", re.IGNORECASE)
@@ -481,7 +496,9 @@ def reasoning_worker(options, system_prompt, api_provider, model_name, game_stat
     game_state = normalize_content(game_state, episode_name, cache_dir)
     c_statement = normalize_content(c_statement, episode_name, cache_dir)
     scene = normalize_content(scene, episode_name, cache_dir)
-    memory_context = normalize_content(memory_context, episode_name, cache_dir)
+    # memory_context is now normalized *before* reaching here
+    # memory_context = normalize_content(memory_context, episode_name, cache_dir)
+    # print(memory_context)
     
     
     # Format evidence details for the prompt and normalize
@@ -507,7 +524,7 @@ def reasoning_worker(options, system_prompt, api_provider, model_name, game_stat
 
         # Update state file with repeated statement status
         update_state_file(game_state, c_statement, scene, memory_context, evidence_details, episode_name, cache_dir, is_repeated_statement)
-
+        print(memory_context)
         # Define prompt directly instead of loading from JSON
         prompt = """You are a diligent defense advocate.  
 Forget anything you might recall from popular courtroom-game scripts; such memories may be unreliable here.
