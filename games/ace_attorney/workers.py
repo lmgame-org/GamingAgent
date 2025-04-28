@@ -308,46 +308,74 @@ def memory_retrieval_worker(system_prompt, api_provider, model_name,
     thinking=True, 
     modality="vision-text",
     episode_name="The First Turnabout",
-    cache_dir=None
+    cache_dir=None,
+    use_mapping_background=False
     ):
     """
     Retrieves and composes complete memory context from long-term and short-term memory.
+    
+    Args:
+        system_prompt (str): System prompt for the API
+        api_provider (str): API provider to use
+        model_name (str): Model name to use
+        prev_response (str): Previous response from the API
+        thinking (bool): Whether to use deep thinking
+        modality (str): Modality to use (vision-text or text-only)
+        episode_name (str): Name of the current episode
+        cache_dir (str, optional): Directory to save cache files
+        use_mapping_background (bool): Whether to use background transcript from mapping file instead of ace_attorney_1.json
     """
     # Use provided cache_dir or default
     cache_dir = cache_dir or DEFAULT_CACHE_DIR
     
     # Load background conversation context
-    background_file = "games/ace_attorney/ace_attorney_1.json"
-    with open(background_file, 'r', encoding='utf-8') as f:
-        background_data = json.load(f)
-    background_context = background_data[episode_name]["Case_Transcript"]
+    if use_mapping_background:
+        # Load from mapping file
+        with open("games/ace_attorney/mapping.json", 'r', encoding='utf-8') as f:
+            mapping_data = json.load(f)
+        raw_background_context = mapping_data.get(episode_name, {}).get("background_transcript", [])
+    else:
+        # Load from default file
+        background_file = "games/ace_attorney/ace_attorney_1.json"
+        with open(background_file, 'r', encoding='utf-8') as f:
+            background_data = json.load(f)
+        raw_background_context = background_data.get(episode_name, {}).get("Case_Transcript", [])
 
     # Load current episode memory
     memory_file = os.path.join(cache_dir, "dialog_history", f"{episode_name.lower().replace(' ', '_')}.json")
     if os.path.exists(memory_file):
         with open(memory_file, 'r', encoding='utf-8') as f:
             memory_data = json.load(f)
-        current_episode = memory_data[episode_name]
-        cross_examination_context = current_episode["Case_Transcript"]
-        prev_responses = current_episode.get("prev_responses", [])
-        collected_evidences = current_episode.get("evidences", [])
+        current_episode = memory_data.get(episode_name, {})
+        raw_cross_examination_context = current_episode.get("Case_Transcript", [])
+        raw_prev_responses = current_episode.get("prev_responses", [])
+        raw_collected_evidences = current_episode.get("evidences", [])
     else:
-        cross_examination_context = []
-        prev_responses = []
-        collected_evidences = []
+        raw_cross_examination_context = []
+        raw_prev_responses = []
+        raw_collected_evidences = []
 
-    # Compose complete memory context
+    # --- Normalize each line individually before joining ---
+    normalized_background = [normalize_content(line, episode_name, cache_dir) for line in raw_background_context]
+    normalized_cross_exam = [normalize_content(line, episode_name, cache_dir) for line in raw_cross_examination_context]
+    # prev_responses might contain complex strings, maybe skip full dialog normalization?
+    # For now, let's normalize names/evidence in them, but be cautious.
+    normalized_prev_responses = [normalize_content(line, episode_name, cache_dir) for line in raw_prev_responses]
+    normalized_evidences = [normalize_content(line, episode_name, cache_dir) for line in raw_collected_evidences]
+    # --- End Normalization ---
+
+    # Compose complete memory context using normalized lines
     memory_context = f"""Background Conversation Context:
-        {chr(10).join(background_context)}
+    {chr(10).join(normalized_background)}
 
-        Cross-Examination Conversation Context:
-        {chr(10).join(cross_examination_context)}
+    Cross-Examination Conversation Context:
+    {chr(10).join(normalized_cross_exam)}
 
-        Previous 7 manipulations:
-        {chr(10).join(prev_responses)}
+    Previous {len(normalized_prev_responses)} manipulations:
+    {chr(10).join(normalized_prev_responses)}
 
-        Collected Evidences:
-        {chr(10).join(collected_evidences)}"""
+    Collected Evidences:
+    {chr(10).join(normalized_evidences)}"""
 
     return memory_context
 
@@ -366,26 +394,42 @@ def normalize_content(content, episode_name, cache_dir=None):
     # Use provided cache_dir or default
     cache_dir = cache_dir or DEFAULT_CACHE_DIR
     
-    # Load episode-specific mapping file
-    mapping_file = os.path.join("games/ace_attorney", f"{episode_name.lower().replace(' ', '_')}_mapping.json")
-    if os.path.exists(mapping_file):
-        with open(mapping_file, 'r', encoding='utf-8') as f:
-            mappings = json.load(f)
-            name_mappings = mappings.get("name_mappings", {})
-            evidence_mappings = mappings.get("evidence_mappings", {})
-    else:
-        raise FileNotFoundError(f"Mapping file not found for episode: {episode_name}")
+    try:
+        with open("games/ace_attorney/mapping.json", 'r', encoding='utf-8') as f:
+            map_elements = json.load(f)
+        
+        episode_elems = map_elements.get(episode_name, {})
+        name_mappings = episode_elems.get("name_mappings", {})
+        evidence_mappings = episode_elems.get("evidence_mappings", {})
+        dialog_mappings = episode_elems.get("dialog", {})
+        
+    except Exception as e:
+        print(f"[ERROR] Failed to check skip conversation: {e}")
+        return None
     
-    # Replace names with case-insensitive boundaries
-    for original, replacement in name_mappings.items():
-        pattern = re.compile(r"\b" + re.escape(original) + r"\b", re.IGNORECASE)
-        content = pattern.sub(replacement, content)
-    
+    # --- Swapped Order: Process Dialog First ---
+    # Replace specific dialog phrases using case-insensitive word boundary matching
+    for original_dialog, replacement_dialog in dialog_mappings.items():
+        # Use regex anchored to the start (^) and end ($) for exact full-line matching
+        pattern = re.compile(r"^" + re.escape(original_dialog) + r"$", re.IGNORECASE)
+        # If the entire content matches the pattern, replace it
+        new_content = pattern.sub(replacement_dialog, content)
+        if new_content != content:
+            content = new_content
+            # Optional: break early if only one full dialog match is expected per input
+            # break
+
+    # --- Then Process Evidence ---
     # Replace evidence with case-insensitive boundaries
     for original, replacement in evidence_mappings.items():
         pattern = re.compile(r"\b" + re.escape(original) + r"\b", re.IGNORECASE)
         content = pattern.sub(replacement, content)
-    
+
+    # Replace names with case-insensitive boundaries
+    for original, replacement in name_mappings.items():
+        pattern = re.compile(r"\b" + re.escape(original) + r"\b", re.IGNORECASE)
+        content = pattern.sub(replacement, content)
+
     return content
 
 def update_state_file(game_state, c_statement, scene, memory_context, evidence_details, episode_name, cache_dir=None, is_repeated_statement=False):
@@ -467,12 +511,13 @@ def reasoning_worker(options, system_prompt, api_provider, model_name, game_stat
     evidences_section = memory_context.split("Collected Evidences:")[1].strip()
     collected_evidences = [e for e in evidences_section.split("\n") if e.strip()]
     num_collected_evidences = len(collected_evidences)
-    
     # Normalize all content
     game_state = normalize_content(game_state, episode_name, cache_dir)
     c_statement = normalize_content(c_statement, episode_name, cache_dir)
     scene = normalize_content(scene, episode_name, cache_dir)
-    memory_context = normalize_content(memory_context, episode_name, cache_dir)
+    # memory_context is now normalized *before* reaching here
+    # memory_context = normalize_content(memory_context, episode_name, cache_dir)
+    # print(memory_context)
     
     
     # Format evidence details for the prompt and normalize
@@ -498,7 +543,7 @@ def reasoning_worker(options, system_prompt, api_provider, model_name, game_stat
 
         # Update state file with repeated statement status
         update_state_file(game_state, c_statement, scene, memory_context, evidence_details, episode_name, cache_dir, is_repeated_statement)
-
+        print(memory_context)
         # Define prompt directly instead of loading from JSON
         prompt = """You are a diligent defense advocate.  
 Forget anything you might recall from popular courtroom-game scripts; such memories may be unreliable here.
@@ -841,7 +886,8 @@ def ace_attorney_worker(system_prompt, api_provider, model_name,
     modality="vision-text",
     episode_name="The First Turnabout",
     decision_state=None,
-    cache_dir=None
+    cache_dir=None,
+    use_mapping_background=False
     ):
     """
     1) Captures a screenshot of the current game state.
@@ -860,6 +906,7 @@ def ace_attorney_worker(system_prompt, api_provider, model_name,
         episode_name (str): Name of the current episode
         decision_state (dict, optional): Current decision state
         cache_dir (str, optional): Directory to save cache files
+        use_mapping_background (bool): Whether to use background transcript from mapping file
     """
     assert modality in ["text-only", "vision-text"], f"modality {modality} is not supported."
     
@@ -894,7 +941,12 @@ def ace_attorney_worker(system_prompt, api_provider, model_name,
         "name": dialog_match.group(1) if dialog_match else "",
         "text": dialog_match.group(2).strip() if dialog_match else ""
     }
-    
+    print(dialog['text'])
+    rewrite_match = re.search(r"Rewrite:\s*(.+?)(?=\n[A-Z]|$)", response_text, re.DOTALL)
+    rewrite_text = rewrite_match.group(1).strip() if rewrite_match else ""
+    if rewrite_text and game_state=="Cross-Examination":
+        print('rewrite_text')
+        dialog['text'] = rewrite_text
     # Extract Evidence
     evidence_match = re.search(r"Evidence:\s*([^:\n]+):\s*(.+?)(?=\n|$)", response_text)
     evidence = {
@@ -998,10 +1050,16 @@ def ace_attorney_worker(system_prompt, api_provider, model_name,
         thinking,
         modality,
         episode_name,
-        cache_dir=cache_dir
+        cache_dir=cache_dir,
+        use_mapping_background=use_mapping_background
     )
 
-    c_statement = f"{dialog}"
+    # Format the dialog string properly before passing to reasoning_worker
+    if dialog["name"] and dialog["text"]:
+        formatted_dialog_statement = f"{dialog['name']}: {dialog['text']}"
+    else:
+        formatted_dialog_statement = ""
+
     # -------------------- Reasoning -------------------- #
     # Make decisions about game moves
     reasoning_result = reasoning_worker(
@@ -1010,7 +1068,7 @@ def ace_attorney_worker(system_prompt, api_provider, model_name,
         api_provider,
         model_name,
         game_state,
-        c_statement,
+        formatted_dialog_statement,
         scene,
         complete_memory,
         base64_image=encode_image(vision_result["screenshot_path"]),
@@ -1180,12 +1238,24 @@ def vision_only_reasoning_worker(system_prompt, api_provider, model_name,
     thinking=True, 
     modality="vision-only",
     episode_name="The First Turnabout",
-    cache_dir=None
+    cache_dir=None,
+    use_mapping_background=False
     ):
     """
     Combines vision analysis and reasoning in a single step.
     Captures the game screen, analyzes it, and makes decisions based on the analysis.
     Also updates long-term memory with new information.
+    
+    Args:
+        system_prompt (str): System prompt for the API
+        api_provider (str): API provider to use
+        model_name (str): Model name to use
+        prev_response (str): Previous response from the API
+        thinking (bool): Whether to use deep thinking
+        modality (str): Modality to use (must be vision-only)
+        episode_name (str): Name of the current episode
+        cache_dir (str, optional): Directory to save cache files
+        use_mapping_background (bool): Whether to use background transcript from mapping file
     """
     assert modality == "vision-only", "This worker requires vision-only modality"
     
@@ -1212,7 +1282,8 @@ def vision_only_reasoning_worker(system_prompt, api_provider, model_name,
         thinking,
         modality,
         episode_name,
-        cache_dir=cache_dir
+        cache_dir=cache_dir,
+        use_mapping_background=use_mapping_background
     )
 
     # Extract and format evidence information from memory
@@ -1333,18 +1404,27 @@ def vision_only_ace_attorney_worker(system_prompt, api_provider, model_name,
     modality="vision-text",
     episode_name="The First Turnabout",
     decision_state=None,
-    cache_dir=None
+    cache_dir=None,
+    use_mapping_background=False
     ):
     """
     1) Captures a screenshot of the current game state.
-    2) Analyzes the scene using vision worker.
+    2) Analyzes the scene using vision-only approach.
     3) Makes decisions based on the scene analysis.
     4) Maintains dialog history for the current episode.
     5) Makes decisions about game moves.
     
     Args:
-        episode_name (str): Name of the current episode (default: "The First Turnabout")
+        system_prompt (str): System prompt for the API
+        api_provider (str): API provider to use
+        model_name (str): Model name to use
+        prev_response (str): Previous response from the API
+        thinking (bool): Whether to use deep thinking
+        modality (str): Modality to use (vision-text or text-only)
+        episode_name (str): Name of the current episode
+        decision_state (dict, optional): Current decision state
         cache_dir (str, optional): Directory to save cache files
+        use_mapping_background (bool): Whether to use background transcript from mapping file
     """
     assert modality in ["text-only", "vision-text", "vision-only"], f"modality {modality} is not supported."
     
@@ -1360,7 +1440,8 @@ def vision_only_ace_attorney_worker(system_prompt, api_provider, model_name,
         thinking,
         modality="vision-only",
         episode_name=episode_name,
-        cache_dir=cache_dir
+        cache_dir=cache_dir,
+        use_mapping_background=use_mapping_background
     )
     
     if "error" in result:

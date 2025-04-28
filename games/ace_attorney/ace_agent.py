@@ -78,6 +78,8 @@ def main():
     parser.add_argument("--episode_name", type=str, default="The_First_Turnabout", 
                        help="Name of the current episode being played.")
     parser.add_argument("--num_threads", type=int, default=1, help="Number of parallel threads to launch.")
+    parser.add_argument("--use_mapping_background", type=str2bool, default=True, 
+                       help="Whether to use background transcript from mapping.json instead of ace_attorney_1.json")
     args = parser.parse_args()
 
     prev_response = ""
@@ -101,35 +103,29 @@ def main():
     thinking_bool = str2bool(args.thinking)
 
     print("--------------------------------Start Evidence Worker--------------------------------")
-    evidence_result = ace_evidence_worker(
-        system_prompt,
-        args.api_provider,
-        args.model_name,
-        prev_response,
-        thinking=thinking_bool,
-        modality=args.modality,
-        episode_name=args.episode_name,
-        cache_dir=cache_dir
-    )
+    # evidence_result = ace_evidence_worker(
+    #     system_prompt,
+    #     args.api_provider,
+    #     args.model_name,
+    #     prev_response,
+    #     thinking=thinking_bool,
+    #     modality=args.modality,
+    #     episode_name=args.episode_name,
+    #     cache_dir=cache_dir
+    # )
     decision_state = None
 
     try:
         while True:
             start_time = time.time()
 
-            # Choose the appropriate worker based on modality
-            if args.modality == "vision-only":
-                worker_func = vision_only_ace_attorney_worker
-            else:
-                worker_func = ace_attorney_worker
-
-            # Self-consistency launch with 1-second interval between threads
-            with concurrent.futures.ThreadPoolExecutor(max_workers=args.num_threads) as executor:
+            # In multi-thread mode, run multiple instances in parallel
+            with ThreadPoolExecutor(max_workers=args.num_threads) as executor:
                 futures = []
-                for i in range(args.num_threads):
-                    futures.append(
-                        executor.submit(
-                            worker_func,
+                for _ in range(args.num_threads):
+                    if args.modality == "vision-only":
+                        futures.append(executor.submit(
+                            vision_only_reasoning_worker,
                             system_prompt,
                             args.api_provider,
                             args.model_name,
@@ -137,16 +133,39 @@ def main():
                             thinking=thinking_bool,
                             modality=args.modality,
                             episode_name=args.episode_name,
-                            decision_state=decision_state,
-                            cache_dir=cache_dir
-                        )
-                    )
-                    if i < args.num_threads - 1:  # Don't sleep after the last thread
-                        time.sleep(2)  # Add 1-second interval between launching threads
+                            cache_dir=cache_dir,
+                            use_mapping_background=args.use_mapping_background
+                        ))
+                    elif args.modality == "vision-text":
+                        futures.append(executor.submit(
+                            ace_attorney_worker,
+                            system_prompt,
+                            args.api_provider,
+                            args.model_name,
+                            prev_response,
+                            thinking=thinking_bool,
+                            modality=args.modality,
+                            episode_name=args.episode_name,
+                            decision_state=None,
+                            cache_dir=cache_dir,
+                            use_mapping_background=args.use_mapping_background
+                        ))
+                    else:  # text-only
+                        futures.append(executor.submit(
+                            vision_only_ace_attorney_worker,
+                            system_prompt,
+                            args.api_provider,
+                            args.model_name,
+                            prev_response,
+                            thinking=thinking_bool,
+                            modality=args.modality,
+                            episode_name=args.episode_name,
+                            cache_dir=cache_dir,
+                            use_mapping_background=args.use_mapping_background
+                        ))
                 
-                # Wait until all threads finish
-                concurrent.futures.wait(futures)
-                results = [f.result() for f in futures]
+                # Get results from all threads
+                results = [future.result() for future in futures]
             
             # Check for skip conversation in the first result's dialog
             if results and results[0] and "dialog" in results[0]:
