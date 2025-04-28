@@ -294,7 +294,7 @@ def short_term_memory_worker(system_prompt, api_provider, model_name,
     # Add new response and maintain only last 30 responses
     prev_responses = dialog_history[episode_name]["prev_responses"]
     prev_responses.append(prev_response)
-    if len(prev_responses) > 20:
+    if len(prev_responses) > 30:
         prev_responses.pop(0)  # Remove oldest response
         
     # Save updated dialog history
