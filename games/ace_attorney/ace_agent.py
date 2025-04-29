@@ -97,24 +97,24 @@ def main():
     
     # Create the cache directory if it doesn't exist
     os.makedirs(BASE_CACHE_DIR, exist_ok=True)
-    os.makedirs(cache_dir, exist_ok=True)
-    # cache_dir = "cache/ace_attorney/20250428_113921_The_First_Turnabout_vision-text_openai_o4-mini-2025-04-16"
+    #  os.makedirs(cache_dir, exist_ok=True)
+    cache_dir = "cache/ace_attorney/20250428_144038_The_First_Turnabout_vision-text_gemini_gemini-2.5-pro-preview-03-25"
     # Also ensure the base cache directory exists (for backward compatibility)
     print(f"Using cache directory: {cache_dir}")
 
     thinking_bool = str2bool(args.thinking)
 
     print("--------------------------------Start Evidence Worker--------------------------------")
-    evidence_result = ace_evidence_worker(
-        system_prompt,
-        args.api_provider,
-        args.model_name,
-        prev_response,
-        thinking=thinking_bool,
-        modality=args.modality,
-        episode_name=args.episode_name,
-        cache_dir=cache_dir
-    )
+    # evidence_result = ace_evidence_worker(
+    #     system_prompt,
+    #     args.api_provider,
+    #     args.model_name,
+    #     prev_response,
+    #     thinking=thinking_bool,
+    #     modality=args.modality,
+    #     episode_name=args.episode_name,
+    #     cache_dir=cache_dir
+    # )
     decision_state = None
     move_history = deque(maxlen=10) # Initialize move history (adjust maxlen as needed)
 
@@ -294,13 +294,25 @@ def main():
             final_move_to_perform = chosen_move # Start with the LLM's choice
             if chosen_move == 'x':
                 print("--- Initiating 'x' Move Evaluation ---")
-                
                 # 1. Get Normalized Current Statement
+                statement_to_normalize = ""
                 if isinstance(chosen_dialog, dict) and chosen_dialog.get("name") and chosen_dialog.get("text"):
-                    raw_statement = f"{chosen_dialog['name']}: {chosen_dialog['text']}"
-                    normalized_statement = normalize_content(raw_statement, args.episode_name, cache_dir)
+                    current_name = chosen_dialog.get('name', '').strip()
+                    current_text = chosen_dialog.get('text', '').strip()
+                    if current_name.lower() == "sanwit":
+                        print(f"   Correcting name: 'Sanwit' -> 'Sahwit'")
+                        current_name = "Sahwit"
+                    # Format the dict into a string if it's the expected format
+                    statement_to_normalize = f"{current_name}: {current_text}"
+                elif isinstance(chosen_dialog, str):
+                     # Use the string directly if it's already a string
+                    statement_to_normalize = chosen_dialog
                 else:
-                    normalized_statement = normalize_content(str(chosen_dialog), args.episode_name, cache_dir)
+                    # Handle unexpected types or empty dialogs by converting to string
+                    statement_to_normalize = str(chosen_dialog)
+                    print(f"[WARN] Unexpected dialog type or content for normalization: {chosen_dialog}")
+
+                normalized_statement = normalize_content(statement_to_normalize, args.episode_name, cache_dir)
                 print(f"   Normalized Statement for Eval: {normalized_statement}")
 
                 # 2. Get Normalized Scene
@@ -339,26 +351,19 @@ def main():
                     api_provider="openai", # Hardcoded for evaluator
                     model_name="o3-2025-04-16" # Specific O3 model
                 )
+                evaluation_score, evaluation_reason = evaluation # Unpack the tuple
 
                 # --- Log Evaluation Result --- 
                 eval_log_file = os.path.join(cache_dir, "evaluator_log.txt")
                 log_timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-                log_entry = f"[{log_timestamp}] Eval Target Move: 'x' | Result: {evaluation} | Statement: {normalized_statement} | Thought: {chosen_thought}\n"
+                # New log format
+                log_entry = f"[{log_timestamp}] {evaluation_score} | Statement: {normalized_statement} | Evaluator Reason: {evaluation_reason}\n"
                 try:
                     with open(eval_log_file, 'a', encoding='utf-8') as f:
                         f.write(log_entry)
                 except Exception as e:
                     print(f"[ERROR] Failed to write to evaluator log: {e}")
                 # --- End Logging ---
-
-                # 5. Override move if evaluation fails - REMOVED/COMMENTED OUT
-                # if evaluation == 0:
-                #     print("--- Evaluator Result: 'x' move deemed illogical. Overriding to 'z'. ---")
-                #     final_move_to_perform = 'z' 
-                #     # Optionally update the thought to reflect override? 
-                #     # chosen_thought += " [Evaluator Override: Invalid 'x', changed to 'z']"
-                # else:
-                #     print("--- Evaluator Result: 'x' move deemed logical. Proceeding. ---")
                 print("="*70 + "\n") # Separator after evaluation block
 
             # Log the final decision (always using the original chosen_move now)

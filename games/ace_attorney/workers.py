@@ -416,8 +416,6 @@ def normalize_content(content, episode_name, cache_dir=None):
         new_content = pattern.sub(replacement_dialog, content)
         if new_content != content:
             content = new_content
-            # Optional: break early if only one full dialog match is expected per input
-            # break
 
     # --- Then Process Evidence ---
     # Replace evidence with case-insensitive boundaries
@@ -543,7 +541,7 @@ def reasoning_worker(options, system_prompt, api_provider, model_name, game_stat
 
         # Update state file with repeated statement status
         update_state_file(game_state, c_statement, scene, memory_context, evidence_details, episode_name, cache_dir, is_repeated_statement)
-        print(memory_context)
+        # print(memory_context)
         # Define prompt directly instead of loading from JSON
         prompt = """You are a diligent defense advocate.  
 Forget anything you might recall from popular courtroom-game scripts; such memories may be unreliable here.
@@ -941,7 +939,7 @@ def ace_attorney_worker(system_prompt, api_provider, model_name,
         "name": dialog_match.group(1) if dialog_match else "",
         "text": dialog_match.group(2).strip() if dialog_match else ""
     }
-    print(dialog['text'])
+    # print(dialog['text'])
     rewrite_match = re.search(r"Rewrite:\s*(.+?)(?=\n[A-Z]|$)", response_text, re.DOTALL)
     rewrite_text = rewrite_match.group(1).strip() if rewrite_match else ""
     if rewrite_text and game_state=="Cross-Examination":
@@ -1517,7 +1515,7 @@ def evaluate_present_evidence(
     evidence_details: str, # Pre-formatted, normalized string list of available evidence
     api_provider: str, # Should be "openai" for this specific request
     model_name: str,   # e.g., "gpt-3.5-turbo-instruct" or your chosen "o3" text model
-) -> int:
+) -> tuple[int, str]: # Return score (int) and reason (str)
     """
     Evaluates if pressing 'x' (present evidence) is logical given the history and context.
     Checks if 'r' was pressed previously without 'b' intervening, and uses an LLM
@@ -1534,15 +1532,16 @@ def evaluate_present_evidence(
         model_name: The specific OpenAI text model to use (e.g., gpt-3.5-turbo-instruct).
 
     Returns:
-        1 if the 'x' move seems logically valid in context.
-        0 if the move is illogical (wrong state, window not open, reasoning invalid, or error).
+        Tuple containing:
+          - score (int): 1 if logical, 0 otherwise.
+          - reason (str): LLM's explanation for the score.
     """
     # --- Prerequisite Checks ---
 
     # 1. Check Game State
     if game_state != "Cross-Examination":
         print("[Evaluator] FAIL: 'x' pressed outside Cross-Examination.")
-        return 0 # Cannot present outside cross-examination
+        return 0, "Invalid game state for 'x' move." # Return tuple
 
     # 2. Check Move History for 'r' without intervening 'b'
     last_r_index = find_last_move_index(move_history, "r")
@@ -1550,26 +1549,27 @@ def evaluate_present_evidence(
 
     if last_r_index == -1:
         print("[Evaluator] FAIL: 'x' pressed without preceding 'r'.")
-        return 0 # 'r' must have been pressed at some point
+        return 0, "Prerequisite 'r' move not found." # Return tuple
 
     # Check if 'b' was pressed *after* the last 'r'
     if last_b_index > last_r_index:
         print("[Evaluator] FAIL: 'x' pressed after 'b' closed the evidence window.")
-        return 0 # Evidence window was closed
+        return 0, "Evidence window closed by 'b' move." # Return tuple
 
     # --- Extract Presented Evidence from Thought ---
     presented_evidence_match = re.search(r"Presented_Evidence:\s*(.+?)(?=\n|;|Effect:|Reflection:|$)", current_thought, re.IGNORECASE)
     if not presented_evidence_match:
         print(f"[Evaluator] FAIL: Could not extract Presented_Evidence from thought: {current_thought}")
-        return 0
+        return 0, "Could not parse Presented_Evidence from thought." # Return tuple
     presented_evidence_name = presented_evidence_match.group(1).strip()
     if not presented_evidence_name:
          print("[Evaluator] FAIL: Extracted Presented_Evidence is empty.")
-         return 0
+         return 0, "Parsed Presented_Evidence is empty." # Return tuple
 
     # --- LLM Evaluation ---
     system_prompt_eval = """You are an evaluation assistant for a game-playing AI in a courtroom game. Your task is to determine if the AI's reasoning for presenting a specific piece of evidence during a cross-examination *logically contradicts* the current witness statement, based *only* on the information provided. Do not use external knowledge of the game. Focus solely on the claimed contradiction's plausibility based on the text."""
 
+    # Add Reason request back to the prompt
     user_prompt_eval = f"""Evaluate the following situation:
     Game State: {game_state}
     Current Witness Statement: "{current_statement}"
@@ -1582,29 +1582,39 @@ def evaluate_present_evidence(
 
     Question: Based *only* on the Witness Statement, the Agent's Reasoning, and the Available Evidence list, does the agent's stated reason for presenting '{presented_evidence_name}' represent a *plausible logical contradiction* to the statement? Ignore overall strategy or game progression. Focus only on whether the text implies a direct conflict.
 
-    Respond ONLY with:
+    Respond ONLY with the following two lines:
     Evaluation: [0 or 1]
-    (1 if the reasoning for the contradiction makes logical sense based *only* on the provided texts, 0 if it does not or seems unrelated/illogical/unsupported by the text)"""
+    Reason: [Provide a brief (1-sentence) explanation for your evaluation, focusing on why the contradiction is or isn't plausible based *only* on the text.]"""
 
     try:
-        # Ensure using a suitable OpenAI text model
-        # Use a known compatible text model directly for the evaluator
+        eval_model_name = "o3-2025-04-16" # Use the model specified by the user
+        print(f"[Evaluator] Calling {eval_model_name} to evaluate reasoning...")
         
-        response = openai_text_reasoning_completion(system_prompt_eval, model_name, user_prompt_eval)
+        response = openai_text_reasoning_completion(system_prompt_eval, eval_model_name, user_prompt_eval)
 
         print(f"[Evaluator] LLM Response: {response}")
+        
+        # Parse evaluation score
         evaluation_match = re.search(r"Evaluation:\s*([01])", response)
-
+        score = 0 # Default to 0 if parsing fails
         if evaluation_match:
-            result = int(evaluation_match.group(1))
-            print(f"[Evaluator] Parsed LLM evaluation: {result}")
-            return result
+            score = int(evaluation_match.group(1))
         else:
-            print(f"[Evaluator] FAIL: Could not parse LLM evaluation response.")
-            return 0 # Failed to parse
+            print(f"[Evaluator] WARN: Could not parse Evaluation score from LLM response.")
+
+        # Parse reason
+        reason_match = re.search(r"Reason:\s*(.+)", response, re.IGNORECASE | re.DOTALL)
+        reason = "Parsing failed." # Default reason
+        if reason_match:
+            reason = reason_match.group(1).strip()
+        else:
+            print(f"[Evaluator] WARN: Could not parse Reason from LLM response.")
+
+        print(f"[Evaluator] Parsed LLM evaluation: Score={score}, Reason='{reason}'")
+        return score, reason # Return both score and reason
 
     except Exception as e:
         print(f"[Evaluator] FAIL: API call or processing error: {e}")
-        return 0 # Error during evaluation
+        return 0, f"Error during evaluation: {e}" # Return 0 and error message on exception
 
 # return move_thought_list
