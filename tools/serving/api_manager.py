@@ -387,6 +387,9 @@ class APIManager:
         if image_path and not base64_image:
             base64_image = self._get_base64_from_path(image_path)
         
+        # TEMPORARILY SKIPPING COST CALCULATION
+        # Original code commented out but preserved
+        
         # Prepare input data for logging
         input_data = {
             "system_prompt": system_prompt,
@@ -425,6 +428,18 @@ class APIManager:
             else:
                 raise ValueError(f"Unsupported model: {model_name}")
             
+            # TEMPORARILY SKIPPING COST CALCULATION: Create empty costs dict
+            empty_costs = {
+                "prompt_tokens": 0,
+                "completion_tokens": 0,
+                "prompt_cost": Decimal("0"),
+                "completion_cost": Decimal("0"),
+                "image_tokens": 0,
+                "image_cost": Decimal("0")
+            }
+            
+            # Original code commented out but preserved
+            """
             # Format prompt for cost calculation based on model type
             if "claude" in model_name.lower():
                 formatted_prompt = [
@@ -465,8 +480,10 @@ class APIManager:
                 session_name=session_name,
                 modality="vision_text"
             )
+            """
             
-            return completion, costs
+            # Return completion and empty costs instead of calculated costs
+            return completion, empty_costs
             
         except Exception as e:
             logger.error(f"Error in vision-text completion API call: {e}")
