@@ -207,14 +207,14 @@ def openai_completion(system_prompt, model_name, base64_image, prompt, temperatu
             }
         ]
 
-    token_param = "max_completion_tokens" if "o1" in model_name or "o4" in model_name else "max_tokens"
+    token_param = "max_completion_tokens" if "o3" in model_name or "o4" in model_name else "max_tokens"
     request_params = {
         "model": model_name,
         "messages": messages,
         token_param: 100000,
     }
 
-    if "o1" not in model_name and "o4" not in model_name:
+    if "o3" not in model_name and "o4" not in model_name:
         request_params["temperature"] = temperature
     else:
         request_params["reasoning_effort"] = reasoning_effort

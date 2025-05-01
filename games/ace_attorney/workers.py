@@ -994,18 +994,12 @@ def ace_attorney_worker(system_prompt, api_provider, model_name,
     print("="*50 + "\n")
 
 
-    # last_line = response_text.strip().split('\n')[-1]
-    # print(game_state)
-    # print(last_line)
-    # # Check for keywords in the last line
-    # if (
-    #     "dialog text is green" in last_line 
-    #     or "evidence window is open" in last_line 
-    #     or "options are available" in last_line
-    # ):
-    #     game_state = "Cross-Examination"
-    # else: 
-    #     game_state = "Conversation"
+    if (
+        "dialog text is green" in response_text 
+        or "evidence window is open" in response_text 
+        or "options are available" in response_text
+    ):
+        game_state = "Cross-Examination"
 
 
     # -------------------- Memory Processing -------------------- #
@@ -1544,17 +1538,17 @@ def evaluate_present_evidence(
         return 0, "Invalid game state for 'x' move." # Return tuple
 
     # 2. Check Move History for 'r' without intervening 'b'
-    last_r_index = find_last_move_index(move_history, "r")
-    last_b_index = find_last_move_index(move_history, "b")
+    # last_r_index = find_last_move_index(move_history, "r")
+    # last_b_index = find_last_move_index(move_history, "b")
 
-    if last_r_index == -1:
-        print("[Evaluator] FAIL: 'x' pressed without preceding 'r'.")
-        return 0, "Prerequisite 'r' move not found." # Return tuple
+    # if last_r_index == -1:
+    #     print("[Evaluator] FAIL: 'x' pressed without preceding 'r'.")
+    #     return 0, "Prerequisite 'r' move not found." # Return tuple
 
-    # Check if 'b' was pressed *after* the last 'r'
-    if last_b_index > last_r_index:
-        print("[Evaluator] FAIL: 'x' pressed after 'b' closed the evidence window.")
-        return 0, "Evidence window closed by 'b' move." # Return tuple
+    # # Check if 'b' was pressed *after* the last 'r'
+    # if last_b_index > last_r_index:
+    #     print("[Evaluator] FAIL: 'x' pressed after 'b' closed the evidence window.")
+    #     return 0, "Evidence window closed by 'b' move." # Return tuple
 
     # --- Extract Presented Evidence from Thought ---
     presented_evidence_match = re.search(r"Presented_Evidence:\s*(.+?)(?=\n|;|Effect:|Reflection:|$)", current_thought, re.IGNORECASE)
@@ -1567,24 +1561,30 @@ def evaluate_present_evidence(
          return 0, "Parsed Presented_Evidence is empty." # Return tuple
 
     # --- LLM Evaluation ---
-    system_prompt_eval = """You are an evaluation assistant for a game-playing AI in a courtroom game. Your task is to determine if the AI's reasoning for presenting a specific piece of evidence during a cross-examination *logically contradicts* the current witness statement, based *only* on the information provided. Do not use external knowledge of the game. Focus solely on the claimed contradiction's plausibility based on the text."""
+    system_prompt_eval = """You are an evaluation assistant for a game-playing AI in a courtroom game. Your task is to determine if the AI's reasoning for presenting a specific piece of evidence during a cross-examination *clearly explains* a logical contradiction with the current witness statement, based *only* on the information provided. Do not use external knowledge of the game. Focus solely on the quality of the agent's explanation linking the evidence to the statement."""
 
     # Add Reason request back to the prompt
     user_prompt_eval = f"""Evaluate the following situation:
-    Game State: {game_state}
-    Current Witness Statement: "{current_statement}"
-    Scene Description (provides context on current selection): {scene}
-    All Available Evidence:\n{evidence_details}
+        Game State: {game_state}
+        Current Witness Statement: "{current_statement}"
+        Scene Description (provides context on current selection): {scene}
+        All Available Evidence:\n{evidence_details}
 
-    Agent's Action: Present Evidence ('x' move)
-    Agent's Reasoning (Thought): "{current_thought}"
-    Evidence Agent Claims to Present (extracted from thought): "{presented_evidence_name}"
+        Agent's Action: Present Evidence ('x' move)
+        Agent's Reasoning (Thought): "{current_thought}"
+        Evidence Agent Claims to Present (extracted from thought): "{presented_evidence_name}"
 
-    Question: Based *only* on the Witness Statement, the Agent's Reasoning, and the Available Evidence list, does the agent's stated reason for presenting '{presented_evidence_name}' represent a *plausible logical contradiction* to the statement? Ignore overall strategy or game progression. Focus only on whether the text implies a direct conflict.
+        Question: Does the Agent's Reasoning (Thought) clearly and logically explain *how* the specific Evidence Agent Claims to Present ('{presented_evidence_name}') contradicts the Current Witness Statement? Focus specifically on the explanation in the thought — not on whether a contradiction exists in general.
 
-    Respond ONLY with the following two lines:
-    Evaluation: [0 or 1]
-    Reason: [Provide a brief (1-sentence) explanation for your evaluation, focusing on why the contradiction is or isn't plausible based *only* on the text.]"""
+        Important:
+        - The reasoning must accurately identify the *relevant part* of the witness's statement being contradicted (e.g., whether they claim to have seen, heard, or done something).
+        - The explanation must align precisely with what the evidence disproves — e.g., if the evidence shows a visual impossibility, the reasoning must refer to a visual claim.
+        - Penalize any mismatch between the type of claim and the contradiction logic (e.g., using auditory evidence to refute a visual claim).
+        - Do not reward reasoning that relies on assumptions or speculation beyond what's provided in the scene and evidence.
+
+        Respond ONLY with the following two lines:
+        Evaluation: [0 or 1] (1 if the reasoning clearly explains the contradiction *based solely on stated information* and properly matches the witness's claim type, 0 otherwise)
+        Reason: [Provide a brief (1-sentence) explanation for your evaluation, focusing on the clarity, relevance, and factual grounding of the agent's explanation.]"""
 
     try:
         eval_model_name = "o3-2025-04-16" # Use the model specified by the user

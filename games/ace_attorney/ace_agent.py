@@ -97,24 +97,24 @@ def main():
     
     # Create the cache directory if it doesn't exist
     os.makedirs(BASE_CACHE_DIR, exist_ok=True)
-    #  os.makedirs(cache_dir, exist_ok=True)
-    cache_dir = "cache/ace_attorney/20250428_144038_The_First_Turnabout_vision-text_gemini_gemini-2.5-pro-preview-03-25"
+    os.makedirs(cache_dir, exist_ok=True)
+    cache_dir = "cache/ace_attorney/20250430_121417_Turnabout_Sisters_part1_vision-text_openai_o3-2025-04-16"
     # Also ensure the base cache directory exists (for backward compatibility)
     print(f"Using cache directory: {cache_dir}")
 
     thinking_bool = str2bool(args.thinking)
 
     print("--------------------------------Start Evidence Worker--------------------------------")
-    # evidence_result = ace_evidence_worker(
-    #     system_prompt,
-    #     args.api_provider,
-    #     args.model_name,
-    #     prev_response,
-    #     thinking=thinking_bool,
-    #     modality=args.modality,
-    #     episode_name=args.episode_name,
-    #     cache_dir=cache_dir
-    # )
+    evidence_result = ace_evidence_worker(
+        system_prompt,
+        args.api_provider,
+        args.model_name,
+        prev_response,
+        thinking=thinking_bool,
+        modality=args.modality,
+        episode_name=args.episode_name,
+        cache_dir=cache_dir
+    )
     decision_state = None
     move_history = deque(maxlen=10) # Initialize move history (adjust maxlen as needed)
 
@@ -353,11 +353,11 @@ def main():
                 )
                 evaluation_score, evaluation_reason = evaluation # Unpack the tuple
 
-                # --- Log Evaluation Result --- 
+                # --- Log Evaluation Result ---
                 eval_log_file = os.path.join(cache_dir, "evaluator_log.txt")
                 log_timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-                # New log format
-                log_entry = f"[{log_timestamp}] {evaluation_score} | Statement: {normalized_statement} | Evaluator Reason: {evaluation_reason}\n"
+                # New log format - Adding Agent Thought
+                log_entry = f"[{log_timestamp}] {evaluation_score} | Statement: {normalized_statement} | Agent Thought: {chosen_thought} | Evaluator Reason: {evaluation_reason}\n"
                 try:
                     with open(eval_log_file, 'a', encoding='utf-8') as f:
                         f.write(log_entry)

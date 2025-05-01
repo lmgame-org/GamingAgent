@@ -151,10 +151,8 @@
             "the prosecution": "prosecutor 1",
             "cindy stone": "victim 1",
             "ms. stone": "victim 1",
-            "the victim": "victim 1",
             "the defense": "lawyer 1",
             "the court": "judge 1",
-            "the killer": "witness 1",
             "the culprit": "witness 1"
         },
         "evidence_mappings": {
