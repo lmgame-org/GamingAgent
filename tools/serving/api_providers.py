@@ -245,7 +245,7 @@ def openai_text_completion(system_prompt, model_name, prompt):
      
     return generated_str
 
-def openai_text_reasoning_completion(system_prompt, model_name, prompt, temperature=0):
+def openai_text_reasoning_completion(system_prompt, model_name, prompt, temperature=0, reasoning_effort="medium"):
     client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
     
     messages = [
@@ -261,19 +261,20 @@ def openai_text_reasoning_completion(system_prompt, model_name, prompt, temperat
     ]
 
     # Determine correct token parameter
-    token_param = "max_completion_tokens" if "o3-mini" in model_name else "max_tokens"
+    token_param = "max_completion_tokens" if "o3" in model_name or "o4" in model_name else "max_tokens"
     
     # Prepare request parameters dynamically
     request_params = {
         "model": model_name,
         "messages": messages,
         token_param: 100000,
-        "reasoning_effort": "medium"
     }
     
     # Only add 'temperature' if the model supports it
-    if "o3-mini" not in model_name:  # Assuming o3-mini doesn't support 'temperature'
+    if "o3" not in model_name and "o4" not in model_name:
         request_params["temperature"] = temperature
+    else:
+        request_params["reasoning_effort"] = reasoning_effort
 
     response = client.chat.completions.create(**request_params)
 
