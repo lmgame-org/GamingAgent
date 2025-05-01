@@ -1,0 +1,3 @@
+{
+  "1-1": "GameName: Super Mario Bros.\nLevelNumber: 1-1\nLevelDetails: area=overworld;\n              onscreen=flat_path,bushes,little_goomba,question_block;\n              upcoming=six_block_triangle_q_bricks_mushroom,triple_pipes_goombas_between,\n                       bonus_pipe_19_coins_skip,hidden_1up_block,pit_after_pipes,\n                       question_block_item,falling_goombas_block_row,ten_coin_brick,\n                       starman_brick,second_q_triangle_fireflower,koopa_troopa,\n                       extra_goombas,brick_question_row,pyramid_hard_blocks_gap,\n                       double_pyramid_hard_blocks_pit,exit_pipe_from_bonus,\n                       two_goombas_four_block_row,inaccessible_pipe_end,staircase,flagpole"
+}
