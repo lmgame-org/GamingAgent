@@ -3,15 +3,18 @@ import time
 import os
 import pickle
 import numpy as np
-from PIL import Image
+from PIL import Image, ImageDraw, ImageFont
 import json
 from datetime import datetime
 from tools.serving import APIManager
 import asyncio
+from collections import deque
 
 
 CACHE_DIR = os.path.join("cache", "super_mario_bros_experiments", datetime.now().strftime("%Y%m%d_%H%M%S"))
 OBSERVATION_IMG_PATH = os.path.join(CACHE_DIR, "obs_latest.png")
+GRID_IMG_PATH = os.path.join(CACHE_DIR, "obs_grid_latest.png")
+MEMORY_FILE = os.path.join(CACHE_DIR, "memory.json")
 
 all_actions = {
     "[NOOP]":             [0, 0, 0, 0, 0, 0, 0, 0, 0],  # Do nothing
@@ -23,24 +26,292 @@ all_actions = {
     "[left]":             [0, 0, 0, 0, 0, 0, 1, 0, 0],  # Move left
 }
 
-class SuperMarioBrosAgent:
-    def __init__(self, model_name="claude-3-7-sonnet-latest", img_path=OBSERVATION_IMG_PATH):
+class PerceptionModule:
+    def __init__(self, model_name="claude-3-7-sonnet-latest"):
         """
-        Initialize the Super Mario Bros Agent.
+        Initialize the Perception Module for analyzing game states.
         
         Args:
-            model_name (str): Name of the model to use for inference
-            img_path (str): Path where to save observation images for API calls
+            model_name (str): Name of the vision model to use
         """
         self.model_name = model_name
         self.api_manager = APIManager(game_name="super_mario_bros")
-        self.img_path = img_path
-        self.system_prompt = """You are an AI agent navigating the Super Mario Bros environment using the OpenAI Gym interface.  
-Your objective is to guide Mario through levels by selecting appropriate actions from a simplified action space.
+        self.system_prompt = """You are a computer vision system analyzing frames from Super Mario Bros.
+Your task is to identify and locate game elements in a 5x5 grid overlay on the screen.
+        
+Identify the following elements and their approximate positions in (x,y) grid coordinates:
+- Mario (player character)
+- Pipes (green obstacles)
+- Goombas (brown mushroom enemies)
+- Koopas (turtle enemies)
+- Gaps/pits (areas where Mario can fall)
+- Question blocks (blocks with ? that can be hit)
+- Brick blocks (breakable blocks)
+- Coins
+- Power-ups (if visible)
+- Flag pole (end of level)
 
-Super Mario Bros Quick Guide:
+IMPORTANT: Use a 5x5 grid system where (0,0) is the top-left corner and (4,4) is the bottom-right.
+        
+Your response must be in valid JSON format with the following structure:
+{
+  "mario": {"x": int, "y": int},
+  "environment": {
+    "pipes": [{"x": int, "y": int, "height": "small|medium|large"}],
+    "goombas": [{"x": int, "y": int, "distance": "very_close|close|medium|far"}],
+    "koopas": [{"x": int, "y": int, "distance": "very_close|close|medium|far"}],
+    "gaps": [{"x": int, "width": "small|medium|large"}],
+    "question_blocks": [{"x": int, "y": int}],
+    "brick_blocks": [{"x": int, "y": int}],
+    "coins": [{"x": int, "y": int}],
+    "power_ups": [{"x": int, "y": int, "type": "mushroom|flower|star"}],
+    "flag_pole": {"x": int, "y": int} or null
+  },
+  "game_state": {
+    "scroll_direction": "right|left|stationary",
+    "mario_state": "small|big|fire|invincible",
+    "immediate_threats": ["goomba"|"koopa"|"gap"|"pipe"],
+    "obstacles_ahead": ["goomba"|"koopa"|"gap"|"pipe"]
+  }
+}
+
+Ensure all coordinates are integers within the 0-4 range for the 5x5 grid.
+If an element is not present, include it as an empty array or null as appropriate.
+For immediate_threats, only include elements that pose an immediate danger to Mario.
+"""
+
+    def analyze_frame(self, observation, img_path):
+        """
+        Analyze the current frame to identify game elements and their positions.
+        
+        Args:
+            observation: The game observation (RGB image)
+            img_path: Path to save the image
+            
+        Returns:
+            dict: A dictionary containing the analyzed game state in a structured format
+        """
+        try:
+            # Convert the observation to a PIL Image
+            img = Image.fromarray(observation)
+            
+            # Save the original observation image
+            img.save(OBSERVATION_IMG_PATH)
+            
+            # Create a copy and draw a 5x5 grid on it
+            img_with_grid = img.copy()
+            img_with_grid = self._add_grid_to_image(img_with_grid)
+            
+            # Save the image with grid
+            img_with_grid.save(GRID_IMG_PATH)
+            
+            user_prompt = "Analyze this Super Mario Bros frame with the 5x5 grid overlay and identify game elements in each grid cell."
+            
+            response, _ = self.api_manager.vision_text_completion(
+                model_name=self.model_name,
+                system_prompt=self.system_prompt,
+                prompt=user_prompt,
+                image_path=GRID_IMG_PATH
+            )
+            
+            # Extract and parse JSON from the response
+            try:
+                # Find JSON content in the response (might be surrounded by markdown or other text)
+                import re
+                json_match = re.search(r'```json\n(.*?)\n```', response, re.DOTALL)
+                if json_match:
+                    json_content = json_match.group(1)
+                else:
+                    json_content = response
+                
+                # Parse the JSON
+                perception_data = json.loads(json_content)
+                return perception_data
+            except json.JSONDecodeError as e:
+                print(f"Error parsing JSON from perception module: {e}")
+                print(f"Raw response: {response}")
+                # Return a minimal valid structure if parsing fails
+                return {
+                    "mario": {"x": 2, "y": 3},
+                    "environment": {
+                        "pipes": [], "goombas": [], "koopas": [], "gaps": [],
+                        "question_blocks": [], "brick_blocks": [], "coins": [],
+                        "power_ups": [], "flag_pole": None
+                    },
+                    "game_state": {
+                        "scroll_direction": "right",
+                        "mario_state": "small",
+                        "immediate_threats": [],
+                        "obstacles_ahead": []
+                    }
+                }
+                
+        except Exception as e:
+            print(f"Error in perception module: {e}")
+            # Return a minimal valid structure on error
+            return {
+                "mario": {"x": 2, "y": 3},
+                "environment": {
+                    "pipes": [], "goombas": [], "koopas": [], "gaps": [],
+                    "question_blocks": [], "brick_blocks": [], "coins": [],
+                    "power_ups": [], "flag_pole": None
+                },
+                "game_state": {
+                    "scroll_direction": "right",
+                    "mario_state": "small",
+                    "immediate_threats": [],
+                    "obstacles_ahead": []
+                }
+            }
+            
+    def _add_grid_to_image(self, img):
+        """
+        Add a 5x5 grid overlay to the image.
+        
+        Args:
+            img: PIL Image object
+            
+        Returns:
+            PIL Image with grid overlay
+        """
+        try:
+            # Create a copy of the image to draw on
+            draw = ImageDraw.Draw(img)
+            
+            # Get image dimensions
+            width, height = img.size
+            
+            # Calculate grid cell size
+            cell_width = width // 5
+            cell_height = height // 5
+            
+            # Draw horizontal grid lines
+            for i in range(1, 5):
+                y = i * cell_height
+                draw.line([(0, y), (width, y)], fill=(255, 0, 0), width=2)
+                
+            # Draw vertical grid lines
+            for i in range(1, 5):
+                x = i * cell_width
+                draw.line([(x, 0), (x, height)], fill=(255, 0, 0), width=2)
+                
+            # Add coordinates to cells (optional)
+            # Try to load a font (fallback to default if not available)
+            try:
+                font = ImageFont.truetype("arial.ttf", 20)
+            except:
+                font = ImageFont.load_default()
+                
+            # Add coordinate labels to cells
+            for y in range(5):
+                for x in range(5):
+                    coord_text = f"({x},{y})"
+                    text_x = x * cell_width + 5
+                    text_y = y * cell_height + 5
+                    draw.text((text_x, text_y), coord_text, fill=(255, 255, 0), font=font)
+            
+            return img
+        except Exception as e:
+            print(f"Error adding grid to image: {e}")
+            # Return the original image if grid addition fails
+            return img
+
+
+class MemoryModule:
+    def __init__(self, memory_file=MEMORY_FILE, max_memory=10):
+        """
+        Initialize the Memory Module for tracking game state history.
+        
+        Args:
+            memory_file (str): Path to the memory JSON file
+            max_memory (int): Maximum number of game states to remember
+        """
+        self.memory_file = memory_file
+        self.max_memory = max_memory
+        self.memory = deque(maxlen=max_memory)
+        
+        # Create the memory file directory if it doesn't exist
+        os.makedirs(os.path.dirname(memory_file), exist_ok=True)
+        
+        # Load existing memory if available
+        self.load_memory()
+        
+    def load_memory(self):
+        """Load memory from the memory file if it exists."""
+        try:
+            if os.path.exists(self.memory_file):
+                with open(self.memory_file, 'r') as f:
+                    memory_data = json.load(f)
+                    # Convert to deque with max length
+                    self.memory = deque(memory_data, maxlen=self.max_memory)
+        except Exception as e:
+            print(f"Error loading memory: {e}")
+            self.memory = deque(maxlen=self.max_memory)
+            
+    def save_memory(self):
+        """Save the current memory to the memory file."""
+        try:
+            with open(self.memory_file, 'w') as f:
+                json.dump(list(self.memory), f, indent=2)
+        except Exception as e:
+            print(f"Error saving memory: {e}")
+            
+    def add_game_state(self, game_state, timestamp=None):
+        """
+        Add a new game state to memory.
+        
+        Args:
+            game_state (dict): The perceived game state to add
+            timestamp (float, optional): Timestamp for the game state
+        """
+        if timestamp is None:
+            timestamp = time.time()
+            
+        # Add timestamp to the game state
+        memory_entry = {
+            "timestamp": timestamp,
+            "game_state": game_state
+        }
+        
+        # Add to memory
+        self.memory.append(memory_entry)
+        
+        # Save updated memory
+        self.save_memory()
+        
+    def get_memory_summary(self):
+        """
+        Get a summary of the memory for the reasoning module.
+        
+        Returns:
+            list: List of memory entries
+        """
+        return list(self.memory)
+
+
+class ReasoningModule:
+    def __init__(self, model_name="claude-3-7-sonnet-latest"):
+        """
+        Initialize the Reasoning Module for action planning.
+        
+        Args:
+            model_name (str): Name of the model to use for reasoning
+        """
+        self.model_name = model_name
+        self.api_manager = APIManager(game_name="super_mario_bros")
+        # Simplified system prompt with strict output instructions
+        self.system_prompt = """You are an intelligent AI player playing Super Mario Bros. Your goal is to help Mario progress through the level safely and efficiently.
+
+IMPORTANT: You MUST format your response using EXACTLY these lines:
+thought: [Your reasoning about the game state]
+move: ([action_name], frame_count)
+
+Do not include # or any other prefix. Start directly with "thought:" followed by your analysis."""
+        
+        # Keep the detailed prompt as a user prompt component
+        self.action_prompt = """Super Mario Bros Quick Guide:
 Primary Goal: Survive as long as possible and make it to the end of the level (move right until the flag).
-Secondary Goal: Collect coins and defeat enemies when possible.
+Secondary Goal: Collect coins and defeat enemies when possible, and hit question mark blocks when safe.
 
 Observation Space:
 - You receive RGB images representing the current frame of the game.
@@ -64,47 +335,175 @@ Important: Think about future frames when deciding on actions!
 Action Planning:
 - For each screenshot, you need to plan actions for multiple future frames.
 - You can provide either:
-  * Long action sequence (1 second = 30 frames): e.g., move: ([right], 30)
-  * Short action sequence (0.5 seconds = 15 frames): e.g., move: ([right], 15)
+  * Short action sequence (0-15 frames): e.g., move: ([right], 15)
+  * Long action sequence (16-30 frames): e.g., move: ([right], 30)
+
+Key Strategies:
+- Approaching gaps: Be extremely cautious. Use short sequences first to prepare positioning, then commit to a jump with enough momentum.
+- Enemies: Use defensive jumps when enemies are near. If unsure, move back or jump in place.
+- Obstacles: Predict what's coming and prepare actions accordingly.
+- Speed management: Don't move too fast as unseen enemies may appear from off-screen.
+- Defensive play: When in doubt, take a defensive approach (move left or jump in place).
 
 Your response format should contain:
 1. thought: [Your reasoning about the game state and planned actions]
 2. move: ([action_name], frame_count)
 
 Example responses:
-- thought: Mario needs to jump over a gap. I'll have him run and jump.
-  move: ([right,A,B], 15)
+- thought: I see a gap ahead. I need to get the right momentum before jumping.
+  move: ([right,B], 15)
 
-- thought: There's a Goomba ahead. Mario should jump on it to defeat it.
-  move: ([right,A], 30)
+- thought: I see multiple enemies clustering ahead. Taking a defensive position.
+  move: ([left], 8)
+
+- thought: There's a tall pipe ahead. I need a long, high jump to clear it completely.
+  move: ([right,A,B], 30)
+
+- thought: I'm at the edge of a large gap. Need to execute a powerful jump immediately to clear it.
+  move: ([right,A,B], 30)
 
 Focus on making strategic decisions that help Mario progress through the level safely and efficiently.
 Do not discuss reward calculations in your response.
 """
-        
-    def parse_agent_response(self, response):
+
+    def plan_action(self, current_perception, memory_summary, img_path):
         """
-        Parse LLM response to extract thought and move components.
+        Plan the next action based on current perception and memory.
         
         Args:
-            response (str): Raw response from LLM with thought and move
+            current_perception (dict): Current perceived game state
+            memory_summary (list): Summary of past game states
+            img_path (str): Path to the current observation image
             
         Returns:
-            dict: Dictionary with 'thought' and 'move' keys
-                  where 'move' is a tuple (action_name, frame_count)
+            dict: A dictionary containing move and thought
+        """
+        try:
+            # Prepare memory context for the prompt
+            memory_context = self._prepare_memory_context(memory_summary)
+            
+            # Create combined user prompt with perception and memory data
+            user_prompt = f"""{self.action_prompt}
+
+Here's the current game state:
+{json.dumps(current_perception, indent=2)}
+
+Memory of recent states:
+{memory_context}
+
+Based on this information and the current image, what action should Mario take next?
+
+IMPORTANT - FORMAT YOUR RESPONSE EXACTLY LIKE THIS:
+thought: [your analysis here]
+move: ([action_name], frame_count)
+
+Do NOT use # or any other prefix. Start directly with "thought:" followed by your analysis.
+Only use available actions: [NOOP], [right], [right,A], [right,B], [right,A,B], [A], [left]
+Frame count must be between 1-30.
+"""
+            
+            # Check if using Claude model to enable thinking mode
+            use_thinking = "claude" in self.model_name.lower()
+            
+            # Use the grid image for the API call
+            response, _ = self.api_manager.vision_text_completion(
+                model_name=self.model_name,
+                system_prompt=self.system_prompt,
+                prompt=user_prompt,
+                image_path=GRID_IMG_PATH,
+                thinking=use_thinking
+            )
+            
+            # Parse the response
+            return self._parse_response(response)
+            
+        except Exception as e:
+            print(f"Error in reasoning module: {e}")
+            # Return a default action on error
+            return {
+                "move": ("[right]", 15),
+                "thought": f"Error occurred in reasoning: {str(e)}"
+            }
+            
+    def _prepare_memory_context(self, memory_summary):
+        """
+        Prepare a concise summary of memory for the prompt.
+        
+        Args:
+            memory_summary (list): List of memory entries
+            
+        Returns:
+            str: A concise summary of memory
+        """
+        if not memory_summary:
+            return "No memory of past states available."
+            
+        # Take up to the last 3 memory entries to keep context concise
+        recent_memory = memory_summary[-3:]
+        
+        # Create a summary string
+        summary_parts = []
+        for idx, entry in enumerate(recent_memory):
+            timestamp = entry.get("timestamp", "unknown_time")
+            game_state = entry.get("game_state", {})
+            
+            # Extract key information
+            mario_pos = game_state.get("mario", {})
+            game_state_info = game_state.get("game_state", {})
+            immediate_threats = game_state_info.get("immediate_threats", [])
+            obstacles_ahead = game_state_info.get("obstacles_ahead", [])
+            
+            summary = f"State {len(memory_summary) - len(recent_memory) + idx + 1}/{len(memory_summary)}:\n"
+            summary += f"- Mario at grid ({mario_pos.get('x', '?')},{mario_pos.get('y', '?')})\n"
+            summary += f"- Immediate threats: {', '.join(immediate_threats) if immediate_threats else 'none'}\n"
+            summary += f"- Obstacles ahead: {', '.join(obstacles_ahead) if obstacles_ahead else 'none'}\n"
+            
+            summary_parts.append(summary)
+            
+        return "\n".join(summary_parts)
+            
+    def _parse_response(self, response):
+        """
+        Parse the reasoning response to extract thought and move.
+        
+        Args:
+            response (str): Response from the reasoning model
+            
+        Returns:
+            dict: Dictionary with thought and move
         """
         move = None
         thought = None
         
-        # Look for thought: and move: in the response
+        # Look for thought: and move: in the response (with or without # prefix)
         lines = response.strip().split('\n')
-        for line in lines:
+        for i, line in enumerate(lines):
             line = line.strip()
-            if line.startswith("thought:"):
-                thought = line[len("thought:"):].strip()
-            elif line.startswith("move:"):
-                # Extract the move pattern and count
-                move_text = line[len("move:"):].strip()
+            
+            # Match both "thought:" and "# thought:" patterns
+            if line.startswith("thought:") or line.startswith("# thought:"):
+                prefix_len = line.find("thought:") + len("thought:")
+                
+                # If this is the last line, just use it
+                if i == len(lines) - 1:
+                    thought = line[prefix_len:].strip()
+                else:
+                    # If not the last line, collect all lines until we hit a move: line
+                    thought_lines = []
+                    thought_lines.append(line[prefix_len:].strip())
+                    
+                    j = i + 1
+                    while j < len(lines) and not (lines[j].strip().startswith("move:") or lines[j].strip().startswith("# move:")):
+                        thought_lines.append(lines[j].strip())
+                        j += 1
+                    
+                    thought = " ".join(thought_lines).strip()
+            
+            # Match both "move:" and "# move:" patterns  
+            elif line.startswith("move:") or line.startswith("# move:"):
+                prefix_len = line.find("move:") + len("move:")
+                move_text = line[prefix_len:].strip()
+                
                 # Expected format: move: ([action_name], frame_count)
                 # Extract action and frame count using regex
                 import re
@@ -137,10 +536,28 @@ Do not discuss reward calculations in your response.
             "move": move,
             "thought": thought
         }
+
+
+class SuperMarioBrosAgent:
+    def __init__(self, model_name="claude-3-7-sonnet-latest", img_path=GRID_IMG_PATH):
+        """
+        Initialize the Super Mario Bros Agent with perception, memory, and reasoning modules.
+        
+        Args:
+            model_name (str): Name of the model to use for inference
+            img_path (str): Path where to save observation images for API calls
+        """
+        self.model_name = model_name
+        self.img_path = img_path
+        
+        # Initialize modules
+        self.perception_module = PerceptionModule(model_name=model_name)
+        self.memory_module = MemoryModule()
+        self.reasoning_module = ReasoningModule(model_name=model_name)
         
     def get_action(self, observation, reward):
         """
-        Process observation and use API manager to get game action.
+        Process observation through all modules to get game action.
         
         Args:
             observation: The game observation (RGB image)
@@ -150,28 +567,21 @@ Do not discuss reward calculations in your response.
             dict: A dictionary containing move and thought
         """
         try:
-            # User prompt - simple instruction to analyze and act
-            user_prompt = "Here's the current game state. What action should Mario take next?"
+            # Step 1: Perception - Analyze the frame
+            perception_data = self.perception_module.analyze_frame(observation, self.img_path)
             
-            # Call API with the image
-            if self.api_manager:
-                # Use API manager for vision API call if available
-                response, _ = self.api_manager.vision_text_completion(
-                    model_name=self.model_name,
-                    system_prompt=self.system_prompt,
-                    prompt=user_prompt,
-                    image_path=self.img_path
-                )
-            else:
-                # Fallback: just return a default action
-                print("Warning: No API manager available, returning default action")
-                return {
-                    "move": ("[right,A,B]", 15),
-                    "thought": "No API manager available, using default action"
-                }
+            # Step 2: Memory - Add to memory and get summary
+            self.memory_module.add_game_state(perception_data)
+            memory_summary = self.memory_module.get_memory_summary()
             
-            # Parse the response to extract thought and move
-            return self.parse_agent_response(response)
+            # Step 3: Reasoning - Plan the next action
+            action_plan = self.reasoning_module.plan_action(
+                current_perception=perception_data,
+                memory_summary=memory_summary,
+                img_path=self.img_path
+            )
+            
+            return action_plan
             
         except Exception as e:
             print(f"Error in get_action: {e}")
@@ -180,6 +590,10 @@ Do not discuss reward calculations in your response.
                 "move": ("[right]", 15),
                 "thought": f"Error occurred: {str(e)}"
             }
+        
+    def parse_agent_response(self, response):
+        """Legacy method for backward compatibility"""
+        return self.reasoning_module._parse_response(response)
 
 def get_mario_position(env):
     """
@@ -213,11 +627,12 @@ async def run_actions(env, actions, fps=30):
         # Add x_position to info
         info['x_pos'] = get_mario_position(env)
         # log each step's data
-        log_to_jsonl(observation, info, idx, reward, terminated, truncated)
+        log_to_jsonl(info, idx, reward, terminated, truncated)
         env.render()
         await asyncio.sleep(sleep_time)
         if terminated or truncated:
-            env.reset()
+            env.close()
+            break
     return observation, reward, terminated, truncated, info
 
 def convert_to_json_serializable(obj):
@@ -234,15 +649,13 @@ def convert_to_json_serializable(obj):
         return [convert_to_json_serializable(i) for i in obj]
     return obj
 
-def log_to_jsonl(observation, info, count, reward, terminated, truncated, json_file=None):
+def log_to_jsonl(info, count, reward, terminated, truncated, json_file=None):
     """
     Append observation, info, reward, and termination flags to a JSON Lines log file.
     """
     if json_file is None:
         json_file = os.path.join(CACHE_DIR, 'data_log.jsonl')
-    # Overwrite a single observation image each time
-    img_path = os.path.join(CACHE_DIR, "obs_latest.png")
-    Image.fromarray(observation).save(img_path)
+    
     # Create record and convert NumPy types to Python natives
     record = convert_to_json_serializable({
         'count': count,
@@ -273,21 +686,23 @@ async def main():
         action = env.action_space.sample()
         print(f"Sample {i}: {action}")
 
-    agent = SuperMarioBrosAgent()
+    # Initialize the agent with grid image path
+    agent = SuperMarioBrosAgent(img_path=GRID_IMG_PATH)
     
-    # First execute a 10-frame run+jump burst, then fall back to default NOOP loop
-    # run_actions(env, [all_actions["[right,A,B]"]] * 30, fps=30)
-    # Temporarily commenting out the game loop
-
     count = 0
+    sleep_time = 1.0 / 30
     default_action = all_actions["[NOOP]"]
     observation, reward, terminated, truncated, info = env.step(default_action)
-    log_to_jsonl(observation, info, count, reward, terminated, truncated)
+    
+    # Save initial observation with grid
+    log_to_jsonl(info, count, reward, terminated, truncated)
+    
     count += 1
     
     while True:
         llm_action_response = agent.get_action(observation, reward)
         print(f"action: {llm_action_response['move']}; count: {count}")
+        print(f"thought: {llm_action_response['thought']}")
         
         # Get the action and frame count from the response
         action_name, frame_count = llm_action_response['move']
@@ -297,20 +712,26 @@ async def main():
         actions = [action] * frame_count
         
         # Run the actions and wait for completion
-        
+        observation, reward, terminated, truncated, info = env.step(default_action)
+        await asyncio.sleep(sleep_time)
         observation, reward, terminated, truncated, info = await run_actions(env, actions, fps=30)
+        await asyncio.sleep(sleep_time)
+        observation, reward, terminated, truncated, info = env.step(default_action)
         
         # Add x_position to info
         info['x_pos'] = get_mario_position(env)
         # Append to JSONL log with reward and termination status
-        log_to_jsonl(observation, info, count, reward, terminated, truncated)
+        log_to_jsonl(info, count, reward, terminated, truncated)
         env.render()
         count += 1
         if terminated or truncated:
-            env.reset()
+            print("Game over! Environment terminated or truncated.")
+            env.close()
+            break
 
     
-    env.close()
+    # This line will only be reached if the loop is broken due to termination
+    print("Environment closed and game terminated.")
 
 
 if __name__ == "__main__":
