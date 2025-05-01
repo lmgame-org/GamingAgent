@@ -600,3 +600,8 @@ def together_ai_completion(system_prompt, model_name, prompt, base64_image=None,
     generated_str = response.choices[0].message.content
      
     return generated_str
+
+
+def xai_grok_completion(system_prompt, model_name, prompt, temperature=0):
+    client = OpenAI(api_key=os.getenv("XAI_API_KEY"))
+    
