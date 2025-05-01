@@ -339,7 +339,7 @@ def openai_multiimage_completion(system_prompt, model_name, prompt, list_content
             },
         )
 
-    messages [
+    messages = [
         {
             "role": "user",
             "content": content_blocks,
