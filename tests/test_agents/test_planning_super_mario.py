@@ -15,6 +15,8 @@ CACHE_DIR = os.path.join("cache", "super_mario_bros_experiments", datetime.now()
 OBSERVATION_IMG_PATH = os.path.join(CACHE_DIR, "obs_latest.png")
 GRID_IMG_PATH = os.path.join(CACHE_DIR, "obs_grid_latest.png")
 MEMORY_FILE = os.path.join(CACHE_DIR, "memory.json")
+MAX_SHORT_SIDE = 768
+MAX_LONG_SIDE = 2000
 
 all_actions = {
     "[NOOP]":             [0, 0, 0, 0, 0, 0, 0, 0, 0],  # Do nothing
@@ -25,6 +27,45 @@ all_actions = {
     "[A]":                [0, 0, 0, 0, 0, 0, 0, 0, 1],  # Jump in place
     "[left]":             [0, 0, 0, 0, 0, 0, 1, 0, 0],  # Move left
 }
+
+def resize_image_with_aspect_ratio(img, max_short_side=MAX_SHORT_SIDE, max_long_side=MAX_LONG_SIDE):
+    """
+    Resize an image to fit within the specified dimensions while maintaining aspect ratio.
+    
+    Args:
+        img: PIL Image to resize
+        max_short_side: Maximum size for the short side
+        max_long_side: Maximum size for the long side
+        
+    Returns:
+        PIL Image resized to fit within the constraints
+    """
+    width, height = img.size
+    
+    # Determine short and long sides
+    if width <= height:
+        short_side, long_side = width, height
+        is_width_shorter = True
+    else:
+        short_side, long_side = height, width
+        is_width_shorter = False
+    
+    # Calculate scale factor based on short side
+    scale_short = max_short_side / short_side
+    
+    # Check if scaling by short side would exceed long side limit
+    if long_side * scale_short > max_long_side:
+        # If so, scale by long side instead
+        scale_factor = max_long_side / long_side
+    else:
+        scale_factor = scale_short
+    
+    # Calculate new dimensions
+    new_width = int(width * scale_factor)
+    new_height = int(height * scale_factor)
+    
+    # Resize the image
+    return img.resize((new_width, new_height), Image.LANCZOS)
 
 class PerceptionModule:
     def __init__(self, model_name="claude-3-7-sonnet-latest"):
@@ -95,15 +136,21 @@ For immediate_threats, only include elements that pose an immediate danger to Ma
             # Convert the observation to a PIL Image
             img = Image.fromarray(observation)
             
-            # Save the original observation image
-            img.save(OBSERVATION_IMG_PATH)
+            # Resize the image maintaining aspect ratio
+            img_resized = resize_image_with_aspect_ratio(img)
+            
+            # Save the resized original observation image
+            img_resized.save(OBSERVATION_IMG_PATH)
             
             # Create a copy and draw a 5x5 grid on it
             img_with_grid = img.copy()
             img_with_grid = self._add_grid_to_image(img_with_grid)
             
-            # Save the image with grid
-            img_with_grid.save(GRID_IMG_PATH)
+            # Resize the grid image using the same aspect ratio
+            img_with_grid_resized = resize_image_with_aspect_ratio(img_with_grid)
+            
+            # Save the resized image with grid
+            img_with_grid_resized.save(GRID_IMG_PATH)
             
             user_prompt = "Analyze this Super Mario Bros frame with the 5x5 grid overlay and identify game elements in each grid cell."
             
@@ -218,17 +265,20 @@ For immediate_threats, only include elements that pose an immediate danger to Ma
 
 
 class MemoryModule:
-    def __init__(self, memory_file=MEMORY_FILE, max_memory=10):
+    def __init__(self, memory_file=MEMORY_FILE, max_memory=10, model_name="claude-3-7-sonnet-latest"):
         """
         Initialize the Memory Module for tracking game state history.
         
         Args:
             memory_file (str): Path to the memory JSON file
             max_memory (int): Maximum number of game states to remember
+            model_name (str): Name of the model to use for reflections
         """
         self.memory_file = memory_file
         self.max_memory = max_memory
         self.memory = deque(maxlen=max_memory)
+        self.model_name = model_name
+        self.api_manager = APIManager(game_name="super_mario_bros")
         
         # Create the memory file directory if it doesn't exist
         os.makedirs(os.path.dirname(memory_file), exist_ok=True)
@@ -256,21 +306,88 @@ class MemoryModule:
         except Exception as e:
             print(f"Error saving memory: {e}")
             
-    def add_game_state(self, game_state, timestamp=None):
+    def generate_reflection(self, current_perception, last_action):
+        """
+        Generate a reflection on the current state by comparing it with previous states.
+        
+        Args:
+            current_perception (dict): The current perceived game state
+            last_action (tuple): The previous action taken (action_name, frame_count)
+            
+        Returns:
+            str: A reflection on the current state and how it relates to previous states and actions
+        """
+        try:
+            # If there are not enough previous states, return a default reflection
+            if len(self.memory) < 1:
+                return "Not enough history to generate a meaningful reflection."
+            
+            # Get the previous state
+            previous_state = self.memory[-1]["game_state"]
+            previous_action = self.memory[-1].get("last_action", None)
+            
+            system_prompt = """You are an analytical assistant for a Super Mario Bros AI agent.
+Your task is to generate a brief, insightful reflection on the game state changes and the effectiveness of recent actions.
+Focus on strategic insights and patterns that would help the agent make better decisions.
+Keep your reflections short, precise, and actionable."""
+            
+            # Format information for the prompt
+            user_prompt = f"""Please analyze the following game states and actions to generate a brief reflection:
+
+Previous Game State:
+{json.dumps(previous_state, indent=2)}
+
+Previous Action: {previous_action[0] if previous_action else 'None'} for {previous_action[1] if previous_action else 0} frames
+
+Current Game State:
+{json.dumps(current_perception, indent=2)}
+
+Last Action: {last_action[0] if last_action else 'None'} for {last_action[1] if last_action else 0} frames
+
+Focus your reflection on:
+1. How the game state changed after the last action
+2. Whether the action was effective for the situation
+3. Patterns or issues to be aware of
+4. Any strategic insights for future actions
+
+Keep your reflection under 100 words and focus only on the most important insights."""
+            
+            # Make the API call for reflection
+            response, _ = self.api_manager.text_completion(
+                model_name=self.model_name,
+                system_prompt=system_prompt,
+                prompt=user_prompt
+            )
+            
+            return response.strip()
+            
+        except Exception as e:
+            print(f"Error generating reflection: {e}")
+            return "Unable to generate reflection due to an error."
+            
+    def add_game_state(self, game_state, action=None, timestamp=None):
         """
         Add a new game state to memory.
         
         Args:
             game_state (dict): The perceived game state to add
+            action (tuple, optional): Action taken in the previous state (action_name, frame_count)
             timestamp (float, optional): Timestamp for the game state
         """
         if timestamp is None:
             timestamp = time.time()
+        
+        # Generate reflection if we have at least one previous state
+        reflection = None
+        if len(self.memory) > 0:
+            reflection = self.generate_reflection(game_state, action)
             
-        # Add timestamp to the game state
+        # Add timestamp, action and reflection to the game state
         memory_entry = {
             "timestamp": timestamp,
-            "game_state": game_state
+            "game_state": game_state,
+            "last_action": action,
+            "reflection": reflection
         }
         
         # Add to memory
@@ -410,7 +527,7 @@ Frame count must be between 1-30.
                 model_name=self.model_name,
                 system_prompt=self.system_prompt,
                 prompt=user_prompt,
-                image_path=GRID_IMG_PATH,
+                image_path=img_path,
                 thinking=use_thinking
             )
             
@@ -446,6 +563,8 @@ Frame count must be between 1-30.
         for idx, entry in enumerate(recent_memory):
             timestamp = entry.get("timestamp", "unknown_time")
             game_state = entry.get("game_state", {})
+            last_action = entry.get("last_action", None)
+            reflection = entry.get("reflection", None)
             
             # Extract key information
             mario_pos = game_state.get("mario", {})
@@ -457,6 +576,11 @@ Frame count must be between 1-30.
             summary += f"- Mario at grid ({mario_pos.get('x', '?')},{mario_pos.get('y', '?')})\n"
             summary += f"- Immediate threats: {', '.join(immediate_threats) if immediate_threats else 'none'}\n"
             summary += f"- Obstacles ahead: {', '.join(obstacles_ahead) if obstacles_ahead else 'none'}\n"
+            if last_action:
+                action_name, frame_count = last_action
+                summary += f"- Last action: {action_name} for {frame_count} frames\n"
+            if reflection:
+                summary += f"- Reflection: {reflection}\n"
             
             summary_parts.append(summary)
             
@@ -549,10 +673,11 @@ class SuperMarioBrosAgent:
         """
         self.model_name = model_name
         self.img_path = img_path
+        self.last_action = None  # Store the last action taken
         
         # Initialize modules
         self.perception_module = PerceptionModule(model_name=model_name)
-        self.memory_module = MemoryModule()
+        self.memory_module = MemoryModule(model_name=model_name)
         self.reasoning_module = ReasoningModule(model_name=model_name)
         
     def get_action(self, observation, reward):
@@ -571,7 +696,7 @@ class SuperMarioBrosAgent:
             perception_data = self.perception_module.analyze_frame(observation, self.img_path)
             
             # Step 2: Memory - Add to memory and get summary
-            self.memory_module.add_game_state(perception_data)
+            self.memory_module.add_game_state(perception_data, self.last_action)
             memory_summary = self.memory_module.get_memory_summary()
             
             # Step 3: Reasoning - Plan the next action
@@ -581,13 +706,18 @@ class SuperMarioBrosAgent:
                 img_path=self.img_path
             )
             
+            # Store this action for the next iteration
+            self.last_action = action_plan["move"]
+            
             return action_plan
             
         except Exception as e:
             print(f"Error in get_action: {e}")
             # Fallback to a safe default action
+            default_action = ("[right]", 15)
+            self.last_action = default_action
             return {
-                "move": ("[right]", 15),
+                "move": default_action,
                 "thought": f"Error occurred: {str(e)}"
             }
         
