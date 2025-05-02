@@ -105,34 +105,26 @@ def anthropic_text_completion(system_prompt, model_name, prompt, thinking=False)
     return generated_str
 
 
-def anthropic_multiimage_completion(system_prompt, model_name, prompt, list_content, list_image_base64):
+def anthropic_multiimage_completion(system_prompt, model_name, prompt, list_images, temperature=0, max_tokens=20000):
     client = anthropic.Anthropic(api_key=os.getenv("ANTHROPIC_API_KEY"))
     
-    content_blocks = [] 
-    for text_item, base64_image in zip(list_content, list_image_base64):
-        content_blocks.append(
-            {
-                "type": "text",
-                "text": text_item,
+    content_blocks = []
+    # Add each image to the content blocks
+    for image_data in list_images:
+        content_blocks.append({
+            "type": "image",
+            "source": {
+                "type": "base64",
+                "media_type": "image/png",
+                "data": image_data,
             }
-        )
-        content_blocks.append(
-            {
-                "type": "image",
-                "source": {
-                    "type": "base64",
-                    "media_type": "image/png",
-                    "data": base64_image,
-                },
-            }
-        )
+        })
     
-    content_blocks.append(
-        {
-            "type": "text",
-            "text": prompt
-        }
-    )
+    # Add the prompt text at the end
+    content_blocks.append({
+        "type": "text",
+        "text": prompt
+    })
 
     messages = [
         {
@@ -141,22 +133,18 @@ def anthropic_multiimage_completion(system_prompt, model_name, prompt, list_cont
         }
     ]
 
-    print(f"message size: {len(content_blocks)+1}")
-
     with client.messages.stream(
-            max_tokens=1024,
+            max_tokens=max_tokens,
             messages=messages,
-            temperature=0,
+            temperature=temperature,
             system=system_prompt,
-            model=model_name, # claude-3-5-sonnet-20241022 # claude-3-7-sonnet-20250219
+            model=model_name,
         ) as stream:
             partial_chunks = []
             for chunk in stream.text_stream:
-                print(chunk)
                 partial_chunks.append(chunk)
-        
-    generated_str = "".join(partial_chunks)
     
+    generated_str = "".join(partial_chunks)
     return generated_str
 
 import httpx
@@ -322,128 +310,53 @@ def deepseek_text_reasoning_completion(system_prompt, model_name, prompt):
     
 
 
-def openai_multiimage_completion(system_prompt, model_name, prompt, list_content, list_image_base64):
+def openai_multiimage_completion(system_prompt, model_name, prompt, list_images, temperature=0, max_tokens=20000):
     client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
     content_blocks = []
     
-    joined_steps = "\n\n".join(list_content)
-    content_blocks.append(
-        {
-            "type": "text",
-            "text": joined_steps
-        }
-    )
-
-    for base64_image in list_image_base64:
-        content_blocks.append(
-            {
-                "type": "image_url",
-                "image_url": {
-                    "url": f"data:image/png;base64,{base64_image}"
-                },
-            },
-        )
+    # Add each image to the content blocks
+    for image_data in list_images:
+        content_blocks.append({
+            "type": "image_url",
+            "image_url": {
+                "url": f"data:image/png;base64,{image_data}"
+            }
+        })
+    
+    # Add the prompt text at the end
+    content_blocks.append({
+        "type": "text",
+        "text": prompt
+    })
 
     messages = [
         {
+            "role": "system",
+            "content": system_prompt
+        },
+        {
             "role": "user",
-            "content": content_blocks,
+            "content": content_blocks
         }
     ]
     
     # Set request parameters based on model type
     request_params = {
         "model": model_name,
-        "messages": messages,
-        "temperature": 0,
+        "messages": messages
     }
     
     # Add the correct token parameter based on model
     if "o3" in model_name or "o4" in model_name or "o1" in model_name:
-        request_params["max_completion_tokens"] = 100000
+        request_params["max_completion_tokens"] = max_tokens
     else:
-        request_params["max_tokens"] = 4096
+        request_params["max_tokens"] = max_tokens
+        request_params["temperature"] = temperature
     
     response = client.chat.completions.create(**request_params)
+    return response.choices[0].message.content
 
-    generated_str = response.choices[0].message.content
-     
-    return generated_str
-
-
-def gemini_text_completion(system_prompt, model_name, prompt):
-    genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
-    model = genai.GenerativeModel(model_name=model_name)
-
-    messages = [
-        prompt,
-    ]
-            
-    try:
-        response = model.generate_content(
-            messages
-        )
-    except Exception as e:
-        print(f"error: {e}")
-
-    try:
-        response = model.generate_content(messages)
-
-        # Ensure response is valid and contains candidates
-        if not response or not hasattr(response, "candidates") or not response.candidates:
-            print("Warning: Empty or invalid response")
-            return ""
-        
-        return response.text  # Access response.text safely
-
-    except Exception as e:
-        print(f"Error: {e}")
-        return "" 
-
-def anthropic_text_completion(system_prompt, model_name, prompt, thinking=False):
-    client = anthropic.Anthropic(api_key=os.getenv("ANTHROPIC_API_KEY"))
-    messages = [
-                {
-                    "role": "user",
-                    "content": [
-                        {
-                            "type": "text",
-                            "text": prompt
-                        },
-                    ],
-                }
-            ]
-    if thinking:
-        with client.messages.stream(
-                max_tokens=20000,
-                thinking={
-                    "type": "enabled",
-                    "budget_tokens": 16000
-                },
-                messages=messages,
-                temperature=1,
-                system=system_prompt,
-                model=model_name, # claude-3-5-sonnet-20241022 # claude-3-7-sonnet-20250219
-            ) as stream:
-                partial_chunks = []
-                for chunk in stream.text_stream:
-                    partial_chunks.append(chunk)
-    else:    
-        with client.messages.stream(
-                max_tokens=1024,
-                messages=messages,
-                temperature=0,
-                system=system_prompt,
-                model=model_name, # claude-3-5-sonnet-20241022 # claude-3-7-sonnet-20250219
-            ) as stream:
-                partial_chunks = []
-                for chunk in stream.text_stream:
-                    partial_chunks.append(chunk)
-        
-    generated_str = "".join(partial_chunks)
-    
-    return generated_str
 
 def gemini_text_completion(system_prompt, model_name, prompt):
     genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
@@ -507,36 +420,44 @@ def gemini_completion(system_prompt, model_name, base64_image, prompt):
         print(f"Error: {e}")
         return "" 
 
-def gemini_multiimage_completion(system_prompt, model_name, prompt, list_content, list_image_base64):
+def gemini_multiimage_completion(system_prompt, model_name, prompt, list_images, temperature=1, max_tokens=20000):
     genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
     model = genai.GenerativeModel(model_name=model_name)
 
-    content_blocks = []
-    for base64_image in list_image_base64:
-        content_blocks.append(
-            {
-                "mime_type": "image/jpeg",
-                "data": base64_image,
-            },
-        )
+    # Build multipart content - parts for images and prompt
+    parts = []
     
-    joined_steps = "\n\n".join(list_content)
-    content_blocks.append(
-        joined_steps
-    )
-
-    messages = content_blocks
-            
+    # Add images to parts
+    for image_data in list_images:
+        parts.append({
+            "inline_data": {  # Use inline_data instead of mime_type/data
+                "mime_type": "image/jpeg",
+                "data": image_data
+            }
+        })
+    
+    # Add the text prompt
+    parts.append(prompt)
+    
+    generation_config = {
+        "temperature": temperature,
+        "max_output_tokens": max_tokens,
+    }
+    
     try:
+        # Pass 'parts' as a positional argument, not as 'content=parts'
         response = model.generate_content(
-            messages,
+            parts,  # First positional argument
+            generation_config=generation_config  # Keyword argument
         )
+        
+        if not response or not hasattr(response, "text"):
+            return "Error: Invalid response from Gemini"
+            
+        return response.text
+        
     except Exception as e:
-        print(f"error: {e}")
-
-    generated_str = response.text
-
-    return generated_str
+        return f"Error calling Gemini: {str(e)}"
 
 
 def deepseek_text_reasoning_completion(system_prompt, model_name, prompt):
@@ -648,4 +569,40 @@ def xai_grok_completion(system_prompt, model_name, prompt, temperature=0, reason
     
     # Return just the content for consistency with other completion functions
     return completion.choices[0].message.content
+    
+
+def together_ai_multiimage_completion(system_prompt, model_name, prompt, list_images, temperature=0):
+    client = Together(api_key=os.getenv("TOGETHER_API_KEY"))
+    
+    content = []
+    
+    # Add each image to the content array
+    for image_data in list_images:
+        content.append({
+            "type": "image_url",
+            "image_url": {"url": f"data:image/png;base64,{image_data}"}
+        })
+    
+    # Add the prompt text
+    content.append({
+        "type": "text",
+        "text": prompt
+    })
+    
+    response = client.chat.completions.create(
+        model=model_name,
+        messages=[
+            {
+                "role": "system",
+                "content": system_prompt
+            },
+            {
+                "role": "user",
+                "content": content
+            }
+        ],
+        temperature=temperature
+    )
+    
+    return response.choices[0].message.content
     
