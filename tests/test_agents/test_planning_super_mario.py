@@ -79,47 +79,6 @@ class PerceptionModule:
         self.model_name = model_name
         self.api_manager = APIManager(game_name="super_mario_bros")
         self.system_prompt = """You are a computer vision system analyzing frames from Super Mario Bros.
-Your task is to identify and locate game elements in a 5x5 grid overlay on the screen.
-        
-Identify the following elements and their approximate positions in (x,y) grid coordinates:
-- Mario (player character)
-- Pipes (green obstacles)
-- Goombas (brown mushroom enemies)
-- Koopas (turtle enemies)
-- Gaps/pits (areas where Mario can fall)
-- Question blocks (blocks with ? that can be hit)
-- Brick blocks (breakable blocks)
-- Coins
-- Power-ups (if visible)
-- Flag pole (end of level)
-
-IMPORTANT: Use a 5x5 grid system where (0,0) is the top-left corner and (4,4) is the bottom-right.
-        
-Your response must be in valid JSON format with the following structure:
-{
-  "mario": {"x": int, "y": int},
-  "environment": {
-    "pipes": [{"x": int, "y": int, "height": "small|medium|large"}],
-    "goombas": [{"x": int, "y": int, "distance": "very_close|close|medium|far"}],
-    "koopas": [{"x": int, "y": int, "distance": "very_close|close|medium|far"}],
-    "gaps": [{"x": int, "width": "small|medium|large"}],
-    "question_blocks": [{"x": int, "y": int}],
-    "brick_blocks": [{"x": int, "y": int}],
-    "coins": [{"x": int, "y": int}],
-    "power_ups": [{"x": int, "y": int, "type": "mushroom|flower|star"}],
-    "flag_pole": {"x": int, "y": int} or null
-  },
-  "game_state": {
-    "scroll_direction": "right|left|stationary",
-    "mario_state": "small|big|fire|invincible",
-    "immediate_threats": ["goomba"|"koopa"|"gap"|"pipe"],
-    "obstacles_ahead": ["goomba"|"koopa"|"gap"|"pipe"]
-  }
-}
-
-Ensure all coordinates are integers within the 0-4 range for the 5x5 grid.
-If an element is not present, include it as an empty array or null as appropriate.
-For immediate_threats, only include elements that pose an immediate danger to Mario.
 """
 
     def analyze_frame(self, observation, img_path):
@@ -153,7 +112,49 @@ For immediate_threats, only include elements that pose an immediate danger to Ma
             # Save the resized image with grid
             img_with_grid_resized.save(GRID_IMG_PATH)
             
-            user_prompt = "Analyze this Super Mario Bros frame with the 5x5 grid overlay and identify game elements in each grid cell."
+            user_prompt = """Analyze this Super Mario Bros frame with the 5x5 grid overlay and identify game elements in each grid cell.
+                Your task is to identify and locate game elements in a 5x5 grid overlay on the screen.
+            
+                Identify the following elements and their approximate positions in (x,y) grid coordinates:
+                - Mario (player character)
+                - Pipes (green obstacles)
+                - Goombas (brown mushroom enemies)
+                - Koopas (turtle enemies)
+                - Gaps/pits (areas where Mario can fall)
+                - Question blocks (blocks with ? that can be hit)
+                - Brick blocks (breakable blocks)
+                - Coins
+                - Power-ups (if visible)
+                - Flag pole (end of level)
+
+                IMPORTANT: Use a 5x5 grid system where (0,0) is the top-left corner and (4,4) is the bottom-right.
+                        
+                Your response must be in valid JSON format with the following structure:
+                {
+                "mario": {"x": int, "y": int},
+                "environment": {
+                    "pipes": [{"x": int, "y": int, "height": "small|medium|large"}],
+                    "goombas": [{"x": int, "y": int, "distance": "very_close|close|medium|far"}],
+                    "koopas": [{"x": int, "y": int, "distance": "very_close|close|medium|far"}],
+                    "gaps": [{"x": int, "width": "small|medium|large"}],
+                    "question_blocks": [{"x": int, "y": int}],
+                    "brick_blocks": [{"x": int, "y": int}],
+                    "coins": [{"x": int, "y": int}],
+                    "power_ups": [{"x": int, "y": int, "type": "mushroom|flower|star"}],
+                    "flag_pole": {"x": int, "y": int} or null
+                },
+                "game_state": {
+                    "scroll_direction": "right|left|stationary",
+                    "mario_state": "small|big|fire|invincible",
+                    "immediate_threats": ["goomba"|"koopa"|"gap"|"pipe"],
+                    "obstacles_ahead": ["goomba"|"koopa"|"gap"|"pipe"]
+                }
+                }
+
+                Ensure all coordinates are integers within the 0-4 range for the 5x5 grid.
+                If an element is not present, include it as an empty array or null as appropriate.
+                For immediate_threats, only include elements that pose an immediate danger to Mario.
+                """
             
             response, _ = self.api_manager.vision_text_completion(
                 model_name=self.model_name,
@@ -327,23 +328,30 @@ class MemoryModule:
             previous_state = self.memory[-1]["game_state"]
             previous_action = self.memory[-1].get("last_action", None)
             
-            system_prompt = """You are an analytical assistant for a Super Mario Bros AI agent.
-Your task is to generate a brief, insightful reflection on the game state changes and the effectiveness of recent actions.
-Focus on strategic insights and patterns that would help the agent make better decisions.
-Keep your reflections short, precise, and actionable."""
+            # Ensure last_action is not None to avoid calculation errors
+            if last_action is None:
+                last_action = ("[NOOP]", 0)
             
-            # Format information for the prompt
+            system_prompt = """You are an analytical assistant for a Super Mario Bros AI agent. Our task is to generate a brief, insightful reflection on the game state changes and the effectiveness of recent actions.
+Focus on strategic insights and patterns that would help the agent make better decisions.
+Keep your reflections short, precise, and actionable.
+"""
+            
+            # Format information for the prompt - safely handle None values
+            prev_action_name = previous_action[0] if previous_action else "None"
+            prev_action_frames = previous_action[1] if previous_action else 0
+            
             user_prompt = f"""Please analyze the following game states and actions to generate a brief reflection:
 
 Previous Game State:
 {json.dumps(previous_state, indent=2)}
 
-Previous Action: {previous_action[0] if previous_action else 'None'} for {previous_action[1] if previous_action else 0} frames
+Previous Action: {prev_action_name} for {prev_action_frames} frames
 
 Current Game State:
 {json.dumps(current_perception, indent=2)}
 
-Last Action: {last_action[0] if last_action else 'None'} for {last_action[1] if last_action else 0} frames
+Last Action: {last_action[0]} for {last_action[1]} frames
 
 Focus your reflection on:
 1. How the game state changed after the last action
@@ -363,8 +371,8 @@ Keep your reflection under 100 words and focus only on the most important insigh
             return response.strip()
             
         except Exception as e:
-            print(f"Error generating reflection: {e}")
-            return "Unable to generate reflection due to an error."
+            print(f"Error generating reflection: {str(e)}")
+            return f"No reflection available: {str(e)[:50]}"
             
     def add_game_state(self, game_state, action=None, timestamp=None):
         """
@@ -525,8 +533,6 @@ Only use available actions: [NOOP], [right], [right,A], [right,B], [right,A,B], 
 Frame count must be between 1-30.
 """
             
-            # Check if using Claude model to enable thinking mode
-            use_thinking = "claude-3-7" in self.model_name.lower()
             
             # Use the grid image for the API call
             response, _ = self.api_manager.vision_text_completion(
@@ -702,9 +708,30 @@ class SuperMarioBrosAgent:
             # Step 1: Perception - Analyze the frame
             perception_data = self.perception_module.analyze_frame(observation, self.img_path)
             
+            # Print perception data in a readable format
+            print("\n" + "="*80)
+            print("PERCEPTION DATA:")
+            print(f"Mario position: ({perception_data['mario']['x']}, {perception_data['mario']['y']})")
+            print(f"Game state: {perception_data['game_state']}")
+            print("Environment:")
+            for key, value in perception_data['environment'].items():
+                if value and value != []:
+                    print(f"  - {key}: {value}")
+            
             # Step 2: Memory - Add to memory and get summary
             self.memory_module.add_game_state(perception_data, self.last_action)
             memory_summary = self.memory_module.get_memory_summary()
+            
+            # Print memory summary - remove erroneous formatting
+            if memory_summary:
+                print("\nMEMORY SUMMARY:")
+                print(f"Memory entries: {len(memory_summary)}")
+                if len(memory_summary) > 0:
+                    latest_entry = memory_summary[-1]
+                    if 'reflection' in latest_entry and latest_entry['reflection']:
+                        print(f"Latest reflection: {latest_entry['reflection']}")
+                    if 'last_action' in latest_entry and latest_entry['last_action']:
+                        print(f"Previous action: {latest_entry['last_action']}")
             
             # Step 3: Reasoning - Plan the next action
             action_plan = self.reasoning_module.plan_action(
@@ -712,6 +739,12 @@ class SuperMarioBrosAgent:
                 memory_summary=memory_summary,
                 img_path=self.img_path
             )
+            
+            # Print action plan
+            print("\nACTION PLAN:")
+            print(f"Action: {action_plan['move']}")
+            print(f"Thought: {action_plan['thought']}")
+            print("="*80 + "\n")
             
             # Store this action for the next iteration
             self.last_action = action_plan["move"]
@@ -844,9 +877,8 @@ async def main():
     count += 1
     
     while True:
+        print(f"\n--- SIMULATION STEP {count} ---")
         llm_action_response = agent.get_action(observation, reward)
-        print(f"action: {llm_action_response['move']}; count: {count}")
-        print(f"thought: {llm_action_response['thought']}")
         
         # Get the action and frame count from the response
         action_name, frame_count = llm_action_response['move']

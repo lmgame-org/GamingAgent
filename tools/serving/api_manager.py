@@ -45,7 +45,9 @@ from .api_cost_calculator import (
 # Configure logging
 logging.basicConfig(
     level=logging.INFO,
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+    # Set handlers to empty list to prevent console output
+    handlers=[]
 )
 logger = logging.getLogger(__name__)
 
@@ -266,7 +268,9 @@ class APIManager:
             f"Model: {model_name}\n"
             f"Modality: {modality}\n"
             f"Total Input Tokens: {costs.get('prompt_tokens', 0)}\n"
-            f"Input Text Tokens: {costs.get('prompt_tokens', 0) - costs.get('image_tokens', 0)}\n"
+            # Comment out the problematic subtraction that can cause "unsupported operand type(s) for -: 'int' and 'None'"
+            # f"Input Text Tokens: {costs.get('prompt_tokens', 0) - costs.get('image_tokens', 0)}\n"
+            f"Input Text Tokens: {costs.get('prompt_tokens', 0)}\n"
             f"Input Image Tokens: {costs.get('image_tokens', 0)}\n"
             f"Output Tokens: {costs.get('completion_tokens', 0)}\n"
             f"Total Input Cost: ${costs.get('prompt_cost', 0):.6f}\n"
@@ -441,6 +445,16 @@ class APIManager:
                 "image_tokens": 0,
                 "image_cost": Decimal("0")
             }
+            
+            # Skip cost calculation and API call logging entirely
+            # self._log_api_call(
+            #     model_name=model_name,
+            #     input_data=input_data,
+            #     output_data=completion,
+            #     costs=empty_costs,
+            #     session_name=session_name,
+            #     modality="vision_text"
+            # )
             
             # Return completion and empty costs instead of calculated costs
             return completion, empty_costs
