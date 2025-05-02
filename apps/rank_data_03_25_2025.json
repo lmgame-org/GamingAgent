@@ -113,7 +113,7 @@
                 "rank": 8
             },
             {
-                "model": "gemini-2.5-pro-exp-03-25",
+                "model": "gemini-2.5-pro-preview-03-25",
                 "score": 128,
                 "steps": 138,
                 "time": "169",
@@ -267,7 +267,7 @@
                 "rank": 7
             },
             {
-                "model": "gemini-2.5-pro-exp-03-25",
+                "model": "gemini-2.5-pro-preview-03-25",
                 "score_runs": "50;36;68",
                 "average_score": 51.33,
                 "steps": 25,
@@ -339,7 +339,7 @@
                 "rank": 3
             },
             {
-                "model": "gemini-2.5-pro-exp-03-25",
+                "model": "gemini-2.5-pro-preview-03-25",
                 "levels_cracked": "2;2;3",
                 "steps": "[23, 46, 79]; [20,50,77]; [26,95,125,175]",
                 "rank": 4
@@ -443,7 +443,7 @@
                 "note": "failed to present evidence"
             },
             {
-                "model": "gemini-2.5-pro-exp-03-25",
+                "model": "gemini-2.5-pro-preview-03-25",
                 "levels_cracked": "2; 3",
                 "lives_left": "[5,5,0]; [5, 5, 4, 0]",
                 "cracked_details": "4: 0/8",

@@ -434,7 +434,7 @@
                 "evaluator result": 0.5
             },
             {
-                "model": "gemini-2.5-pro-exp-03-25",
+                "model": "gemini-2.5-pro-preview-03-25",
                 "levels_cracked": "1",
                 "lives_left": "[4,5]",
                 "cracked_details": "2: 2/9",
@@ -463,23 +463,23 @@
                 "note": "failed to present evidence"
             },
             {
-                "model": "Llama-4-Maverick-17B-128E-Instruct-FP8",
-                "levels_cracked": "0",
-                "lives_left": "[0]",
-                "cracked_details": "1: 2/5",
-                "rank": 5,
-                "score": 2,
-                "evaluator result": 0.43,
-                "note": "stuck in loop"
-            },
-            {
                 "model": "claude-3-5-sonnet-20241022",
                 "levels_cracked": "0",
                 "lives_left": "[0]",
                 "cracked_details": "1:1/5",
-                "rank": 6,
+                "rank": 5,
                 "score": 1,
                 "evaluator result": 0.33
+            },
+            {
+                "model": "Llama-4-Maverick-17B-128E-Instruct-FP8",
+                "levels_cracked": "0",
+                "lives_left": "[0]",
+                "cracked_details": "1: 0/5",
+                "rank": 6,
+                "score": 0,
+                "evaluator result": 0,
+                "note": "stuck in loop"
             }
         ]
     }
