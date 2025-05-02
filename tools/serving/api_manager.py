@@ -359,8 +359,9 @@ class APIManager:
         image_path: Optional[str] = None,
         base64_image: Optional[str] = None, 
         session_name: Optional[str] = None,
-        temperature: float = 0,
-        thinking: bool = False
+        temperature: float = 1,
+        thinking: bool = False,
+        reasoning_effort: str = "medium"
     ) -> Tuple[str, Dict[str, Any]]:
         """
         Make a combined vision-text completion API call.
@@ -375,6 +376,7 @@ class APIManager:
             session_name (str, optional): Custom session name
             temperature (float): Temperature parameter (0-1)
             thinking (bool): Whether to enable thinking mode (Anthropic models)
+            reasoning_effort (str): Reasoning effort for O-series models ("low"|"medium"|"high")
             
         Returns:
             Tuple[str, Dict]: (Generated text, Cost information)
@@ -397,7 +399,8 @@ class APIManager:
             "base64_image": base64_image,
             "model_name": model_name,
             "temperature": temperature,
-            "thinking": thinking
+            "thinking": thinking,
+            "reasoning_effort": reasoning_effort
         }
         
         # Select appropriate API based on model name
@@ -416,7 +419,8 @@ class APIManager:
                     model_name=model_name,
                     base64_image=base64_image,
                     prompt=prompt,
-                    temperature=temperature
+                    temperature=temperature,
+                    reasoning_effort=reasoning_effort
                 )
             elif "gemini" in model_name.lower():
                 completion = gemini_completion(
@@ -437,50 +441,6 @@ class APIManager:
                 "image_tokens": 0,
                 "image_cost": Decimal("0")
             }
-            
-            # Original code commented out but preserved
-            """
-            # Format prompt for cost calculation based on model type
-            if "claude" in model_name.lower():
-                formatted_prompt = [
-                    {
-                        "role": "user",
-                        "content": [
-                            {
-                                "type": "image",
-                                "source": {
-                                    "type": "base64",
-                                    "media_type": "image/png",
-                                    "data": base64_image,
-                                },
-                            },
-                            {
-                                "type": "text",
-                                "text": prompt
-                            },
-                        ],
-                    }
-                ]
-            else:
-                formatted_prompt = prompt
-            
-            costs = self._calculate_costs(
-                model_name=model_name,
-                prompt=formatted_prompt,
-                completion=completion,
-                image_path=image_path
-            )
-            
-            # Log API call
-            self._log_api_call(
-                model_name=model_name,
-                input_data=input_data,
-                output_data=completion,
-                costs=costs,
-                session_name=session_name,
-                modality="vision_text"
-            )
-            """
             
             # Return completion and empty costs instead of calculated costs
             return completion, empty_costs
@@ -617,8 +577,9 @@ class APIManager:
         system_prompt: str,
         prompt: str,
         session_name: Optional[str] = None,
-        temperature: float = 0,
-        thinking: bool = False
+        temperature: float = 1,
+        thinking: bool = False,
+        reasoning_effort: str = "medium"
     ) -> Tuple[str, Dict[str, Any]]:
         """
         Make a text-only completion API call.
@@ -630,6 +591,7 @@ class APIManager:
             session_name (str, optional): Custom session name
             temperature (float): Temperature parameter (0-1)
             thinking (bool): Whether to enable thinking mode (Anthropic models)
+            reasoning_effort (str): Reasoning effort for O-series models ("low"|"medium"|"high")
             
         Returns:
             Tuple[str, Dict]: (Generated text, Cost information)
@@ -640,7 +602,8 @@ class APIManager:
             "prompt": prompt,
             "model_name": model_name,
             "temperature": temperature,
-            "thinking": thinking
+            "thinking": thinking,
+            "reasoning_effort": reasoning_effort
         }
         
         # Select appropriate API based on model name
@@ -656,7 +619,8 @@ class APIManager:
                 completion = openai_text_completion(
                     system_prompt=system_prompt,
                     model_name=model_name,
-                    prompt=prompt
+                    prompt=prompt,
+                    reasoning_effort=reasoning_effort
                 )
             elif "gemini" in model_name.lower():
                 completion = gemini_text_completion(
@@ -716,8 +680,9 @@ class APIManager:
         image_path: Optional[str] = None,
         base64_image: Optional[str] = None, 
         session_name: Optional[str] = None,
-        temperature: float = 0,
-        thinking: bool = False
+        temperature: float = 1,
+        thinking: bool = False,
+        reasoning_effort: str = "medium"
     ) -> Tuple[str, Dict[str, Any]]:
         """
         Legacy method for vision-based completion API call.
@@ -732,6 +697,7 @@ class APIManager:
             session_name (str, optional): Custom session name
             temperature (float): Temperature parameter (0-1)
             thinking (bool): Whether to enable thinking mode
+            reasoning_effort (str): Reasoning effort for O-series models ("low"|"medium"|"high")
             
         Returns:
             Tuple[str, Dict]: (Generated text, Cost information)
@@ -745,7 +711,8 @@ class APIManager:
             base64_image=base64_image,
             session_name=session_name,
             temperature=temperature,
-            thinking=thinking
+            thinking=thinking,
+            reasoning_effort=reasoning_effort
         )
     
     def text_completion(
@@ -754,8 +721,9 @@ class APIManager:
         system_prompt: str,
         prompt: str,
         session_name: Optional[str] = None,
-        temperature: float = 0,
-        thinking: bool = False
+        temperature: float = 1,
+        thinking: bool = False,
+        reasoning_effort: str = "medium"
     ) -> Tuple[str, Dict[str, Any]]:
         """
         Legacy method for text-only completion API call.
@@ -768,6 +736,7 @@ class APIManager:
             session_name (str, optional): Custom session name
             temperature (float): Temperature parameter (0-1)
             thinking (bool): Whether to enable thinking mode
+            reasoning_effort (str): Reasoning effort for O-series models ("low"|"medium"|"high")
             
         Returns:
             Tuple[str, Dict]: (Generated text, Cost information)
@@ -779,7 +748,8 @@ class APIManager:
             prompt=prompt,
             session_name=session_name,
             temperature=temperature,
-            thinking=thinking
+            thinking=thinking,
+            reasoning_effort=reasoning_effort
         )
     
     def multi_image_completion(
@@ -790,7 +760,9 @@ class APIManager:
         list_content: List[str],
         list_image_paths: Optional[List[str]] = None,
         list_image_base64: Optional[List[str]] = None,
-        session_name: Optional[str] = None
+        session_name: Optional[str] = None,
+        temperature: float = 1,
+        reasoning_effort: str = "medium"
     ) -> Tuple[str, Dict[str, Any]]:
         """
         Make a multi-image completion API call.
@@ -803,6 +775,8 @@ class APIManager:
             list_image_paths (List[str], optional): List of image file paths
             list_image_base64 (List[str], optional): List of base64-encoded image data
             session_name (str, optional): Custom session name
+            temperature (float): Temperature parameter (0-1)
+            reasoning_effort (str): Reasoning effort for O-series models ("low"|"medium"|"high")
             
         Returns:
             Tuple[str, Dict]: (Generated text, Cost information)
@@ -823,7 +797,9 @@ class APIManager:
             "prompt": prompt,
             "list_content": list_content,
             "list_image_base64": list_image_base64,
-            "model_name": model_name
+            "model_name": model_name,
+            "temperature": temperature,
+            "reasoning_effort": reasoning_effort
         }
         
         # Select appropriate API based on model name
@@ -842,7 +818,8 @@ class APIManager:
                     model_name=model_name,
                     prompt=prompt,
                     list_content=list_content,
-                    list_image_base64=list_image_base64
+                    list_image_base64=list_image_base64,
+                    reasoning_effort=reasoning_effort
                 )
             elif "gemini" in model_name.lower():
                 completion = gemini_multiimage_completion(

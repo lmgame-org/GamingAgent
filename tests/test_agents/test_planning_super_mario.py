@@ -9,6 +9,7 @@ from datetime import datetime
 from tools.serving import APIManager
 import asyncio
 from collections import deque
+import argparse
 
 
 CACHE_DIR = os.path.join("cache", "super_mario_bros_experiments", datetime.now().strftime("%Y%m%d_%H%M%S"))
@@ -407,7 +408,7 @@ Keep your reflection under 100 words and focus only on the most important insigh
 
 
 class ReasoningModule:
-    def __init__(self, model_name="claude-3-7-sonnet-latest"):
+    def __init__(self, model_name="claude-3-7-sonnet-latest", reasoning_effort="high", thinking=True):
         """
         Initialize the Reasoning Module for action planning.
         
@@ -415,6 +416,8 @@ class ReasoningModule:
             model_name (str): Name of the model to use for reasoning
         """
         self.model_name = model_name
+        self.reasoning_effort = reasoning_effort
+        self.thinking = thinking
         self.api_manager = APIManager(game_name="super_mario_bros")
         # Simplified system prompt with strict output instructions
         self.system_prompt = """You are an intelligent AI player playing Super Mario Bros. Your goal is to help Mario progress through the level safely and efficiently.
@@ -523,7 +526,7 @@ Frame count must be between 1-30.
 """
             
             # Check if using Claude model to enable thinking mode
-            use_thinking = "claude" in self.model_name.lower()
+            use_thinking = "claude-3-7" in self.model_name.lower()
             
             # Use the grid image for the API call
             response, _ = self.api_manager.vision_text_completion(
@@ -531,7 +534,8 @@ Frame count must be between 1-30.
                 system_prompt=self.system_prompt,
                 prompt=user_prompt,
                 image_path=img_path,
-                thinking=use_thinking
+                thinking=self.thinking,
+                reasoning_effort=self.reasoning_effort
             )
             
             # Parse the response
@@ -765,7 +769,7 @@ async def run_actions(env, actions, fps=30):
         await asyncio.sleep(sleep_time)
         if terminated or truncated:
             env.close()
-            break
+            return observation, reward, terminated, truncated, info
     return observation, reward, terminated, truncated, info
 
 def convert_to_json_serializable(obj):
@@ -802,6 +806,12 @@ def log_to_jsonl(info, count, reward, terminated, truncated, json_file=None):
         f.write('\n')
 
 async def main():
+    # Parse command line arguments
+    parser = argparse.ArgumentParser(description='Run Super Mario Bros AI agent')
+    parser.add_argument('--model', type=str, default="claude-3-5-sonnet-latest", 
+                        help='Model name to use for inference (default: claude-3-5-sonnet-latest)')
+    args = parser.parse_args()
+    
     os.makedirs(CACHE_DIR, exist_ok=True)
     env = retro.make(
         game="SuperMarioBros-Nes",
@@ -819,8 +829,9 @@ async def main():
         action = env.action_space.sample()
         print(f"Sample {i}: {action}")
 
-    # Initialize the agent with grid image path
-    agent = SuperMarioBrosAgent(img_path=GRID_IMG_PATH)
+    # Initialize the agent with grid image path and specified model
+    agent = SuperMarioBrosAgent(img_path=GRID_IMG_PATH, model_name=args.model)
+    print(f"Using model: {args.model}")
     
     count = 0
     sleep_time = 1.0 / 30
@@ -848,8 +859,6 @@ async def main():
         observation, reward, terminated, truncated, info = env.step(default_action)
         await asyncio.sleep(sleep_time)
         observation, reward, terminated, truncated, info = await run_actions(env, actions, fps=30)
-        await asyncio.sleep(sleep_time)
-        observation, reward, terminated, truncated, info = env.step(default_action)
         
         # Add x_position to info
         info['x_pos'] = get_mario_position(env)
