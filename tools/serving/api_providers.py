@@ -207,14 +207,20 @@ def openai_completion(system_prompt, model_name, base64_image, prompt, temperatu
             }
         ]
 
-    token_param = "max_completion_tokens" if "o1" in model_name else "max_tokens"
+    # Set request parameters based on model type
     request_params = {
         "model": model_name,
         "messages": messages,
-        token_param: 4096,
     }
 
-    if "o1" not in model_name:
+    # Add the correct token parameter based on model
+    if "o3" in model_name or "o4" in model_name or "o1" in model_name:
+        request_params["max_completion_tokens"] = 100000
+    else:
+        request_params["max_tokens"] = 4096
+
+    # Add temperature parameter (only for models that support it)
+    if "o3" not in model_name and "o4" not in model_name and "o1" not in model_name:
         request_params["temperature"] = temperature
 
     response = client.chat.completions.create(**request_params)
@@ -346,12 +352,20 @@ def openai_multiimage_completion(system_prompt, model_name, prompt, list_content
         }
     ]
     
-    response = client.chat.completions.create(
-        model=model_name,
-        messages=messages,
-        temperature=0,
-        max_tokens=1024,
-    )
+    # Set request parameters based on model type
+    request_params = {
+        "model": model_name,
+        "messages": messages,
+        "temperature": 0,
+    }
+    
+    # Add the correct token parameter based on model
+    if "o3" in model_name or "o4" in model_name or "o1" in model_name:
+        request_params["max_completion_tokens"] = 100000
+    else:
+        request_params["max_tokens"] = 4096
+    
+    response = client.chat.completions.create(**request_params)
 
     generated_str = response.choices[0].message.content
      
