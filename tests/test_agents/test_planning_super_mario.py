@@ -479,6 +479,9 @@ Example responses:
 - thought: I'm at the edge of a large gap. Need to execute a powerful jump immediately to clear it.
   move: ([right,A,B], 30)
 
+- thought: Mario is falling down and close to the ground but not fully landed yet. I need a small frame skip before taking further actions.
+  move: ([NOOP], 5)
+
 Focus on making strategic decisions that help Mario progress through the level safely and efficiently.
 Do not discuss reward calculations in your response.
 """
