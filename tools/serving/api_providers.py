@@ -33,7 +33,7 @@ def anthropic_completion(system_prompt, model_name, base64_image, prompt, thinki
                 max_tokens=token_limit,
                 thinking={
                     "type": "enabled",
-                    "budget_tokens": 16000
+                    "budget_tokens": token_limit
                 },
                 messages=messages,
                 temperature=1,
@@ -78,7 +78,7 @@ def anthropic_text_completion(system_prompt, model_name, prompt, thinking=False,
                 max_tokens=token_limit,
                 thinking={
                     "type": "enabled",
-                    "budget_tokens": 16000
+                    "budget_tokens": token_limit
                 },
                 messages=messages,
                 temperature=1,
