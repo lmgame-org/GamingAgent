@@ -16,6 +16,7 @@ CACHE_DIR = os.path.join("cache", "super_mario_bros_experiments", datetime.now()
 OBSERVATION_IMG_PATH = os.path.join(CACHE_DIR, "obs_latest.png")
 GRID_IMG_PATH = os.path.join(CACHE_DIR, "obs_grid_latest.png")
 MEMORY_FILE = os.path.join(CACHE_DIR, "memory.json")
+EXPERIMENT_INFO_FILE = os.path.join(CACHE_DIR, "experiment_info.json")
 MAX_SHORT_SIDE = 768
 MAX_LONG_SIDE = 2000
 
@@ -552,7 +553,7 @@ Frame count must be between 1-30.
             print(f"Error in reasoning module: {e}")
             # Return a default action on error
             return {
-                "move": ("[right]", 15),
+                "move": ("[NOOP]", 1),
                 "thought": f"Error occurred in reasoning: {str(e)}"
             }
             
@@ -760,7 +761,7 @@ class SuperMarioBrosAgent:
         except Exception as e:
             print(f"Error in get_action: {e}")
             # Fallback to a safe default action
-            default_action = ("[right]", 15)
+            default_action = ("[NOOP]", 1)
             self.last_action = default_action
             return {
                 "move": default_action,
@@ -887,6 +888,38 @@ def log_to_jsonl(info, count, reward, terminated, truncated, json_file=None):
         json.dump(record, f)
         f.write('\n')
 
+def store_experiment_info(model_name, game_name="SuperMarioBros-Nes"):
+    """
+    Store information about the current experiment in a JSON file.
+    
+    Args:
+        model_name (str): Name of the model being used
+        game_name (str): Name of the game being played
+    """
+    experiment_info = {
+        "timestamp": datetime.now().isoformat(),
+        "model_name": model_name,
+        "game_name": game_name,
+        "cache_directory": CACHE_DIR,
+        "system_info": {
+            "platform": os.name,
+            "python_version": os.sys.version
+        },
+        "configuration": {
+            "max_short_side": MAX_SHORT_SIDE,
+            "max_long_side": MAX_LONG_SIDE
+        }
+    }
+    
+    # Ensure the directory exists
+    os.makedirs(os.path.dirname(EXPERIMENT_INFO_FILE), exist_ok=True)
+    
+    # Write to JSON file
+    with open(EXPERIMENT_INFO_FILE, 'w') as f:
+        json.dump(experiment_info, f, indent=2)
+    
+    print(f"Experiment info saved to {EXPERIMENT_INFO_FILE}")
+
 async def main():
     # Parse command line arguments
     parser = argparse.ArgumentParser(description='Run Super Mario Bros AI agent')
@@ -895,6 +928,10 @@ async def main():
     args = parser.parse_args()
     
     os.makedirs(CACHE_DIR, exist_ok=True)
+    
+    # Store experiment info
+    store_experiment_info(model_name=args.model)
+    
     env = retro.make(
         game="SuperMarioBros-Nes",
         obs_type=retro.Observations.IMAGE,

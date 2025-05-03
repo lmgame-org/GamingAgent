@@ -200,6 +200,9 @@ def openai_completion(system_prompt, model_name, base64_image, prompt, temperatu
     if "gpt-4o" in model_name:
         print("gpt-4o only supports 16384 tokens")
         token_limit = 16384
+    if "gpt-4.1" in model_name:
+        print("gpt-4.1 only supports 32768 tokens")
+        token_limit = 32768
 
     # Force-clean headers to prevent UnicodeEncodeError
     client._client._headers.update({
@@ -247,6 +250,10 @@ def openai_text_completion(system_prompt, model_name, prompt, token_limit=30000,
     if "gpt-4o" in model_name:
         print("gpt-4o only supports 16384 tokens")
         token_limit = 16384
+    if "gpt-4.1" in model_name:
+        print("gpt-4.1 only supports 32768 tokens")
+        token_limit = 32768
+
     messages = [
             {
                 "role": "user",
@@ -286,6 +293,9 @@ def openai_text_reasoning_completion(system_prompt, model_name, prompt, temperat
     if "gpt-4o" in model_name:
         print("gpt-4o only supports 16384 tokens")
         token_limit = 16384
+    if "gpt-4.1" in model_name:
+        print("gpt-4.1 only supports 32768 tokens")
+        token_limit = 32768
     
     messages = [
         {
@@ -361,6 +371,9 @@ def openai_multiimage_completion(system_prompt, model_name, prompt, list_content
     if "gpt-4o" in model_name:
         print("gpt-4o only supports 16384 tokens")
         token_limit = 16384
+    if "gpt-4.1" in model_name:
+        print("gpt-4.1 only supports 32768 tokens")
+        token_limit = 32768
 
     content_blocks = []
     
