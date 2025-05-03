@@ -662,7 +662,7 @@ Frame count must be between 1-30.
         
         # If parsing failed, use default values
         if move is None:
-            move = ("[right]", 15)
+            move = ("[NOOP]", 1)
             print(f"Failed to parse move from response: {response}")
         
         if thought is None:
