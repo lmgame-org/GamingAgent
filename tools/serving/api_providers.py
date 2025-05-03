@@ -28,12 +28,18 @@ def anthropic_completion(system_prompt, model_name, base64_image, prompt, thinki
             ],
         }
     ]
+
+    if "claude-3-5" in model_name:
+        print("claude-3-5 only supports 8192 tokens and no thinking")
+        thinking = False
+        token_limit = 8192
+
     if thinking:
         with client.messages.stream(
                 max_tokens=token_limit,
                 thinking={
                     "type": "enabled",
-                    "budget_tokens": token_limit
+                    "budget_tokens": token_limit - 1
                 },
                 messages=messages,
                 temperature=1,
@@ -73,12 +79,18 @@ def anthropic_text_completion(system_prompt, model_name, prompt, thinking=False,
                     ],
                 }
             ]
+    
+    if "claude-3-5" in model_name:
+        print("claude-3-5 only supports 8192 tokens and no thinking")
+        thinking = False
+        token_limit = 8192
+
     if thinking:
         with client.messages.stream(
                 max_tokens=token_limit,
                 thinking={
                     "type": "enabled",
-                    "budget_tokens": token_limit
+                    "budget_tokens": token_limit - 1
                 },
                 messages=messages,
                 temperature=1,
