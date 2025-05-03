@@ -6,7 +6,7 @@ import google.generativeai as genai
 from google.generativeai import types
 from together import Together
 
-def anthropic_completion(system_prompt, model_name, base64_image, prompt, thinking=False, token_limit=10000):
+def anthropic_completion(system_prompt, model_name, base64_image, prompt, thinking=False, token_limit=30000):
     print(f"anthropic vision-text activated... thinking: {thinking}")
     client = anthropic.Anthropic(api_key=os.getenv("ANTHROPIC_API_KEY"))
     messages = [
@@ -60,7 +60,7 @@ def anthropic_completion(system_prompt, model_name, base64_image, prompt, thinki
     
     return generated_code_str
 
-def anthropic_text_completion(system_prompt, model_name, prompt, thinking=False, token_limit=10000):
+def anthropic_text_completion(system_prompt, model_name, prompt, thinking=False, token_limit=30000):
     client = anthropic.Anthropic(api_key=os.getenv("ANTHROPIC_API_KEY"))
     messages = [
                 {
@@ -105,7 +105,7 @@ def anthropic_text_completion(system_prompt, model_name, prompt, thinking=False,
     return generated_str
 
 
-def anthropic_multiimage_completion(system_prompt, model_name, prompt, list_content, list_image_base64, token_limit=10000):
+def anthropic_multiimage_completion(system_prompt, model_name, prompt, list_content, list_image_base64, token_limit=30000):
     client = anthropic.Anthropic(api_key=os.getenv("ANTHROPIC_API_KEY"))
     
     content_blocks = [] 
@@ -182,7 +182,7 @@ def safe_headers_init(self, headers=None, encoding=None):
 httpx.Headers.__init__ = safe_headers_init
 
 
-def openai_completion(system_prompt, model_name, base64_image, prompt, temperature=1, token_limit=10000, reasoning_effort="medium"):
+def openai_completion(system_prompt, model_name, base64_image, prompt, temperature=1, token_limit=30000, reasoning_effort="medium"):
     print(f"OpenAI vision-text API call: model={model_name}, reasoning_effort={reasoning_effort}")
     client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
@@ -225,7 +225,7 @@ def openai_completion(system_prompt, model_name, base64_image, prompt, temperatu
     response = client.chat.completions.create(**request_params)
     return response.choices[0].message.content
 
-def openai_text_completion(system_prompt, model_name, prompt, token_limit=10000, reasoning_effort="medium"):
+def openai_text_completion(system_prompt, model_name, prompt, token_limit=30000, reasoning_effort="medium"):
     print(f"OpenAI text-only API call: model={model_name}, reasoning_effort={reasoning_effort}")
     client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
     messages = [
@@ -261,7 +261,7 @@ def openai_text_completion(system_prompt, model_name, prompt, token_limit=10000,
      
     return generated_str
 
-def openai_text_reasoning_completion(system_prompt, model_name, prompt, temperature=1, token_limit=10000, reasoning_effort="medium"):
+def openai_text_reasoning_completion(system_prompt, model_name, prompt, temperature=1, token_limit=30000, reasoning_effort="medium"):
     print(f"OpenAI text-reasoning API call: model={model_name}, reasoning_effort={reasoning_effort}")
     client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
     
@@ -299,7 +299,7 @@ def openai_text_reasoning_completion(system_prompt, model_name, prompt, temperat
      
     return generated_str
 
-def deepseek_text_reasoning_completion(system_prompt, model_name, prompt, token_limit=10000):
+def deepseek_text_reasoning_completion(system_prompt, model_name, prompt, token_limit=30000):
      
     client = OpenAI(
         api_key=os.getenv("DEEPSEEK_API_KEY"),
@@ -333,7 +333,7 @@ def deepseek_text_reasoning_completion(system_prompt, model_name, prompt, token_
     
 
 
-def openai_multiimage_completion(system_prompt, model_name, prompt, list_content, list_image_base64, token_limit=10000, reasoning_effort="medium"):
+def openai_multiimage_completion(system_prompt, model_name, prompt, list_content, list_image_base64, token_limit=30000, reasoning_effort="medium"):
     print(f"OpenAI multi-image API call: model={model_name}, reasoning_effort={reasoning_effort}")
     client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
@@ -386,7 +386,7 @@ def openai_multiimage_completion(system_prompt, model_name, prompt, list_content
     return generated_str
 
 
-def gemini_text_completion(system_prompt, model_name, prompt, token_limit=10000):
+def gemini_text_completion(system_prompt, model_name, prompt, token_limit=30000):
     genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
     model = genai.GenerativeModel(model_name=model_name)
 
@@ -423,7 +423,7 @@ def gemini_text_completion(system_prompt, model_name, prompt, token_limit=10000)
         print(f"Error: {e}")
         return "" 
 
-def gemini_completion(system_prompt, model_name, base64_image, prompt, token_limit=10000):
+def gemini_completion(system_prompt, model_name, base64_image, prompt, token_limit=30000):
     genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
     model = genai.GenerativeModel(model_name=model_name)
 
@@ -464,7 +464,7 @@ def gemini_completion(system_prompt, model_name, base64_image, prompt, token_lim
         print(f"Error: {e}")
         return "" 
 
-def gemini_multiimage_completion(system_prompt, model_name, prompt, list_content, list_image_base64, token_limit=10000):
+def gemini_multiimage_completion(system_prompt, model_name, prompt, list_content, list_image_base64, token_limit=30000):
     genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
     model = genai.GenerativeModel(model_name=model_name)
 
@@ -499,7 +499,7 @@ def gemini_multiimage_completion(system_prompt, model_name, prompt, list_content
     return generated_str
 
 
-def together_ai_completion(system_prompt, model_name, prompt, base64_image=None, temperature=1, token_limit=10000):
+def together_ai_completion(system_prompt, model_name, prompt, base64_image=None, temperature=1, token_limit=30000):
     client = Together(api_key=os.getenv("TOGETHER_API_KEY"))
     if base64_image is not None:
         response = client.chat.completions.create(

@@ -801,7 +801,6 @@ async def run_actions(env, actions, fps=30):
         env.render()
         await asyncio.sleep(sleep_time)
         if terminated or truncated:
-            env.close()
             return observation, reward, terminated, truncated, info
     return observation, reward, terminated, truncated, info
 
