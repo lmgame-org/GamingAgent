@@ -197,6 +197,9 @@ httpx.Headers.__init__ = safe_headers_init
 def openai_completion(system_prompt, model_name, base64_image, prompt, temperature=1, token_limit=30000, reasoning_effort="medium"):
     print(f"OpenAI vision-text API call: model={model_name}, reasoning_effort={reasoning_effort}")
     client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+    if "gpt-4o" in model_name:
+        print("gpt-4o only supports 16384 tokens")
+        token_limit = 16384
 
     # Force-clean headers to prevent UnicodeEncodeError
     client._client._headers.update({
@@ -205,6 +208,7 @@ def openai_completion(system_prompt, model_name, base64_image, prompt, temperatu
     })
 
     base64_image = None if "o3-mini" in model_name else base64_image
+
     if base64_image is None:
         messages = [
             {"role": "user", "content": [{"type": "text", "text": prompt}]}
@@ -240,6 +244,9 @@ def openai_completion(system_prompt, model_name, base64_image, prompt, temperatu
 def openai_text_completion(system_prompt, model_name, prompt, token_limit=30000, reasoning_effort="medium"):
     print(f"OpenAI text-only API call: model={model_name}, reasoning_effort={reasoning_effort}")
     client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+    if "gpt-4o" in model_name:
+        print("gpt-4o only supports 16384 tokens")
+        token_limit = 16384
     messages = [
             {
                 "role": "user",
@@ -276,6 +283,9 @@ def openai_text_completion(system_prompt, model_name, prompt, token_limit=30000,
 def openai_text_reasoning_completion(system_prompt, model_name, prompt, temperature=1, token_limit=30000, reasoning_effort="medium"):
     print(f"OpenAI text-reasoning API call: model={model_name}, reasoning_effort={reasoning_effort}")
     client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+    if "gpt-4o" in model_name:
+        print("gpt-4o only supports 16384 tokens")
+        token_limit = 16384
     
     messages = [
         {
@@ -348,6 +358,9 @@ def deepseek_text_reasoning_completion(system_prompt, model_name, prompt, token_
 def openai_multiimage_completion(system_prompt, model_name, prompt, list_content, list_image_base64, token_limit=30000, reasoning_effort="medium"):
     print(f"OpenAI multi-image API call: model={model_name}, reasoning_effort={reasoning_effort}")
     client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+    if "gpt-4o" in model_name:
+        print("gpt-4o only supports 16384 tokens")
+        token_limit = 16384
 
     content_blocks = []
     

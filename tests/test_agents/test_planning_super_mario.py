@@ -541,7 +541,8 @@ Frame count must be between 1-30.
                 prompt=user_prompt,
                 image_path=img_path,
                 thinking=self.thinking,
-                reasoning_effort=self.reasoning_effort
+                reasoning_effort=self.reasoning_effort,
+                token_limit=100000
             )
             
             # Parse the response
@@ -661,6 +662,10 @@ Frame count must be between 1-30.
                     move = (action_name, frame_count)
         
         # If parsing failed, use default values
+
+        if move is None or thought is None:
+            print(f"Failed to parse response: {response}")
+
         if move is None:
             move = ("[NOOP]", 1)
             print(f"Failed to parse move from response: {response}")
@@ -669,6 +674,7 @@ Frame count must be between 1-30.
             thought = "No explicit thought provided in response"
             print(f"Failed to parse thought from response: {response}")
         
+
         return {
             "move": move,
             "thought": thought
@@ -787,6 +793,33 @@ def get_mario_position(env):
     # print(f"DEBUG: page={page}, x_pos_fine={x_pos_fine}, x_pos={x_pos}")
     return x_pos
 
+def get_player_state(env):
+    """
+    Return the current player state.
+    
+    Args:
+        env: The game environment
+        
+    Returns:
+        int: Player state value
+        
+    Note:
+        0x00 : Leftmost of screen
+        0x01 : Climbing vine
+        0x02 : Entering reversed-L pipe
+        0x03 : Going down a pipe
+        0x04 : Auto-walk
+        0x05 : Auto-walk
+        0x06 : Dead
+        0x07 : Entering area
+        0x08 : Normal
+        0x09 : Cannot move
+        0x0B : Dying
+        0x0C : Palette cycling, can't move
+    """
+    ram = env.get_ram()
+    return ram[0x000e]
+
 async def run_actions(env, actions, fps=30):
     """
     Run a sequence of actions on the given env at the specified frames per second.
@@ -794,12 +827,29 @@ async def run_actions(env, actions, fps=30):
     sleep_time = 1.0 / fps
     for idx, action in enumerate(actions):
         observation, reward, terminated, truncated, info = env.step(action)
-        # Add x_position to info
+        # Add x_position and player_state to info
         info['x_pos'] = get_mario_position(env)
+        info['player_state'] = get_player_state(env)
         # log each step's data
         log_to_jsonl(info, idx, reward, terminated, truncated)
         env.render()
         await asyncio.sleep(sleep_time)
+        
+        # Handle dying state (0x0B) by continuing to use NOOP until state changes
+        player_state = info['player_state']
+        if player_state == 11 or player_state == 0:  # Dying state (0x0B = 11 in decimal)
+            print("Mario is dying! Using NOOP actions until state changes...")
+            noop_action = all_actions["[NOOP]"]
+            while player_state == 11 or player_state == 0:
+                observation, reward, terminated, truncated, info = env.step(noop_action)
+                env.render()
+                await asyncio.sleep(sleep_time)
+                player_state = get_player_state(env)
+                info['player_state'] = player_state
+                log_to_jsonl(info, idx, reward, terminated, truncated)
+                if terminated or truncated:
+                    break
+                
         if terminated or truncated:
             return observation, reward, terminated, truncated, info
     return observation, reward, terminated, truncated, info
@@ -870,6 +920,9 @@ async def main():
     default_action = all_actions["[NOOP]"]
     observation, reward, terminated, truncated, info = env.step(default_action)
     
+    # Add player state to initial info
+    info['player_state'] = get_player_state(env)
+    
     # Save initial observation with grid
     log_to_jsonl(info, count, reward, terminated, truncated)
     
@@ -877,6 +930,27 @@ async def main():
     
     while True:
         print(f"\n--- SIMULATION STEP {count} ---")
+        
+        # Check if Mario is dying and handle with NOOPs if needed
+        player_state = get_player_state(env)
+        if player_state == 11 or player_state == 0:  # Dying state (0x0B = 11 in decimal)
+            print("Mario is dying! Using NOOP actions until state changes...")
+            while player_state == 11 or player_state == 0:
+                observation, reward, terminated, truncated, info = env.step(default_action)
+                info['player_state'] = player_state
+                info['x_pos'] = get_mario_position(env)
+                env.render()
+                await asyncio.sleep(sleep_time)
+                player_state = get_player_state(env)
+                log_to_jsonl(info, count, reward, terminated, truncated)
+                if terminated or truncated:
+                    break
+                    
+            if terminated or truncated:
+                print("Game over! Environment terminated or truncated.")
+                env.close()
+                break
+                
         llm_action_response = agent.get_action(observation, reward)
         
         # Get the action and frame count from the response

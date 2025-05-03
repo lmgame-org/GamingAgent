@@ -365,7 +365,8 @@ class APIManager:
         session_name: Optional[str] = None,
         temperature: float = 1,
         thinking: bool = False,
-        reasoning_effort: str = "medium"
+        reasoning_effort: str = "medium",
+        token_limit: int = 30000
     ) -> Tuple[str, Dict[str, Any]]:
         """
         Make a combined vision-text completion API call.
@@ -381,6 +382,7 @@ class APIManager:
             temperature (float): Temperature parameter (0-1)
             thinking (bool): Whether to enable thinking mode (Anthropic models)
             reasoning_effort (str): Reasoning effort for O-series models ("low"|"medium"|"high")
+            token_limit (int): Maximum number of tokens for the completion response
             
         Returns:
             Tuple[str, Dict]: (Generated text, Cost information)
@@ -404,7 +406,8 @@ class APIManager:
             "model_name": model_name,
             "temperature": temperature,
             "thinking": thinking,
-            "reasoning_effort": reasoning_effort
+            "reasoning_effort": reasoning_effort,
+            "token_limit": token_limit
         }
         
         # Select appropriate API based on model name
@@ -415,7 +418,8 @@ class APIManager:
                     model_name=model_name,
                     base64_image=base64_image,
                     prompt=prompt,
-                    thinking=thinking
+                    thinking=thinking,
+                    token_limit=token_limit
                 )
             elif "gpt" in model_name.lower() or model_name.startswith("o"):
                 completion = openai_completion(
@@ -424,14 +428,16 @@ class APIManager:
                     base64_image=base64_image,
                     prompt=prompt,
                     temperature=temperature,
-                    reasoning_effort=reasoning_effort
+                    reasoning_effort=reasoning_effort,
+                    token_limit=token_limit
                 )
             elif "gemini" in model_name.lower():
                 completion = gemini_completion(
                     system_prompt=system_prompt,
                     model_name=model_name,
                     base64_image=base64_image,
-                    prompt=prompt
+                    prompt=prompt,
+                    token_limit=token_limit
                 )
             else:
                 raise ValueError(f"Unsupported model: {model_name}")
@@ -593,7 +599,8 @@ class APIManager:
         session_name: Optional[str] = None,
         temperature: float = 1,
         thinking: bool = False,
-        reasoning_effort: str = "medium"
+        reasoning_effort: str = "medium",
+        token_limit: int = 30000
     ) -> Tuple[str, Dict[str, Any]]:
         """
         Make a text-only completion API call.
@@ -606,6 +613,7 @@ class APIManager:
             temperature (float): Temperature parameter (0-1)
             thinking (bool): Whether to enable thinking mode (Anthropic models)
             reasoning_effort (str): Reasoning effort for O-series models ("low"|"medium"|"high")
+            token_limit (int): Maximum number of tokens for the completion response
             
         Returns:
             Tuple[str, Dict]: (Generated text, Cost information)
@@ -617,7 +625,8 @@ class APIManager:
             "model_name": model_name,
             "temperature": temperature,
             "thinking": thinking,
-            "reasoning_effort": reasoning_effort
+            "reasoning_effort": reasoning_effort,
+            "token_limit": token_limit
         }
         
         # Select appropriate API based on model name
@@ -627,20 +636,23 @@ class APIManager:
                     system_prompt=system_prompt,
                     model_name=model_name,
                     prompt=prompt,
-                    thinking=thinking
+                    thinking=thinking,
+                    token_limit=token_limit
                 )
             elif "gpt" in model_name.lower() or model_name.startswith("o"):
                 completion = openai_text_completion(
                     system_prompt=system_prompt,
                     model_name=model_name,
                     prompt=prompt,
-                    reasoning_effort=reasoning_effort
+                    reasoning_effort=reasoning_effort,
+                    token_limit=token_limit
                 )
             elif "gemini" in model_name.lower():
                 completion = gemini_text_completion(
                     system_prompt=system_prompt,
                     model_name=model_name,
-                    prompt=prompt
+                    prompt=prompt,
+                    token_limit=token_limit
                 )
             else:
                 raise ValueError(f"Unsupported model: {model_name}")
@@ -696,7 +708,8 @@ class APIManager:
         session_name: Optional[str] = None,
         temperature: float = 1,
         thinking: bool = False,
-        reasoning_effort: str = "medium"
+        reasoning_effort: str = "medium",
+        token_limit: int = 30000
     ) -> Tuple[str, Dict[str, Any]]:
         """
         Legacy method for vision-based completion API call.
@@ -712,6 +725,7 @@ class APIManager:
             temperature (float): Temperature parameter (0-1)
             thinking (bool): Whether to enable thinking mode
             reasoning_effort (str): Reasoning effort for O-series models ("low"|"medium"|"high")
+            token_limit (int): Maximum number of tokens for the completion response
             
         Returns:
             Tuple[str, Dict]: (Generated text, Cost information)
@@ -726,7 +740,8 @@ class APIManager:
             session_name=session_name,
             temperature=temperature,
             thinking=thinking,
-            reasoning_effort=reasoning_effort
+            reasoning_effort=reasoning_effort,
+            token_limit=token_limit
         )
     
     def text_completion(
@@ -737,7 +752,8 @@ class APIManager:
         session_name: Optional[str] = None,
         temperature: float = 1,
         thinking: bool = False,
-        reasoning_effort: str = "medium"
+        reasoning_effort: str = "medium",
+        token_limit: int = 30000
     ) -> Tuple[str, Dict[str, Any]]:
         """
         Legacy method for text-only completion API call.
@@ -751,6 +767,7 @@ class APIManager:
             temperature (float): Temperature parameter (0-1)
             thinking (bool): Whether to enable thinking mode
             reasoning_effort (str): Reasoning effort for O-series models ("low"|"medium"|"high")
+            token_limit (int): Maximum number of tokens for the completion response
             
         Returns:
             Tuple[str, Dict]: (Generated text, Cost information)
@@ -763,7 +780,8 @@ class APIManager:
             session_name=session_name,
             temperature=temperature,
             thinking=thinking,
-            reasoning_effort=reasoning_effort
+            reasoning_effort=reasoning_effort,
+            token_limit=token_limit
         )
     
     def multi_image_completion(
