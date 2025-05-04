@@ -7,6 +7,7 @@ import queue
 import json
 import os
 import copy
+import argparse
 
 CACHE_DIR = "cache/sokoban"
 
@@ -25,16 +26,27 @@ docker_original = pygame.image.load('games/sokoban/images/dock.png')
 
 _last_saved_matrix = None
 
-# Start game from level 1 and auto advance after completion
-level = 1
+# Parse command line arguments
+parser = argparse.ArgumentParser(description="Sokoban Game")
+parser.add_argument("--level", type=int, default=1, help="Start game from a specific level")
+# Add a new command line argument for specifying the max level
+parser.add_argument("--max_level", type=int, default=52, help="Maximum level in the level file")
+# Add a new command line argument for specifying the levels filename
+parser.add_argument("--levels_filename", type=str, default='games/sokoban/levels', help="Path to the levels file")
+args = parser.parse_args()
+
+# Start game from specified level or default to level 1
+level = args.level
+# Use the specified max level or default to 52
+max_level = args.max_level
+# Use the specified levels filename or default to 'games/sokoban/levels'
+levels_filename = args.levels_filename
 level_dict = {"level": level}
 current_level_path = os.path.join(CACHE_DIR, "current_level.json")
 print(f"writing to: {current_level_path}")
 print(level_dict)
 with open(current_level_path, 'w') as file:
     json.dump(level_dict, file)
-
-levels_filename = 'games/sokoban/levels'
 
 def save_levels_dimensions(levels_filename, max_level=52):
     """
@@ -354,7 +366,7 @@ docker = pygame.image.load('games/sokoban/images/dock.png')
 background = (255, 226, 191)
 pygame.init()
 
-save_levels_dimensions(levels_filename, 52)
+save_levels_dimensions(levels_filename, max_level)
 
 while True:
     print("Starting Level " + str(level))
@@ -418,6 +430,6 @@ while True:
         json.dump(level_dict, file)
     
     # If the level number exceeds the maximum, end the game.
-    if level > 52:
+    if level > max_level:
         print("Congratulations! All levels completed.")
         sys.exit(0)

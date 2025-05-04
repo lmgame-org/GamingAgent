@@ -60,8 +60,10 @@ def main():
     parser.add_argument("--num_threads", type=int, default=5, help="Number of parallel threads to launch.")
     args = parser.parse_args()
 
-    prev_responses = deque(maxlen=10)
+    # TODO: enlarge this cache size and clear it when level up
+    prev_responses = deque(maxlen=20)
     level = None
+    step_count = 0
 
     def perform_move(move):
         key_map = {
@@ -70,7 +72,8 @@ def main():
             "left": "left",
             "right": "right",
             "restart": 'R',
-            "unmove": 'D'
+            "unmove": 'D',
+            "levelup": ' ', # do nothing
         }
         if move in key_map:
             pyautogui.press(key_map[move])
@@ -161,7 +164,8 @@ def main():
             if final_moves:
                 assert len(final_moves) == len(collected_thoughts_per_move), "move and thought length disagree, regex operation errored out."
                 for move, matched_thought in zip(final_moves, collected_thoughts_per_move):
-                    latest_response = "step executed:\n" + f"move: {move}, thought: {matched_thought}" + "\n"
+                    step_count += 1
+                    latest_response = f"step {step_count} executed:\n" + f"move: {move}, thought: {matched_thought}" + "\n"
                     prev_responses.append(latest_response)
 
             print("[debug] previous message:")
