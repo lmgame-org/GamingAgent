@@ -33,6 +33,10 @@ def anthropic_completion(system_prompt, model_name, base64_image, prompt, thinki
         print("claude-3-5 only supports 8192 tokens and no thinking")
         thinking = False
         token_limit = 8192
+    
+    if "claude-3-7" in model_name:
+        print("claude-3-7 supports 64000 tokens")
+        token_limit = 64000
 
     if thinking:
         with client.messages.stream(
@@ -427,6 +431,7 @@ def openai_multiimage_completion(system_prompt, model_name, prompt, list_content
 def gemini_text_completion(system_prompt, model_name, prompt, token_limit=30000):
     genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
     model = genai.GenerativeModel(model_name=model_name)
+    print(f"gemini_text_completion: model_name={model_name}, token_limit={token_limit}")
 
     messages = [
         prompt,
@@ -464,7 +469,7 @@ def gemini_text_completion(system_prompt, model_name, prompt, token_limit=30000)
 def gemini_completion(system_prompt, model_name, base64_image, prompt, token_limit=30000):
     genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
     model = genai.GenerativeModel(model_name=model_name)
-
+    print(f"gemini_completion: model_name={model_name}, token_limit={token_limit}")
     messages = [
         {
             "mime_type": "image/jpeg",
@@ -538,46 +543,141 @@ def gemini_multiimage_completion(system_prompt, model_name, prompt, list_content
 
 
 def together_ai_completion(system_prompt, model_name, prompt, base64_image=None, temperature=1, token_limit=30000):
-    client = Together(api_key=os.getenv("TOGETHER_API_KEY"))
-    if base64_image is not None:
+    try:
+        # Initialize client without explicitly passing API key
+        # It will automatically use TOGETHER_API_KEY environment variable
+        client = Together()
+        
+        if base64_image is not None:
+            response = client.chat.completions.create(
+                model=model_name,
+                messages=[
+                    {
+                        "role": "user",
+                        "content": [
+                            {
+                                "type": "image_url",
+                                "image_url": {"url": f"data:image/png;base64,{base64_image}"}
+                            },
+                            {
+                                "type": "text",
+                                "text": prompt
+                            }
+                        ]
+                    }
+                ],
+                temperature=temperature,
+                max_tokens=token_limit
+            )
+        else:
+            response = client.chat.completions.create(
+                model=model_name,
+                messages=[
+                    {
+                        "role": "user",
+                        "content": [
+                            {
+                                "type": "text",
+                                "text": prompt
+                            }
+                        ]
+                    }
+                ],
+                temperature=temperature,
+                max_tokens=token_limit
+            )
+
+        generated_str = response.choices[0].message.content
+        return generated_str
+    except Exception as e:
+        print(f"Error in together_ai_completion: {e}")
+        raise
+
+def together_ai_text_completion(system_prompt, model_name, prompt, temperature=1, token_limit=30000):
+    print(f"Together AI text-only API call: model={model_name}")
+    try:
+        # Initialize client without explicitly passing API key
+        # It will automatically use TOGETHER_API_KEY environment variable
+        client = Together()
+        
+        # Format messages with system prompt if provided
+        messages = []
+        if system_prompt:
+            messages.append({
+                "role": "system",
+                "content": system_prompt
+            })
+        
+        messages.append({
+            "role": "user",
+            "content": prompt
+        })
+        
         response = client.chat.completions.create(
             model=model_name,
-            messages=[
-                {
-                    "role": "user",
-                    "content": [
-                        {
-                            "type": "image_url",
-                            "image_url": {"url": f"data:image/png;base64,{base64_image}"}
-                        },
-                        {
-                            "type": "text",
-                            "text": prompt
-                        }
-                    ]
-                }
-            ],
-            temperature=temperature,
-            max_tokens=token_limit
-        )
-    else:
-        response = client.chat.completions.create(
-            model="meta-llama/Llama-4-Maverick-17B-128E-Instruct-FP8",
-            messages=[
-                {
-                    "role": "user",
-                    "content": [
-                        {
-                            "type": "text",
-                            "text": prompt
-                        }
-                    ]
-                }
-            ],
+            messages=messages,
             temperature=temperature,
             max_tokens=token_limit
         )
 
-    generated_str = response.choices[0].message.content
-     
-    return generated_str
+        generated_str = response.choices[0].message.content
+        return generated_str
+    except Exception as e:
+        print(f"Error in together_ai_text_completion: {e}")
+        raise
+
+def together_ai_multiimage_completion(system_prompt, model_name, prompt, list_content, list_image_base64, temperature=1, token_limit=30000):
+    print(f"Together AI multi-image API call: model={model_name}")
+    try:
+        # Initialize client without explicitly passing API key
+        # It will automatically use TOGETHER_API_KEY environment variable
+        client = Together()
+        
+        # Prepare message with multiple images and text
+        content_blocks = []
+        
+        # Add text content
+        joined_text = "\n\n".join(list_content)
+        content_blocks.append({
+            "type": "text",
+            "text": joined_text
+        })
+        
+        # Add images
+        for base64_image in list_image_base64:
+            content_blocks.append({
+                "type": "image_url",
+                "image_url": {"url": f"data:image/png;base64,{base64_image}"}
+            })
+        
+        # Add final prompt text
+        content_blocks.append({
+            "type": "text",
+            "text": prompt
+        })
+        
+        # Format messages with system prompt if provided
+        messages = []
+        if system_prompt:
+            messages.append({
+                "role": "system",
+                "content": system_prompt
+            })
+        
+        messages.append({
+            "role": "user",
+            "content": content_blocks
+        })
+        
+        response = client.chat.completions.create(
+            model=model_name,
+            messages=messages,
+            temperature=temperature,
+            max_tokens=token_limit
+        )
+
+        generated_str = response.choices[0].message.content
+        return generated_str
+    except Exception as e:
+        print(f"Error in together_ai_multiimage_completion: {e}")
+        raise

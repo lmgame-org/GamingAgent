@@ -682,27 +682,261 @@ Frame count must be between 1-30.
         }
 
 
-class SuperMarioBrosAgent:
-    def __init__(self, model_name="claude-3-7-sonnet-latest", img_path=GRID_IMG_PATH):
+class Base_module:
+    """
+    A simplified module that directly processes observation images and returns actions.
+    This module skips separate perception and memory stages used in the full pipeline.
+    """
+    def __init__(self, model_name="claude-3-7-sonnet-latest", reasoning_effort="high", thinking=True):
         """
-        Initialize the Super Mario Bros Agent with perception, memory, and reasoning modules.
+        Initialize the Base Module for direct action planning.
+        
+        Args:
+            model_name (str): Name of the model to use for reasoning
+            reasoning_effort (str): Reasoning effort level for compatible models
+            thinking (bool): Whether to enable thinking mode for compatible models
+        """
+        self.model_name = model_name
+        self.reasoning_effort = reasoning_effort
+        self.thinking = thinking
+        self.api_manager = APIManager(game_name="super_mario_bros")
+        self.last_action = None
+        
+        # System prompt with strict output instructions
+        self.system_prompt = """You are an intelligent AI player playing Super Mario Bros. Your goal is to help Mario progress through the level safely and efficiently.
+
+IMPORTANT: You MUST format your response using EXACTLY these lines:
+thought: [Your reasoning about the game state]
+move: ([action_name], frame_count)
+
+Do not include # or any other prefix. Start directly with "thought:" followed by your analysis."""
+        
+        # Prompt for direct observation analysis and action planning
+        self.action_prompt = """Super Mario Bros Quick Guide:
+Primary Goal: Help Mario progress through the level (move right) while avoiding hazards.
+Secondary Goal: Collect coins and power-ups when safe to do so.
+
+Action Space:
+You may select from 7 discrete actions:
+
+| Action        | Description                        |
+|--------------|------------------------------------|
+| [NOOP]        | Do nothing                         |
+| [right]       | Move right                         |
+| [right,A]     | Move right and jump                |
+| [right,B]     | Move right and run                 |
+| [right,A,B]   | Move right, jump, and run          |
+| [A]           | Jump in place                      |
+| [left]        | Move left                          |
+
+For each decision, you need to plan an action and specify how many frames (1-30) to perform it.
+Example: move: ([right,A], 15)
+
+Important: Think about future frames when deciding on actions!
+
+Action Planning:
+- For each screenshot, you need to plan actions for multiple future frames.
+- You can provide either:
+  * Short action sequence (0-15 frames): e.g., move: ([right], 15)
+  * Long action sequence (16-30 frames): e.g., move: ([right], 30)
+
+Key Strategies:
+- Approaching gaps: Be cautious. Use short sequences to prepare, then commit to a jump.
+- Enemies: Jump over enemies when close. If unsure, move back or jump in place.
+- Speed management: Don't rush as unseen enemies may appear from off-screen.
+- When Mario is falling: Use [NOOP] until he lands safely.
+
+Your response must contain:
+1. thought: [Your reasoning about the game state]
+2. move: ([action_name], frame_count)
+
+Example responses:
+- thought: I see a gap ahead. I need to get the right momentum before jumping.
+  move: ([right,B], 15)
+
+- thought: I see multiple enemies clustering ahead. Taking a defensive position.
+  move: ([left], 8)
+
+- thought: There's a tall pipe ahead. I need a long, high jump to clear it completely.(at least more than 25 frames can handle this tall pipe)
+  move: ([right,A,B], 30)
+
+- thought: I'm at the edge of a large gap. Need to execute a powerful jump immediately to clear it.
+  move: ([right,A,B], 30)
+
+- thought: Mario is falling down and close to the ground but not fully landed yet. I need a small frame skip before taking further actions.
+  move: ([NOOP], 5)
+
+Focus on making safe, strategic decisions to help Mario progress.
+"""
+
+    def process_observation(self, observation, img_path):
+        """
+        Process the observation directly to plan the next action.
+        
+        Args:
+            observation: The game observation (RGB image)
+            img_path: Path to save the observation image
+            
+        Returns:
+            dict: A dictionary containing move and thought
+        """
+        try:
+            # Save the observation image for the vision model
+            img = Image.fromarray(observation)
+            img_resized = resize_image_with_aspect_ratio(img)
+            img_resized.save(img_path)
+            
+            # Create a simplified user prompt
+            user_prompt = f"""Analyze this Super Mario Bros screenshot and choose the best action to take.
+
+Look for:
+- Mario's position
+- Nearby enemies (Goombas, Koopas)
+- Pits/gaps
+- Pipes and other obstacles
+- Power-ups
+
+{self.action_prompt}
+
+Based on the current game state in the image, what action should Mario take next?
+
+IMPORTANT - FORMAT YOUR RESPONSE EXACTLY LIKE THIS:
+thought: [your analysis here]
+move: ([action_name], frame_count)
+
+Only use available actions: [NOOP], [right], [right,A], [right,B], [right,A,B], [A], [left]
+Frame count must be between 1-30.
+"""
+            
+            # Make API call with vision model
+            response, _ = self.api_manager.vision_text_completion(
+                model_name=self.model_name,
+                system_prompt=self.system_prompt,
+                prompt=user_prompt,
+                image_path=img_path,
+                thinking=self.thinking,
+                reasoning_effort=self.reasoning_effort,
+                token_limit=100000
+            )
+            
+            # Parse the response
+            return self._parse_response(response)
+            
+        except Exception as e:
+            print(f"Error in Base_module: {e}")
+            # Return a default action on error
+            return {
+                "move": ("[NOOP]", 1),
+                "thought": f"Error occurred in Base_module: {str(e)}"
+            }
+    
+    def _parse_response(self, response):
+        """
+        Parse the response to extract thought and move.
+        
+        Args:
+            response (str): Response from the model
+            
+        Returns:
+            dict: Dictionary with thought and move
+        """
+        move = None
+        thought = None
+        
+        # Look for thought: and move: in the response (with or without # prefix)
+        lines = response.strip().split('\n')
+        for i, line in enumerate(lines):
+            line = line.strip()
+            
+            # Match both "thought:" and "# thought:" patterns
+            if line.startswith("thought:") or line.startswith("# thought:"):
+                prefix_len = line.find("thought:") + len("thought:")
+                
+                # If this is the last line, just use it
+                if i == len(lines) - 1:
+                    thought = line[prefix_len:].strip()
+                else:
+                    # If not the last line, collect all lines until we hit a move: line
+                    thought_lines = []
+                    thought_lines.append(line[prefix_len:].strip())
+                    
+                    j = i + 1
+                    while j < len(lines) and not (lines[j].strip().startswith("move:") or lines[j].strip().startswith("# move:")):
+                        thought_lines.append(lines[j].strip())
+                        j += 1
+                    
+                    thought = " ".join(thought_lines).strip()
+            
+            # Match both "move:" and "# move:" patterns  
+            elif line.startswith("move:") or line.startswith("# move:"):
+                prefix_len = line.find("move:") + len("move:")
+                move_text = line[prefix_len:].strip()
+                
+                # Expected format: move: ([action_name], frame_count)
+                # Extract action and frame count using regex
+                import re
+                move_match = re.search(r'\((\[.*?\]),\s*(\d+)\)', move_text)
+                if move_match:
+                    action_name = move_match.group(1)
+                    frame_count = int(move_match.group(2))
+                    
+                    # Normalize action name to match the all_actions dictionary keys
+                    # Remove spaces between commas
+                    action_name = action_name.replace(", ", ",")
+                    
+                    # Check if the normalized action exists in all_actions
+                    if action_name not in all_actions:
+                        print(f"Warning: Unknown action '{action_name}', defaulting to '[right]'")
+                        action_name = "[right]"
+                    
+                    move = (action_name, frame_count)
+        
+        # If parsing failed, use default values
+        if move is None or thought is None:
+            print(f"Failed to parse response: {response}")
+
+        if move is None:
+            move = ("[NOOP]", 1)
+            print(f"Failed to parse move from response: {response}")
+        
+        if thought is None:
+            thought = "No explicit thought provided in response"
+            print(f"Failed to parse thought from response: {response}")
+        
+        return {
+            "move": move,
+            "thought": thought
+        }
+
+
+class SuperMarioBrosAgent:
+    def __init__(self, model_name="claude-3-7-sonnet-latest", img_path=GRID_IMG_PATH, use_base_module=False):
+        """
+        Initialize the Super Mario Bros Agent with either the full pipeline or simplified Base_module.
         
         Args:
             model_name (str): Name of the model to use for inference
             img_path (str): Path where to save observation images for API calls
+            use_base_module (bool): Whether to use the simplified Base_module instead of the full pipeline
         """
         self.model_name = model_name
         self.img_path = img_path
         self.last_action = None  # Store the last action taken
+        self.use_base_module = use_base_module
         
         # Initialize modules
-        self.perception_module = PerceptionModule(model_name=model_name)
-        self.memory_module = MemoryModule(model_name=model_name)
-        self.reasoning_module = ReasoningModule(model_name=model_name)
+        if use_base_module:
+            print(f"Using simplified Base_module with model: {model_name}")
+            self.base_module = Base_module(model_name=model_name)
+        else:
+            print(f"Using full pipeline (Perception + Memory + Reasoning) with model: {model_name}")
+            self.perception_module = PerceptionModule(model_name=model_name)
+            self.memory_module = MemoryModule(model_name=model_name)
+            self.reasoning_module = ReasoningModule(model_name=model_name)
         
     def get_action(self, observation, reward):
         """
-        Process observation through all modules to get game action.
+        Process observation to get game action using either full pipeline or Base_module.
         
         Args:
             observation: The game observation (RGB image)
@@ -712,51 +946,63 @@ class SuperMarioBrosAgent:
             dict: A dictionary containing move and thought
         """
         try:
-            # Step 1: Perception - Analyze the frame
-            perception_data = self.perception_module.analyze_frame(observation, self.img_path)
-            
-            # Print perception data in a readable format
-            print("\n" + "="*80)
-            print("PERCEPTION DATA:")
-            print(f"Mario position: ({perception_data['mario']['x']}, {perception_data['mario']['y']})")
-            print(f"Game state: {perception_data['game_state']}")
-            print("Environment:")
-            for key, value in perception_data['environment'].items():
-                if value and value != []:
-                    print(f"  - {key}: {value}")
-            
-            # Step 2: Memory - Add to memory and get summary
-            self.memory_module.add_game_state(perception_data, self.last_action)
-            memory_summary = self.memory_module.get_memory_summary()
-            
-            # Print memory summary - remove erroneous formatting
-            if memory_summary:
-                print("\nMEMORY SUMMARY:")
-                print(f"Memory entries: {len(memory_summary)}")
-                if len(memory_summary) > 0:
-                    latest_entry = memory_summary[-1]
-                    if 'reflection' in latest_entry and latest_entry['reflection']:
-                        print(f"Latest reflection: {latest_entry['reflection']}")
-                    if 'last_action' in latest_entry and latest_entry['last_action']:
-                        print(f"Previous action: {latest_entry['last_action']}")
-            
-            # Step 3: Reasoning - Plan the next action
-            action_plan = self.reasoning_module.plan_action(
-                current_perception=perception_data,
-                memory_summary=memory_summary,
-                img_path=self.img_path
-            )
-            
-            # Print action plan
-            print("\nACTION PLAN:")
-            print(f"Action: {action_plan['move']}")
-            print(f"Thought: {action_plan['thought']}")
-            print("="*80 + "\n")
-            
-            # Store this action for the next iteration
-            self.last_action = action_plan["move"]
-            
-            return action_plan
+            if self.use_base_module:
+                # Simplified direct approach
+                print("\n" + "="*80)
+                action_plan = self.base_module.process_observation(observation, self.img_path)
+                print("\nACTION PLAN:")
+                print(f"Action: {action_plan['move']}")
+                print(f"Thought: {action_plan['thought']}")
+                print("="*80 + "\n")
+                self.last_action = action_plan["move"]
+                return action_plan
+            else:
+                # Full pipeline approach
+                # Step 1: Perception - Analyze the frame
+                perception_data = self.perception_module.analyze_frame(observation, self.img_path)
+                
+                # Print perception data in a readable format
+                print("\n" + "="*80)
+                print("PERCEPTION DATA:")
+                print(f"Mario position: ({perception_data['mario']['x']}, {perception_data['mario']['y']})")
+                print(f"Game state: {perception_data['game_state']}")
+                print("Environment:")
+                for key, value in perception_data['environment'].items():
+                    if value and value != []:
+                        print(f"  - {key}: {value}")
+                
+                # Step 2: Memory - Add to memory and get summary
+                self.memory_module.add_game_state(perception_data, self.last_action)
+                memory_summary = self.memory_module.get_memory_summary()
+                
+                # Print memory summary
+                if memory_summary:
+                    print("\nMEMORY SUMMARY:")
+                    print(f"Memory entries: {len(memory_summary)}")
+                    if len(memory_summary) > 0:
+                        latest_entry = memory_summary[-1]
+                        if 'reflection' in latest_entry and latest_entry['reflection']:
+                            print(f"Latest reflection: {latest_entry['reflection']}")
+                        if 'last_action' in latest_entry and latest_entry['last_action']:
+                            print(f"Previous action: {latest_entry['last_action']}")
+                
+                # Step 3: Reasoning - Plan the next action
+                action_plan = self.reasoning_module.plan_action(
+                    current_perception=perception_data,
+                    memory_summary=memory_summary,
+                    img_path=self.img_path
+                )
+                
+                # Print action plan
+                print("\nACTION PLAN:")
+                print(f"Action: {action_plan['move']}")
+                print(f"Thought: {action_plan['thought']}")
+                print("="*80 + "\n")
+                
+                # Store this action for the next iteration
+                self.last_action = action_plan["move"]
+                
+                return action_plan
             
         except Exception as e:
             print(f"Error in get_action: {e}")
@@ -770,7 +1016,10 @@ class SuperMarioBrosAgent:
         
     def parse_agent_response(self, response):
         """Legacy method for backward compatibility"""
-        return self.reasoning_module._parse_response(response)
+        if self.use_base_module:
+            return self.base_module._parse_response(response)
+        else:
+            return self.reasoning_module._parse_response(response)
 
 def get_mario_position(env):
     """
@@ -920,24 +1169,91 @@ def store_experiment_info(model_name, game_name="SuperMarioBros-Nes"):
     
     print(f"Experiment info saved to {EXPERIMENT_INFO_FILE}")
 
+def log_agent_data(perception_data, memory_summary, action_plan, run_count, step_count):
+    """
+    Log agent's perception, memory, and action data to separate files.
+    
+    Args:
+        perception_data: The agent's perception data
+        memory_summary: The agent's memory summary
+        action_plan: The agent's action plan (containing move and thought)
+        run_count: Current run number
+        step_count: Current step number
+    """
+    # Create log directory if it doesn't exist
+    log_dir = os.path.join(CACHE_DIR, f"run_{run_count}_logs")
+    os.makedirs(log_dir, exist_ok=True)
+    
+    # Log perception data
+    if perception_data:
+        perception_file = os.path.join(log_dir, f"perception_step_{step_count}.json")
+        with open(perception_file, 'w') as f:
+            json.dump(perception_data, f, indent=2)
+    
+    # Log memory summary
+    if memory_summary:
+        memory_file = os.path.join(log_dir, f"memory_step_{step_count}.json")
+        with open(memory_file, 'w') as f:
+            json.dump(memory_summary, f, indent=2)
+    
+    # Log action plan (thought and move)
+    if action_plan:
+        action_file = os.path.join(log_dir, f"action_step_{step_count}.json")
+        with open(action_file, 'w') as f:
+            # Convert tuple to list for JSON serialization
+            if 'move' in action_plan and isinstance(action_plan['move'], tuple):
+                action_plan_copy = action_plan.copy()
+                action_plan_copy['move'] = list(action_plan_copy['move'])
+                json.dump(action_plan_copy, f, indent=2)
+            else:
+                json.dump(action_plan, f, indent=2)
+
 async def main():
     # Parse command line arguments
     parser = argparse.ArgumentParser(description='Run Super Mario Bros AI agent')
     parser.add_argument('--model', type=str, default="claude-3-5-sonnet-latest", 
                         help='Model name to use for inference (default: claude-3-5-sonnet-latest)')
+    parser.add_argument('--base', action='store_true', 
+                        help='Use simplified Base_module instead of full pipeline')
+    parser.add_argument('--num_runs', type=int, default=1,
+                        help='Number of game runs to perform (default: 1)')
     args = parser.parse_args()
     
     os.makedirs(CACHE_DIR, exist_ok=True)
     
-    # Store experiment info
-    store_experiment_info(model_name=args.model)
+    # Store experiment info with added info about module choice
+    experiment_info = {
+        "timestamp": datetime.now().isoformat(),
+        "model_name": args.model,
+        "game_name": "SuperMarioBros-Nes",
+        "module_type": "base" if args.base else "full",
+        "num_runs": args.num_runs,
+        "cache_directory": CACHE_DIR,
+        "system_info": {
+            "platform": os.name,
+            "python_version": os.sys.version
+        },
+        "configuration": {
+            "max_short_side": MAX_SHORT_SIDE,
+            "max_long_side": MAX_LONG_SIDE
+        }
+    }
+    
+    # Ensure the directory exists
+    os.makedirs(os.path.dirname(EXPERIMENT_INFO_FILE), exist_ok=True)
+    
+    # Write to JSON file
+    with open(EXPERIMENT_INFO_FILE, 'w') as f:
+        json.dump(experiment_info, f, indent=2)
+    
+    print(f"Experiment info saved to {EXPERIMENT_INFO_FILE}")
     
     env = retro.make(
         game="SuperMarioBros-Nes",
         obs_type=retro.Observations.IMAGE,
-        render_mode='human'
+        render_mode='human',
+        record=CACHE_DIR
     )
-    env.reset()
     
     # Print controller button mapping
     print("Buttons:", env.buttons)
@@ -948,74 +1264,105 @@ async def main():
         action = env.action_space.sample()
         print(f"Sample {i}: {action}")
 
-    # Initialize the agent with grid image path and specified model
-    agent = SuperMarioBrosAgent(img_path=GRID_IMG_PATH, model_name=args.model)
-    print(f"Using model: {args.model}")
+    # Initialize the agent with grid image path, specified model, and module choice
+    agent = SuperMarioBrosAgent(
+        img_path=GRID_IMG_PATH, 
+        model_name=args.model,
+        use_base_module=args.base
+    )
     
-    count = 0
-    sleep_time = 1.0 / 30
-    default_action = all_actions["[NOOP]"]
-    observation, reward, terminated, truncated, info = env.step(default_action)
+    if args.base:
+        print(f"Using Base_module with model: {args.model}")
+    else:
+        print(f"Using full pipeline with model: {args.model}")
     
-    # Add player state to initial info
-    info['player_state'] = get_player_state(env)
-    
-    # Save initial observation with grid
-    log_to_jsonl(info, count, reward, terminated, truncated)
-    
-    count += 1
-    
-    while True:
-        print(f"\n--- SIMULATION STEP {count} ---")
+    # Run the game for the specified number of times
+    for run_count in range(1, args.num_runs + 1):
+        print(f"\n========== STARTING RUN {run_count}/{args.num_runs} ==========\n")
         
-        # Check if Mario is dying and handle with NOOPs if needed
-        player_state = get_player_state(env)
-        if player_state == 11 or player_state == 0:  # Dying state (0x0B = 11 in decimal)
-            print("Mario is dying! Using NOOP actions until state changes...")
-            while player_state == 11 or player_state == 0:
-                observation, reward, terminated, truncated, info = env.step(default_action)
-                info['player_state'] = player_state
-                info['x_pos'] = get_mario_position(env)
-                env.render()
-                await asyncio.sleep(sleep_time)
-                player_state = get_player_state(env)
-                log_to_jsonl(info, count, reward, terminated, truncated)
-                if terminated or truncated:
-                    break
-                    
-            if terminated or truncated:
-                print("Game over! Environment terminated or truncated.")
-                env.close()
-                break
-                
-        llm_action_response = agent.get_action(observation, reward)
+        # Reset the environment at the start of each run
+        env.reset()
         
-        # Get the action and frame count from the response
-        action_name, frame_count = llm_action_response['move']
-        # Convert action name to actual action array
-        action = all_actions[action_name]
-        # Create list of actions to run
-        actions = [action] * frame_count
-        
-        # Run the actions and wait for completion
+        count = 0
+        sleep_time = 1.0 / 30
+        default_action = all_actions["[NOOP]"]
         observation, reward, terminated, truncated, info = env.step(default_action)
-        await asyncio.sleep(sleep_time)
-        observation, reward, terminated, truncated, info = await run_actions(env, actions, fps=30)
         
-        # Add x_position to info
-        info['x_pos'] = get_mario_position(env)
-        # Append to JSONL log with reward and termination status
+        # Add player state to initial info
+        info['player_state'] = get_player_state(env)
+        
+        # Save initial observation with grid
         log_to_jsonl(info, count, reward, terminated, truncated)
-        env.render()
+        
         count += 1
-        if terminated or truncated:
-            print("Game over! Environment terminated or truncated.")
-            env.close()
-            break
-
+        
+        while True:
+            print(f"\n--- RUN {run_count} - STEP {count} ---")
+            
+            # Check if Mario is dying and handle with NOOPs if needed
+            player_state = get_player_state(env)
+            if player_state == 11 or player_state == 0:  # Dying state (0x0B = 11 in decimal)
+                print("Mario is dying! Using NOOP actions until state changes...")
+                while player_state == 11 or player_state == 0:
+                    observation, reward, terminated, truncated, info = env.step(default_action)
+                    info['player_state'] = player_state
+                    info['x_pos'] = get_mario_position(env)
+                    env.render()
+                    await asyncio.sleep(sleep_time)
+                    player_state = get_player_state(env)
+                    log_to_jsonl(info, count, reward, terminated, truncated)
+                    if terminated or truncated:
+                        break
+                        
+                if terminated or truncated:
+                    print(f"Run {run_count} over! Environment terminated or truncated.")
+                    break
+            
+            # Get agent's action plan
+            llm_action_response = agent.get_action(observation, reward)
+            
+            # Log agent data (perception, memory, action)
+            perception_data = None
+            memory_summary = None
+            
+            # Extract perception data and memory summary if using full pipeline
+            if not agent.use_base_module:
+                # Access perception data from the agent
+                perception_data = agent.perception_module.analyze_frame(observation, GRID_IMG_PATH)
+                # Access memory summary
+                memory_summary = agent.memory_module.get_memory_summary()
+            
+            # Log all agent data
+            log_agent_data(perception_data, memory_summary, llm_action_response, run_count, count)
+            
+            # Get the action and frame count from the response
+            action_name, frame_count = llm_action_response['move']
+            
+            # Convert action name to actual action array
+            action = all_actions[action_name]
+            # Create list of actions to run
+            actions = [action] * frame_count
+            
+            # Run the actions and wait for completion
+            observation, reward, terminated, truncated, info = env.step(default_action)
+            await asyncio.sleep(sleep_time)
+            observation, reward, terminated, truncated, info = await run_actions(env, actions, fps=30)
+            
+            # Add x_position to info
+            info['x_pos'] = get_mario_position(env)
+            # Append to JSONL log with reward and termination status
+            log_to_jsonl(info, count, reward, terminated, truncated)
+            env.render()
+            count += 1
+            if terminated or truncated:
+                print(f"Run {run_count} over! Environment terminated or truncated.")
+                break
+        
+        print(f"\n========== COMPLETED RUN {run_count}/{args.num_runs} ==========\n")
     
-    # This line will only be reached if the loop is broken due to termination
-    print("Environment closed and game terminated.")
+    # Close the environment after all runs are completed
+    env.close()
+    print("All runs completed. Environment closed.")
 
 
 if __name__ == "__main__":
