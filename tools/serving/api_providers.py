@@ -336,7 +336,9 @@ def openai_text_reasoning_completion(system_prompt, model_name, prompt, temperat
     return generated_str
 
 def deepseek_text_reasoning_completion(system_prompt, model_name, prompt, token_limit=30000):
-     
+    print(f"DeepSeek text-reasoning API call: model={model_name}")
+    if token_limit > 8192:
+        token_limit = 8192
     client = OpenAI(
         api_key=os.getenv("DEEPSEEK_API_KEY"),
         base_url="https://api.deepseek.com",
@@ -368,6 +370,41 @@ def deepseek_text_reasoning_completion(system_prompt, model_name, prompt, token_
     return content
     
 
+def xai_grok_completion(system_prompt, model_name, prompt, reasoning_effort="high", token_limit=30000, temperature=1):
+    print(f"XAI Grok text API call: model={model_name}, reasoning_effort={reasoning_effort}")
+    
+    client = OpenAI(
+        api_key=os.getenv("XAI_API_KEY"),
+        base_url="https://api.x.ai/v1",
+    )
+    
+    messages = [
+        {
+            "role": "system",
+            "content": system_prompt,
+        },
+        {
+            "role": "user",
+            "content": prompt,
+        },
+    ]
+    
+    # Only include reasoning_effort for supported models
+    params = {
+        "model": model_name,
+        "messages": messages,
+        "temperature": temperature,
+        "max_tokens": token_limit
+    }
+    
+    # Add reasoning_effort only for models that support it
+    if "grok-3-mini" in model_name:
+        params["reasoning_effort"] = reasoning_effort
+    
+    completion = client.chat.completions.create(**params)
+    
+    # Return just the content for consistency with other completion functions
+    return completion.choices[0].message.content
 
 def openai_multiimage_completion(system_prompt, model_name, prompt, list_content, list_image_base64, token_limit=30000, reasoning_effort="medium"):
     print(f"OpenAI multi-image API call: model={model_name}, reasoning_effort={reasoning_effort}")

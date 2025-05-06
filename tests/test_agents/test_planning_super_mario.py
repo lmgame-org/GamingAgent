@@ -498,7 +498,7 @@ Focus on making strategic decisions that help Mario progress through the level s
 Do not discuss reward calculations in your response.
 """
 
-    def plan_action(self, current_perception, memory_summary, img_path):
+    async def plan_action(self, current_perception, memory_summary, img_path, max_retries=3):
         """
         Plan the next action based on current perception and memory.
         
@@ -506,6 +506,7 @@ Do not discuss reward calculations in your response.
             current_perception (dict): Current perceived game state
             memory_summary (list): Summary of past game states
             img_path (str): Path to the current observation image
+            max_retries (int): Maximum number of retry attempts if response is empty
             
         Returns:
             dict: A dictionary containing move and thought
@@ -534,20 +535,47 @@ Only use available actions: [NOOP], [right], [right,A], [right,B], [right,A,B], 
 Frame count must be between 1-30.
 """
             
+            # Implement retry mechanism for API call
+            retry_count = 0
+            response = None
+            parsed_response = None
             
-            # Use the grid image for the API call
-            response, _ = self.api_manager.vision_text_completion(
-                model_name=self.model_name,
-                system_prompt=self.system_prompt,
-                prompt=user_prompt,
-                image_path=img_path,
-                thinking=self.thinking,
-                reasoning_effort=self.reasoning_effort,
-                token_limit=100000
-            )
+            while (response is None or parsed_response is None or 
+                  'move' not in parsed_response or parsed_response['move'] is None) and retry_count < max_retries:
+                
+                if retry_count > 0:
+                    print(f"Retry attempt {retry_count}/{max_retries} for reasoning module...")
+                    await asyncio.sleep(2)  # Short delay before retry
+                
+                # Use the grid image for the API call
+                response, _ = self.api_manager.vision_text_completion(
+                    model_name=self.model_name,
+                    system_prompt=self.system_prompt,
+                    prompt=user_prompt,
+                    image_path=img_path,
+                    thinking=self.thinking,
+                    reasoning_effort=self.reasoning_effort,
+                    token_limit=100000 if "gemini-2.5-flash" not in self.model_name else 30000
+                )
+                
+                # Parse the response
+                parsed_response = self._parse_response(response)
+                
+                # Check if we got a valid response
+                if parsed_response is None or 'move' not in parsed_response or parsed_response['move'] is None:
+                    retry_count += 1
+                else:
+                    break
             
-            # Parse the response
-            return self._parse_response(response)
+            # If all retries failed, return a fallback action
+            if parsed_response is None or 'move' not in parsed_response or parsed_response['move'] is None:
+                print("All reasoning attempts failed. Using fallback action.")
+                return {
+                    "move": ("[NOOP]", 1),  # Safe fallback
+                    "thought": "Fallback action after failed reasoning attempts"
+                }
+                
+            return parsed_response
             
         except Exception as e:
             print(f"Error in reasoning module: {e}")
@@ -934,7 +962,7 @@ class SuperMarioBrosAgent:
             self.memory_module = MemoryModule(model_name=model_name)
             self.reasoning_module = ReasoningModule(model_name=model_name)
         
-    def get_action(self, observation, reward):
+    async def get_action(self, observation, reward):
         """
         Process observation to get game action using either full pipeline or Base_module.
         
@@ -987,7 +1015,7 @@ class SuperMarioBrosAgent:
                             print(f"Previous action: {latest_entry['last_action']}")
                 
                 # Step 3: Reasoning - Plan the next action
-                action_plan = self.reasoning_module.plan_action(
+                action_plan = await self.reasoning_module.plan_action(
                     current_perception=perception_data,
                     memory_summary=memory_summary,
                     img_path=self.img_path
@@ -1319,7 +1347,7 @@ async def main():
                     break
             
             # Get agent's action plan
-            llm_action_response = agent.get_action(observation, reward)
+            llm_action_response = await agent.get_action(observation, reward)
             
             # Log agent data (perception, memory, action)
             perception_data = None

@@ -31,6 +31,8 @@ from .api_providers import (
     together_ai_completion,
     together_ai_text_completion,
     together_ai_multiimage_completion,
+    deepseek_text_reasoning_completion,
+    xai_grok_completion,
 )
 
 # Import cost calculator utilities
@@ -673,6 +675,22 @@ class APIManager:
                     prompt=prompt,
                     temperature=temperature,
                     token_limit=token_limit
+                )
+            elif "deepseek" in model_name.lower():
+                completion = deepseek_text_reasoning_completion(
+                    system_prompt=system_prompt,
+                    model_name=model_name,
+                    prompt=prompt,
+                    token_limit=token_limit
+                )
+            elif "grok" in model_name.lower():
+                completion = xai_grok_completion(
+                    system_prompt=system_prompt,
+                    model_name=model_name,
+                    prompt=prompt,
+                    token_limit=token_limit,
+                    temperature=temperature,
+                    reasoning_effort=reasoning_effort
                 )
             else:
                 raise ValueError(f"Unsupported model: {model_name}")

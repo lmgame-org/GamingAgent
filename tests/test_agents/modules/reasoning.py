@@ -69,7 +69,7 @@ Example responses:
 
 Focus on making strategic decisions that maximize your score and maintain a well-organized board."""
 
-    def plan_action(self, current_perception, memory_summary, img_path):
+    async def plan_action(self, current_perception, memory_summary, img_path, max_retries=3):
         """
         Plan the next action based on current perception and board image.
         Uses both the structured perception data and visual board image
@@ -79,10 +79,13 @@ Focus on making strategic decisions that maximize your score and maintain a well
             current_perception (dict): Current perceived game state from perception module
             memory_summary (list): Summary of past game states
             img_path (str): Path to the current board image
+            max_retries (int): Maximum number of retry attempts
             
         Returns:
             dict: A dictionary containing move and thought
         """
+        import asyncio
+        
         try:
             # Check if the image file exists, create a fallback image if not
             if not os.path.exists(img_path):
@@ -119,21 +122,66 @@ Where [move] must be one of: "up", "down", "left", or "right".
 Do NOT use # or any other prefix. Start directly with "thought:" followed by your analysis.
 """
             
-            # Use both the structured data and the image for the API call
-            print(f"Reasoning module making API call with both perception data and image from {img_path}")
-            response, _ = self.api_manager.vision_text_completion(
-                model_name=self.model_name,
-                system_prompt=self.system_prompt,
-                prompt=user_prompt,
-                image_path=img_path,
-                thinking=self.thinking,
-                reasoning_effort=self.reasoning_effort,
-                token_limit=100000
-            )
+            # Implement retry mechanism
+            retry_count = 0
+            result = None
             
-            # Parse the response
-            result = self._parse_response(response)
-            print(f"Reasoning module decided move: {result['move']}")
+            while result is None and retry_count < max_retries:
+                if retry_count > 0:
+                    print(f"Retry attempt {retry_count}/{max_retries} for reasoning module...")
+                    await asyncio.sleep(2)  # Short delay before retry
+                
+                # Use both the structured data and the image for the API call
+                print(f"Reasoning module making API call with both perception data and image from {img_path}")
+                
+                # For deepseek models, use text_completion instead of vision_text_completion
+                if "deepseek" in self.model_name.lower():
+                    response, _ = self.api_manager.text_completion(
+                        model_name=self.model_name,
+                        system_prompt=self.system_prompt,
+                        prompt=user_prompt,
+                        thinking=self.thinking,
+                        reasoning_effort=self.reasoning_effort,
+                        token_limit=100000
+                    )
+                elif "grok" in self.model_name.lower():
+                    response, _ = self.api_manager.text_completion(
+                        model_name=self.model_name,
+                        system_prompt=self.system_prompt,
+                        prompt=user_prompt,
+                        token_limit=100000,
+                        reasoning_effort=self.reasoning_effort,
+                    )
+                else:
+                    response, _ = self.api_manager.vision_text_completion(
+                        model_name=self.model_name,
+                        system_prompt=self.system_prompt,
+                        prompt=user_prompt,
+                        image_path=img_path,
+                        thinking=self.thinking,
+                        reasoning_effort=self.reasoning_effort,
+                        token_limit=100000
+                    )
+                
+                # Parse the response
+                result = self._parse_response(response)
+                
+                # Check if we got a valid result
+                if result is None or 'move' not in result or result['move'] == "skip":
+                    retry_count += 1
+                    result = None  # Reset to None for the next iteration
+                else:
+                    print(f"Reasoning module decided move: {result['move']}")
+                    break
+            
+            # If all retries failed, return a fallback action
+            if result is None or 'move' not in result:
+                print("All reasoning attempts failed. Using fallback action.")
+                return {
+                    "move": "skip",
+                    "thought": "Fallback action after failed reasoning attempts"
+                }
+                
             return result
             
         except Exception as e:
@@ -254,14 +302,14 @@ Do NOT use # or any other prefix. Start directly with "thought:" followed by you
                 valid_moves = ["up", "down", "left", "right"]
                 if move not in valid_moves:
                     print(f"Warning: Invalid move '{move}', defaulting to 'up'")
-                    move = "up"
+                    move = "skip"
         
         # If parsing failed, use default values
         if move is None or thought is None:
             print(f"Failed to parse response: {response}")
 
         if move is None:
-            move = "up"
+            move = "skip"
             print(f"Failed to parse move from response: {response}")
         
         if thought is None:

@@ -256,8 +256,12 @@ Key considerations:
 - Keep space for new tiles to appear
 - Avoid trapping high-value tiles in the middle
 
-Based on the board state in the image, what is the best move to make?
-(Choose one of: up, down, left, right)
+IMPORTANT - FORMAT YOUR RESPONSE EXACTLY LIKE THIS:
+thought: [your analysis here]
+move: [move]
+
+Where [move] must be one of: "up", "down", "left", or "right".
+Do NOT use # or any other prefix. Start directly with "thought:" followed by your analysis.
 """
             
             # Make API call for reasoning with the image
@@ -281,7 +285,7 @@ Based on the board state in the image, what is the best move to make?
             print(f"Error in Base Module: {e}")
             # Return a default action on error
             return {
-                "move": "up",
+                "move": "skip",
                 "thought": f"Error occurred: {str(e)}"
             }
     

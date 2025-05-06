@@ -3,8 +3,10 @@ import numpy as np
 import os
 import json
 import argparse
+import time
 from datetime import datetime
 from PIL import Image, ImageDraw, ImageFont
+import asyncio
 
 # Import our agent modules
 from tests.test_agents.modules.base_module import Base_module
@@ -66,7 +68,7 @@ class Agent2048:
             )
             self.reasoning_module = ReasoningModule(model_name=model_name)
     
-    def get_action(self, observation, info=None):
+    async def get_action(self, observation, info=None, max_retries_const=1):
         """Get the next action from the agent."""
         try:
             if self.use_base_module:
@@ -90,10 +92,22 @@ class Agent2048:
                 print(f"Highest tile: {perception_data.get('highest_tile', 'Unknown')} (2^{perception_data.get('highest_tile_power', 0)})")
                 print(f"Empty spaces: {len(perception_data.get('empty_spaces', []))}")
                 
-                # Step 2: Memory - Add to memory and generate reflection
+
+                # Step 2: Memory - Add to memory and generate reflection with retry logic
+                max_retries = max_retries_const
+                retry_count = 0
+                memory_summary = None
                 self.memory_module.add_game_state(perception_data, self.last_action)
-                memory_summary = self.memory_module.get_memory_summary()
                 
+                while memory_summary is None and retry_count < max_retries:
+                    memory_summary = self.memory_module.get_memory_summary()
+                    
+                    if memory_summary is None or len(memory_summary) == 0:
+                        retry_count += 1
+                        print(f"Memory retrieval attempt {retry_count}/{max_retries} failed. Retrying...")
+                        await asyncio.sleep(2)  # Short delay before retry
+                
+ 
                 # Print memory summary and reflection
                 if memory_summary:
                     print("\nMEMORY SUMMARY:")
@@ -101,12 +115,32 @@ class Agent2048:
                     if len(memory_summary) > 0 and 'reflection' in memory_summary[-1]:
                         print(f"Latest reflection: {memory_summary[-1]['reflection']}")
                 
-                # Step 3: Reasoning - Plan the next action
-                action_plan = self.reasoning_module.plan_action(
-                    current_perception=perception_data,
-                    memory_summary=memory_summary,
-                    img_path=BOARD_IMG_PATH
-                )
+                # Step 3: Reasoning - Plan the next action with retry logic
+                max_retries = max_retries_const
+                retry_count = 0
+                action_plan = None
+                
+                while action_plan is None and retry_count < max_retries:
+                    # Call the async plan_action method directly
+                    action_plan = await self.reasoning_module.plan_action(
+                        current_perception=perception_data,
+                        memory_summary=memory_summary,
+                        img_path=BOARD_IMG_PATH,
+                        max_retries=3  # Handle retries at this level, not inside plan_action
+                    )
+                    
+                    if action_plan is None or 'move' not in action_plan:
+                        retry_count += 1
+                        print(f"Action planning attempt {retry_count}/{max_retries} failed. Retrying...")
+                        await asyncio.sleep(2)  # Short delay before retry
+                
+                # If still no valid action plan after retries, create a fallback
+                if action_plan is None or 'move' not in action_plan:
+                    print("All reasoning attempts failed. Using fallback action.")
+                    action_plan = {
+                        "move": "skip",  # Simple fallback
+                        "thought": "Fallback action after failed reasoning attempts"
+                    }
                 
                 # Print action plan
                 print("\nACTION PLAN:")
@@ -294,7 +328,7 @@ def create_board_image(board, save_path, size=400):
     except Exception as e:
         print(f"Error creating board image: {e}")
 
-def run_agent(args):
+async def run_agent(args):
     """Run the 2048 agent with the specified parameters."""
     # Write experiment info
     with open(os.path.join(CACHE_DIR, "experiment_info.json"), 'w') as f:
@@ -384,10 +418,10 @@ def run_agent(args):
                     if args.base:
                         # For base agent, pass the RGB frame as observation
                         frame = env.render()
-                        action_plan, perception_data, memory_summary = agent.get_action(frame, info)
+                        action_plan, perception_data, memory_summary = await agent.get_action(frame, info)
                     else:
                         # For full pipeline, pass the observation and info
-                        action_plan, perception_data, memory_summary = agent.get_action(observation, info)
+                        action_plan, perception_data, memory_summary = await agent.get_action(observation, info)
                     
                     # Convert move to action index
                     action = agent.parse_move_to_action(action_plan["move"])
@@ -400,8 +434,7 @@ def run_agent(args):
                         retry_count += 1
                         # Wait a moment before trying again
                         # This helps if the error is temporary (e.g., API rate limit)
-                        import time
-                        time.sleep(1)
+                        await asyncio.sleep(1)
                 
                 # If we still don't have a valid action after retries, use a random action
                 if not valid_action:
@@ -416,6 +449,10 @@ def run_agent(args):
             if 'board' in info:
                 current_board = info['board'].tolist()
             
+            # Skip taking an action if the move was "skip"
+            if action_plan["move"].lower() == "skip":
+                print("SKIPPING THIS ACTION - continuing to next iteration")
+                continue
 
             # Take the action in the environment
             observation, reward, terminated, truncated, info = env.step(action)
@@ -525,7 +562,7 @@ def parse_args():
 
 if __name__ == "__main__":
     args = parse_args()
-    scores = run_agent(args)
+    scores = asyncio.run(run_agent(args))
     if len(scores) == 1:
         print(f"Final total reward: {scores[0]}")
     else:
