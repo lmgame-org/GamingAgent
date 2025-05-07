@@ -20,11 +20,10 @@ from games.ace_attorney.workers import (
     perform_move, 
     ace_evidence_worker, 
     short_term_memory_worker,
-    vision_only_reasoning_worker,
     long_term_memory_worker,
     memory_retrieval_worker,
     normalize_content,
-    vision_only_ace_attorney_worker,
+    basic_ace_attorney_worker,
     check_end_statement,
     check_skip_conversation,
     handle_skip_conversation,
@@ -76,7 +75,9 @@ def main():
     parser.add_argument("--modality", type=str, default="vision-text", 
                        choices=["text-only", "vision-text", "vision-only"],
                        help="modality used.")
-    parser.add_argument("--thinking", type=str, default="False", help="Whether to use deep thinking.")
+    parser.add_argument("--thinking", type=str, default="True", help="Whether to use deep thinking.")
+    parser.add_argument("--agent_type", type=str, default="standard", choices=["standard", "basic"],
+                       help="Type of agent logic to use ('standard' or 'basic').")
     parser.add_argument("--episode_name", type=str, default="The_First_Turnabout", 
                        help="Name of the current episode being played.")
     parser.add_argument("--num_threads", type=int, default=1, help="Number of parallel threads to launch.")
@@ -98,6 +99,7 @@ def main():
     # Create the cache directory if it doesn't exist
     os.makedirs(BASE_CACHE_DIR, exist_ok=True)
     os.makedirs(cache_dir, exist_ok=True)
+    # cache_dir = "cache/ace_attorney/20250506_150522_The_First_Turnabout_vision-text_openai_gpt-4.1-2025-04-14"
 
     # Also ensure the base cache directory exists (for backward compatibility)
     print(f"Using cache directory: {cache_dir}")
@@ -126,9 +128,9 @@ def main():
             with ThreadPoolExecutor(max_workers=args.num_threads) as executor:
                 futures = []
                 for _ in range(args.num_threads):
-                    if args.modality == "vision-only":
+                    if args.agent_type == "basic":
                         futures.append(executor.submit(
-                            vision_only_reasoning_worker,
+                            basic_ace_attorney_worker,
                             system_prompt,
                             args.api_provider,
                             args.model_name,
@@ -139,7 +141,7 @@ def main():
                             cache_dir=cache_dir,
                             use_mapping_background=args.use_mapping_background
                         ))
-                    elif args.modality == "vision-text":
+                    elif args.agent_type == "standard":
                         futures.append(executor.submit(
                             ace_attorney_worker,
                             system_prompt,
@@ -150,19 +152,6 @@ def main():
                             modality=args.modality,
                             episode_name=args.episode_name,
                             decision_state=None,
-                            cache_dir=cache_dir,
-                            use_mapping_background=args.use_mapping_background
-                        ))
-                    else:  # text-only
-                        futures.append(executor.submit(
-                            vision_only_ace_attorney_worker,
-                            system_prompt,
-                            args.api_provider,
-                            args.model_name,
-                            prev_response,
-                            thinking=thinking_bool,
-                            modality=args.modality,
-                            episode_name=args.episode_name,
                             cache_dir=cache_dir,
                             use_mapping_background=args.use_mapping_background
                         ))
@@ -386,16 +375,18 @@ def main():
             prev_response = f"game_state: {chosen_game_state}\ncurrent_statement: {chosen_dialog}\nmove: {final_move_to_perform}\nthought: {chosen_thought}"
 
             # Update short-term memory with the chosen response
-            short_term_memory_worker(
-                system_prompt,
-                args.api_provider,
-                args.model_name,
-                prev_response,
-                thinking=thinking_bool,
-                modality=args.modality,
-                episode_name=args.episode_name,
-                cache_dir=cache_dir
-            )
+            # Only update short-term memory if not using the basic agent
+            if args.agent_type != "basic":
+                short_term_memory_worker(
+                    system_prompt,
+                    args.api_provider,
+                    args.model_name,
+                    prev_response,
+                    thinking=thinking_bool,
+                    modality=args.modality,
+                    episode_name=args.episode_name,
+                    cache_dir=cache_dir
+                )
 
             # Record presented evidence into long-term memory as dialog format
             if final_move_to_perform == "x" and chosen_evidence and chosen_evidence.get("name"):

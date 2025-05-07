@@ -7,7 +7,7 @@ import re
 import datetime
 
 from tools.utils import encode_image, log_output, get_annotate_img, capture_game_window, log_request_cost
-from tools.serving.api_providers import anthropic_completion, anthropic_text_completion, openai_completion, openai_text_reasoning_completion, gemini_completion, gemini_text_completion, deepseek_text_reasoning_completion, together_ai_completion
+from tools.serving.api_providers import anthropic_completion, anthropic_text_completion, openai_completion, openai_text_reasoning_completion, gemini_completion, gemini_text_completion, deepseek_text_reasoning_completion, together_ai_completion, xai_text_completion
 from tools.api_cost_calculator import calculate_all_costs_and_tokens, convert_string_to_messsage
 
 # Default cache directory (can be overridden by passing cache_dir parameter)
@@ -69,6 +69,11 @@ def vision_evidence_worker(system_prompt, api_provider, model_name, modality, th
 
     # print(f"Calling {model_name} API for vision analysis...")
     
+    if "o1-mini" in model_name or "deepseek-reasoner" in model_name or "o3-mini" in model_name or "grok" in model_name: 
+        api_provider = "gemini"
+        model_name = "gemini-2.5-flash-preview-04-17"
+
+
     if api_provider == "anthropic" and modality=="text-only":
         response = anthropic_text_completion(system_prompt, model_name, prompt, thinking)
     elif api_provider == "anthropic":
@@ -144,7 +149,9 @@ def vision_worker(system_prompt, api_provider, model_name,
 
     # Use prompt from JSON file
     prompt = PROMPTS["vision_worker_prompt"]
-
+    if "o1-mini" in model_name or "deepseek-reasoner" in model_name or "o3-mini" in model_name or "grok" in model_name: 
+        api_provider = "gemini"
+        model_name = "gemini-2.5-flash-preview-04-17"
     # print(f"Calling {model_name} API for vision analysis...")
     
     if api_provider == "anthropic" and modality=="text-only":
@@ -727,13 +734,12 @@ Stuck Situation Handling:
             evidence_details=evidence_details,
             memory_context=memory_context
         )
-
         # Call the API
         if api_provider == "anthropic" and modality=="text-only":
             response = anthropic_text_completion(system_prompt, model_name, prompt, thinking)
         elif api_provider == "anthropic":
             response = anthropic_completion(system_prompt, model_name, base64_image, prompt, thinking)
-        elif api_provider == "openai" and "o3" in model_name and modality=="text-only":
+        elif api_provider == "openai" and "o1-mini" in model_name:
             response = openai_text_reasoning_completion(system_prompt, model_name, prompt)
         elif api_provider == "openai":
             response = openai_completion(system_prompt, model_name, base64_image, prompt, reasoning_effort="high")
@@ -745,6 +751,8 @@ Stuck Situation Handling:
             response = deepseek_text_reasoning_completion(system_prompt, model_name, prompt)
         elif api_provider == "together_ai":
             response = together_ai_completion(system_prompt, model_name, prompt, base64_image=base64_image)
+        elif api_provider == "xai":
+            response = xai_text_completion(system_prompt, model_name, prompt)
         else:
             raise NotImplementedError(f"API provider: {api_provider} is not supported.")
         if "claude" in model_name:
@@ -1225,34 +1233,52 @@ def check_end_statement(dialog, episode_name):
         print(f"[ERROR] Failed to check end statement: {e}")
         return False
 
-def vision_only_reasoning_worker(system_prompt, api_provider, model_name, 
-    prev_response="", 
-    thinking=True, 
-    modality="vision-only",
+def basic_ace_attorney_worker(system_prompt, api_provider, model_name,
+    prev_response="",
+    thinking=True,
+    modality="vision-text", # Default modality expected
     episode_name="The First Turnabout",
     cache_dir=None,
     use_mapping_background=False
     ):
     """
-    Combines vision analysis and reasoning in a single step.
-    Captures the game screen, analyzes it, and makes decisions based on the analysis.
-    Also updates long-term memory with new information.
-    
+    Basic Agent Worker: Analyzes screen via vision, determines state/move/thought based ONLY on image.
+    Combines image capture, API call, and parsing into one step.
+    No memory context is used internally.
+
     Args:
         system_prompt (str): System prompt for the API
         api_provider (str): API provider to use
         model_name (str): Model name to use
         prev_response (str): Previous response from the API
         thinking (bool): Whether to use deep thinking
-        modality (str): Modality to use (must be vision-only)
+        modality (str): Modality to use (vision-text)
         episode_name (str): Name of the current episode
         cache_dir (str, optional): Directory to save cache files
         use_mapping_background (bool): Whether to use background transcript from mapping file
+
+    Returns:
+        dict: Contains game_state, dialog, options, evidence, scene, screenshot_path,
+              memory_context(""), move, thought
     """
-    assert modality == "vision-only", "This worker requires vision-only modality"
-    
-    # Use provided cache_dir or default
+    # Basic worker primarily uses vision via the prompt, but doesn't need to assert vision-text modality.
     cache_dir = cache_dir or DEFAULT_CACHE_DIR
+    print("Basic worker called")
+
+    # --- Retrieve Long-Term Memory Context FIRST --- #
+    memory_context = memory_retrieval_worker(
+        system_prompt,
+        api_provider,
+        model_name,
+        prev_response, # Pass previous response if needed for context (though basic might not use it)
+        thinking,
+        modality, # Use the actual modality
+        episode_name,
+        cache_dir=cache_dir,
+        use_mapping_background=use_mapping_background # Respect mapping setting
+    )
+
+    # --- Start of logic moved from basic_worker --- #
 
     # Capture game window screenshot
     screenshot_path = capture_game_window(
@@ -1264,30 +1290,119 @@ def vision_only_reasoning_worker(system_prompt, api_provider, model_name,
         return {"error": "Failed to capture game window"}
 
     base64_image = encode_image(screenshot_path)
-    
-    # Get memory context for reasoning
-    memory_context = memory_retrieval_worker(
-        system_prompt,
-        api_provider,
-        model_name,
-        prev_response,
-        thinking,
-        modality,
-        episode_name,
-        cache_dir=cache_dir,
-        use_mapping_background=use_mapping_background
-    )
 
-    # Extract and format evidence information from memory
-    evidences_section = memory_context.split("Collected Evidences:")[1].strip()
-    collected_evidences = [e for e in evidences_section.split("\n") if e.strip()]
-    num_collected_evidences = len(collected_evidences)
-    evidence_details = "\n".join([f"Evidence {i+1}: {e}" for i, e in enumerate(collected_evidences)])
+    # Define the basic agent prompt directly within the function
+    basic_agent_prompt_string = """
+    Memory Context Provided: {memory_context}
+    Analyze the game screen image provided.
 
-    # Use prompt from JSON file and format it with the required variables
-    prompt = PROMPTS["vision_only_reasoning_prompt"].format(
-        num_collected_evidences=num_collected_evidences,
-        evidence_details=evidence_details,
+1. Game State Detection Rules (Based ONLY on image):
+   - Cross-Examination mode is indicated by ANY of these:
+     * A blue bar in the upper right corner
+     * Green dialog text
+     * Two or more white-text options appearing in the **middle** of the screen (e.g., 'Yes' and 'No')
+     * EXACTLY three UI elements at the bottom-right corner: Options, Press, Present
+     * An evidence window visible in the middle of the screen
+   - If you see an evidence window, it is ALWAYS Cross-Examination mode
+   - Conversation mode is indicated by:
+     * EXACTLY two UI elements at the bottom-right corner: Options, Court Record
+     * Dialog text can be any color (most commonly white, but also blue, red, etc.)
+   - If none of the Cross-Examination indicators are present, it is Conversation mode
+   - If the court record / evidence list is open full screen, state Evidence.
+
+2. Dialog Text Analysis:
+   - Look at the bottom-left area where dialog appears
+   - Note the color of the dialog text (green/white/blue/red)
+   - Extract the speaker's name and their dialog
+   - Format must be exactly: Dialog: NAME: dialog text (or None if no dialog)
+
+3. Options Analysis:
+   - List any selectable choices on screen (usually white text in the middle)
+   - Indicate which one is currently selected (highlighted with yellow/gold border)
+   - Format: Options: option1, selected; option2, not selected; ... (or None)
+
+4. Evidence Analysis (if evidence window/record is open):
+   - Identify the name of the currently selected evidence.
+   - Describe its visual appearance.
+   - Format: Evidence: NAME: description (or None)
+
+5. Scene Analysis:
+   - Describe any visible characters and their expressions/poses.
+   - Describe any other important visual elements or interactive UI components (like the buttons at the bottom right).
+   - Summarize key visual indicators.
+
+6. Reasoning and Move Decision (Based ONLY on the visual analysis above):
+   - Based on the determined Game State and the Memory Context decide the single best next action (move).
+   - Provide a brief thought process explaining your chosen move.
+   - **IMPORTANT RULE: If the determined Game State is 'Conversation', the ONLY valid move is 'z'.**
+   - **If `move` is `x` (Present Evidence):** Your `thought` MUST include `Presented_Evidence: [Name of evidence being presented based on visual analysis and/or memory context]`. For other moves, the thought can be a general explanation.
+   - **Presenting Evidence is often a MULTI-STEP process:**
+     *   If you see a reason to present (contradiction/proof request) but the evidence window IS NOT open, the correct first move is usually 'r' (Open Court Record).
+     *   Only use 'x' (Present) if the evidence window IS ALREADY open AND the correct evidence is selected.
+
+Available moves:
+* 'l': Press witness (if applicable based on UI in Cross-Examination)
+* 'z': Advance dialog/confirm selection (if text box or selectable option is visible)
+* 'r': Open court record (Use this first if you want to present evidence but window isn't open)
+* 'b': Go back/close window (if evidence window open or in menus)
+* 'x': Present evidence (ONLY if evidence window IS ALREADY open AND 'Present' UI visible AND correct evidence selected AND visual context supports it - see examples)
+* 'right': Navigate right (Use this AFTER opening window with 'r' if needed to find the right evidence)
+* 'down': Navigate down (if options are visibly navigable)
+
+Evidence Presentation ('x' / 'r') Examples:
+
+*   **Example 1 (Start Presenting - Window Closed):**
+    *   Visuals: *Evidence window is CLOSED*. Dialog text visible: Witness: "The clock wasn't broken when I saw it!" UI shows 'Press' and 'Present' options at bottom right.
+    *   Output:
+        ```
+        move: r
+        thought: The witness statement about the clock potentially contradicts evidence, but the evidence window is closed. Need to open the Court Record first.
+        ```
+
+*   **Example 2 (Actually Present - Window Open, Correct Evidence):**
+    *   Visuals: *Evidence window IS OPEN*, showing a selected *photo of a specific broken clock*. Dialog text visible: Witness: "The clock wasn't broken when I saw it!" UI shows 'Present' option.
+    *   Output:
+        ```
+        move: x
+        thought: Evidence window is open, showing the broken clock photo which contradicts the visible statement. Presented_Evidence: Photo of Broken Clock
+        ```
+
+*   **Example 3 (Navigate Evidence - Window Open, Wrong Evidence):**
+    *   Visuals: *Evidence window IS OPEN*, showing a selected *Attorney's Badge*. Dialog text visible: Witness: "The clock wasn't broken when I saw it!" UI shows 'Present' option.
+    *   Output:
+        ```
+        move: right
+        thought: Evidence window is open, but the Badge isn't relevant to the clock statement. Need to navigate to find the clock photo first.
+        ```
+
+*   **Example 4 (Visually Supported Proof Request - Window Open):**
+    *   Visuals: *Evidence window IS OPEN*, showing a selected *distinctive knife*. Dialog text visible: Judge: "Show me the murder weapon!"
+    *   Output:
+        ```
+        move: x
+        thought: Judge is asking for the murder weapon, and the currently selected evidence visually appears to be the knife likely used. Window is open. Presented_Evidence: Distinctive Knife
+        ```
+
+*   **Example 5 (DO NOT Present - No Clear Visual Link):**
+    *   Visuals: *Evidence window IS OPEN*, showing a selected *generic key*. Dialog text visible: Witness: "I never entered that room."
+    *   Output:
+        ```
+        move: b
+        thought: Evidence window is open, but the selected key doesn't visually contradict the statement about entering the room. Closing the evidence window.
+        ```
+
+Format the output strictly as:
+Game State: <state>
+Dialog: <name: text or None>
+Options: <options_list or None>
+Evidence: <name: description or None>
+Scene: <detailed description>
+
+move: <chosen_move>
+thought: <brief_explanation_of_move_based_on_visuals_AND_memory_including_Presented_Evidence_if_move_is_x>"""
+
+    # Use the locally defined basic agent prompt, formatting with retrieved memory
+    prompt = basic_agent_prompt_string.format(
         memory_context=memory_context
     )
 
@@ -1306,190 +1421,103 @@ def vision_only_reasoning_worker(system_prompt, api_provider, model_name,
         prompt_message = convert_string_to_messsage(prompt)
     else:
         prompt_message = prompt
-    # # Update completion in cost data
-    # cost_data = calculate_all_costs_and_tokens(
-    #     prompt=prompt_message,
-    #     completion=response,
-    #     model=model_name,
-    #     image_path=screenshot_path if base64_image else None
-    # )
-    
-    # # Log the request costs
-    # log_request_cost(
-    #     num_input=cost_data["prompt_tokens"] + cost_data.get("image_tokens", 0),
-    #     num_output=cost_data["completion_tokens"],
-    #     input_cost=float(cost_data["prompt_cost"] + cost_data.get("image_cost", 0)),
-    #     output_cost=float(cost_data["completion_cost"]),
-    #     game_name="ace_attorney",
-    #     input_image_tokens=cost_data.get("image_tokens", 0),
-    #     model_name=model_name,
-    #     cache_dir=cache_dir
-    # )
+    # Add cost calculation/logging if desired, similar to other workers
 
-    # Extract all information from response
-    game_state_match = re.search(r"Game State:\s*(Cross-Examination|Conversation)", response)
-    game_state = game_state_match.group(1) if game_state_match else "Unknown"
-    
-    dialog_match = re.search(r"Dialog:\s*([^:\n]+):\s*(.+?)(?=\n|$)", response)
+    # --- Extract all information from response --- #
+    # It's expected the model formats the output according to the basic_agent_prompt
+
+    # Extract Game State
+    game_state_match = re.search(r"Game State:\s*(Cross-Examination|Conversation|Evidence)", response, re.IGNORECASE)
+    game_state_raw = game_state_match.group(1) if game_state_match else "Unknown"
+    game_state = normalize_content(game_state_raw, episode_name, cache_dir)
+
+    # Extract Dialog - KEEP THIS RAW for skip_conversation_check
+    dialog_match = re.search(r"Dialog:\s*(?:(None)|([^:\n]+):\s*(.+?))(?=\n\s*(?:Options:|Evidence:|Scene:|move:)|$)", response, re.IGNORECASE | re.DOTALL)
     dialog = {
-        "name": dialog_match.group(1) if dialog_match else "",
-        "text": dialog_match.group(2).strip() if dialog_match else ""
+        "name": dialog_match.group(2).strip() if dialog_match and dialog_match.group(2) else "",
+        "text": dialog_match.group(3).strip() if dialog_match and dialog_match.group(3) else ""
     }
-    
-    evidence_match = re.search(r"Evidence:\s*([^:\n]+):\s*(.+?)(?=\n|$)", response)
+    if dialog_match and dialog_match.group(1): # Handle explicit "None"
+         dialog = {"name": "", "text": ""}
+
+    # Extract Options
+    options_match = re.search(r"Options:\s*(.+?)(?=\n\s*(?:Evidence:|Scene:|move:)|$)", response, re.IGNORECASE | re.DOTALL)
+    options_dict_raw = {"choices": [], "selected": ""}
+    if options_match:
+        raw_options = options_match.group(1).strip()
+        if raw_options.lower() != "none":
+            option_entries = [opt.strip() for opt in raw_options.split(';') if opt.strip()]
+            for entry in option_entries:
+                match = re.match(r"^(.+?)(?:,\s*(selected|not selected))?$", entry, re.IGNORECASE)
+                if match:
+                    text = match.group(1).strip()
+                    state = match.group(2)
+                    options_dict_raw["choices"].append(text)
+                    if state and state.lower() == "selected":
+                        options_dict_raw["selected"] = text
+                else: # Fallback if pattern fails
+                     options_dict_raw["choices"].append(entry)
+    # Normalize options
+    options_dict = {
+        "choices": [normalize_content(choice, episode_name, cache_dir) for choice in options_dict_raw["choices"]],
+        "selected": normalize_content(options_dict_raw["selected"], episode_name, cache_dir)
+    }
+
+    # Extract Evidence
+    evidence_match = re.search(r"Evidence:\s*(?:(None)|([^:\n]+):\s*(.+?))(?=\n\s*(?:Scene:|move:)|$)", response, re.IGNORECASE | re.DOTALL)
+    evidence_raw = {
+        "name": evidence_match.group(2).strip() if evidence_match and evidence_match.group(2) else "",
+        "description": evidence_match.group(3).strip() if evidence_match and evidence_match.group(3) else ""
+    }
+    if evidence_match and evidence_match.group(1): # Handle explicit "None"
+        evidence_raw = {"name": "", "description": ""}
+    # Normalize evidence
     evidence = {
-        "name": evidence_match.group(1) if evidence_match else "",
-        "description": evidence_match.group(2).strip() if evidence_match else ""
+        "name": normalize_content(evidence_raw["name"], episode_name, cache_dir),
+        "description": normalize_content(evidence_raw["description"], episode_name, cache_dir)
     }
-    
-    scene_match = re.search(r"Scene:\s*((?:.|\n)+?)(?=\n(?:Game State:|Dialog:|Evidence:|Options:|move:|thought:|$)|$)", response, re.DOTALL)
-    scene = scene_match.group(1).strip() if scene_match else ""
-    
-    move_match = re.search(r"move:\s*(.+?)(?=\n|$)", response)
+
+    # Extract Scene Description
+    scene_match = re.search(r"Scene:\s*((?:.|\n)+?)(?=\n\s*move:|$)", response, re.DOTALL | re.IGNORECASE)
+    scene_raw = scene_match.group(1).strip() if scene_match else ""
+    scene = normalize_content(scene_raw, episode_name, cache_dir)
+
+    # Extract Move
+    move_match = re.search(r"move:\s*(.+?)(?=\n|$)", response, re.IGNORECASE)
     move = move_match.group(1).strip() if move_match else ""
-    
-    thought_match = re.search(r"thought:\s*(.+?)(?=\n|$)", response)
+
+    # Extract Thought
+    thought_match = re.search(r"thought:\s*(.+?)(?=\n|$)", response, re.IGNORECASE | re.DOTALL)
     thought = thought_match.group(1).strip() if thought_match else ""
 
-    # Update long-term memory
-    if game_state == "Evidence":
-        if evidence["name"] and evidence["description"]:
-            long_term_memory_worker(
-                system_prompt,
-                api_provider,
-                model_name,
-                prev_response,
-                thinking,
-                modality,
-                episode_name,
-                evidence=evidence,
-                cache_dir=cache_dir
-            )
-    else:
-        if dialog["name"] and dialog["text"]:
-            long_term_memory_worker(
-                system_prompt,
-                api_provider,
-                model_name,
-                prev_response,
-                thinking,
-                modality,
-                episode_name,
-                dialog=dialog,
-                cache_dir=cache_dir
-            )
+    # --- Update Long-Term Memory based on parsed results --- #
+    if dialog["name"] and dialog["text"]:
+        long_term_memory_worker(
+            system_prompt,
+            api_provider,
+            model_name,
+            prev_response,
+            thinking,
+            modality,
+            episode_name,
+            dialog=dialog,
+            cache_dir=cache_dir
+        )
 
-    return {
+    # --- End of logic moved from basic_worker --- #
+
+    # Basic worker now returns the full dictionary matching the desired format.
+    result = {
         "game_state": game_state,
-        "dialog": dialog,
+        "dialog": dialog, # Return RAW dialog for skip check
+        "options": options_dict,
         "evidence": evidence,
         "scene": scene,
         "screenshot_path": screenshot_path,
-        "memory_context": memory_context,
+        "memory_context": memory_context, # Return the context that was used
         "move": move,
         "thought": thought
     }
-
-def vision_only_ace_attorney_worker(system_prompt, api_provider, model_name, 
-    prev_response="", 
-    thinking=True, 
-    modality="vision-text",
-    episode_name="The First Turnabout",
-    decision_state=None,
-    cache_dir=None,
-    use_mapping_background=False
-    ):
-    """
-    1) Captures a screenshot of the current game state.
-    2) Analyzes the scene using vision-only approach.
-    3) Makes decisions based on the scene analysis.
-    4) Maintains dialog history for the current episode.
-    5) Makes decisions about game moves.
-    
-    Args:
-        system_prompt (str): System prompt for the API
-        api_provider (str): API provider to use
-        model_name (str): Model name to use
-        prev_response (str): Previous response from the API
-        thinking (bool): Whether to use deep thinking
-        modality (str): Modality to use (vision-text or text-only)
-        episode_name (str): Name of the current episode
-        decision_state (dict, optional): Current decision state
-        cache_dir (str, optional): Directory to save cache files
-        use_mapping_background (bool): Whether to use background transcript from mapping file
-    """
-    assert modality in ["text-only", "vision-text", "vision-only"], f"modality {modality} is not supported."
-    
-    # Use provided cache_dir or default
-    cache_dir = cache_dir or DEFAULT_CACHE_DIR
-
-    # Use vision_only_reasoning_worker which combines vision analysis and reasoning
-    result = vision_only_reasoning_worker(
-        system_prompt,
-        api_provider,
-        model_name,
-        prev_response,
-        thinking,
-        modality="vision-only",
-        episode_name=episode_name,
-        cache_dir=cache_dir,
-        use_mapping_background=use_mapping_background
-    )
-    
-    if "error" in result:
-        return result
-    
-    # Extract options if present in the scene description
-    options = {
-        "choices": [],
-        "selected": ""
-    }
-    
-    scene = result.get("scene", "")
-    
-    # Check if options are mentioned in the scene description
-    if "option" in scene.lower() and "selected" in scene.lower():
-        # Try to parse options from the scene description
-        option_lines = [line for line in scene.split('\n') if "option" in line.lower() and ("selected" in line.lower() or "highlighted" in line.lower())]
-        
-        if option_lines:
-            options["choices"] = []
-            for line in option_lines:
-                # Try to extract option text
-                option_text = re.search(r'"([^"]+)"', line)
-                if option_text:
-                    option_choice = option_text.group(1).strip()
-                    options["choices"].append(option_choice)
-                    # If this option is selected
-                    if "selected" in line.lower() or "highlighted" in line.lower():
-                        options["selected"] = option_choice
-    
-    # Setup decision state for options if needed
-    if options["choices"] and not decision_state:
-        decision_state = {
-            "has_options": True,
-            "down_count": 0,
-            "selection_index": 0,
-            "selected_text": options["choices"][0],  # default to first option
-            "decision_timestamp": None
-        }
-        
-    # Update decision state based on move
-    if decision_state and result.get("move"):
-        if result["move"] == "down" and decision_state["has_options"]:
-            decision_state["down_count"] += 1
-            i = min(decision_state["down_count"], len(options["choices"]) - 1)
-            decision_state["selection_index"] = i
-            decision_state["selected_text"] = options["choices"][i]
-            
-        if result["move"] == "z" and decision_state["has_options"]:
-            decision_state["decision_timestamp"] = time.time()
-            print(f"[Decision Made] Selected option: '{decision_state['selected_text']}' at index {decision_state['selection_index']} (via {decision_state['down_count']} down moves)")
-    
-    # Add options and decision state to the result
-    result["options"] = options
-    result["decision_state"] = decision_state
-    
     return result
 
 def find_last_move_index(move_history, target_move):
@@ -1564,27 +1592,51 @@ def evaluate_present_evidence(
     system_prompt_eval = """You are an evaluation assistant for a game-playing AI in a courtroom game. Your task is to determine if the AI's reasoning for presenting a specific piece of evidence during a cross-examination *clearly explains* a logical contradiction with the current witness statement, based *only* on the information provided. Do not use external knowledge of the game. Focus solely on the quality of the agent's explanation linking the evidence to the statement."""
 
     # Add Reason request back to the prompt
-    user_prompt_eval = f"""Evaluate the following situation:
-        Game State: {game_state}
-        Current Witness Statement: "{current_statement}"
-        Scene Description (provides context on current selection): {scene}
-        All Available Evidence:\n{evidence_details}
+    user_prompt_eval = f"""Evaluate the following situation **with maximum strictness**:
 
-        Agent's Action: Present Evidence ('x' move)
-        Agent's Reasoning (Thought): "{current_thought}"
-        Evidence Agent Claims to Present (extracted from thought): "{presented_evidence_name}"
+    Game State: {game_state}
+    Current Witness Statement or Judge Request: "{current_statement}"
+    Scene Description (context): {scene}
+    All Available Evidence:
+{evidence_details}
 
-        Question: Does the Agent's Reasoning (Thought) clearly and logically explain *how* the specific Evidence Agent Claims to Present ('{presented_evidence_name}') contradicts the Current Witness Statement? Focus specifically on the explanation in the thought — not on whether a contradiction exists in general.
+    Agent's Action: Present Evidence ("x" move)
+    Agent's Reasoning (Thought): "{current_thought}"
+    Evidence the Agent Claims to Present (extracted from thought): "{presented_evidence_name}"
 
-        Important:
-        - The reasoning must accurately identify the *relevant part* of the witness's statement being contradicted (e.g., whether they claim to have seen, heard, or done something).
-        - The explanation must align precisely with what the evidence disproves — e.g., if the evidence shows a visual impossibility, the reasoning must refer to a visual claim.
-        - Penalize any mismatch between the type of claim and the contradiction logic (e.g., using auditory evidence to refute a visual claim).
-        - Do not reward reasoning that relies on assumptions or speculation beyond what's provided in the scene and evidence.
+    Question: Does the Agent's Reasoning *explicitly and logically* show **why and how** the cited Evidence ("{presented_evidence_name}") is the correct response to the Current Statement / Request?  
+    ▸ Acceptable if the thought demonstrates either  
+      **(a) a contradiction** — the evidence proves the statement false, **or**  
+      **(b) a substantiation / proof** — the evidence positively confirms what the judge or witness asked to be shown.
 
-        Respond ONLY with the following two lines:
-        Evaluation: [0 or 1] (1 if the reasoning clearly explains the contradiction *based solely on stated information* and properly matches the witness's claim type, 0 otherwise)
-        Reason: [Provide a brief (1-sentence) explanation for your evaluation, focusing on the clarity, relevance, and factual grounding of the agent's explanation.]"""
+    **Scoring Rules — award 1 only if *all* conditions are satisfied:**
+    1. **Precise Targeting**  
+       • The thought must pinpoint the exact claim or question being addressed (e.g., "witness says she SAW the clock," or "judge asks for proof of WHEN the clockwork was removed").  
+       • Vague references to "this testimony" earn 0.
+
+    2. **Correct Relation (Contradict vs Prove)**  
+       • If the situation calls for a contradiction, the logic must show impossibility or conflict.  
+       • If it calls for proof, the logic must show how the evidence directly establishes the requested fact.  
+       • Mis-classifying the relation = 0.
+
+    3. **Direct Evidence Match**  
+       • Every fact used in the reasoning must appear verbatim in {scene} or {evidence_details}.  
+       • Any invented premise, inference about distance, motives, etc. = 0.
+
+    4. **Claim-Type Consistency**  
+       • Visual claim ↔ visual evidence, auditory ↔ auditory, timeline ↔ timestamp, etc.  
+       • Mismatched modalities = 0.
+
+    5. **Logical Sufficiency**  
+       • The explanation must lay out the causal or logical chain (no hand-waving like "it clearly contradicts").  
+       • Missing links = 0.
+
+    6. **Evidence Name Accuracy**  
+       • All logic must revolve around exactly "{presented_evidence_name}." Mentioning or relying on other, unselected evidence = 0.
+
+    **Response Format (exactly two lines, nothing else):**
+    Evaluation: [0 or 1]      # 1 only if **all six** criteria pass
+    Reason: [One concise sentence naming the key satisfied or missing criterion.]"""
 
     try:
         eval_model_name = "o3-2025-04-16" # Use the model specified by the user

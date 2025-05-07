@@ -182,7 +182,7 @@ def safe_headers_init(self, headers=None, encoding=None):
 httpx.Headers.__init__ = safe_headers_init
 
 
-def openai_completion(system_prompt, model_name, base64_image, prompt, temperature=0, reasoning_effort="medium"):
+def openai_completion(system_prompt, model_name, base64_image, prompt, temperature=0, reasoning_effort="high"):
     client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
     # Force-clean headers to prevent UnicodeEncodeError
@@ -206,15 +206,31 @@ def openai_completion(system_prompt, model_name, base64_image, prompt, temperatu
                 ],
             }
         ]
+    
 
-    token_param = "max_completion_tokens" if "o3" in model_name or "o4" in model_name else "max_tokens"
-    request_params = {
+    token_param = "max_completion_tokens" if "o1" in model_name or "o4" in model_name or "o3" in model_name else "max_tokens"
+    if "4.1" in model_name:
+        request_params = {
         "model": model_name,
         "messages": messages,
-        token_param: 100000,
+        token_param: 32768,
     }
+    elif "4o" in model_name:
+        request_params = {
+            "model": model_name,
+            "messages": messages,
+            token_param: 4096,
+        }
+    else:
+        request_params = {
+            "model": model_name,
+            "messages": messages,
+            token_param: 100000,
+            
 
-    if "o3" not in model_name and "o4" not in model_name:
+        }
+
+    if "o1" not in model_name and "o4" not in model_name and "o3" not in model_name:
         request_params["temperature"] = temperature
     else:
         request_params["reasoning_effort"] = reasoning_effort
@@ -263,18 +279,17 @@ def openai_text_reasoning_completion(system_prompt, model_name, prompt, temperat
     ]
 
     # Determine correct token parameter
-    token_param = "max_completion_tokens" if "o3" in model_name else "max_tokens"
+    token_param = "max_completion_tokens" if "o1-mini" in model_name or "o3" in model_name else "max_tokens"
     
     # Prepare request parameters dynamically
     request_params = {
         "model": model_name,
         "messages": messages,
-        token_param: 100000,
-        "reasoning_effort": "medium"
+        token_param: 60000,
     }
     
     # Only add 'temperature' if the model supports it
-    if "o3" not in model_name:  # Assuming o3-mini doesn't support 'temperature'
+    if "o1-mini" not in model_name and "o3" not in model_name:  # Assuming o3-mini doesn't support 'temperature'
         request_params["temperature"] = temperature
 
     response = client.chat.completions.create(**request_params)
@@ -635,7 +650,7 @@ def xai_text_completion(system_prompt, model_name, prompt, temperature=1, reason
 
     # Add reasoning_effort only for supported models
     if reasoning_effort and model_name in ["grok-3-mini-beta", "grok-3-mini-fast-beta"]:
-        request_params["reasoning_effort"] = reasoning_effort
+        request_params["reasoning_effort"] = "high"
 
     response = client.chat.completions.create(**request_params)
 
