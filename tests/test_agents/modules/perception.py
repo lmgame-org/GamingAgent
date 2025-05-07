@@ -5,16 +5,22 @@ import json
 from datetime import datetime
 
 # Cache directories and file paths
-CACHE_DIR = os.path.join("cache", "2048_experiments", datetime.now().strftime("%Y%m%d_%H%M%S"))
-BOARD_IMG_PATH = os.path.join(CACHE_DIR, "board_latest.png")
-os.makedirs(CACHE_DIR, exist_ok=True)
+# CACHE_DIR = os.path.join("cache", "2048_experiments", datetime.now().strftime("%Y%m%d_%H%M%S"))
+# BOARD_IMG_PATH = os.path.join(CACHE_DIR, "board_latest.png")
+# os.makedirs(CACHE_DIR, exist_ok=True)
 
 class PerceptionModule:
-    def __init__(self, model_name="claude-3-7-sonnet-latest"):
+    def __init__(self, model_name="claude-3-7-sonnet-latest", cache_dir=None, board_img_path=None):
         """
         Initialize the Perception Module for analyzing 2048 game states.
         """
         self.model_name = model_name
+        self.cache_dir = cache_dir
+        self.board_img_path = board_img_path
+        global CACHE_DIR, BOARD_IMG_PATH
+        CACHE_DIR = self.cache_dir
+        BOARD_IMG_PATH = self.board_img_path
+
         
     def analyze_board(self, observation, info=None):
         """

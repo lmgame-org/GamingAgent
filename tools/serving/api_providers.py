@@ -7,7 +7,7 @@ from google.generativeai import types
 from together import Together
 
 def anthropic_completion(system_prompt, model_name, base64_image, prompt, thinking=False, token_limit=30000):
-    print(f"anthropic vision-text activated... thinking: {thinking}")
+    print(f"anthropic vision-text activated... thinking: f{thinking}")
     client = anthropic.Anthropic(api_key=os.getenv("ANTHROPIC_API_KEY"))
     messages = [
         {
@@ -72,6 +72,9 @@ def anthropic_completion(system_prompt, model_name, base64_image, prompt, thinki
 
 def anthropic_text_completion(system_prompt, model_name, prompt, thinking=False, token_limit=30000):
     client = anthropic.Anthropic(api_key=os.getenv("ANTHROPIC_API_KEY"))
+
+    token_limit =64000 if "claude-3-7" in model_name and token_limit > 64000 else token_limit
+    print(f"model_name: {model_name}, token_limit: {token_limit}, thinking: {thinking}")
     messages = [
                 {
                     "role": "user",

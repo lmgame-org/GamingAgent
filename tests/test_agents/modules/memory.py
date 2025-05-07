@@ -9,10 +9,10 @@ from tools.serving import APIManager
 # Cache directories and file paths
 CACHE_DIR = os.path.join("cache", "2048_experiments", datetime.now().strftime("%Y%m%d_%H%M%S"))
 MEMORY_FILE = os.path.join(CACHE_DIR, "memory.json")
-os.makedirs(CACHE_DIR, exist_ok=True)
+# os.makedirs(CACHE_DIR, exist_ok=True)
 
 class MemoryModule:
-    def __init__(self, memory_file=MEMORY_FILE, max_memory=10, model_name="claude-3-7-sonnet-latest"):
+    def __init__(self, memory_file=MEMORY_FILE, max_memory=10, model_name="claude-3-7-sonnet-latest", cache_dir=None):
         """
         Initialize the Memory Module for tracking 2048 game state history.
         
@@ -26,7 +26,11 @@ class MemoryModule:
         self.memory = deque(maxlen=max_memory)
         self.model_name = model_name
         self.api_manager = APIManager(game_name="2048")
-        
+
+        self.cache_dir = cache_dir
+        global CACHE_DIR, MEMORY_FILE
+        CACHE_DIR = self.cache_dir
+        MEMORY_FILE = self.memory_file
         # Create the memory file directory if it doesn't exist
         os.makedirs(os.path.dirname(memory_file), exist_ok=True)
         

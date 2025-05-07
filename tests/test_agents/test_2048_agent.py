@@ -61,10 +61,11 @@ class Agent2048:
             self.base_module = Base_module(model_name=model_name)
         else:
             print(f"Using full pipeline (Perception + Memory + Reasoning) with model: {model_name}")
-            self.perception_module = PerceptionModule(model_name=model_name)
+            self.perception_module = PerceptionModule(model_name=model_name, cache_dir=CACHE_DIR, board_img_path=BOARD_IMG_PATH)
             self.memory_module = MemoryModule(
                 model_name=model_name,
-                memory_file=MEMORY_FILE
+                memory_file=MEMORY_FILE,
+                cache_dir=CACHE_DIR
             )
             self.reasoning_module = ReasoningModule(model_name=model_name)
     
