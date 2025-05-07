@@ -3,6 +3,7 @@ import numpy as np
 import concurrent.futures
 import argparse
 from collections import deque, Counter
+import datetime
 
 import os
 import json
@@ -15,7 +16,6 @@ from collections import Counter
 
 CACHE_DIR = "cache/2048"
 os.makedirs(CACHE_DIR, exist_ok=True)
-
 
 def majority_vote_move(moves_list, prev_move=None):
     """
@@ -50,14 +50,19 @@ system_prompt = (
 
 
 def main():
-    parser = argparse.ArgumentParser(description="sokoban AI Agent")
+    parser = argparse.ArgumentParser(description="2048 AI Agent")
     parser.add_argument("--api_provider", type=str, default="anthropic", help="API provider to use.")
     parser.add_argument("--model_name", type=str, default="claude-3-7-sonnet-20250219", help="LLM model name.")
     parser.add_argument("--modality", type=str, default="vision-text", choices=["text-only", "vision-text"],
                         help="modality used.")
     parser.add_argument("--thinking", type=str, default=True, help="Whether to use deep thinking.")
     parser.add_argument("--num_threads", type=int, default=1, help="Number of parallel threads to launch.")
+    parser.add_argument("--datetime", type=str, help="Datetime string for session directory organization")
     args = parser.parse_args()
+
+    # Create datetime string if not provided
+    datetime_str = args.datetime if args.datetime else datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+    print(f"Using datetime: {datetime_str}")
 
     prev_responses = deque(maxlen=1)
     level = None
@@ -93,7 +98,8 @@ def main():
                             args.model_name,
                             "\n".join(prev_responses),
                             thinking=str2bool(args.thinking),
-                            modality=args.modality
+                            modality=args.modality,
+                            datetime_str=datetime_str  # Pass the datetime string to the worker
                         )
                     )
                 
@@ -105,7 +111,12 @@ def main():
             print(results)
 
             # Find the shortest solution length among all threads
-            shortest_length = min(len(mlist) for mlist in results)
+            shortest_length = min(len(mlist) for mlist in results) if results and all(mlist for mlist in results) else 0
+            
+            if shortest_length == 0:
+                print("No valid moves generated. Waiting for next iteration...")
+                time.sleep(2)
+                continue
 
             # ------------------------- action ------------------------ #
             # For each position up to that shortest length, do a majority vote

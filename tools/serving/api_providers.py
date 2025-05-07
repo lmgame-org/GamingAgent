@@ -6,7 +6,7 @@ import google.generativeai as genai
 from google.generativeai import types
 from together import Together
 
-def anthropic_completion(system_prompt, model_name, base64_image, prompt, thinking=False):
+def anthropic_completion(system_prompt, model_name, base64_image, prompt, thinking=False, token_limit=30000):
     print(f"anthropic vision-text activated... thinking: {thinking}")
     client = anthropic.Anthropic(api_key=os.getenv("ANTHROPIC_API_KEY"))
     messages = [
@@ -28,12 +28,18 @@ def anthropic_completion(system_prompt, model_name, base64_image, prompt, thinki
             ],
         }
     ]
+
+    if "claude-3-5" in model_name:
+        print("claude-3-5 only supports 8192 tokens and no thinking")
+        thinking = False
+        token_limit = 8192
+
     if thinking:
         with client.messages.stream(
-                max_tokens=20000,
+                max_tokens=token_limit,
                 thinking={
                     "type": "enabled",
-                    "budget_tokens": 16000
+                    "budget_tokens": token_limit - 1
                 },
                 messages=messages,
                 temperature=1,
@@ -46,7 +52,7 @@ def anthropic_completion(system_prompt, model_name, base64_image, prompt, thinki
     else:
          
         with client.messages.stream(
-                max_tokens=1024,
+                max_tokens=token_limit,
                 messages=messages,
                 temperature=0,
                 system=system_prompt,
@@ -60,7 +66,7 @@ def anthropic_completion(system_prompt, model_name, base64_image, prompt, thinki
     
     return generated_code_str
 
-def anthropic_text_completion(system_prompt, model_name, prompt, thinking=False):
+def anthropic_text_completion(system_prompt, model_name, prompt, thinking=True, token_limit=30000):
     client = anthropic.Anthropic(api_key=os.getenv("ANTHROPIC_API_KEY"))
     messages = [
                 {
@@ -73,12 +79,20 @@ def anthropic_text_completion(system_prompt, model_name, prompt, thinking=False)
                     ],
                 }
             ]
+    if "claude-3-5" in model_name:
+        print("claude-3-5 only supports 8192 tokens and no thinking")
+        thinking = False
+        token_limit = 8192
+
+    if "claude-3-7" in model_name:
+        print(f"claude-3-7 is currently thinking: {thinking}")
+
     if thinking:
         with client.messages.stream(
-                max_tokens=20000,
+                max_tokens=token_limit,
                 thinking={
                     "type": "enabled",
-                    "budget_tokens": 16000
+                    "budget_tokens": token_limit - 1
                 },
                 messages=messages,
                 temperature=1,
@@ -90,7 +104,7 @@ def anthropic_text_completion(system_prompt, model_name, prompt, thinking=False)
                     partial_chunks.append(chunk)
     else:    
         with client.messages.stream(
-                max_tokens=1024,
+                max_tokens=token_limit,
                 messages=messages,
                 temperature=0,
                 system=system_prompt,
@@ -105,7 +119,7 @@ def anthropic_text_completion(system_prompt, model_name, prompt, thinking=False)
     return generated_str
 
 
-def anthropic_multiimage_completion(system_prompt, model_name, prompt, list_content, list_image_base64):
+def anthropic_multiimage_completion(system_prompt, model_name, prompt, list_content, list_image_base64, token_limit=30000):
     client = anthropic.Anthropic(api_key=os.getenv("ANTHROPIC_API_KEY"))
     
     content_blocks = [] 
@@ -144,7 +158,7 @@ def anthropic_multiimage_completion(system_prompt, model_name, prompt, list_cont
     print(f"message size: {len(content_blocks)+1}")
 
     with client.messages.stream(
-            max_tokens=1024,
+            max_tokens=token_limit,
             messages=messages,
             temperature=0,
             system=system_prompt,
@@ -182,8 +196,15 @@ def safe_headers_init(self, headers=None, encoding=None):
 httpx.Headers.__init__ = safe_headers_init
 
 
-def openai_completion(system_prompt, model_name, base64_image, prompt, temperature=0):
+def openai_completion(system_prompt, model_name, base64_image, prompt, temperature=1, token_limit=30000, reasoning_effort="high"):
+    print(f"OpenAI vision-text API call: model={model_name}, reasoning_effort={reasoning_effort}")
     client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+    if "gpt-4o" in model_name:
+        print("gpt-4o only supports 16384 tokens")
+        token_limit = 16384
+    if "gpt-4.1" in model_name:
+        print("gpt-4.1 only supports 32768 tokens")
+        token_limit = 32768
 
     # Force-clean headers to prevent UnicodeEncodeError
     client._client._headers.update({
@@ -192,6 +213,7 @@ def openai_completion(system_prompt, model_name, base64_image, prompt, temperatu
     })
 
     base64_image = None if "o3-mini" in model_name else base64_image
+
     if base64_image is None:
         messages = [
             {"role": "user", "content": [{"type": "text", "text": prompt}]}
@@ -207,21 +229,33 @@ def openai_completion(system_prompt, model_name, base64_image, prompt, temperatu
             }
         ]
 
-    token_param = "max_completion_tokens" if "o1" in model_name else "max_tokens"
+    # Update token parameter logic to include o4 models
+    token_param = "max_completion_tokens" if ("o1" in model_name or "o4" in model_name or "o3" in model_name) else "max_tokens"
     request_params = {
         "model": model_name,
         "messages": messages,
-        token_param: 4096,
+        token_param: token_limit,
     }
 
-    if "o1" not in model_name:
+    # Add reasoning_effort for o1, o3, o4 models, temperature for others
+    if "o1" in model_name or "o3" in model_name or "o4" in model_name:
+        request_params["reasoning_effort"] = reasoning_effort
+    else:
         request_params["temperature"] = temperature
 
     response = client.chat.completions.create(**request_params)
     return response.choices[0].message.content
 
-def openai_text_completion(system_prompt, model_name, prompt):
+def openai_text_completion(system_prompt, model_name, prompt, token_limit=30000, reasoning_effort="medium"):
+    print(f"OpenAI text-only API call: model={model_name}, reasoning_effort={reasoning_effort}")
     client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+    if "gpt-4o" in model_name:
+        print("gpt-4o only supports 16384 tokens")
+        token_limit = 16384
+    if "gpt-4.1" in model_name:
+        print("gpt-4.1 only supports 32768 tokens")
+        token_limit = 32768
+
     messages = [
             {
                 "role": "user",
@@ -234,19 +268,36 @@ def openai_text_completion(system_prompt, model_name, prompt):
             }
         ]
 
-    response = client.chat.completions.create(
-        model=model_name,
-        messages=messages,
-        temperature=0,
-        max_tokens=1024,
-    )
+    # Update token parameter logic to include all o-series models
+    token_param = "max_completion_tokens" if ("o1" in model_name or "o4" in model_name or "o3" in model_name) else "max_tokens"
+    
+    request_params = {
+        "model": model_name,
+        "messages": messages,
+        token_param: token_limit,
+    }
+    
+    # Add reasoning_effort for o1, o3, o4 models, temperature for others
+    if "o1" in model_name or "o3" in model_name or "o4" in model_name:
+        request_params["reasoning_effort"] = reasoning_effort
+    else:
+        request_params["temperature"] = 1
+
+    response = client.chat.completions.create(**request_params)
 
     generated_str = response.choices[0].message.content
      
     return generated_str
 
-def openai_text_reasoning_completion(system_prompt, model_name, prompt, temperature=0):
+def openai_text_reasoning_completion(system_prompt, model_name, prompt, temperature=1, token_limit=30000, reasoning_effort="medium"):
+    print(f"OpenAI text-reasoning API call: model={model_name}, reasoning_effort={reasoning_effort}")
     client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+    if "gpt-4o" in model_name:
+        print("gpt-4o only supports 16384 tokens")
+        token_limit = 16384
+    if "gpt-4.1" in model_name:
+        print("gpt-4.1 only supports 32768 tokens")
+        token_limit = 32768
     
     messages = [
         {
@@ -260,19 +311,20 @@ def openai_text_reasoning_completion(system_prompt, model_name, prompt, temperat
         }
     ]
 
-    # Determine correct token parameter
-    token_param = "max_completion_tokens" if "o3-mini" in model_name else "max_tokens"
+    # Update token parameter logic to include all o-series models
+    token_param = "max_completion_tokens" if ("o1" in model_name or "o4" in model_name or "o3" in model_name) else "max_tokens"
     
     # Prepare request parameters dynamically
     request_params = {
         "model": model_name,
         "messages": messages,
-        token_param: 100000,
-        "reasoning_effort": "medium"
+        token_param: token_limit,
     }
     
-    # Only add 'temperature' if the model supports it
-    if "o3-mini" not in model_name:  # Assuming o3-mini doesn't support 'temperature'
+    # Add reasoning_effort for o1, o3, o4 models, temperature for others
+    if "o1" in model_name or "o3" in model_name or "o4" in model_name:
+        request_params["reasoning_effort"] = reasoning_effort
+    else:
         request_params["temperature"] = temperature
 
     response = client.chat.completions.create(**request_params)
@@ -281,7 +333,7 @@ def openai_text_reasoning_completion(system_prompt, model_name, prompt, temperat
      
     return generated_str
 
-def deepseek_text_reasoning_completion(system_prompt, model_name, prompt):
+def deepseek_text_reasoning_completion(system_prompt, model_name, prompt, token_limit=8000):
      
     client = OpenAI(
         api_key=os.getenv("DEEPSEEK_API_KEY"),
@@ -302,7 +354,7 @@ def deepseek_text_reasoning_completion(system_prompt, model_name, prompt):
         model= model_name,
         messages = messages,
         stream=True,
-        max_tokens=8000)
+        max_tokens=token_limit)
     
     for chunk in response:
         if chunk.choices[0].delta.reasoning_content and chunk.choices[0].delta.reasoning_content:
@@ -311,13 +363,19 @@ def deepseek_text_reasoning_completion(system_prompt, model_name, prompt):
             content += chunk.choices[0].delta.content
     
     # generated_str = response.choices[0].message.content
-    print(content)
     return content
     
 
 
-def openai_multiimage_completion(system_prompt, model_name, prompt, list_content, list_image_base64):
+def openai_multiimage_completion(system_prompt, model_name, prompt, list_content, list_image_base64, token_limit=30000, reasoning_effort="medium"):
+    print(f"OpenAI multi-image API call: model={model_name}, reasoning_effort={reasoning_effort}")
     client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+    if "gpt-4o" in model_name:
+        print("gpt-4o only supports 16384 tokens")
+        token_limit = 16384
+    if "gpt-4.1" in model_name:
+        print("gpt-4.1 only supports 32768 tokens")
+        token_limit = 32768
 
     content_blocks = []
     
@@ -339,26 +397,36 @@ def openai_multiimage_completion(system_prompt, model_name, prompt, list_content
             },
         )
 
-    messages [
+    messages = [
         {
             "role": "user",
             "content": content_blocks,
         }
     ]
     
-    response = client.chat.completions.create(
-        model=model_name,
-        messages=messages,
-        temperature=0,
-        max_tokens=1024,
-    )
+    # Update token parameter logic to include all o-series models
+    token_param = "max_completion_tokens" if ("o1" in model_name or "o4" in model_name or "o3" in model_name) else "max_tokens"
+    
+    request_params = {
+        "model": model_name,
+        "messages": messages,
+        token_param: token_limit,
+    }
+    
+    # Add reasoning_effort for o1, o3, o4 models, temperature for others
+    if "o1" in model_name or "o3" in model_name or "o4" in model_name:
+        request_params["reasoning_effort"] = reasoning_effort
+    else:
+        request_params["temperature"] = 1
+
+    response = client.chat.completions.create(**request_params)
 
     generated_str = response.choices[0].message.content
      
     return generated_str
 
 
-def gemini_text_completion(system_prompt, model_name, prompt):
+def gemini_text_completion(system_prompt, model_name, prompt, token_limit=30000):
     genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
     model = genai.GenerativeModel(model_name=model_name)
 
@@ -368,13 +436,21 @@ def gemini_text_completion(system_prompt, model_name, prompt):
             
     try:
         response = model.generate_content(
-            messages
+            messages,
+            generation_config=types.GenerationConfig(
+                max_output_tokens=token_limit
+            )
         )
     except Exception as e:
         print(f"error: {e}")
 
     try:
-        response = model.generate_content(messages)
+        response = model.generate_content(
+            messages,
+            generation_config=types.GenerationConfig(
+                max_output_tokens=token_limit
+            )
+        )
 
         # Ensure response is valid and contains candidates
         if not response or not hasattr(response, "candidates") or not response.candidates:
@@ -387,80 +463,7 @@ def gemini_text_completion(system_prompt, model_name, prompt):
         print(f"Error: {e}")
         return "" 
 
-def anthropic_text_completion(system_prompt, model_name, prompt, thinking=False):
-    client = anthropic.Anthropic(api_key=os.getenv("ANTHROPIC_API_KEY"))
-    messages = [
-                {
-                    "role": "user",
-                    "content": [
-                        {
-                            "type": "text",
-                            "text": prompt
-                        },
-                    ],
-                }
-            ]
-    if thinking:
-        with client.messages.stream(
-                max_tokens=20000,
-                thinking={
-                    "type": "enabled",
-                    "budget_tokens": 16000
-                },
-                messages=messages,
-                temperature=1,
-                system=system_prompt,
-                model=model_name, # claude-3-5-sonnet-20241022 # claude-3-7-sonnet-20250219
-            ) as stream:
-                partial_chunks = []
-                for chunk in stream.text_stream:
-                    partial_chunks.append(chunk)
-    else:    
-        with client.messages.stream(
-                max_tokens=1024,
-                messages=messages,
-                temperature=0,
-                system=system_prompt,
-                model=model_name, # claude-3-5-sonnet-20241022 # claude-3-7-sonnet-20250219
-            ) as stream:
-                partial_chunks = []
-                for chunk in stream.text_stream:
-                    partial_chunks.append(chunk)
-        
-    generated_str = "".join(partial_chunks)
-    
-    return generated_str
-
-def gemini_text_completion(system_prompt, model_name, prompt):
-    genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
-    model = genai.GenerativeModel(model_name=model_name)
-
-    messages = [
-        prompt,
-    ]
-            
-    try:
-        response = model.generate_content(
-            messages
-        )
-    except Exception as e:
-        print(f"error: {e}")
-
-    try:
-        response = model.generate_content(messages)
-
-        # Ensure response is valid and contains candidates
-        if not response or not hasattr(response, "candidates") or not response.candidates:
-            print("Warning: Empty or invalid response")
-            return ""
-        
-        return response.text  # Access response.text safely
-
-    except Exception as e:
-        print(f"Error: {e}")
-        return "" 
-
-def gemini_completion(system_prompt, model_name, base64_image, prompt):
+def gemini_completion(system_prompt, model_name, base64_image, prompt, token_limit=30000):
     genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
     model = genai.GenerativeModel(model_name=model_name)
 
@@ -474,13 +477,21 @@ def gemini_completion(system_prompt, model_name, base64_image, prompt):
             
     try:
         response = model.generate_content(
-            messages
+            messages,
+            generation_config=types.GenerationConfig(
+                max_output_tokens=token_limit
+            )
         )
     except Exception as e:
         print(f"error: {e}")
 
     try:
-        response = model.generate_content(messages)
+        response = model.generate_content(
+            messages,
+            generation_config=types.GenerationConfig(
+                max_output_tokens=token_limit
+            )
+        )
 
         # Ensure response is valid and contains candidates
         if not response or not hasattr(response, "candidates") or not response.candidates:
@@ -493,7 +504,7 @@ def gemini_completion(system_prompt, model_name, base64_image, prompt):
         print(f"Error: {e}")
         return "" 
 
-def gemini_multiimage_completion(system_prompt, model_name, prompt, list_content, list_image_base64):
+def gemini_multiimage_completion(system_prompt, model_name, prompt, list_content, list_image_base64, token_limit=30000):
     genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
     model = genai.GenerativeModel(model_name=model_name)
 
@@ -516,6 +527,9 @@ def gemini_multiimage_completion(system_prompt, model_name, prompt, list_content
     try:
         response = model.generate_content(
             messages,
+            generation_config=types.GenerationConfig(
+                max_output_tokens=token_limit
+            )
         )
     except Exception as e:
         print(f"error: {e}")
@@ -525,78 +539,82 @@ def gemini_multiimage_completion(system_prompt, model_name, prompt, list_content
     return generated_str
 
 
-def deepseek_text_reasoning_completion(system_prompt, model_name, prompt):
-     
-    client = OpenAI(
-        api_key=os.getenv("DEEPSEEK_API_KEY"),
-        base_url="https://api.deepseek.com",
+def together_ai_completion(system_prompt, model_name, prompt, base64_image=None, temperature=1, token_limit=30000):
+    client = Together(api_key=os.getenv("TOGETHER_API_KEY"))
+
+    # Construct messages based on whether an image is provided
+    if base64_image is not None:
+        print(f"Together AI vision-text API call: model={model_name}")
+        messages=[
+            {
+                "role": "user",
+                "content": [
+                    {
+                        "type": "image_url",
+                        "image_url": {"url": f"data:image/png;base64,{base64_image}"}
+                    },
+                    {
+                        "type": "text",
+                        "text": prompt
+                    }
+                ]
+            }
+        ]
+    else:
+        print(f"Together AI text-only API call: model={model_name}")
+        # Fallback to text-only if no image provided
+        messages=[
+            {
+                "role": "user",
+                "content": [
+                    {
+                        "type": "text",
+                        "text": prompt
+                    }
+                ]
+            }
+        ]
+
+    # Use the provided model_name for the API call
+    response = client.chat.completions.create(
+        model=model_name, # Use the model_name argument
+        messages=messages,
+        temperature=temperature,
+        max_tokens=token_limit
     )
 
+    generated_str = response.choices[0].message.content
+    return generated_str
 
+def xai_grok_completion(system_prompt, model_name, prompt, temperature=0, reasoning_effort="high"):
+    client = OpenAI(
+        api_key=os.getenv("XAI_API_KEY"),
+        base_url="https://api.x.ai/v1",
+    )
+    
     messages = [
         {
+            "role": "system",
+            "content": system_prompt,
+        },
+        {
             "role": "user",
-            "content": prompt
-        }
+            "content": prompt,
+        },
     ]
-
-    reasoning_content = ""
-    content = ""
-    response = client.chat.completions.create(
-        model= model_name,
-        messages = messages,
-        stream=True,
-        max_tokens=8000)
     
-    for chunk in response:
-        if chunk.choices[0].delta.reasoning_content and chunk.choices[0].delta.reasoning_content:
-            reasoning_content += chunk.choices[0].delta.reasoning_content
-        elif hasattr(chunk.choices[0].delta, "content") and chunk.choices[0].delta.content:
-            content += chunk.choices[0].delta.content
+    # Only include reasoning_effort for supported models
+    params = {
+        "model": model_name,
+        "messages": messages,
+        "temperature": temperature,
+    }
     
-    # generated_str = response.choices[0].message.content
-    return content
-
-
-def together_ai_completion(system_prompt, model_name, prompt, base64_image=None, temperature=0):
-    client = Together(api_key=os.getenv("TOGETHER_API_KEY"))
-    if base64_image is not None:
-        response = client.chat.completions.create(
-            model=model_name,
-            messages=[
-                {
-                    "role": "user",
-                    "content": [
-                        {
-                            "type": "image_url",
-                            "image_url": {"url": f"data:image/png;base64,{base64_image}"}
-                        },
-                        {
-                            "type": "text",
-                            "text": prompt
-                        }
-                    ]
-                }
-            ],
-            temperature=temperature
-        )
-    else:
-        response = client.chat.completions.create(
-            model="meta-llama/Llama-4-Maverick-17B-128E-Instruct-FP8",
-            messages=[
-                {
-                    "role": "user",
-                    "content": [
-                        {
-                            "type": "text",
-                            "text": prompt
-                        }
-                    ]
-                }
-            ],
-            temperature=temperature
-        )
-
-    generated_str = response.choices[0].message.content
-     
-    return generated_str
+    # Add reasoning_effort only for models that support it
+    if "grok-3-mini" in model_name: # Example condition, adjust if needed for other Grok models
+        params["reasoning_effort"] = reasoning_effort
+    
+    completion = client.chat.completions.create(**params)
+    
+    # Return just the content for consistency with other completion functions
+    return completion.choices[0].message.content
