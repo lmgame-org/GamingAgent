@@ -19,902 +19,534 @@ from gamingagent.utils.utils import convert_to_json_serializable # Added for JSO
 import argparse # Added for command-line arguments
 import io
 import base64
-# NOTE: Pillow (PIL) is required for image conversion. Please install it: pip install Pillow
 from PIL import Image
+import traceback
 
 CACHE_DIR = "cache/sokoban"
-# Ensure cache directory exists
 os.makedirs(CACHE_DIR, exist_ok=True)
 
-# --- Helper functions (can be kept separate or moved into relevant modules) ---
-
+# --- Helper functions ---
 def matrix_to_text_table(matrix):
-    """Convert a 2D list matrix into a structured text table."""
-    if matrix is None:
-        return "No board matrix available."
-
-    header = "ID  | Item Type    | Position (col, row)" # Clarify position order
-    line_separator = "-" * len(header)
-
-    # Ensure the item map covers all characters used in the env
-    item_map = {
-        '#': 'Wall',
-        '@': 'Worker',
-        '$': 'Box',
-        '?': 'Dock',
-        '*': 'Box on Dock',
-        ' ': 'Floor',
-        '+': 'Worker on Dock'
-    }
-
-    table_rows = [header, line_separator]
+    if matrix is None: return "No board matrix available."
+    item_map = {'#': 'Wall', '@': 'Worker', '$': 'Box', '?': 'Dock', '*': 'Box on Dock', ' ': 'Floor', '+': 'Worker on Dock'}
+    header = "ID  | Item Type    | Position (col, row)"
+    rows = [header, "-" * len(header)]
     item_id = 1
-
-    # Check if matrix is valid before iterating
     if not isinstance(matrix, list) or not all(isinstance(row, list) for row in matrix):
-        print(f"Warning: Invalid matrix format received in matrix_to_text_table: {matrix}")
+        print(f"Warning: Invalid matrix format: {matrix}", file=sys.stderr)
         return "Invalid board matrix format."
-
-
-    for row_idx, row in enumerate(matrix):
-        for col_idx, cell in enumerate(row):
-            cell_char = str(cell)
-            item_type = item_map.get(cell_char, f'Unknown ({cell_char})')
-            table_rows.append(f"{item_id:<3} | {item_type:<12} | ({col_idx}, {row_idx})")
+    for r, row_data in enumerate(matrix):
+        for c, cell in enumerate(row_data):
+            item_type = item_map.get(str(cell), f'Unknown ({cell})')
+            rows.append(f"{item_id:<3} | {item_type:<12} | ({c}, {r})")
             item_id += 1
+    return "\\n".join(rows)
 
-    return "\n".join(table_rows)
-
-# Updated logging function to accept full path
 def log_move_and_thought(move: str, thought: str, latency: float, log_file_path: str):
-    """
-    Logs the move and thought process into the specified log file.
-    """
-    log_entry = f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] Move: {move}, Thought: {thought}, Latency: {latency:.2f} sec\n"
+    log_entry = f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] Move: {move}, Thought: {thought}, Latency: {latency:.2f} sec\\n"
     try:
-        with open(log_file_path, "a") as log_file:
-            log_file.write(log_entry)
-    except Exception as e:
-        print(f"[ERROR] Failed to write log entry to {log_file_path}: {e}")
+        with open(log_file_path, "a") as log_file: log_file.write(log_entry)
+    except Exception as e: print(f"[ERROR] Failed to write log to {log_file_path}: {e}", file=sys.stderr)
 
-# Updated JSONL logging function to accept full path
 def log_step_data_to_jsonl(step_data: dict, log_file_path: str):
-    """
-    Append step data to the specified JSON Lines log file.
-
-    Args:
-        step_data (dict): Dictionary containing data for the current step.
-        log_file_path (str): Path to the JSONL file.
-    """
-    if not log_file_path:
-        print("[ERROR] No log file path provided for JSONL logging.")
-        return
-
+    if not log_file_path: print("[ERROR] No log file path for JSONL.", file=sys.stderr); return
     try:
-        # Convert NumPy types etc. to be JSON serializable
-        record = convert_to_json_serializable(step_data)
+        with open(log_file_path, 'a') as f: json.dump(convert_to_json_serializable(step_data), f); f.write('\\n')
+    except Exception as e: print(f"[ERROR] Failed to write JSONL to {log_file_path}: {e}", file=sys.stderr)
 
-        with open(log_file_path, 'a') as f:
-            json.dump(record, f)
-            f.write('\n')
-    except Exception as e:
-        print(f"[ERROR] Failed to write JSONL log entry to {log_file_path}: {e}")
-        # Avoid printing potentially huge data structures
-        # print(f"Data that failed: {record}")
-
-# --- Image Conversion Helper ---
 def numpy_array_to_base64(image_array):
-    """Converts a NumPy array (RGB) to a base64 encoded PNG image string."""
-    if image_array is None:
-        return None
+    if image_array is None: return None
     try:
-        pil_image = Image.fromarray(image_array.astype('uint8'), 'RGB')
+        pil_img = Image.fromarray(image_array.astype('uint8'), 'RGB')
         buffered = io.BytesIO()
-        pil_image.save(buffered, format="PNG")
-        img_str = base64.b64encode(buffered.getvalue()).decode("utf-8")
-        return img_str
-    except Exception as e:
-        print(f"[ERROR] Failed to convert NumPy array to base64: {e}", file=sys.stderr)
-        return None
+        pil_img.save(buffered, format="PNG")
+        return base64.b64encode(buffered.getvalue()).decode("utf-8")
+    except Exception as e: print(f"[ERROR] Numpy to base64 failed: {e}", file=sys.stderr); return None
 
 # --- Perception Module ---
-
 class PerceptionModule:
-    """Handles retrieving and formatting the game state."""
-    def __init__(self, env: CustomSokobanEnv):
-        self.env = env
-
-    def get_current_state(self) -> dict:
-        """
-        Gets the current game state as a character matrix and text table.
-
-        Returns:
-            dict: {'matrix': list[list[str]], 'text_table': str} or None on error.
-        """
+    def __init__(self, env: CustomSokobanEnv): self.env = env
+    def get_current_state(self) -> dict | None:
         char_matrix = self.env.get_char_matrix()
         if char_matrix is None:
-            print("Error: PerceptionModule could not get character matrix.", file=sys.stderr)
+            print("Error: PerceptionModule could not get char matrix.", file=sys.stderr)
             return None
-
-        board_table = matrix_to_text_table(char_matrix)
-
-        return {
-            "matrix": char_matrix,
-            "text_table": board_table
-        }
+        return {"matrix": char_matrix, "text_table": matrix_to_text_table(char_matrix)}
 
 # --- Memory Module ---
-
 class MemoryModule:
-    """Stores and retrieves history of game states, actions, and thoughts."""
     def __init__(self, max_history=5):
-        self.max_history = max_history
-        # Stores tuples of (perception_dict, action_data)
-        # action_data = {'move': str, 'thought': str}
         self.history = deque(maxlen=max_history)
-
     def add_entry(self, perception_data: dict, action_data: dict):
-        """Adds a new state-action entry to memory."""
+        # perception_data for SokobanAgent is {'matrix': ..., 'text_table': ...}
+        # perception_data for MemoryOnlyAgent could be {'image_base64': ...}
         if perception_data and action_data:
-            timestamp = time.time()
-            self.history.append({
-                "timestamp": timestamp,
-                "perception": perception_data,
-                "action_data": action_data
-            })
-
+            self.history.append({"timestamp": time.time(), "perception": perception_data, "action_data": action_data})
     def get_memory_summary(self) -> str:
-        """Provides a summary of the recent history for the prompt."""
-        if not self.history:
-            return "No previous actions or thoughts available."
-
-        # Get the most recent entry (the one just before the current decision)
+        if not self.history: return "No previous actions or thoughts available."
         last_entry = self.history[-1]
-        last_action_data = last_entry.get("action_data", {"move": "N/A", "thought": "N/A"})
-        move = last_action_data.get('move', 'N/A')
-        thought = last_action_data.get('thought', 'N/A')
+        action_data = last_entry.get("action_data", {"move": "N/A", "thought": "N/A"})
+        return f"Previous Action: {action_data.get('move', 'N/A')}, Previous Thought: {action_data.get('thought', 'N/A')}"
+    def clear(self): self.history.clear()
 
-        # You could expand this to include more history if needed
-        summary = f"Previous Action: {move}, Previous Thought: {thought}"
-        return summary
-
-# --- Reasoning Module ---
-
+# --- Reasoning Module (Refactored) ---
 class ReasoningModule:
-    """Uses an LLM to decide the next action based on perception and memory."""
     def __init__(self, api_provider: str, model_name: str, system_prompt: str, thinking: bool):
         self.api_provider = api_provider
         self.model_name = model_name
         self.system_prompt = system_prompt
         self.thinking = thinking
-        self.last_api_latency = 0.0
 
-    def plan_action(self, current_perception: dict, memory_summary: str) -> dict:
-        """
-        Calls the LLM API to get the next move and thought.
+    def _call_llm_api(self, prompt: str, base64_image: str | None = None) -> str:
+        response_text = ""
+        # print(f"DEBUG: ReasoningModule calling {self.model_name} via {self.api_provider}. Image: {bool(base64_image)}")
+        # print(f"DEBUG: Prompt (first 200 chars): {prompt[:200]}")
+        if base64_image:
+            if self.api_provider == "anthropic": response_text = anthropic_completion(self.system_prompt, self.model_name, base64_image, prompt, self.thinking)
+            elif self.api_provider == "openai": response_text = openai_completion(self.system_prompt, self.model_name, base64_image, prompt)
+            elif self.api_provider == "gemini": response_text = gemini_completion(self.system_prompt, self.model_name, base64_image, prompt)
+            # Add other vision-capable providers here
+            # elif self.api_provider == "deepseek" and hasattr(globals().get('deepseek_vision_completion', None), '__call__'):
+            # response_text = deepseek_vision_completion(self.system_prompt, self.model_name, base64_image, prompt)
+            else: raise NotImplementedError(f"Vision API provider: {self.api_provider} not supported for vision.")
+        else:
+            if self.api_provider == "anthropic": response_text = anthropic_text_completion(self.system_prompt, self.model_name, prompt, self.thinking)
+            elif self.api_provider == "openai": response_text = openai_text_reasoning_completion(self.system_prompt, self.model_name, prompt)
+            elif self.api_provider == "gemini": response_text = gemini_text_completion(self.system_prompt, self.model_name, prompt)
+            elif self.api_provider == "deepseek": response_text = deepseek_text_reasoning_completion(self.system_prompt, self.model_name, prompt)
+            elif self.api_provider == "together_ai": response_text = together_ai_completion(self.system_prompt, self.model_name, prompt)
+            elif self.api_provider == "xai": response_text = xai_grok_completion(self.system_prompt, self.model_name, prompt)
+            else: raise NotImplementedError(f"Text API provider: {self.api_provider} not supported.")
+        return response_text
 
-        Args:
-            current_perception (dict): Output from PerceptionModule.
-            memory_summary (str): Output from MemoryModule.
+    def _parse_response(self, response_text: str) -> tuple[str, str]:
+        pattern = r'move:\s*([\w\s]+),\s*thought:\s*(.*)'
+        match = re.search(pattern, response_text, re.IGNORECASE | re.DOTALL)
+        if match: return match.group(1).strip().lower(), match.group(2).strip()
+        return "parse_error", f"Could not parse move/thought from LLM response: {response_text}"
 
-        Returns:
-            dict: {'move': str, 'thought': str, 'latency': float}
-        """
-        move = "noop" # Default move
-        thought = "Error during API call or parsing."
+    def plan_action_with_text(self, current_perception_text_table: str, memory_summary: str | None) -> dict:
         start_time = time.time()
-        latency = 0.0
-
-        if not current_perception or 'text_table' not in current_perception:
-             thought = "Error: Invalid perception data received."
-             print(f"ReasoningModule Error: {thought}", file=sys.stderr)
-             return {"move": move, "thought": thought, "latency": latency}
-
-        board_table = current_perception['text_table']
-
-        # Construct the prompt
+        mem_summary = memory_summary if memory_summary else "No previous actions or thoughts available."
+        # Restoring detailed Rules, Instructions, Output Format but NO Legend
         prompt = (
-            f"## Previous Action/Thought\\n{memory_summary}\\n\\n" # Use summary from memory module
-            f"## Current Sokoban Board State\\n{board_table}\\n\\n"
-            "## Task\\nAnalyze the current board state AND your previous action/thought. Decide the single best action for the worker (@ or +). "
-            "Your goal is to push all boxes ($) onto the designated dock locations (?).\n\n"
-            "**Legend:**\n- `@`: Worker\n- `+`: Worker on dock\n- `$`: Box\n- `*`: Box on dock\n- `?`: Empty dock\n- `#`: Wall\n- ` `: Floor\n\n"
-            "**Rules:**\n- You can **move** Up, Down, Left, Right onto empty floor (` `) or docks (`?`).\n- You can **push** a box ($ or *) Up, Down, Left, Right if the space beyond it is empty (` ` or `?`).\n- Avoid deadlocks (pushing boxes into corners unnecessarily).\n\n"
+            f"## Previous Action/Thought\n{mem_summary}\n\n"
+            f"## Current Sokoban Board State\n{current_perception_text_table}\n\n"
+            "## Task\nAnalyze the current board state (provided above) AND your previous action/thought. "
+            "Decide the single best action for the worker. "
+            "Your goal is to push all boxes onto the designated dock locations.\n\n"
+            "**Rules:**\n- You can **move** Up, Down, Left, Right onto empty floor (` `) or docks (`?`).\n"
+            "- You can **push** a box ($ or *) Up, Down, Left, Right if the space beyond it is empty (` ` or `?`).\n"
+            "- Avoid deadlocks (pushing boxes into corners unnecessarily).\n\n"
             "**Instructions:**\n1. Review the current board and your last action/thought.\n"
             "2. Determine the next best action: `up`, `down`, `left`, `right` to **move**, OR `push up`, `push down`, `push left`, `push right` to **push** a box.\n"
             "3. Briefly explain your reasoning.\n\n"
-            "## Output Format\\nReturn ONLY the next action and a brief thought process in the specified format:\\n"
-            "move: <action>, thought: <brief_reasoning>\\n\\n"
-            "**Examples:**\nmove: right, thought: Moving right to get behind the box.\nmove: push up, thought: Pushing the box at (2,3) upwards onto the dock.\nmove: left, thought: Repositioning to avoid blocking the path."
-
+            "## Output Format\nReturn ONLY the next action and a brief thought process in the specified format:\n"
+            "move: <action>, thought: <brief_reasoning>\n\n"
+            "**Examples:**\nmove: right, thought: Moving right to get behind the box.\nmove: push up, thought: Pushing the box at (2,3) upwards onto the dock." # Added examples back
         )
-
-        # Call the LLM API
-        response = ""
-        base64_image = None # Not using vision
-
         try:
-            print(f"Calling {self.model_name} via {self.api_provider} API...")
-            # --- Select API Function --- #
-            if self.api_provider == "anthropic":
-                response = anthropic_text_completion(self.system_prompt, self.model_name, prompt, self.thinking)
-            elif self.api_provider == "openai":
-                response = openai_text_reasoning_completion(self.system_prompt, self.model_name, prompt)
-            elif self.api_provider == "gemini":
-                response = gemini_text_completion(self.system_prompt, self.model_name, prompt)
-            elif self.api_provider == "deepseek":
-                response = deepseek_text_reasoning_completion(self.system_prompt, self.model_name, prompt)
-            elif self.api_provider == "together_ai":
-                response = together_ai_completion(self.system_prompt, self.model_name, prompt)
-            elif self.api_provider == "xai":
-                response = xai_grok_completion(self.system_prompt, self.model_name, prompt)
-            else:
-                raise NotImplementedError(f"API provider: {self.api_provider} is not supported.")
-            # --- API Call End --- #
+            # print(f"[{self.__class__.__name__}] Calling LLM for text-based plan...")
+            raw_response = self._call_llm_api(prompt)
             latency = time.time() - start_time
-            self.last_api_latency = latency # Store latency
-            print(f"API call latency: {latency:.2f} sec")
-
-            # Parse the response
-            pattern = r'move:\s*([\w\s]+),\s*thought:\s*(.*)'
-            match = re.search(pattern, response, re.IGNORECASE | re.DOTALL)
-
-            if match:
-                move = match.group(1).strip().lower()
-                thought = match.group(2).strip()
-                print(f"LLM proposed move: {move}, thought: {thought}")
-            else:
-                thought = f"Could not parse move/thought from LLM response: {response}"
-                print(f"Warning: {thought}")
-                move = "parse_error" # Indicate parsing failure
-
+            move, thought = self._parse_response(raw_response)
+            print(f"Text API latency: {latency:.2f} sec. Move: {move}. Thought: {thought}")
+            return {"move": move, "thought": thought, "latency": latency}
         except Exception as e:
             latency = time.time() - start_time
-            self.last_api_latency = latency
-            thought = f"Error during LLM API call or processing: {e}"
-            print(f"Error: {thought}", file=sys.stderr)
-            move = "api_error" # Indicate API failure
+            thought = f"Error in text LLM call: {e}"
+            print(f"Error: {thought}", file=sys.stderr); traceback.print_exc()
+            return {"move": "api_error", "thought": thought, "latency": latency}
 
-        return {"move": move, "thought": thought, "latency": latency}
+    def plan_action_with_vision(self, base64_image: str, memory_summary: str | None) -> dict:
+        start_time = time.time()
+        mem_summary = memory_summary if memory_summary else "No previous actions or thoughts available."
+        # Restoring detailed sections, including Image Legend
+        prompt = (
+            f"## Previous Action/Thought\n{mem_summary}\n\n"
+            "## Sokoban Game Task (Image Input)\n"
+            "You are playing Sokoban. Analyze the provided image and your previous action/thought (if any) "
+            "to push all boxes to docks.\n\n"
+            "**Image Legend:**\n- Human Figure (Blue Shirt, Jeans): Worker (You)\n- Brown Wooden Crates: Boxes\n- Dashed Square with 'x': Dock locations (Targets)\n- Gray Brick Blocks: Walls (Impassable)\n- Sandy/Beige Floor: Empty space\n\n" # Detailed legend
+            "**Rules:**\n- You can **move** the worker Up, Down, Left, Right onto empty floor spaces or docks.\n"
+            "- You can **push** a single box Up, Down, Left, or Right if the space beyond the box in the push direction is empty.\n"
+            "- You cannot push boxes into walls or other boxes.\n"
+            "- You win when all boxes are on docks.\n\n" # Detailed rules
+            "**Task:**\nBased on the provided image AND your memory of the last action (if available), decide the single best action.\n"
+            "- If you want to **move**, specify: `up`, `down`, `left`, or `right`.\n"
+            "- If you want to **push** a box, specify: `push up`, `push down`, `push left`, or `push right`.\n"
+            "Prioritize progress. Avoid deadlocks.\n\n" # Detailed task
+            "**Output Format:**\nReturn ONLY the next action and a brief thought process:\n"
+            "move: <action>, thought: <brief_reasoning>\n\n" # Detailed format
+            "**Examples:**\nmove: right, thought: Moving the worker right to get behind the red box.\nmove: push down, thought: Pushing the box below the worker downwards towards the green dock." # Detailed examples
+        )
+        try:
+            # print(f"[{self.__class__.__name__}] Calling LLM for vision-based plan...")
+            raw_response = self._call_llm_api(prompt, base64_image=base64_image)
+            latency = time.time() - start_time
+            move, thought = self._parse_response(raw_response)
+            print(f"Vision API latency: {latency:.2f} sec. Move: {move}. Thought: {thought}")
+            return {"move": move, "thought": thought, "latency": latency}
+        except Exception as e:
+            latency = time.time() - start_time
+            thought = f"Error in vision LLM call: {e}"
+            print(f"Error: {thought}", file=sys.stderr); traceback.print_exc()
+            return {"move": "api_error", "thought": thought, "latency": latency}
 
-
-# --- Refactored Agent Class (With Memory) ---
-
-class SokobanAgent:
-    """
-    An agent for interacting with the CustomSokobanEnv using modular components including memory.
-    """
-    def __init__(self, env: CustomSokobanEnv = None,
-                 render_mode: str = None, api_provider: str = 'openai', model_name: str = 'gpt-4-turbo',
-                 system_prompt: str = "You are an expert Sokoban player.", thinking: bool = True,
-                 max_memory_history: int = 5, text_log_path: str = None, jsonl_log_path: str = None):
-        """
-        Initializes the modular agent with memory.
-        Args:
-            text_log_path (str): Path to the text log file for the run.
-            jsonl_log_path (str): Path to the JSONL log file for the run.
-        """
-        if env:
-            self.env = env
-        else:
-            self.env = CustomSokobanEnv(render_mode=render_mode)
-
+# --- Base Agent Class ---
+class BaseSokobanAgent:
+    DEFAULT_MOVE_MAP = {
+        'up': 5, 'down': 6, 'left': 7, 'right': 8,
+        'push up': 1, 'push down': 2, 'push left': 3, 'push right': 4,
+        'noop': 0, 'parse_error': 0, 'api_error': 0
+    }
+    def __init__(self, env_render_mode: str | None, api_provider: str, model_name: str,
+                 system_prompt: str, thinking: bool,
+                 text_log_path: str, jsonl_log_path: str,
+                 agent_type_suffix: str, env: CustomSokobanEnv | None = None):
+        if env: self.env = env
+        else: self.env = CustomSokobanEnv(render_mode=env_render_mode)
         self.action_space = self.env.action_space
+        self.move_to_action_id = self.DEFAULT_MOVE_MAP.copy()
+        self.api_provider = api_provider
+        self.model_name = model_name
 
-        # -- Use Provided Log Filenames --
         if not text_log_path or not jsonl_log_path:
-            # Fallback if paths not provided (shouldn't happen with main script update)
-            print("Warning: Log paths not provided to SokobanAgent. Generating default names.", file=sys.stderr)
-            run_timestamp = time.strftime('%Y%m%d_%H%M%S')
-            safe_model_name = re.sub(r'[^a-zA-Z0-9_-]', '_', model_name)
-            base_filename = f"{run_timestamp}_{safe_model_name}_sokoban_fallback"
-            self.text_log_file = os.path.join(CACHE_DIR, f"{base_filename}.log")
-            self.jsonl_log_file = os.path.join(CACHE_DIR, f"{base_filename}.jsonl")
+            ts = time.strftime('%Y%m%d_%H%M%S')
+            safe_model = re.sub(r'[^a-zA-Z0-9_-]', '_', model_name)
+            base_fn = f"{ts}_{safe_model}_sokoban_{agent_type_suffix}_fallback"
+            self.text_log_file = os.path.join(CACHE_DIR, f"{base_fn}.log")
+            self.jsonl_log_file = os.path.join(CACHE_DIR, f"{base_fn}.jsonl")
+            print(f"Warning: Using fallback log paths for {agent_type_suffix}", file=sys.stderr)
         else:
             self.text_log_file = text_log_path
             self.jsonl_log_file = jsonl_log_path
-        # Print only once if possible (handled in main script now)
-        # print(f"Logging text to: {self.text_log_file}")
-        # print(f"Logging JSONL to: {self.jsonl_log_file}")
-        # -- End Log Filename Handling --
 
-        # Initialize Modules
-        self.perception_module = PerceptionModule(self.env)
-        self.memory_module = MemoryModule(max_history=max_memory_history)
-        self.reasoning_module = ReasoningModule(
-            api_provider=api_provider,
-            model_name=model_name,
-            system_prompt=system_prompt,
-            thinking=thinking
-        )
+        self.reasoning_module = ReasoningModule(api_provider, model_name, system_prompt, thinking)
+        self.last_action_plan = {"move": "N/A", "thought": "Initial state", "latency": 0.0}
 
-        # Mapping from textual moves (lowercase) to environment action IDs
-        self.move_to_action_id = {
-            'up': 5, 'down': 6, 'left': 7, 'right': 8,
-            'push up': 1, 'push down': 2, 'push left': 3, 'push right': 4,
-            'noop': 0,
-            'parse_error': 0,
-            'api_error': 0
-        }
-
-    def select_action(self, observation):
-        """
-        Selects an action by orchestrating the perception, memory, and reasoning modules.
-        """
-        # 1. Perception: Get current state
-        current_perception = self.perception_module.get_current_state()
-        if current_perception is None:
-             print("Error: Agent failed to get perception. Taking NoOp action.", file=sys.stderr)
-             return self.move_to_action_id['noop']
-
-        # 2. Memory: Get summary of past actions/thoughts
-        memory_summary = self.memory_module.get_memory_summary()
-
-        # 3. Reasoning: Plan the next action based on current perception and memory
-        action_plan = self.reasoning_module.plan_action(current_perception, memory_summary)
-        current_move = action_plan.get('move', 'noop')
-        current_thought = action_plan.get('thought', 'Reasoning failed.')
-        latency = action_plan.get('latency', 0.0)
-
-        # 4. Log the planned move and thought (using unique filename)
-        log_move_and_thought(current_move, current_thought, latency, self.text_log_file)
-
-        # 5. Memory Update: Add the *current* perception and the *planned* action/thought to memory
-        self.memory_module.add_entry(current_perception, action_plan)
-
-        # 6. Map move string to action ID
-        action_id = self.move_to_action_id.get(current_move, 0)
-        if current_move not in self.move_to_action_id:
-             print(f"Warning: Reasoning module move '{current_move}' not in action map. Using NoOp.")
-
-        # 7. Return action ID
+    def _get_action_id(self, move_str: str) -> int:
+        action_id = self.move_to_action_id.get(move_str, 0)
+        if move_str not in self.move_to_action_id:
+            print(f"Warning: LLM move '{move_str}' not in action map. Using NoOp.", file=sys.stderr)
         return action_id
 
-    def run_episode(self, max_steps=200, level_index=None, render_delay=2):
-        """
-        Runs a single episode in the environment using the agent with memory.
-        """
+    def run_episode(self, max_steps=200, level_index=None, render_delay=0.1):
         total_reward = 0
         steps = 0
         options = {'level_index': level_index} if level_index is not None else None
+        saved_image_path_for_log = None # For vision agents
+
         try:
             observation, info = self.env.reset(options=options)
-            terminated = False
-            truncated = False
+            terminated, truncated = False, False
+            if hasattr(self, 'memory_module') and self.memory_module: self.memory_module.clear()
 
-            # Reset memory for the new episode
-            self.memory_module.history.clear()
-
-            # Log initial state (using unique filename)
-            initial_perception = self.perception_module.get_current_state()
+            # Log initial state (text-based for all agents for consistency in JSONL)
+            initial_perception_data = PerceptionModule(self.env).get_current_state() # Temp for initial log
             log_step_data_to_jsonl({
-                'step': 0,
-                'perception': initial_perception,
-                'action_plan': None,
-                'reward': 0.0,
-                'terminated': terminated,
-                'truncated': truncated,
-                'info': info,
-                'api_latency': 0.0
+                'step': 0, 'perception': initial_perception_data, 'action_plan': None,
+                'image_path': None, 'reward': 0.0, 'terminated': terminated, 'truncated': truncated,
+                'info': info, 'api_latency': 0.0
             }, self.jsonl_log_file)
 
             while not terminated and not truncated and steps < max_steps:
-                current_perception_for_decision = self.perception_module.get_current_state()
+                if self.env.render_mode == 'human': self.env.render(); time.sleep(render_delay)
 
-                if self.env.render_mode == 'human':
-                    self.env.render()
-                    time.sleep(render_delay)
+                # Perception for decision making (specific to agent type in select_action)
+                # Perception for logging (always text based for now)
+                current_text_perception_for_log = PerceptionModule(self.env).get_current_state()
 
-                action = self.select_action(observation)
+                action_result = self.select_action(observation) # Returns action_id or (action_id, image_path)
+                
+                if isinstance(action_result, tuple): # Vision agents return image path
+                    action_id, saved_image_path_for_log = action_result
+                else: # Text agents return only action_id
+                    action_id = action_result
+                    saved_image_path_for_log = None
 
-                last_mem_entry = self.memory_module.history[-1] if self.memory_module.history else None
-                action_plan_for_log = None
-                api_latency_for_log = 0.0
-                if last_mem_entry:
-                    action_plan_for_log = last_mem_entry.get('action_data')
-                    if action_plan_for_log:
-                        api_latency_for_log = action_plan_for_log.get('latency', 0.0)
+                action_plan_for_log = self.last_action_plan # From agent's select_action
 
-                observation, reward, terminated, truncated, info = self.env.step(action)
+                observation, reward, terminated, truncated, info = self.env.step(action_id)
                 steps += 1
                 total_reward += reward
 
-                # Log step data (using unique filename)
                 log_step_data_to_jsonl({
-                    'step': steps,
-                    'perception': current_perception_for_decision,
-                    'action_plan': action_plan_for_log,
-                    'reward': reward,
-                    'terminated': terminated,
-                    'truncated': truncated,
-                    'info': info,
-                    'api_latency': api_latency_for_log
+                    'step': steps, 'perception': current_text_perception_for_log,
+                    'action_plan': action_plan_for_log, 'image_path': saved_image_path_for_log,
+                    'reward': reward, 'terminated': terminated, 'truncated': truncated,
+                    'info': info, 'api_latency': action_plan_for_log.get('latency', 0.0)
                 }, self.jsonl_log_file)
 
-                move_for_print = action_plan_for_log.get('move', 'N/A') if action_plan_for_log else "N/A"
-                thought_for_print = action_plan_for_log.get('thought', 'N/A') if action_plan_for_log else "N/A"
-                print(f"Step {steps}: Action ID: {action} (Move: {move_for_print}), Thought: {thought_for_print}, Reward: {reward}")
+                move_p = action_plan_for_log.get('move', 'N/A')
+                thought_p = action_plan_for_log.get('thought', 'N/A')
+                print(f"Step {steps}: ActionID={action_id} (Move: {move_p}), Thought: {thought_p}, Reward: {reward}")
 
-                if terminated:
-                    print(f"Episode finished after {steps} steps (Terminated). Total reward: {total_reward}")
-                elif truncated:
-                    print(f"Episode finished after {steps} steps (Truncated). Total reward: {total_reward}")
-
-            if self.env.render_mode == 'human':
-                 self.env.render()
-                 time.sleep(1)
+                if terminated or truncated: break
+            
+            status = "Terminated" if terminated else "Truncated" if truncated else "MaxSteps"
+            print(f"Level {level_index if level_index else 'random'} finished: {status} in {steps} steps. Reward: {total_reward}")
+            if self.env.render_mode == 'human': self.env.render(); time.sleep(1)
 
         except Exception as e:
-            print(f"An error occurred during the episode: {e}", file=sys.stderr)
-            import traceback
+            print(f"Error in {self.__class__.__name__} run_episode: {e}", file=sys.stderr)
             traceback.print_exc()
-            return total_reward, steps
-
         return total_reward, steps
-
-    def close_env(self):
-        """Closes the environment."""
-        self.env.close()
-
-# --- Agent without Perception Module (Basic Agent) ---
-
-class BasicAgent: # Renamed from DirectStateAgent
-    """
-    A basic agent that uses image input and a reasoning module.
-    It does not instantiate PerceptionModule or MemoryModule.
-    """
-    def __init__(self, env: CustomSokobanEnv = None,
-                 render_mode: str = None, api_provider: str = 'openai', model_name: str = 'gpt-4-turbo',
-                 system_prompt: str = "You are an expert Sokoban player tasked with solving the puzzle by analyzing the provided image.", thinking: bool = True,
-                 text_log_path: str = None, jsonl_log_path: str = None, image_dir_path: str = None):
-        """
-        Initializes the basic agent.
-        Args:
-            text_log_path (str): Path to the text log file for the run.
-            jsonl_log_path (str): Path to the JSONL log file for the run.
-            image_dir_path (str): Path to the run directory where step images will be saved.
-        """
-        if env:
-            self.env = env
-            # Ensure the provided env supports RGB rendering if needed by select_action
-            if 'rgb_array' not in self.env.metadata.get('render_modes', []):
-                 # If running locally, it might work anyway, but warn the user.
-                 print(f"Warning: Provided environment for BasicAgent might not support 'rgb_array' render mode needed for image input.", file=sys.stderr)
-        else:
-            # If creating env, ensure it supports rgb_array. Force it if necessary.
-            effective_render_mode = render_mode if render_mode else 'rgb_array' # Default to rgb_array if none provided
-            self.env = CustomSokobanEnv(render_mode=effective_render_mode)
-            if 'rgb_array' not in self.env.metadata.get('render_modes', []):
-                 # This shouldn't happen with CustomSokobanEnv if mode is rgb_array, but good practice.
-                 raise ValueError("BasicAgent requires an environment capable of 'rgb_array' rendering.")
-
-
-        self.action_space = self.env.action_space
-
-        # -- Use Provided Log Filenames --
-        if not text_log_path or not jsonl_log_path:
-             # Fallback if paths not provided (shouldn't happen with main script update)
-            print("Warning: Log paths not provided to BasicAgent. Generating default names.", file=sys.stderr)
-            run_timestamp = time.strftime('%Y%m%d_%H%M%S')
-            safe_model_name = re.sub(r'[^a-zA-Z0-9_-]', '_', model_name)
-            base_filename = f"{run_timestamp}_{safe_model_name}_sokoban_basic_vision_fallback"
-            self.text_log_file = os.path.join(CACHE_DIR, f"{base_filename}.log")
-            self.jsonl_log_file = os.path.join(CACHE_DIR, f"{base_filename}.jsonl")
-        else:
-            self.text_log_file = text_log_path
-            self.jsonl_log_file = jsonl_log_path
-        # Print only once if possible (handled in main script now)
-        # print(f"Logging text to: {self.text_log_file}")
-        # print(f"Logging JSONL to: {self.jsonl_log_file}")
-        # -- End Log Filename Handling --
-
-        self.image_dir_path = image_dir_path # Store image directory path
-
-        if self.image_dir_path and not os.path.exists(self.image_dir_path):
-             print(f"Warning: Provided image directory does not exist: {self.image_dir_path}. Image saving might fail.", file=sys.stderr)
-
-        # Initialize Only Reasoning Module
-        self.reasoning_module = ReasoningModule(
-            api_provider=api_provider,
-            model_name=model_name,
-            system_prompt=system_prompt, # System prompt updated slightly
-            thinking=thinking
-        )
-
-        # Mapping from textual moves (lowercase) to environment action IDs (remains the same)
-        self.move_to_action_id = {
-            'up': 5, 'down': 6, 'left': 7, 'right': 8,
-            'push up': 1, 'push down': 2, 'push left': 3, 'push right': 4,
-            'noop': 0,
-            'parse_error': 0,
-            'api_error': 0
-        }
-
-        self.last_action_data = {"move": "N/A", "thought": "Initial state"}
 
     def select_action(self, observation):
-        """
-        Selects an action based on the rendered image of the game state,
-        saves the image (overwriting the previous one), and returns the action ID and image path.
-        Args:
-            observation: Current environment observation (not directly used for vision).
+        raise NotImplementedError("Subclasses must implement select_action")
 
-        Returns:
-            tuple[int, str | None]: (action_id, path_to_saved_image or None)
-        """
-        # 1. Perception: Get game state as an image
-        image_array = None
-        saved_image_path = None # Initialize path to None
+    def close_env(self): self.env.close()
+
+# --- SokobanAgent (Full: Perception + Memory + Text Reasoning) ---
+class SokobanAgent(BaseSokobanAgent):
+    def __init__(self, env: CustomSokobanEnv = None, render_mode: str = None,
+                 api_provider: str = 'openai', model_name: str = 'gpt-4-turbo',
+                 system_prompt: str = "You are an expert Sokoban player.", thinking: bool = True,
+                 max_memory_history: int = 5, text_log_path: str = None, jsonl_log_path: str = None):
+        super().__init__(render_mode, api_provider, model_name, system_prompt, thinking,
+                         text_log_path, jsonl_log_path, "full", env)
+        self.perception_module = PerceptionModule(self.env)
+        self.memory_module = MemoryModule(max_history=max_memory_history)
+
+    def select_action(self, observation):
+        current_perception = self.perception_module.get_current_state()
+        if not current_perception:
+            self.last_action_plan = {"move": "noop", "thought": "Perception failed", "latency": 0.0}
+            log_move_and_thought("noop", "Perception failed", 0.0, self.text_log_file)
+            return self._get_action_id("noop")
+
+        memory_summary = self.memory_module.get_memory_summary()
+        self.last_action_plan = self.reasoning_module.plan_action_with_text(
+            current_perception['text_table'], memory_summary
+        )
+        log_move_and_thought(self.last_action_plan['move'], self.last_action_plan['thought'], self.last_action_plan['latency'], self.text_log_file)
+        self.memory_module.add_entry(current_perception, self.last_action_plan)
+        return self._get_action_id(self.last_action_plan['move'])
+
+# --- BasicAgent (Vision Reasoning, No Perception Module, No Memory) ---
+class BasicAgent(BaseSokobanAgent):
+    def __init__(self, env: CustomSokobanEnv = None, render_mode: str = None,
+                 api_provider: str = 'openai', model_name: str = 'gpt-4-turbo', # Ensure this model supports vision
+                 system_prompt: str = "You are a Sokoban expert analyzing an image.", thinking: bool = True,
+                 text_log_path: str = None, jsonl_log_path: str = None, image_dir_path: str = None):
+        # BasicAgent needs rgb_array for its own perception if env is created by it
+        effective_render_mode = render_mode if render_mode else 'rgb_array'
+        super().__init__(effective_render_mode, api_provider, model_name, system_prompt, thinking,
+                         text_log_path, jsonl_log_path, "basic_vision", env)
+        if 'rgb_array' not in self.env.metadata.get('render_modes', []):
+            # This might be too strict if an env is passed in that CAN render rgb_array but doesn't list it
+            # However, it's safer to ensure compatibility.
+            # Consider a more nuanced check or relying on render() to fail if not possible.
+             print(f"Warning: BasicAgent created with env not explicitly listing 'rgb_array' in render_modes. Effective mode: {self.env.render_mode}", file=sys.stderr)
+
+        self.image_dir_path = image_dir_path # For saving images, used in select_action
+
+    def select_action(self, observation):
+        saved_image_path = None
         try:
             image_array = self.env.render(mode='rgb_array')
+            if image_array is None: raise ValueError("Rendered image is None")
+
+            base64_image = numpy_array_to_base64(image_array)
+            if base64_image is None: raise ValueError("Base64 conversion failed")
+
+            if self.image_dir_path:
+                try:
+                    fn = f"step_{time.strftime('%Y%m%d%H%M%S%f')}.png" # Unique image per step
+                    saved_image_path = os.path.join(self.image_dir_path, fn)
+                    Image.fromarray(image_array.astype('uint8'), 'RGB').save(saved_image_path)
+                except Exception as img_e: print(f"[ERROR] Failed to save image to {saved_image_path}: {img_e}", file=sys.stderr)
+            
+            # BasicAgent does not use memory, so memory_summary is None
+            self.last_action_plan = self.reasoning_module.plan_action_with_vision(base64_image, None)
+
         except Exception as e:
-            print(f"Error: Failed to render environment to RGB array: {e}", file=sys.stderr)
-            self.last_action_data = {"move": "noop", "thought": f"Failed to render image: {e}", "latency": 0.0}
-            log_move_and_thought("noop", f"Failed to render image: {e}", 0.0, self.text_log_file)
-            return self.move_to_action_id['noop'], None # Return None for path
-
-        if image_array is None:
-            print("Error: Rendered image is None. Taking NoOp action.", file=sys.stderr)
-            self.last_action_data = {"move": "noop", "thought": "Rendered image was None.", "latency": 0.0}
-            log_move_and_thought("noop", "Rendered image was None.", 0.0, self.text_log_file)
-            return self.move_to_action_id['noop'], None # Return None for path
-
-        # --- Save the rendered image (overwrite) --- #
-        if self.image_dir_path:
-            try:
-                image_filename = "current_step.png" # Constant filename
-                saved_image_path = os.path.join(self.image_dir_path, image_filename)
-                pil_image = Image.fromarray(image_array.astype('uint8'), 'RGB')
-                pil_image.save(saved_image_path, format="PNG")
-                # print(f"Saved image to {saved_image_path}") # Optional: uncomment for verbose logging
-            except Exception as e:
-                print(f"[ERROR] Failed to save step image to {saved_image_path}: {e}", file=sys.stderr)
-                saved_image_path = None # Ensure path is None if saving failed
-        # --- End image saving --- #
-
-        # 2. Convert image to base64
-        base64_image = numpy_array_to_base64(image_array)
-        if base64_image is None:
-            print("Error: Failed to convert image to base64. Taking NoOp action.", file=sys.stderr)
-            self.last_action_data = {"move": "noop", "thought": "Failed image base64 conversion.", "latency": 0.0}
-            log_move_and_thought("noop", "Failed image base64 conversion.", 0.0, self.text_log_file)
-            # Return the path even if conversion failed, as image might have been saved
-            return self.move_to_action_id['noop'], saved_image_path
-
-        # 3. Define the NEW full prompt for the Reasoning Module (using image)
-        full_prompt = f"""
-## Sokoban Game Task (Image Input)
-
-You are playing Sokoban. Your goal is to push all boxes onto the designated dock locations. Analyze the provided image of the current game state.
-
-**Image Legend:**
-- Human Figure (Blue Shirt, Jeans): Worker (You)
-- Brown Wooden Crates: Boxes
-- Dashed Square with 'x': Dock locations (Targets)
-- Gray Brick Blocks: Walls (Impassable)
-- Sandy/Beige Floor: Empty space
-
-**Rules:**
-- You can **move** the worker Up, Down, Left, Right onto empty floor spaces or docks.
-- You can **push** a single box Up, Down, Left, or Right if the space beyond the box in the push direction is empty.
-- You cannot push boxes into walls or other boxes.
-- You win when all boxes are on docks.
-
-**Task:**
-Based ONLY on the provided image, decide the single best action for the worker.
-- If you want to **move** into an empty space, specify the direction: `up`, `down`, `left`, or `right`.
-- If you want to **push** a box, specify the action: `push up`, `push down`, `push left`, or `push right`.
-Prioritize actions that make progress towards pushing boxes to docks. Avoid actions that could lead to deadlocks (e.g., pushing boxes into corners unless it's onto a dock).
-
-**Output Format:**
-Return ONLY the next action and a brief thought process in the specified format:
-move: <action>, thought: <brief_reasoning>
-
-**Examples:**
-move: right, thought: Moving the worker right to get behind the red box.
-move: push down, thought: Pushing the box below the worker downwards towards the green dock.
-move: push left, thought: Pushing the box to the left onto the target square.
-"""
-
-        # 4. Reasoning: Call vision-capable API function.
-        start_time = time.time()
-        response = ""
-        move = "noop"
-        thought = "Error during API call or parsing."
-        latency = 0.0
-
-        try:
-            print(f"Calling {self.reasoning_module.model_name} via {self.reasoning_module.api_provider} API with image... (BasicAgent)")
-
-            # --- Select VISION API Function --- #
-            # NOTE: Ensure the model_name used actually supports vision for the provider!
-            if self.reasoning_module.api_provider == "anthropic":
-                 # Assuming anthropic_completion can handle image/text prompts
-                 response = anthropic_completion(self.reasoning_module.system_prompt, self.reasoning_module.model_name, base64_image, full_prompt, self.reasoning_module.thinking)
-            elif self.reasoning_module.api_provider == "openai":
-                 # Assuming openai_completion can handle image/text prompts
-                 response = openai_completion(self.reasoning_module.system_prompt, self.reasoning_module.model_name, base64_image, full_prompt)
-            elif self.reasoning_module.api_provider == "gemini":
-                 # Assuming gemini_completion can handle image/text prompts
-                 response = gemini_completion(self.reasoning_module.system_prompt, self.reasoning_module.model_name, base64_image, full_prompt)
-            # Add other providers here if they have vision capabilities AND you have corresponding functions
-            # elif self.reasoning_module.api_provider == "deepseek":
-            #     # Assuming deepseek has a vision-specific function or completion handles it
-            #     response = deepseek_???_completion(...)
-            # elif self.reasoning_module.api_provider == "together_ai":
-            #     # Assuming together_ai_completion handles vision or has a specific function
-            #     response = together_ai_completion(...)
-            # elif self.reasoning_module.api_provider == "xai":
-            #      # Assuming xai_grok_completion handles vision or has a specific function
-            #      response = xai_grok_completion(...)
+            thought = f"Error in BasicAgent image processing or vision call: {e}"
+            print(f"Error: {thought}", file=sys.stderr); traceback.print_exc()
+            self.last_action_plan = {"move": "api_error", "thought": thought, "latency": 0.0}
         
+        log_move_and_thought(self.last_action_plan['move'], self.last_action_plan['thought'], self.last_action_plan['latency'], self.text_log_file)
+        action_id = self._get_action_id(self.last_action_plan['move'])
+        return action_id, saved_image_path # Return image path for logging
 
-            latency = time.time() - start_time
-            print(f"API call latency: {latency:.2f} sec")
+# --- PerceptionOnlyAgent (Perception Module + Text Reasoning, No Memory) ---
+class PerceptionOnlyAgent(BaseSokobanAgent):
+    def __init__(self, env: CustomSokobanEnv = None, render_mode: str = None,
+                 api_provider: str = 'openai', model_name: str = 'gpt-4-turbo',
+                 system_prompt: str = "You are an expert Sokoban player analyzing text.", thinking: bool = True,
+                 text_log_path: str = None, jsonl_log_path: str = None):
+        super().__init__(render_mode, api_provider, model_name, system_prompt, thinking,
+                         text_log_path, jsonl_log_path, "perception_only", env)
+        self.perception_module = PerceptionModule(self.env)
+        # No memory_module for this agent
 
-            # Parse the response (same parsing logic)
-            pattern = r'move:\s*([\w\s]+),\s*thought:\s*(.*)'
-            match = re.search(pattern, response, re.IGNORECASE | re.DOTALL)
-            if match:
-                move = match.group(1).strip().lower()
-                thought = match.group(2).strip()
-                print(f"LLM proposed move: {move}, thought: {thought}")
-            else:
-                thought = f"Could not parse move/thought from LLM response: {response}"
-                print(f"Warning: {thought}")
-                move = "parse_error"
+    def select_action(self, observation):
+        current_perception = self.perception_module.get_current_state()
+        if not current_perception:
+            self.last_action_plan = {"move": "noop", "thought": "Perception failed", "latency": 0.0}
+            log_move_and_thought("noop", "Perception failed", 0.0, self.text_log_file)
+            return self._get_action_id("noop")
 
+        # PerceptionOnlyAgent does not use memory, so memory_summary is None
+        self.last_action_plan = self.reasoning_module.plan_action_with_text(
+            current_perception['text_table'], None
+        )
+        log_move_and_thought(self.last_action_plan['move'], self.last_action_plan['thought'], self.last_action_plan['latency'], self.text_log_file)
+        return self._get_action_id(self.last_action_plan['move'])
+
+# --- MemoryOnlyAgent (Vision Reasoning + Memory, No Text Perception Module) ---
+class MemoryOnlyAgent(BaseSokobanAgent):
+    def __init__(self, env: CustomSokobanEnv = None, render_mode: str = None,
+                 api_provider: str = 'openai', model_name: str = 'gpt-4-turbo', # Ensure this model supports vision
+                 system_prompt: str = "You are a Sokoban expert using images and memory.", thinking: bool = True,
+                 max_memory_history: int = 5,
+                 text_log_path: str = None, jsonl_log_path: str = None, image_dir_path: str = None):
+        effective_render_mode = render_mode if render_mode else 'rgb_array'
+        super().__init__(effective_render_mode, api_provider, model_name, system_prompt, thinking,
+                         text_log_path, jsonl_log_path, "memory_vision", env)
+        if 'rgb_array' not in self.env.metadata.get('render_modes', []):
+             print(f"Warning: MemoryOnlyAgent created with env not explicitly listing 'rgb_array'. Effective mode: {self.env.render_mode}", file=sys.stderr)
+        
+        self.memory_module = MemoryModule(max_history=max_memory_history)
+        self.image_dir_path = image_dir_path
+
+    def select_action(self, observation):
+        saved_image_path = None
+        base64_image_for_memory = None # For storing in memory
+        try:
+            image_array = self.env.render(mode='rgb_array')
+            if image_array is None: raise ValueError("Rendered image is None")
+
+            base64_image_for_reasoning = numpy_array_to_base64(image_array)
+            if base64_image_for_reasoning is None: raise ValueError("Base64 conversion failed")
+            base64_image_for_memory = base64_image_for_reasoning # Save for memory entry
+
+            if self.image_dir_path:
+                try:
+                    fn = f"step_{time.strftime('%Y%m%d%H%M%S%f')}.png"
+                    saved_image_path = os.path.join(self.image_dir_path, fn)
+                    Image.fromarray(image_array.astype('uint8'), 'RGB').save(saved_image_path)
+                except Exception as img_e: print(f"[ERROR] Failed to save image to {saved_image_path}: {img_e}", file=sys.stderr)
+
+            memory_summary = self.memory_module.get_memory_summary()
+            self.last_action_plan = self.reasoning_module.plan_action_with_vision(
+                base64_image_for_reasoning, memory_summary
+            )
         except Exception as e:
-            latency = time.time() - start_time
-            thought = f"Error during LLM API call or processing: {e}"
-            print(f"Error: {thought}", file=sys.stderr)
-            move = "api_error"
+            thought = f"Error in MemoryOnlyAgent image processing or vision call: {e}"
+            print(f"Error: {thought}", file=sys.stderr); traceback.print_exc()
+            self.last_action_plan = {"move": "api_error", "thought": thought, "latency": 0.0}
 
-        action_plan = {"move": move, "thought": thought, "latency": latency}
-
-        # 5. Log the planned move and thought
-        log_move_and_thought(move, thought, latency, self.text_log_file)
-
-        # 6. Store action data for logging in run_episode
-        self.last_action_data = action_plan
-
-        # 7. Map move string to action ID
-        action_id = self.move_to_action_id.get(move, 0)
-        if move not in self.move_to_action_id:
-             print(f"Warning: LLM move '{move}' not in action map. Using NoOp.")
-
-        # 8. Return action ID and saved image path
+        log_move_and_thought(self.last_action_plan['move'], self.last_action_plan['thought'], self.last_action_plan['latency'], self.text_log_file)
+        # Add perception (image) and action to memory
+        # The "perception" for this agent, when it makes a decision, is the image.
+        # Storing the base64 string is a simple way, though can be large for JSONL.
+        # Consider storing just a flag or path if full base64 in memory history is too much.
+        perception_for_memory = {"image_base64_hash": hash(base64_image_for_memory)} if base64_image_for_memory else {"image_base64_hash": None}
+        self.memory_module.add_entry(perception_for_memory, self.last_action_plan)
+        
+        action_id = self._get_action_id(self.last_action_plan['move'])
         return action_id, saved_image_path
 
-    def run_episode(self, max_steps=200, level_index=None, render_delay=2):
-        """
-        Runs a single episode in the environment using the basic agent (vision based).
-        NOTE: JSONL logging still uses text-based perception for context, but now includes image path.
-        """
-        total_reward = 0
-        steps = 0
-        options = {'level_index': level_index} if level_index is not None else None
-        last_saved_image_path = None # Track the path saved in the *previous* step for logging
-        try:
-            observation, info = self.env.reset(options=options)
-            terminated = False
-            truncated = False
 
-            # Log initial state (using text representation for log context)
-            initial_matrix = self.env.get_char_matrix()
-            initial_perception_for_log = {
-                'matrix': initial_matrix,
-                'text_table': matrix_to_text_table(initial_matrix)
-            }
-            log_step_data_to_jsonl({
-                'step': 0,
-                'perception': initial_perception_for_log, # Log text state
-                'action_plan': None,
-                'image_path': None, # No image for initial state
-                'reward': 0.0,
-                'terminated': terminated,
-                'truncated': truncated,
-                'info': info,
-                'api_latency': 0.0
-            }, self.jsonl_log_file)
-
-            while not terminated and not truncated and steps < max_steps:
-                # Get text state for logging *before* taking the action
-                current_matrix_for_log = self.env.get_char_matrix()
-                current_perception_for_log = {
-                     'matrix': current_matrix_for_log,
-                     'text_table': matrix_to_text_table(current_matrix_for_log)
-                 }
-
-                if self.env.render_mode == 'human':
-                    # If human rendering is enabled, render *before* the action is selected/taken
-                    self.env.render()
-                    time.sleep(render_delay)
-
-                # Action selection now uses the image internally, saves it, and returns path
-                action, current_saved_image_path = self.select_action(observation)
-
-                # Get the action plan decided in select_action
-                action_plan_for_log = self.last_action_data
-                api_latency_for_log = action_plan_for_log.get('latency', 0.0) if action_plan_for_log else 0.0
-
-                # --- Log step data --- #
-                # Log the perception state *before* the action, and the image path that was saved *during* this step's decision
-                log_step_data_to_jsonl({
-                    'step': steps + 1, # Log step is 1-indexed for consistency with printed output
-                    'perception': current_perception_for_log, # Log text state from before action
-                    'action_plan': action_plan_for_log, # Log action/thought/latency from select_action
-                    'image_path': current_saved_image_path, # Log path saved by select_action
-                    'reward': None, # Reward will be available after env.step
-                    'terminated': None,
-                    'truncated': None,
-                    'info': None,
-                    'api_latency': api_latency_for_log
-                }, self.jsonl_log_file)
-                # --- End logging --- #
-
-                # --- Take action in environment --- #
-                observation, reward, terminated, truncated, info = self.env.step(action)
-                steps += 1
-                total_reward += reward
-                # --- End take action --- #
-
-                # --- Update last log entry with outcome --- #
-                # For simplicity, we'll keep it as is: the log entry for step N contains the state before action N
-                # and the action plan for N. The reward/termination for action N is implicitly shown in the next step's entry.
-
-                move_for_print = action_plan_for_log.get('move', 'N/A') if action_plan_for_log else "N/A"
-                thought_for_print = action_plan_for_log.get('thought', 'N/A') if action_plan_for_log else "N/A"
-                print(f"Step {steps}: Action ID: {action} (Move: {move_for_print}), Thought: {thought_for_print}, Reward: {reward}")
-
-                if terminated:
-                    print(f"Episode finished after {steps} steps (Terminated). Total reward: {total_reward}")
-                elif truncated:
-                    print(f"Episode finished after {steps} steps (Truncated). Total reward: {total_reward}")
-
-            # Render final state if human mode enabled
-            if self.env.render_mode == 'human':
-                 self.env.render()
-                 time.sleep(1)
-
-        except Exception as e:
-            print(f"An error occurred during the episode: {e}", file=sys.stderr)
-            import traceback
-            traceback.print_exc()
-            return total_reward, steps
-
-        return total_reward, steps
-
-    def close_env(self):
-        """Closes the environment."""
-        self.env.close()
-
-
-# Example usage (updated for agent selection and level looping)
 if __name__ == "__main__":
-    # --- Configuration & Argument Parsing --- #
     parser = argparse.ArgumentParser(description="Run Sokoban LLM Agent")
-    parser.add_argument("--api_provider", type=str, default="openai",
-                        choices=["openai", "anthropic", "gemini", "deepseek", "together_ai", "xai"],
-                        help="API provider to use.")
-    parser.add_argument("--model_name", type=str, default="gpt-4o",
-                        help="Specific model name for the chosen provider.")
-    parser.add_argument("--level", type=int, default=1, # Restored level argument
-                        help="Starting level index to test.")
-    parser.add_argument("--steps", type=int, default=100,
-                        help="Maximum steps per episode.")
-    parser.add_argument("--render_mode", type=str, default="human",
-                        choices=["human", "rgb_array", "tiny_human", "tiny_rgb_array", "raw", "none"],
-                        help="Rendering mode (or 'none' to disable).")
-    parser.add_argument("--delay", type=float, default=0.5,
-                        help="Delay in seconds between steps when rendering.")
-    parser.add_argument("--memory", type=int, default=5,
-                        help="Number of past steps for memory (used by 'full' agent type).")
-    parser.add_argument("--agent_type", type=str, default="full",
-                        choices=["full", "basic"],
-                        help="Type of agent to run ('full' includes memory/perception modules, 'basic' uses direct state/vision).")
-
+    parser.add_argument("--api_provider", type=str, default="openai", choices=["openai", "anthropic", "gemini", "deepseek", "together_ai", "xai"])
+    parser.add_argument("--model_name", type=str, default="gpt-4o") # gpt-4o is good for vision
+    parser.add_argument("--level", type=int, default=1)
+    parser.add_argument("--steps", type=int, default=100)
+    parser.add_argument("--render_mode", type=str, default="human", choices=["human", "rgb_array", "tiny_human", "tiny_rgb_array", "raw", "none"])
+    parser.add_argument("--delay", type=float, default=0.2)
+    parser.add_argument("--memory", type=int, default=5, help="Max history for agents with memory.")
+    parser.add_argument("--agent_type", type=str, default="full", choices=["full", "basic", "perception_only", "memory_only"])
     args = parser.parse_args()
 
-    # Use parsed arguments
-    API_PROVIDER = args.api_provider
-    MODEL_NAME = args.model_name
-    STARTING_LEVEL = args.level # Use the provided level as starting point
-    MAX_STEPS_PER_EPISODE = args.steps
-    RENDER_MODE = args.render_mode if args.render_mode != "none" else None
-    RENDER_DELAY = args.delay
-    MAX_MEMORY = args.memory
-    AGENT_TYPE = args.agent_type
-    # --- End Configuration --- #
+    run_ts = time.strftime('%Y%m%d_%H%M%S')
+    safe_model_name = re.sub(r'[^a-zA-Z0-9_-]', '_', args.model_name)
+    
+    agent_configs = {
+        "full": {"suffix": "full", "class": SokobanAgent, "needs_image_dir": False, "uses_memory": True},
+        "basic": {"suffix": "basic_vision", "class": BasicAgent, "needs_image_dir": True, "uses_memory": False},
+        "perception_only": {"suffix": "perception_only", "class": PerceptionOnlyAgent, "needs_image_dir": False, "uses_memory": False},
+        "memory_only": {"suffix": "memory_vision", "class": MemoryOnlyAgent, "needs_image_dir": True, "uses_memory": True}
+    }
+    config = agent_configs[args.agent_type]
+    base_run_name = f"{run_ts}_{safe_model_name}_sokoban_{config['suffix']}"
+    run_dir = os.path.join(CACHE_DIR, base_run_name)
+    os.makedirs(run_dir, exist_ok=True)
+    print(f"Run directory: {run_dir}")
 
-    # --- Generate Base Run Name & Create Run Directory ---
-    run_timestamp = time.strftime('%Y%m%d_%H%M%S')
-    safe_model_name = re.sub(r'[^a-zA-Z0-9_-]', '_', MODEL_NAME)
-    agent_suffix = "basic_vision" if AGENT_TYPE == "basic" else "full"
-    # Base name used for the run directory and log files inside it
-    base_run_name = f"{run_timestamp}_{safe_model_name}_sokoban_{agent_suffix}"
+    text_log = os.path.join(run_dir, f"{base_run_name}.log")
+    jsonl_log = os.path.join(run_dir, f"{base_run_name}.jsonl")
+    print(f"Text log: {text_log}")
+    print(f"JSONL log: {jsonl_log}")
 
-    # Create the main directory for this run
-    run_directory = os.path.join(CACHE_DIR, base_run_name)
-    os.makedirs(run_directory, exist_ok=True)
-    print(f"Created run directory: {run_directory}")
-    # --- End Directory Creation ---
+    image_dir = run_dir if config["needs_image_dir"] else None
+    if image_dir: print(f"Image save dir: {image_dir}")
 
-    # --- Define Log Paths and Image Path (within the run directory) ---
-    text_log_file = os.path.join(run_directory, f"{base_run_name}.log")
-    jsonl_log_file = os.path.join(run_directory, f"{base_run_name}.jsonl")
-    print(f"Logging text for this run to: {text_log_file}")
-    print(f"Logging JSONL for this run to: {jsonl_log_file}")
+    current_level = args.level
+    env_render_mode = args.render_mode if args.render_mode != "none" else None
 
-    # Image directory path is the run directory itself (only relevant for basic/vision agent)
-    image_storage_path = None
-    if AGENT_TYPE == "basic":
-        image_storage_path = run_directory # Images saved directly into the run directory
-        print(f"Saving step images for this run to: {image_storage_path}")
-    # --- End Path Definitions ---
-
-    current_level_index = STARTING_LEVEL # Start from the specified level
     while True:
-        print("\n" + "="*30 + f" Attempting Level {current_level_index} " + "="*30 + "\n")
-
-        agent = None # Initialize agent to None for this level attempt
+        print("\\n" + "="*30 + f" Level {current_level} (Agent: {args.agent_type}) " + "="*30 + "\\n")
+        agent_instance = None
         try:
-            # Create the selected agent type for the current level
-            if AGENT_TYPE == "full":
-                print(f"Initializing SokobanAgent for Level {current_level_index}...")
-                agent = SokobanAgent(
-                    render_mode=RENDER_MODE,
-                    api_provider=API_PROVIDER,
-                    model_name=MODEL_NAME,
-                    max_memory_history=MAX_MEMORY,
-                    text_log_path=text_log_file,     # Pass fixed path
-                    jsonl_log_path=jsonl_log_file    # Pass fixed path
-                )
-            elif AGENT_TYPE == "basic":
-                print(f"Initializing BasicAgent for Level {current_level_index}...")
-                agent = BasicAgent(
-                    render_mode=RENDER_MODE,
-                    api_provider=API_PROVIDER,
-                    model_name=MODEL_NAME,
-                    text_log_path=text_log_file,    # Pass log path
-                    jsonl_log_path=jsonl_log_file,  # Pass log path
-                    image_dir_path=image_storage_path # Pass run directory as image path
-                )
+            agent_params = {
+                "render_mode": env_render_mode,
+                "api_provider": args.api_provider,
+                "model_name": args.model_name,
+                "text_log_path": text_log,
+                "jsonl_log_path": jsonl_log,
+                # System prompt could be customized per agent type here if desired
+            }
+            if config["uses_memory"]: agent_params["max_memory_history"] = args.memory
+            if config["needs_image_dir"]: agent_params["image_dir_path"] = image_dir
+            
+            agent_class = config["class"]
+            # Specific system prompts per agent for clarity
+            if agent_class == SokobanAgent: agent_params["system_prompt"] = "You are an expert Sokoban player using text and memory."
+            elif agent_class == BasicAgent: agent_params["system_prompt"] = "You are a Sokoban expert analyzing an image."
+            elif agent_class == PerceptionOnlyAgent: agent_params["system_prompt"] = "You are an expert Sokoban player analyzing text."
+            elif agent_class == MemoryOnlyAgent: agent_params["system_prompt"] = "You are a Sokoban expert using images and memory."
 
-            if agent: # Only run if agent was successfully initialized
-                print(f"Running episode for Level {current_level_index} using {API_PROVIDER}/{MODEL_NAME} with {AGENT_TYPE} agent...")
-                reward, steps_taken = agent.run_episode(
-                    level_index=current_level_index, # Pass level to run
-                    max_steps=MAX_STEPS_PER_EPISODE,
-                    render_delay=RENDER_DELAY
-                )
-                print(f"Level {current_level_index} finished. Total Reward: {reward}, Steps: {steps_taken}")
 
-                # Check if the episode ended because the step limit was reached
-                if steps_taken >= MAX_STEPS_PER_EPISODE:
-                    print(f"Level {current_level_index} failed by exceeding the step limit ({MAX_STEPS_PER_EPISODE}). Terminating.")
-                    agent.close_env() # Ensure environment is closed before breaking
-                    break # Exit the while True loop
+            print(f"Initializing {agent_class.__name__}...")
+            agent_instance = agent_class(**agent_params)
 
-                agent.close_env() # Close env specific to this agent instance
-                # Increment level ONLY after successful completion or non-step-limit failure
-                current_level_index += 1
-            else:
-                print(f"Error: Could not initialize agent type '{AGENT_TYPE}' for Level {current_level_index}", file=sys.stderr)
+            reward, steps = agent_instance.run_episode(
+                level_index=current_level,
+                max_steps=args.steps,
+                render_delay=args.delay
+            )
+            if steps >= args.steps and reward < 10: # Assuming 10 is solve reward
+                print(f"Level {current_level} failed (max steps). Terminating.")
                 break
+            if reward < 10: # Failed for other reasons, e.g. stuck
+                 print(f"Level {current_level} likely failed (reward {reward}). Terminating.")
+                 break
+
+
+            current_level += 1 # Move to next level
 
         except (ValueError, FileNotFoundError, RuntimeError) as e:
-            # Catch errors likely coming from _load_level_from_file during env.reset()
-            print(f"\nCould not load or run Level {current_level_index}. Assuming it's the last level or an error occurred.")
-            print(f"Error details: {e}")
-            if agent:
-                agent.close_env()
-            break # Exit the loop
+            if "Level" in str(e) and "not found" in str(e) or "out of range" in str(e) : # Check specific error messages
+                print(f"Could not load Level {current_level}. Likely end of levels. Details: {e}")
+            else:
+                print(f"Error during Level {current_level} run: {e}")
+                traceback.print_exc()
+            break
         except Exception as e:
-            # Catch any other unexpected errors
-            print(f"\nAn unexpected error occurred during Level {current_level_index}: {e}", file=sys.stderr)
-            import traceback
+            print(f"Unexpected error during Level {current_level}: {e}", file=sys.stderr)
             traceback.print_exc()
-            if agent:
-                agent.close_env()
-            break # Exit the loop
+            break
+        finally:
+            if agent_instance: agent_instance.close_env()
+            # Check if it was the last attempt or if loop should continue
+            # This logic might need refinement based on how max levels are determined
+            if 'e' in locals() and ("not found" in str(e) or "out of range" in str(e)): # if level loading error caused break
+                 pass # End of levels reached
+            elif 'steps' in locals() and steps >= args.steps: # if max steps caused break
+                 pass # stop after max steps failure
+
+    print("\\n" + "="*30 + " Run Finished " + "="*30 + "\\n")
