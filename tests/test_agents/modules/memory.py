@@ -32,7 +32,7 @@ class MemoryModule:
         CACHE_DIR = self.cache_dir
         MEMORY_FILE = self.memory_file
         # Create the memory file directory if it doesn't exist
-        os.makedirs(os.path.dirname(memory_file), exist_ok=True)
+        # os.makedirs(os.path.dirname(memory_file), exist_ok=True)
         
         # Load existing memory if available
         self.load_memory()

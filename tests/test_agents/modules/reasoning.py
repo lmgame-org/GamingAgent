@@ -136,7 +136,7 @@ Do NOT use # or any other prefix. Start directly with "thought:" followed by you
                 
                 # For deepseek models, use text_completion instead of vision_text_completion
                 if "deepseek" in self.model_name.lower():
-                    response, _ = self.api_manager.text_completion(
+                    response, _ = await self.api_manager.text_completion(
                         model_name=self.model_name,
                         system_prompt=self.system_prompt,
                         prompt=user_prompt,
@@ -145,12 +145,21 @@ Do NOT use # or any other prefix. Start directly with "thought:" followed by you
                         token_limit=100000
                     )
                 elif "grok" in self.model_name.lower():
-                    response, _ = self.api_manager.text_completion(
+                    response, _ = await self.api_manager.text_completion(
                         model_name=self.model_name,
                         system_prompt=self.system_prompt,
                         prompt=user_prompt,
                         token_limit=100000,
                         reasoning_effort=self.reasoning_effort,
+                    )
+                elif "gemini-2.5-flash" in self.model_name.lower():
+                    # Fix for Gemini models - don't use await since the function likely returns a tuple directly
+                    # This avoids the "object tuple can't be used in 'await' expression" error
+                    response, _ = self.api_manager.text_completion(
+                        model_name=self.model_name,
+                        system_prompt=self.system_prompt,
+                        prompt=user_prompt,
+                        token_limit=100000,
                     )
                 else:
                     response, _ = self.api_manager.vision_text_completion(
@@ -160,9 +169,15 @@ Do NOT use # or any other prefix. Start directly with "thought:" followed by you
                         image_path=img_path,
                         thinking=self.thinking,
                         reasoning_effort=self.reasoning_effort,
-                        token_limit=100000
+                        token_limit= 100000
                     )
+
+
+
+                await asyncio.sleep(3)
                 
+                print(f"Model: {self.model_name}")
+                print(f"Reasoning module response: {response}")
                 # Parse the response
                 result = self._parse_response(response)
                 
