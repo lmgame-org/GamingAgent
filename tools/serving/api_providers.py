@@ -246,7 +246,7 @@ def openai_completion(system_prompt, model_name, base64_image, prompt, temperatu
     response = client.chat.completions.create(**request_params)
     return response.choices[0].message.content
 
-def openai_text_completion(system_prompt, model_name, prompt, token_limit=30000, reasoning_effort="medium"):
+def openai_text_completion(system_prompt, model_name, prompt, token_limit=30000, reasoning_effort="high"):
     print(f"OpenAI text-only API call: model={model_name}, reasoning_effort={reasoning_effort}")
     client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
     if "gpt-4o" in model_name:
@@ -289,7 +289,7 @@ def openai_text_completion(system_prompt, model_name, prompt, token_limit=30000,
      
     return generated_str
 
-def openai_text_reasoning_completion(system_prompt, model_name, prompt, temperature=1, token_limit=30000, reasoning_effort="medium"):
+def openai_text_reasoning_completion(system_prompt, model_name, prompt, temperature=1, token_limit=30000, reasoning_effort="high"):
     print(f"OpenAI text-reasoning API call: model={model_name}, reasoning_effort={reasoning_effort}")
     client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
     if "gpt-4o" in model_name:

@@ -42,19 +42,31 @@ def matrix_to_text_table(matrix):
             item_id += 1
     return "\\n".join(rows)
 
-def log_move_and_thought(move: str, thought: str, latency: float, log_file_path: str):
-    log_entry = f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] Move: {move}, Thought: {thought}, Latency: {latency:.2f} sec\\n"
+def log_move_and_thought(
+    log_file_path: str, level_index: int, step_num: int, action_id: int, move: str, thought: str, 
+    latency: float, reward: float, boxes_on_target: int, total_boxes: int, 
+    terminated: bool, truncated: bool
+):
+    """Logs a comprehensive single line for the current step, including level index."""
+    ts = time.strftime('%Y-%m-%d %H:%M:%S')
+    term_str = "T" if terminated else "F"
+    trunc_str = "T" if truncated else "F"
+    lvl_str = f"L{level_index}" if level_index is not None else "L?"
+    
+    # Corrected format string to include all parts
+    log_entry = (
+        f"[{ts}] {lvl_str} Step: {step_num:<3} | Act: {action_id} ({move}) | "
+        f"Rw: {reward:<+5.1f} | Box: {boxes_on_target}/{total_boxes} | Term: {term_str} | Trunc: {trunc_str} | "
+        f"Lat: {latency:<4.2f}s | Th: {thought.strip()}\n"
+    )
     try:
         with open(log_file_path, "a") as log_file: log_file.write(log_entry)
-    except Exception as e: print(f"[ERROR] Failed to write log to {log_file_path}: {e}", file=sys.stderr)
+    except Exception as e:
+        print(f"[ERROR] Failed to write log entry to {log_file_path}: {e}")
 
-def log_step_data_to_jsonl(step_data: dict, log_file_path: str):
-    if not log_file_path: print("[ERROR] No log file path for JSONL.", file=sys.stderr); return
-    try:
-        with open(log_file_path, 'a') as f: json.dump(convert_to_json_serializable(step_data), f); f.write('\\n')
-    except Exception as e: print(f"[ERROR] Failed to write JSONL to {log_file_path}: {e}", file=sys.stderr)
-
+# --- Image Conversion Helper ---
 def numpy_array_to_base64(image_array):
+    """Converts a NumPy array (RGB) to a base64 encoded PNG image string."""
     if image_array is None: return None
     try:
         pil_img = Image.fromarray(image_array.astype('uint8'), 'RGB')
@@ -120,10 +132,20 @@ class ReasoningModule:
         return response_text
 
     def _parse_response(self, response_text: str) -> tuple[str, str]:
-        pattern = r'move:\s*([\w\s]+),\s*thought:\s*(.*)'
-        match = re.search(pattern, response_text, re.IGNORECASE | re.DOTALL)
-        if match: return match.group(1).strip().lower(), match.group(2).strip()
-        return "parse_error", f"Could not parse move/thought from LLM response: {response_text}"
+        pattern = r'^move:\s*([\w\s]+),\s*thought:\s*(.*)' # Anchor to start of line
+        matches = list(re.finditer(pattern, response_text, re.IGNORECASE | re.MULTILINE))
+        
+        if matches:
+            # Use the last match found
+            last_match = matches[-1]
+            move = last_match.group(1).strip().lower()
+            thought = last_match.group(2).strip()
+            # Clean up potential unwanted prefixes from the thought itself
+            thought = re.sub(r'(?i)^\s*the final answer is:\s*', '', thought).strip()
+            return move, thought
+        else:
+            # Fallback if the specific pattern is not found at all
+            return "parse_error", f"Could not parse move/thought pattern from LLM response: {response_text}"
 
     def plan_action_with_text(self, current_perception_text_table: str, memory_summary: str | None) -> dict:
         start_time = time.time()
@@ -196,38 +218,29 @@ class ReasoningModule:
 # --- Base Agent Class ---
 class BaseSokobanAgent:
     DEFAULT_MOVE_MAP = {
-        'up': 5, 'down': 6, 'left': 7, 'right': 8,
-        'push up': 1, 'push down': 2, 'push left': 3, 'push right': 4,
+            'up': 5, 'down': 6, 'left': 7, 'right': 8,
+            'push up': 1, 'push down': 2, 'push left': 3, 'push right': 4,
         'noop': 0, 'parse_error': 0, 'api_error': 0
     }
     def __init__(self, env_render_mode: str | None, api_provider: str, model_name: str,
                  system_prompt: str, thinking: bool,
-                 text_log_path: str, jsonl_log_path: str,
+                 text_log_path: str,
                  agent_type_suffix: str, env: CustomSokobanEnv | None = None):
-        if env: self.env = env
-        else: self.env = CustomSokobanEnv(render_mode=env_render_mode)
-        self.action_space = self.env.action_space
-        self.move_to_action_id = self.DEFAULT_MOVE_MAP.copy()
-        self.api_provider = api_provider
-        self.model_name = model_name
+        self.env = env if env else CustomSokobanEnv(render_mode=env_render_mode)
+        self.text_log_file = text_log_path
+        self.agent_type_suffix = agent_type_suffix # For logging/identification
+        self.last_action_plan = {"move": "noop", "thought": "Initial state", "latency": 0.0}
 
-        if not text_log_path or not jsonl_log_path:
-            ts = time.strftime('%Y%m%d_%H%M%S')
-            safe_model = re.sub(r'[^a-zA-Z0-9_-]', '_', model_name)
-            base_fn = f"{ts}_{safe_model}_sokoban_{agent_type_suffix}_fallback"
-            self.text_log_file = os.path.join(CACHE_DIR, f"{base_fn}.log")
-            self.jsonl_log_file = os.path.join(CACHE_DIR, f"{base_fn}.jsonl")
-            print(f"Warning: Using fallback log paths for {agent_type_suffix}", file=sys.stderr)
-        else:
-            self.text_log_file = text_log_path
-            self.jsonl_log_file = jsonl_log_path
-
-        self.reasoning_module = ReasoningModule(api_provider, model_name, system_prompt, thinking)
-        self.last_action_plan = {"move": "N/A", "thought": "Initial state", "latency": 0.0}
+        self.reasoning_module = ReasoningModule(
+            api_provider=api_provider, model_name=model_name,
+            system_prompt=system_prompt, thinking=thinking
+        )
+        # Ensure action space is available if env is created here
+        self.action_space = self.env.action_space 
 
     def _get_action_id(self, move_str: str) -> int:
-        action_id = self.move_to_action_id.get(move_str, 0)
-        if move_str not in self.move_to_action_id:
+        action_id = self.DEFAULT_MOVE_MAP.get(move_str, 0)
+        if move_str not in self.DEFAULT_MOVE_MAP:
             print(f"Warning: LLM move '{move_str}' not in action map. Using NoOp.", file=sys.stderr)
         return action_id
 
@@ -240,22 +253,18 @@ class BaseSokobanAgent:
         try:
             observation, info = self.env.reset(options=options)
             terminated, truncated = False, False
-            if hasattr(self, 'memory_module') and self.memory_module: self.memory_module.clear()
 
-            # Log initial state (text-based for all agents for consistency in JSONL)
-            initial_perception_data = PerceptionModule(self.env).get_current_state() # Temp for initial log
-            log_step_data_to_jsonl({
-                'step': 0, 'perception': initial_perception_data, 'action_plan': None,
-                'image_path': None, 'reward': 0.0, 'terminated': terminated, 'truncated': truncated,
-                'info': info, 'api_latency': 0.0
-            }, self.jsonl_log_file)
+            # Reset memory for the new episode if agent uses it
+            print(f"[DEBUG] Agent {type(self).__name__}: hasattr(self, 'memory_module') = {hasattr(self, 'memory_module')}")
+            if hasattr(self, 'memory_module') and self.memory_module:
+                print(f"[DEBUG] Agent {type(self).__name__}: self.memory_module is {self.memory_module}")
+                self.memory_module.clear()
+
+            # For vision agents, the initial text perception is still useful for context before first image.
+            initial_text_perception_for_log = PerceptionModule(self.env).get_current_state()
 
             while not terminated and not truncated and steps < max_steps:
                 if self.env.render_mode == 'human': self.env.render(); time.sleep(render_delay)
-
-                # Perception for decision making (specific to agent type in select_action)
-                # Perception for logging (always text based for now)
-                current_text_perception_for_log = PerceptionModule(self.env).get_current_state()
 
                 action_result = self.select_action(observation) # Returns action_id or (action_id, image_path)
                 
@@ -270,13 +279,23 @@ class BaseSokobanAgent:
                 observation, reward, terminated, truncated, info = self.env.step(action_id)
                 steps += 1
                 total_reward += reward
+                print(f"[DEBUG] Step {steps} Outcome: Reward={reward}, InfoBoxesOnTarget={info.get('boxes_on_target', 'N/A')}") # Debug Print
 
-                log_step_data_to_jsonl({
-                    'step': steps, 'perception': current_text_perception_for_log,
-                    'action_plan': action_plan_for_log, 'image_path': saved_image_path_for_log,
-                    'reward': reward, 'terminated': terminated, 'truncated': truncated,
-                    'info': info, 'api_latency': action_plan_for_log.get('latency', 0.0)
-                }, self.jsonl_log_file)
+                # Log the comprehensive step information to the text log
+                log_move_and_thought(
+                    log_file_path=self.text_log_file,
+                    level_index=level_index,
+                    step_num=steps,
+                    action_id=action_id,
+                    move=action_plan_for_log.get('move', 'N/A'),
+                    thought=action_plan_for_log.get('thought', 'N/A'),
+                    latency=action_plan_for_log.get('latency', 0.0),
+                    reward=reward,
+                    boxes_on_target=info.get('boxes_on_target', 0),
+                    total_boxes=self.env.num_boxes, # Assuming env has num_boxes attribute
+                    terminated=terminated,
+                    truncated=truncated
+                )
 
                 move_p = action_plan_for_log.get('move', 'N/A')
                 thought_p = action_plan_for_log.get('thought', 'N/A')
@@ -303,9 +322,9 @@ class SokobanAgent(BaseSokobanAgent):
     def __init__(self, env: CustomSokobanEnv = None, render_mode: str = None,
                  api_provider: str = 'openai', model_name: str = 'gpt-4-turbo',
                  system_prompt: str = "You are an expert Sokoban player.", thinking: bool = True,
-                 max_memory_history: int = 5, text_log_path: str = None, jsonl_log_path: str = None):
+                 max_memory_history: int = 5, text_log_path: str = None):
         super().__init__(render_mode, api_provider, model_name, system_prompt, thinking,
-                         text_log_path, jsonl_log_path, "full", env)
+                         text_log_path, "full", env)
         self.perception_module = PerceptionModule(self.env)
         self.memory_module = MemoryModule(max_history=max_memory_history)
 
@@ -313,27 +332,25 @@ class SokobanAgent(BaseSokobanAgent):
         current_perception = self.perception_module.get_current_state()
         if not current_perception:
             self.last_action_plan = {"move": "noop", "thought": "Perception failed", "latency": 0.0}
-            log_move_and_thought("noop", "Perception failed", 0.0, self.text_log_file)
-            return self._get_action_id("noop")
+            return self._get_action_id("noop"), None
 
         memory_summary = self.memory_module.get_memory_summary()
         self.last_action_plan = self.reasoning_module.plan_action_with_text(
             current_perception['text_table'], memory_summary
         )
-        log_move_and_thought(self.last_action_plan['move'], self.last_action_plan['thought'], self.last_action_plan['latency'], self.text_log_file)
         self.memory_module.add_entry(current_perception, self.last_action_plan)
-        return self._get_action_id(self.last_action_plan['move'])
+        return self._get_action_id(self.last_action_plan['move']), None
 
 # --- BasicAgent (Vision Reasoning, No Perception Module, No Memory) ---
 class BasicAgent(BaseSokobanAgent):
     def __init__(self, env: CustomSokobanEnv = None, render_mode: str = None,
                  api_provider: str = 'openai', model_name: str = 'gpt-4-turbo', # Ensure this model supports vision
                  system_prompt: str = "You are a Sokoban expert analyzing an image.", thinking: bool = True,
-                 text_log_path: str = None, jsonl_log_path: str = None, image_dir_path: str = None):
+                 text_log_path: str = None, image_dir_path: str = None):
         # BasicAgent needs rgb_array for its own perception if env is created by it
         effective_render_mode = render_mode if render_mode else 'rgb_array'
         super().__init__(effective_render_mode, api_provider, model_name, system_prompt, thinking,
-                         text_log_path, jsonl_log_path, "basic_vision", env)
+                         text_log_path, "basic_vision", env)
         if 'rgb_array' not in self.env.metadata.get('render_modes', []):
             # This might be too strict if an env is passed in that CAN render rgb_array but doesn't list it
             # However, it's safer to ensure compatibility.
@@ -353,7 +370,7 @@ class BasicAgent(BaseSokobanAgent):
 
             if self.image_dir_path:
                 try:
-                    fn = f"step_{time.strftime('%Y%m%d%H%M%S%f')}.png" # Unique image per step
+                    fn = "current_step_visual.png" # Constant filename
                     saved_image_path = os.path.join(self.image_dir_path, fn)
                     Image.fromarray(image_array.astype('uint8'), 'RGB').save(saved_image_path)
                 except Exception as img_e: print(f"[ERROR] Failed to save image to {saved_image_path}: {img_e}", file=sys.stderr)
@@ -366,7 +383,6 @@ class BasicAgent(BaseSokobanAgent):
             print(f"Error: {thought}", file=sys.stderr); traceback.print_exc()
             self.last_action_plan = {"move": "api_error", "thought": thought, "latency": 0.0}
         
-        log_move_and_thought(self.last_action_plan['move'], self.last_action_plan['thought'], self.last_action_plan['latency'], self.text_log_file)
         action_id = self._get_action_id(self.last_action_plan['move'])
         return action_id, saved_image_path # Return image path for logging
 
@@ -375,9 +391,9 @@ class PerceptionOnlyAgent(BaseSokobanAgent):
     def __init__(self, env: CustomSokobanEnv = None, render_mode: str = None,
                  api_provider: str = 'openai', model_name: str = 'gpt-4-turbo',
                  system_prompt: str = "You are an expert Sokoban player analyzing text.", thinking: bool = True,
-                 text_log_path: str = None, jsonl_log_path: str = None):
+                 text_log_path: str = None):
         super().__init__(render_mode, api_provider, model_name, system_prompt, thinking,
-                         text_log_path, jsonl_log_path, "perception_only", env)
+                         text_log_path, "perception_only", env)
         self.perception_module = PerceptionModule(self.env)
         # No memory_module for this agent
 
@@ -385,26 +401,23 @@ class PerceptionOnlyAgent(BaseSokobanAgent):
         current_perception = self.perception_module.get_current_state()
         if not current_perception:
             self.last_action_plan = {"move": "noop", "thought": "Perception failed", "latency": 0.0}
-            log_move_and_thought("noop", "Perception failed", 0.0, self.text_log_file)
-            return self._get_action_id("noop")
+            return self._get_action_id("noop"), None
 
-        # PerceptionOnlyAgent does not use memory, so memory_summary is None
         self.last_action_plan = self.reasoning_module.plan_action_with_text(
             current_perception['text_table'], None
         )
-        log_move_and_thought(self.last_action_plan['move'], self.last_action_plan['thought'], self.last_action_plan['latency'], self.text_log_file)
-        return self._get_action_id(self.last_action_plan['move'])
+        return self._get_action_id(self.last_action_plan['move']), None
 
 # --- MemoryOnlyAgent (Vision Reasoning + Memory, No Text Perception Module) ---
 class MemoryOnlyAgent(BaseSokobanAgent):
     def __init__(self, env: CustomSokobanEnv = None, render_mode: str = None,
-                 api_provider: str = 'openai', model_name: str = 'gpt-4-turbo', # Ensure this model supports vision
+                 api_provider: str = 'openai', model_name: str = 'gpt-4-turbo',
                  system_prompt: str = "You are a Sokoban expert using images and memory.", thinking: bool = True,
                  max_memory_history: int = 5,
-                 text_log_path: str = None, jsonl_log_path: str = None, image_dir_path: str = None):
+                 text_log_path: str = None, image_dir_path: str = None):
         effective_render_mode = render_mode if render_mode else 'rgb_array'
         super().__init__(effective_render_mode, api_provider, model_name, system_prompt, thinking,
-                         text_log_path, jsonl_log_path, "memory_vision", env)
+                         text_log_path, "memory_vision", env)
         if 'rgb_array' not in self.env.metadata.get('render_modes', []):
              print(f"Warning: MemoryOnlyAgent created with env not explicitly listing 'rgb_array'. Effective mode: {self.env.render_mode}", file=sys.stderr)
         
@@ -424,7 +437,7 @@ class MemoryOnlyAgent(BaseSokobanAgent):
 
             if self.image_dir_path:
                 try:
-                    fn = f"step_{time.strftime('%Y%m%d%H%M%S%f')}.png"
+                    fn = "current_step_visual.png" # Constant filename
                     saved_image_path = os.path.join(self.image_dir_path, fn)
                     Image.fromarray(image_array.astype('uint8'), 'RGB').save(saved_image_path)
                 except Exception as img_e: print(f"[ERROR] Failed to save image to {saved_image_path}: {img_e}", file=sys.stderr)
@@ -438,11 +451,6 @@ class MemoryOnlyAgent(BaseSokobanAgent):
             print(f"Error: {thought}", file=sys.stderr); traceback.print_exc()
             self.last_action_plan = {"move": "api_error", "thought": thought, "latency": 0.0}
 
-        log_move_and_thought(self.last_action_plan['move'], self.last_action_plan['thought'], self.last_action_plan['latency'], self.text_log_file)
-        # Add perception (image) and action to memory
-        # The "perception" for this agent, when it makes a decision, is the image.
-        # Storing the base64 string is a simple way, though can be large for JSONL.
-        # Consider storing just a flag or path if full base64 in memory history is too much.
         perception_for_memory = {"image_base64_hash": hash(base64_image_for_memory)} if base64_image_for_memory else {"image_base64_hash": None}
         self.memory_module.add_entry(perception_for_memory, self.last_action_plan)
         
@@ -452,13 +460,17 @@ class MemoryOnlyAgent(BaseSokobanAgent):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Run Sokoban LLM Agent")
-    parser.add_argument("--api_provider", type=str, default="openai", choices=["openai", "anthropic", "gemini", "deepseek", "together_ai", "xai"])
-    parser.add_argument("--model_name", type=str, default="gpt-4o") # gpt-4o is good for vision
-    parser.add_argument("--level", type=int, default=1)
+    parser.add_argument("--api_provider", type=str, default="openai",
+                        choices=["openai", "anthropic", "gemini", "deepseek", "together_ai", "xai"],
+                        help="API provider to use.")
+    parser.add_argument("--model_name", type=str, default="gpt-4o",
+                        help="Specific model name for the chosen provider.")
+    parser.add_argument("--level", type=int, default=1, # Restored level argument
+                        help="Starting level index to test.")
     parser.add_argument("--steps", type=int, default=100)
     parser.add_argument("--render_mode", type=str, default="human", choices=["human", "rgb_array", "tiny_human", "tiny_rgb_array", "raw", "none"])
     parser.add_argument("--delay", type=float, default=0.2)
-    parser.add_argument("--memory", type=int, default=5, help="Max history for agents with memory.")
+    parser.add_argument("--memory", type=int, default=10, help="Max history for agents with memory.")
     parser.add_argument("--agent_type", type=str, default="full", choices=["full", "basic", "perception_only", "memory_only"])
     args = parser.parse_args()
 
@@ -478,9 +490,7 @@ if __name__ == "__main__":
     print(f"Run directory: {run_dir}")
 
     text_log = os.path.join(run_dir, f"{base_run_name}.log")
-    jsonl_log = os.path.join(run_dir, f"{base_run_name}.jsonl")
     print(f"Text log: {text_log}")
-    print(f"JSONL log: {jsonl_log}")
 
     image_dir = run_dir if config["needs_image_dir"] else None
     if image_dir: print(f"Image save dir: {image_dir}")
@@ -497,8 +507,6 @@ if __name__ == "__main__":
                 "api_provider": args.api_provider,
                 "model_name": args.model_name,
                 "text_log_path": text_log,
-                "jsonl_log_path": jsonl_log,
-                # System prompt could be customized per agent type here if desired
             }
             if config["uses_memory"]: agent_params["max_memory_history"] = args.memory
             if config["needs_image_dir"]: agent_params["image_dir_path"] = image_dir
@@ -522,10 +530,6 @@ if __name__ == "__main__":
             if steps >= args.steps and reward < 10: # Assuming 10 is solve reward
                 print(f"Level {current_level} failed (max steps). Terminating.")
                 break
-            if reward < 10: # Failed for other reasons, e.g. stuck
-                 print(f"Level {current_level} likely failed (reward {reward}). Terminating.")
-                 break
-
 
             current_level += 1 # Move to next level
 

@@ -119,6 +119,9 @@ class CustomSokobanEnv(SokobanEnv):
         # --- Initialize display module unconditionally --- #
         if not pygame.display.get_init():
              pygame.display.init()
+             print("[DEBUG] CustomSokobanEnv.__init__: pygame.display.init() was called.")
+        else:
+             print("[DEBUG] CustomSokobanEnv.__init__: pygame.display was already initialized.")
         # --- End display initialization --- #
 
         self.screen = None
@@ -360,6 +363,7 @@ class CustomSokobanEnv(SokobanEnv):
 
     def _get_info(self):
         """Returns the info dictionary (currently basic)."""
+        print(f"[DEBUG] CustomSokobanEnv._get_info(): self.boxes_on_target = {getattr(self, 'boxes_on_target', 'N/A')}, self.num_boxes = {getattr(self, 'num_boxes', 'N/A')}")
         return {
             "action.name": ACTION_LOOKUP.get(0, "NoOp"), # Default NoOp for reset state
             "action.moved_player": False,
@@ -552,6 +556,10 @@ class CustomSokobanEnv(SokobanEnv):
         # Call the inherited step method directly
         try:
             observation, reward, terminated, truncated, info = super().step(action)
+
+            # Manually add the correct boxes_on_target count to the info dict
+            # The parent calculates it in _calc_reward and stores it in self.boxes_on_target
+            info['boxes_on_target'] = self.boxes_on_target 
 
             # Add current step count to info dictionary
             info['steps'] = self.num_env_steps
