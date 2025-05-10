@@ -75,7 +75,7 @@ def main():
     parser.add_argument("--modality", type=str, default="vision-text", 
                        choices=["text-only", "vision-text", "vision-only"],
                        help="modality used.")
-    parser.add_argument("--thinking", type=str, default="True", help="Whether to use deep thinking.")
+    parser.add_argument("--thinking", type=str, default="False", help="Whether to use deep thinking.")
     parser.add_argument("--agent_type", type=str, default="standard", choices=["standard", "basic"],
                        help="Type of agent logic to use ('standard' or 'basic').")
     parser.add_argument("--episode_name", type=str, default="The_First_Turnabout", 
@@ -99,7 +99,6 @@ def main():
     # Create the cache directory if it doesn't exist
     os.makedirs(BASE_CACHE_DIR, exist_ok=True)
     os.makedirs(cache_dir, exist_ok=True)
-    # cache_dir = "cache/ace_attorney/20250506_150522_The_First_Turnabout_vision-text_openai_gpt-4.1-2025-04-14"
 
     # Also ensure the base cache directory exists (for backward compatibility)
     print(f"Using cache directory: {cache_dir}")
