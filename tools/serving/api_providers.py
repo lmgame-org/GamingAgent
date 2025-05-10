@@ -34,6 +34,9 @@ def anthropic_completion(system_prompt, model_name, base64_image, prompt, thinki
         thinking = False
         token_limit = 8192
 
+    if "claude-3-7" in model_name:
+        print("claude-3-7 thinking{thinking}")
+
     if thinking:
         with client.messages.stream(
                 max_tokens=token_limit,
@@ -322,7 +325,7 @@ def openai_text_reasoning_completion(system_prompt, model_name, prompt, temperat
     }
     
     # Add reasoning_effort for o1, o3, o4 models, temperature for others
-    if "o1" in model_name or "o3" in model_name or "o4" in model_name:
+    if "o3" in model_name or "o4" in model_name:
         request_params["reasoning_effort"] = reasoning_effort
     else:
         request_params["temperature"] = temperature

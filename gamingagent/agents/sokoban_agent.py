@@ -113,10 +113,13 @@ class ReasoningModule:
         response_text = ""
         # print(f"DEBUG: ReasoningModule calling {self.model_name} via {self.api_provider}. Image: {bool(base64_image)}")
         # print(f"DEBUG: Prompt (first 200 chars): {prompt[:200]}")
+        if self.model_name == "o1-mini":
+            base64_image = None
         if base64_image:
             if self.api_provider == "anthropic": response_text = anthropic_completion(self.system_prompt, self.model_name, base64_image, prompt, self.thinking)
             elif self.api_provider == "openai": response_text = openai_completion(self.system_prompt, self.model_name, base64_image, prompt)
             elif self.api_provider == "gemini": response_text = gemini_completion(self.system_prompt, self.model_name, base64_image, prompt)
+            elif self.api_provider == "together_ai": response_text = together_ai_completion(self.system_prompt, self.model_name, prompt, base64_image)
             # Add other vision-capable providers here
             # elif self.api_provider == "deepseek" and hasattr(globals().get('deepseek_vision_completion', None), '__call__'):
             # response_text = deepseek_vision_completion(self.system_prompt, self.model_name, base64_image, prompt)
@@ -457,6 +460,27 @@ class MemoryOnlyAgent(BaseSokobanAgent):
         action_id = self._get_action_id(self.last_action_plan['move'])
         return action_id, saved_image_path
 
+# --- Random Agent (Chooses random basic move) ---
+class RandomAgent(BaseSokobanAgent):
+    def __init__(self, env: CustomSokobanEnv = None, render_mode: str = None,
+                 api_provider: str = 'openai', model_name: str = 'gpt-4-turbo', # Not used by random
+                 system_prompt: str = "This agent chooses actions randomly.", thinking: bool = False, # Not used
+                 text_log_path: str = None):
+        super().__init__(render_mode, api_provider, model_name, system_prompt, thinking,
+                         text_log_path, "random", env)
+        # No perception, memory, or reasoning module needed
+
+    def select_action(self, observation):
+        import random
+        possible_moves = ['up', 'down', 'left', 'right', 'push up', 'push down', 'push left', 'push right']
+        chosen_move = random.choice(possible_moves)
+        
+        # Set last_action_plan for logging purposes, latency is negligible
+        self.last_action_plan = {"move": chosen_move, "thought": "Randomly selected.", "latency": 0.0}
+        
+        action_id = self._get_action_id(chosen_move)
+        # Random agent does not produce images, so second part of tuple is None
+        return action_id, None
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Run Sokoban LLM Agent")
@@ -471,7 +495,7 @@ if __name__ == "__main__":
     parser.add_argument("--render_mode", type=str, default="human", choices=["human", "rgb_array", "tiny_human", "tiny_rgb_array", "raw", "none"])
     parser.add_argument("--delay", type=float, default=0.2)
     parser.add_argument("--memory", type=int, default=10, help="Max history for agents with memory.")
-    parser.add_argument("--agent_type", type=str, default="full", choices=["full", "basic", "perception_only", "memory_only"])
+    parser.add_argument("--agent_type", type=str, default="full", choices=["full", "basic", "perception_only", "memory_only", "random"])
     args = parser.parse_args()
 
     run_ts = time.strftime('%Y%m%d_%H%M%S')
@@ -481,7 +505,8 @@ if __name__ == "__main__":
         "full": {"suffix": "full", "class": SokobanAgent, "needs_image_dir": False, "uses_memory": True},
         "basic": {"suffix": "basic_vision", "class": BasicAgent, "needs_image_dir": True, "uses_memory": False},
         "perception_only": {"suffix": "perception_only", "class": PerceptionOnlyAgent, "needs_image_dir": False, "uses_memory": False},
-        "memory_only": {"suffix": "memory_vision", "class": MemoryOnlyAgent, "needs_image_dir": True, "uses_memory": True}
+        "memory_only": {"suffix": "memory_vision", "class": MemoryOnlyAgent, "needs_image_dir": True, "uses_memory": True},
+        "random": {"suffix": "random", "class": RandomAgent, "needs_image_dir": False, "uses_memory": False}
     }
     config = agent_configs[args.agent_type]
     base_run_name = f"{run_ts}_{safe_model_name}_sokoban_{config['suffix']}"
@@ -517,6 +542,7 @@ if __name__ == "__main__":
             elif agent_class == BasicAgent: agent_params["system_prompt"] = "You are a Sokoban expert analyzing an image."
             elif agent_class == PerceptionOnlyAgent: agent_params["system_prompt"] = "You are an expert Sokoban player analyzing text."
             elif agent_class == MemoryOnlyAgent: agent_params["system_prompt"] = "You are a Sokoban expert using images and memory."
+            elif agent_class == RandomAgent: agent_params["system_prompt"] = "This agent chooses actions randomly."
 
 
             print(f"Initializing {agent_class.__name__}...")
