@@ -10,6 +10,7 @@ from tools.serving import APIManager
 import asyncio
 from collections import deque
 import argparse
+import random
 
 
 CACHE_DIR = os.path.join("cache", "super_mario_bros_experiments", datetime.now().strftime("%Y%m%d_%H%M%S"))
@@ -1243,6 +1244,8 @@ async def main():
                         help='Model name to use for inference (default: claude-3-5-sonnet-latest)')
     parser.add_argument('--base', action='store_true', 
                         help='Use simplified Base_module instead of full pipeline')
+    parser.add_argument('--random', action='store_true',
+                        help='Use random actions (only forward and jump) instead of AI agent')
     parser.add_argument('--num_runs', type=int, default=1,
                         help='Number of game runs to perform (default: 1)')
     args = parser.parse_args()
@@ -1254,7 +1257,7 @@ async def main():
         "timestamp": datetime.now().isoformat(),
         "model_name": args.model,
         "game_name": "SuperMarioBros-Nes",
-        "module_type": "base" if args.base else "full",
+        "module_type": "random" if args.random else ("base" if args.base else "full"),
         "num_runs": args.num_runs,
         "cache_directory": CACHE_DIR,
         "system_info": {
@@ -1286,23 +1289,31 @@ async def main():
     # Print controller button mapping
     print("Buttons:", env.buttons)
     
-    # Print 10 random action samples
-    print("Action space samples:")
-    for i in range(10):
-        action = env.action_space.sample()
-        print(f"Sample {i}: {action}")
-
-    # Initialize the agent with grid image path, specified model, and module choice
-    agent = SuperMarioBrosAgent(
-        img_path=GRID_IMG_PATH, 
-        model_name=args.model,
-        use_base_module=args.base
-    )
-    
-    if args.base:
-        print(f"Using Base_module with model: {args.model}")
+    # Initialize the agent only if not using random mode
+    agent = None
+    if not args.random:
+        agent = SuperMarioBrosAgent(
+            img_path=GRID_IMG_PATH, 
+            model_name=args.model,
+            use_base_module=args.base
+        )
+        
+        if args.base:
+            print(f"Using Base_module with model: {args.model}")
+        else:
+            print(f"Using full pipeline with model: {args.model}")
     else:
-        print(f"Using full pipeline with model: {args.model}")
+        print("\n" + "*" * 80)
+        print("RUNNING WITH RANDOM ACTIONS - Only forward and jump moves")
+        print("*" * 80 + "\n")
+    
+    # Define random actions (only forward and jump)
+    random_actions = [
+        all_actions["[right]"],        # Move right
+        all_actions["[right,A]"],      # Move right and jump
+        all_actions["[right,A,B]"],    # Move right, jump, and run
+        all_actions["[right,B]"],      # Move right and run
+    ]
     
     # Run the game for the specified number of times
     for run_count in range(1, args.num_runs + 1):
@@ -1346,30 +1357,44 @@ async def main():
                     print(f"Run {run_count} over! Environment terminated or truncated.")
                     break
             
-            # Get agent's action plan
-            llm_action_response = await agent.get_action(observation, reward)
-            
-            # Log agent data (perception, memory, action)
-            perception_data = None
-            memory_summary = None
-            
-            # Extract perception data and memory summary if using full pipeline
-            if not agent.use_base_module:
-                # Access perception data from the agent
-                perception_data = agent.perception_module.analyze_frame(observation, GRID_IMG_PATH)
-                # Access memory summary
-                memory_summary = agent.memory_module.get_memory_summary()
-            
-            # Log all agent data
-            log_agent_data(perception_data, memory_summary, llm_action_response, run_count, count)
-            
-            # Get the action and frame count from the response
-            action_name, frame_count = llm_action_response['move']
-            
-            # Convert action name to actual action array
-            action = all_actions[action_name]
-            # Create list of actions to run
-            actions = [action] * frame_count
+            if args.random:
+                # Random mode: Choose from forward and jump actions
+                action = random.choice(random_actions)
+                # Random frame count between 5 and 30
+                frame_count = random.randint(5, 25)
+                actions = [action] * frame_count
+                
+                # Create a basic action plan for logging
+                action_name = next((k for k, v in all_actions.items() if v == action), "[right]")
+                llm_action_response = {
+                    "move": (action_name, frame_count),
+                    "thought": "Random action (forward and jump only)"
+                }
+            else:
+                # Get agent's action plan
+                llm_action_response = await agent.get_action(observation, reward)
+                
+                # Log agent data (perception, memory, action)
+                perception_data = None
+                memory_summary = None
+                
+                # Extract perception data and memory summary if using full pipeline
+                if not agent.use_base_module:
+                    # Access perception data from the agent
+                    perception_data = agent.perception_module.analyze_frame(observation, GRID_IMG_PATH)
+                    # Access memory summary
+                    memory_summary = agent.memory_module.get_memory_summary()
+                
+                # Log all agent data
+                log_agent_data(perception_data, memory_summary, llm_action_response, run_count, count)
+                
+                # Get the action and frame count from the response
+                action_name, frame_count = llm_action_response['move']
+                
+                # Convert action name to actual action array
+                action = all_actions[action_name]
+                # Create list of actions to run
+                actions = [action] * frame_count
             
             # Run the actions and wait for completion
             observation, reward, terminated, truncated, info = env.step(default_action)
