@@ -11,6 +11,7 @@ import asyncio
 from collections import deque
 import argparse
 import random
+import atexit  # Add atexit module for cleanup functions
 
 
 CACHE_DIR = os.path.join("cache", "super_mario_bros_experiments", datetime.now().strftime("%Y%m%d_%H%M%S"))
@@ -692,7 +693,6 @@ Frame count must be between 1-30.
                     move = (action_name, frame_count)
         
         # If parsing failed, use default values
-
         if move is None or thought is None:
             print(f"Failed to parse response: {response}")
 
@@ -704,7 +704,6 @@ Frame count must be between 1-30.
             thought = "No explicit thought provided in response"
             print(f"Failed to parse thought from response: {response}")
         
-
         return {
             "move": move,
             "thought": thought
@@ -1237,6 +1236,111 @@ def log_agent_data(perception_data, memory_summary, action_plan, run_count, step
             else:
                 json.dump(action_plan, f, indent=2)
 
+def generate_overall_statistics(cache_dir, all_individual_death_x_coords, averages_for_each_run, args):
+    """
+    Generate and save overall statistics file combining results from all runs.
+    
+    Args:
+        cache_dir (str): Directory to save statistics
+        all_individual_death_x_coords (list): List of all x-positions at deaths
+        averages_for_each_run (list): List of average x-positions per run
+        args: Command line arguments
+    """
+    try:
+        print("\n========== GENERATING OVERALL STATISTICS ==========")
+        
+        # Convert NumPy values to native Python types
+        all_death_positions = [int(pos) if hasattr(pos, 'item') else pos for pos in all_individual_death_x_coords]
+        run_averages = [float(avg) if hasattr(avg, 'item') else avg for avg in averages_for_each_run]
+        
+        # Prepare the overall statistics data
+        overall_stats = {
+            "experiment_timestamp": datetime.now().isoformat(),
+            "num_runs": args.num_runs,
+            "model_name": args.model,
+            "module_type": "random" if args.random else ("base" if args.base else "full"),
+            "individual_run_statistics": [],
+            "all_death_x_positions": all_death_positions,  # Use converted values
+            "per_run_averages": run_averages,  # Use converted values
+            "overall_average": None
+        }
+        
+        # Add each run's statistics
+        for run_num in range(1, args.num_runs + 1):
+            run_stats_file = os.path.join(cache_dir, f"run_{run_num}_stats.json")
+            try:
+                if os.path.exists(run_stats_file):
+                    with open(run_stats_file, 'r') as f:
+                        run_stats = json.load(f)
+                        overall_stats["individual_run_statistics"].append(run_stats)
+                        
+                        # Add the average to per_run_averages if it exists and not already added
+                        if run_stats.get("average_death_x_position") is not None and len(run_averages) < len(averages_for_each_run):
+                            # This is redundant now as we've already converted averages
+                            pass
+            except Exception as e:
+                print(f"Error reading run {run_num} statistics: {e}")
+        
+        # Calculate the final overall average
+        if run_averages:  # Use converted values
+            overall_stats["overall_average"] = sum(run_averages) / len(run_averages)
+        
+        # Print statistics to console
+        if all_death_positions:  # Use converted values
+            print(f"All individual x-positions at death across all runs: {all_death_positions}")
+        else:
+            print("No deaths recorded across any runs.")
+
+        if run_averages:  # Use converted values
+            print(f"Average x-position for each run (based on deaths in that run): {[f'{avg:.2f}' for avg in run_averages]}")
+            final_overall_average = sum(run_averages) / len(run_averages)
+            print(f"Final average of per-run averages: {final_overall_average:.2f}")
+        else:
+            print("No run averages to calculate final overall average (no runs had deaths).")
+        
+        # First ensure all values are JSON serializable
+        def ensure_serializable(obj):
+            if isinstance(obj, (np.integer, np.int64, np.int32)):
+                return int(obj)
+            elif isinstance(obj, (np.floating, np.float64, np.float32)):
+                return float(obj)
+            elif isinstance(obj, np.ndarray):
+                return obj.tolist()
+            elif isinstance(obj, dict):
+                return {k: ensure_serializable(v) for k, v in obj.items()}
+            elif isinstance(obj, list):
+                return [ensure_serializable(item) for item in obj]
+            return obj
+            
+        # Apply the serialization fix to the entire stats object
+        overall_stats = ensure_serializable(overall_stats)
+        
+        # Save the overall statistics to a single file
+        overall_stats_file = os.path.join(cache_dir, "overall_statistics.json")
+        with open(overall_stats_file, 'w') as f:
+            json.dump(overall_stats, f, indent=2)
+        print(f"\nOverall statistics for all runs saved to: {overall_stats_file}")
+    
+    except Exception as e:
+        print(f"Error generating overall statistics: {e}")
+        # Try a simpler fallback
+        try:
+            # Convert values to ensure they're serializable
+            simple_death_positions = [int(pos) if hasattr(pos, 'item') else pos for pos in all_individual_death_x_coords]
+            simple_averages = [float(avg) if hasattr(avg, 'item') else avg for avg in averages_for_each_run]
+            
+            fallback_stats = {
+                "timestamp": datetime.now().isoformat(),
+                "all_death_x_positions": simple_death_positions,
+                "overall_average": sum(simple_averages) / len(simple_averages) if simple_averages else None
+            }
+            fallback_file = os.path.join(cache_dir, "fallback_overall_stats.json")
+            with open(fallback_file, 'w') as f:
+                json.dump(fallback_stats, f, indent=2)
+            print(f"Saved fallback statistics to: {fallback_file}")
+        except Exception as e2:
+            print(f"Critical error: Could not save even fallback statistics: {e2}")
+
 async def main():
     # Parse command line arguments
     parser = argparse.ArgumentParser(description='Run Super Mario Bros AI agent')
@@ -1251,6 +1355,19 @@ async def main():
     args = parser.parse_args()
     
     os.makedirs(CACHE_DIR, exist_ok=True)
+    
+    # Initialize structures for statistics
+    all_individual_death_x_coords = []
+    averages_for_each_run = []
+    
+    # Register the statistics generation function to run at exit
+    atexit.register(
+        generate_overall_statistics, 
+        CACHE_DIR, 
+        all_individual_death_x_coords,
+        averages_for_each_run,
+        args
+    )
     
     # Store experiment info with added info about module choice
     experiment_info = {
@@ -1319,16 +1436,24 @@ async def main():
     for run_count in range(1, args.num_runs + 1):
         print(f"\n========== STARTING RUN {run_count}/{args.num_runs} ==========\n")
         
+        current_run_death_x_coords = []
+        
         # Reset the environment at the start of each run
-        env.reset()
+        observation = env.reset() # Capture initial observation
         
         count = 0
         sleep_time = 1.0 / 30
         default_action = all_actions["[NOOP]"]
-        observation, reward, terminated, truncated, info = env.step(default_action)
         
+        # Perform an initial step to get initial info, including lives
+        observation, reward, terminated, truncated, info = env.step(default_action)
+        previous_lives = info.get('lives', 3) # Default to 3 if not available, though it should be
+        initial_lives_for_run = previous_lives
+        print(f"Run {run_count}: Starting with {initial_lives_for_run} lives. Initial x_pos: {info.get('x_pos', get_mario_position(env))}")
+
         # Add player state to initial info
         info['player_state'] = get_player_state(env)
+        info['x_pos'] = get_mario_position(env) # Ensure x_pos is in initial log
         
         # Save initial observation with grid
         log_to_jsonl(info, count, reward, terminated, truncated)
@@ -1338,35 +1463,59 @@ async def main():
         while True:
             print(f"\n--- RUN {run_count} - STEP {count} ---")
             
+            current_x_pos_before_actions = get_mario_position(env) # X-pos before any action in this step
+
             # Check if Mario is dying and handle with NOOPs if needed
             player_state = get_player_state(env)
             if player_state == 11 or player_state == 0:  # Dying state (0x0B = 11 in decimal)
                 print("Mario is dying! Using NOOP actions until state changes...")
+                # This dying loop itself will use NOOPs.
+                # The death would have been registered based on lives count drop *before* entering this.
+                # Or, if lives drop inside this, run_actions modification would be needed.
+                # For now, assume life drop is detected based on `previous_lives` against `info` from `run_actions` or the NOOP.
+                
+                # We need to ensure 'previous_lives' is updated correctly even through this NOOP sequence
+                temp_obs, temp_rew, temp_term, temp_trunc, temp_info = observation, reward, terminated, truncated, info
                 while player_state == 11 or player_state == 0:
-                    observation, reward, terminated, truncated, info = env.step(default_action)
-                    info['player_state'] = player_state
-                    info['x_pos'] = get_mario_position(env)
+                    temp_obs, temp_rew, temp_term, temp_trunc, temp_info = env.step(default_action)
+                    temp_info['player_state'] = get_player_state(env) # Update player_state
+                    temp_info['x_pos'] = get_mario_position(env)
+                    current_lives_in_dying_loop = temp_info.get('lives', previous_lives)
+
+                    if current_lives_in_dying_loop < previous_lives:
+                        num_lost = previous_lives - current_lives_in_dying_loop
+                        print(f"  Run {run_count}: Life lost during dying sequence. x_pos: {temp_info['x_pos']}. Prev_lives: {previous_lives}, Curr_lives: {current_lives_in_dying_loop}")
+                        for _ in range(num_lost):
+                            # Use x_pos from *this* step where death confirmed, or `current_x_pos_before_actions` if more appropriate
+                            death_x_pos_in_dying = temp_info['x_pos'] 
+                            current_run_death_x_coords.append(death_x_pos_in_dying)
+                            all_individual_death_x_coords.append(death_x_pos_in_dying)
+                    previous_lives = current_lives_in_dying_loop
+                    
                     env.render()
                     await asyncio.sleep(sleep_time)
-                    player_state = get_player_state(env)
-                    log_to_jsonl(info, count, reward, terminated, truncated)
-                    if terminated or truncated:
+                    player_state = get_player_state(env) # Update for loop condition
+                    log_to_jsonl(temp_info, count, temp_rew, temp_term, temp_trunc) # Log these NOOP steps
+                    if temp_term or temp_trunc:
                         break
-                        
+                
+                observation, reward, terminated, truncated, info = temp_obs, temp_rew, temp_term, temp_trunc, temp_info
                 if terminated or truncated:
-                    print(f"Run {run_count} over! Environment terminated or truncated.")
-                    break
+                    print(f"Run {run_count} over! Environment terminated or truncated after dying sequence.")
+                    break # Break from the main game loop for the run
             
+            actions_for_sequence = []
+            llm_action_response = None
+
             if args.random:
                 # Random mode: Choose from forward and jump actions
-                action = random.choice(random_actions)
-                # Random frame count between 5 and 30
+                chosen_action_arr = random.choice(random_actions)
+                # Random frame count between 5 and 25
                 frame_count = random.randint(5, 25)
-                actions = [action] * frame_count
+                actions_for_sequence = [chosen_action_arr] * frame_count
                 
-                # Create a basic action plan for logging
-                action_name = next((k for k, v in all_actions.items() if v == action), "[right]")
-                llm_action_response = {
+                action_name = next((k for k, v in all_actions.items() if v == chosen_action_arr), "[right]")
+                llm_action_response = { # For logging consistency
                     "move": (action_name, frame_count),
                     "thought": "Random action (forward and jump only)"
                 }
@@ -1375,41 +1524,129 @@ async def main():
                 llm_action_response = await agent.get_action(observation, reward)
                 
                 # Log agent data (perception, memory, action)
-                perception_data = None
-                memory_summary = None
+                perception_data_for_log = None
+                memory_summary_for_log = None
                 
-                # Extract perception data and memory summary if using full pipeline
                 if not agent.use_base_module:
-                    # Access perception data from the agent
-                    perception_data = agent.perception_module.analyze_frame(observation, GRID_IMG_PATH)
-                    # Access memory summary
-                    memory_summary = agent.memory_module.get_memory_summary()
+                    # Re-analyze frame for current observation to get latest perception for logging
+                    # This might be slightly redundant if analyze_frame was called inside get_action,
+                    # but ensures we log perception corresponding to the state *before* the action.
+                    # To avoid re-calling, ensure get_action returns what's needed or store it.
+                    # For now, assuming agent.perception_module.analyze_frame can be called if needed,
+                    # or that data is fresh enough from agent's internal call.
+                    # Let's rely on agent.get_action to have done its perception.
+                    # The current log_agent_data takes perception_data, memory_summary, which are not directly available here
+                    # unless get_action returns them or they are stored in the agent.
+                    # This part might need adjustment depending on how SuperMarioBrosAgent makes data available.
+                    # Simplified: pass None if not readily available post get_action
+                    pass
+
+                log_agent_data(
+                    agent.perception_module.analyze_frame(observation, GRID_IMG_PATH) if not agent.use_base_module and hasattr(agent, 'perception_module') else None, 
+                    agent.memory_module.get_memory_summary() if not agent.use_base_module and hasattr(agent, 'memory_module') else None, 
+                    llm_action_response, 
+                    run_count, 
+                    count
+                )
                 
-                # Log all agent data
-                log_agent_data(perception_data, memory_summary, llm_action_response, run_count, count)
-                
-                # Get the action and frame count from the response
                 action_name, frame_count = llm_action_response['move']
+                actual_action_arr = all_actions[action_name]
+                actions_for_sequence = [actual_action_arr] * frame_count
+            
+            # State *before* this main action sequence.
+            # `current_x_pos_before_actions` was captured at the start of the while loop.
+            # `previous_lives` is the lives count before `run_actions`.
+
+            # Execute the determined action sequence
+            # The original script had a single NOOP step here, then run_actions.
+            # observation, reward, terminated, truncated, info_after_noop = env.step(default_action)
+            # await asyncio.sleep(sleep_time)
+            # x_pos_before_run_actions = info_after_noop.get('x_pos', current_x_pos_before_actions)
+            # lives_before_run_actions = info_after_noop.get('lives', previous_lives)
+            # if lives_before_run_actions < previous_lives: # Death in the NOOP
+            #     num_lost = previous_lives - lives_before_run_actions
+            #     print(f"  Run {run_count}: Life lost in pre-sequence NOOP. x_pos: {x_pos_before_run_actions}")
+            #     for _ in range(num_lost):
+            #         current_run_death_x_coords.append(x_pos_before_run_actions)
+            #         all_individual_death_x_coords.append(x_pos_before_run_actions)
+            # previous_lives = lives_before_run_actions # Update for run_actions check
+
+            # Let's use current_x_pos_before_actions as the reference if a death occurs in `run_actions`.
+            # `previous_lives` should be the count *before* `run_actions`.
+
+            if not (terminated or truncated): # Only run actions if game not already over
+                observation, reward, terminated, truncated, info_after_sequence = await run_actions(env, actions_for_sequence, fps=30)
                 
-                # Convert action name to actual action array
-                action = all_actions[action_name]
-                # Create list of actions to run
-                actions = [action] * frame_count
-            
-            # Run the actions and wait for completion
-            observation, reward, terminated, truncated, info = env.step(default_action)
-            await asyncio.sleep(sleep_time)
-            observation, reward, terminated, truncated, info = await run_actions(env, actions, fps=30)
-            
-            # Add x_position to info
-            info['x_pos'] = get_mario_position(env)
-            # Append to JSONL log with reward and termination status
+                current_lives_after_sequence = info_after_sequence.get('lives', previous_lives)
+                
+                if current_lives_after_sequence < previous_lives:
+                    num_lost = previous_lives - current_lives_after_sequence
+                    print(f"  Run {run_count}: {num_lost} life/lives lost during action sequence. x_pos before sequence: {current_x_pos_before_actions}. Prev_lives: {previous_lives}, Curr_lives: {current_lives_after_sequence}")
+                    for _ in range(num_lost):
+                        current_run_death_x_coords.append(current_x_pos_before_actions)
+                        all_individual_death_x_coords.append(current_x_pos_before_actions)
+                
+                previous_lives = current_lives_after_sequence
+                info = info_after_sequence # Update main info for logging
+            else: # Game ended from dying loop or other condition before run_actions
+                pass
+
+
+            # Add x_position to info for the main log_to_jsonl
+            # This info is from the end of run_actions or the dying loop
+            info['x_pos'] = get_mario_position(env) # get latest x_pos
             log_to_jsonl(info, count, reward, terminated, truncated)
             env.render()
             count += 1
+            
             if terminated or truncated:
-                print(f"Run {run_count} over! Environment terminated or truncated.")
-                break
+                print(f"Run {run_count} over! Environment terminated or truncated. Final lives: {previous_lives}")
+                
+                # Initialize run_stats with complete, valid JSON structure
+                run_stats = {
+                    "run_number": run_count,
+                    "death_x_positions": [],  # Default empty list that will always be valid JSON
+                    "average_death_x_position": None,
+                    "completed_without_deaths": True
+                }
+
+                if current_run_death_x_coords:
+                    # Convert any numpy values to native Python types to ensure JSON serialization works
+                    death_positions = [int(pos) if hasattr(pos, 'item') else pos for pos in current_run_death_x_coords]
+                    run_average = sum(death_positions) / len(death_positions)
+                    averages_for_each_run.append(run_average)
+                    print(f"  Deaths in this run at x-positions: {death_positions}")
+                    print(f"  Average x-position for deaths in this run: {run_average:.2f}")
+                    run_stats["death_x_positions"] = death_positions
+                    run_stats["average_death_x_position"] = float(run_average)  # Ensure it's a regular float
+                    run_stats["completed_without_deaths"] = False
+                else:
+                    print("  No deaths recorded in this run for averaging (e.g., level completed or error).")
+
+                # Write run-specific stats to a JSON file
+                run_stats_file_path = os.path.join(CACHE_DIR, f"run_{run_count}_stats.json")
+                try:
+                    # Ensure we write a complete, valid JSON structure by using dumps first (for validation)
+                    json_data = json.dumps(run_stats, indent=2)
+                    with open(run_stats_file_path, 'w') as f:
+                        f.write(json_data)
+                    print(f"  Run statistics saved to: {run_stats_file_path}")
+                except Exception as e:
+                    print(f"  Error saving run statistics to {run_stats_file_path}: {e}")
+                    # Try a more robust fallback with just the essential information
+                    try:
+                        minimal_stats = {
+                            "run_number": run_count,
+                            "completed": True,
+                            "had_deaths": len(current_run_death_x_coords) > 0
+                        }
+                        with open(run_stats_file_path, 'w') as f:
+                            json.dump(minimal_stats, f)
+                        print(f"  Saved minimal fallback statistics instead.")
+                    except:
+                        print(f"  Critical failure: Could not save even minimal statistics.")
+                    
+                break # Exit while True loop for this run
         
         print(f"\n========== COMPLETED RUN {run_count}/{args.num_runs} ==========\n")
     
@@ -1417,6 +1654,16 @@ async def main():
     env.close()
     print("All runs completed. Environment closed.")
 
+    # Generate overall statistics immediately (in addition to atexit handler)
+    # This will run if the script completes normally
+    generate_overall_statistics(CACHE_DIR, all_individual_death_x_coords, averages_for_each_run, args)
+    
+    # Remove the atexit handler since we've already run it
+    atexit.unregister(generate_overall_statistics)
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    try:
+        asyncio.run(main())
+    except Exception as e:
+        print(f"Error in main execution: {e}")
+        # The atexit handler will still run to save statistics
