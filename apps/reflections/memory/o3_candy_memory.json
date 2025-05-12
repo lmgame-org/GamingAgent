@@ -1,0 +1,8622 @@
+[
+  {
+    "timestamp": 1746596262.9141214,
+    "game_state": {
+      "board": [
+        [
+          3,
+          2,
+          4,
+          3,
+          4,
+          1,
+          3,
+          2
+        ],
+        [
+          4,
+          3,
+          3,
+          2,
+          3,
+          3,
+          1,
+          4
+        ],
+        [
+          1,
+          1,
+          2,
+          3,
+          4,
+          4,
+          3,
+          3
+        ],
+        [
+          1,
+          3,
+          4,
+          2,
+          4,
+          3,
+          3,
+          4
+        ],
+        [
+          4,
+          3,
+          4,
+          3,
+          1,
+          4,
+          1,
+          2
+        ],
+        [
+          3,
+          1,
+          3,
+          3,
+          4,
+          4,
+          2,
+          2
+        ],
+        [
+          4,
+          1,
+          2,
+          4,
+          3,
+          3,
+          4,
+          4
+        ],
+        [
+          4,
+          3,
+          3,
+          1,
+          2,
+          1,
+          1,
+          2
+        ]
+      ],
+      "board_shape": [
+        8,
+        8
+      ],
+      "empty_spaces": [],
+      "num_empty_spaces": 0,
+      "highest_color": 4,
+      "color_counts": {
+        "1": 12,
+        "2": 11,
+        "3": 22,
+        "4": 19
+      },
+      "horizontal_matches": [
+        {
+          "coord1": [
+            1,
+            2
+          ],
+          "coord2": [
+            1,
+            3
+          ],
+          "direction": "horizontal",
+          "colors": [
+            3,
+            2
+          ]
+        },
+        {
+          "coord1": [
+            1,
+            3
+          ],
+          "coord2": [
+            1,
+            4
+          ],
+          "direction": "horizontal",
+          "colors": [
+            2,
+            3
+          ]
+        },
+        {
+          "coord1": [
+            1,
+            5
+          ],
+          "coord2": [
+            1,
+            6
+          ],
+          "direction": "horizontal",
+          "colors": [
+            3,
+            1
+          ]
+        },
+        {
+          "coord1": [
+            2,
+            2
+          ],
+          "coord2": [
+            2,
+            3
+          ],
+          "direction": "horizontal",
+          "colors": [
+            2,
+            3
+          ]
+        },
+        {
+          "coord1": [
+            2,
+            5
+          ],
+          "coord2": [
+            2,
+            6
+          ],
+          "direction": "horizontal",
+          "colors": [
+            4,
+            3
+          ]
+        },
+        {
+          "coord1": [
+            3,
+            4
+          ],
+          "coord2": [
+            3,
+            5
+          ],
+          "direction": "horizontal",
+          "colors": [
+            4,
+            3
+          ]
+        },
+        {
+          "coord1": [
+            4,
+            4
+          ],
+          "coord2": [
+            4,
+            5
+          ],
+          "direction": "horizontal",
+          "colors": [
+            1,
+            4
+          ]
+        },
+        {
+          "coord1": [
+            5,
+            0
+          ],
+          "coord2": [
+            5,
+            1
+          ],
+          "direction": "horizontal",
+          "colors": [
+            3,
+            1
+          ]
+        },
+        {
+          "coord1": [
+            5,
+            1
+          ],
+          "coord2": [
+            5,
+            2
+          ],
+          "direction": "horizontal",
+          "colors": [
+            1,
+            3
+          ]
+        },
+        {
+          "coord1": [
+            6,
+            3
+          ],
+          "coord2": [
+            6,
+            4
+          ],
+          "direction": "horizontal",
+          "colors": [
+            4,
+            3
+          ]
+        },
+        {
+          "coord1": [
+            6,
+            5
+          ],
+          "coord2": [
+            6,
+            6
+          ],
+          "direction": "horizontal",
+          "colors": [
+            3,
+            4
+          ]
+        },
+        {
+          "coord1": [
+            7,
+            3
+          ],
+          "coord2": [
+            7,
+            4
+          ],
+          "direction": "horizontal",
+          "colors": [
+            1,
+            2
+          ]
+        }
+      ],
+      "vertical_matches": [
+        {
+          "coord1": [
+            0,
+            0
+          ],
+          "coord2": [
+            1,
+            0
+          ],
+          "direction": "vertical",
+          "colors": [
+            3,
+            4
+          ]
+        },
+        {
+          "coord1": [
+            0,
+            3
+          ],
+          "coord2": [
+            1,
+            3
+          ],
+          "direction": "vertical",
+          "colors": [
+            3,
+            2
+          ]
+        },
+        {
+          "coord1": [
+            0,
+            4
+          ],
+          "coord2": [
+            1,
+            4
+          ],
+          "direction": "vertical",
+          "colors": [
+            4,
+            3
+          ]
+        },
+        {
+          "coord1": [
+            0,
+            6
+          ],
+          "coord2": [
+            1,
+            6
+          ],
+          "direction": "vertical",
+          "colors": [
+            3,
+            1
+          ]
+        },
+        {
+          "coord1": [
+            1,
+            1
+          ],
+          "coord2": [
+            2,
+            1
+          ],
+          "direction": "vertical",
+          "colors": [
+            3,
+            1
+          ]
+        },
+        {
+          "coord1": [
+            1,
+            3
+          ],
+          "coord2": [
+            2,
+            3
+          ],
+          "direction": "vertical",
+          "colors": [
+            2,
+            3
+          ]
+        },
+        {
+          "coord1": [
+            1,
+            5
+          ],
+          "coord2": [
+            2,
+            5
+          ],
+          "direction": "vertical",
+          "colors": [
+            3,
+            4
+          ]
+        },
+        {
+          "coord1": [
+            1,
+            6
+          ],
+          "coord2": [
+            2,
+            6
+          ],
+          "direction": "vertical",
+          "colors": [
+            1,
+            3
+          ]
+        },
+        {
+          "coord1": [
+            2,
+            3
+          ],
+          "coord2": [
+            3,
+            3
+          ],
+          "direction": "vertical",
+          "colors": [
+            3,
+            2
+          ]
+        },
+        {
+          "coord1": [
+            2,
+            5
+          ],
+          "coord2": [
+            3,
+            5
+          ],
+          "direction": "vertical",
+          "colors": [
+            4,
+            3
+          ]
+        },
+        {
+          "coord1": [
+            2,
+            7
+          ],
+          "coord2": [
+            3,
+            7
+          ],
+          "direction": "vertical",
+          "colors": [
+            3,
+            4
+          ]
+        },
+        {
+          "coord1": [
+            4,
+            0
+          ],
+          "coord2": [
+            5,
+            0
+          ],
+          "direction": "vertical",
+          "colors": [
+            4,
+            3
+          ]
+        },
+        {
+          "coord1": [
+            4,
+            1
+          ],
+          "coord2": [
+            5,
+            1
+          ],
+          "direction": "vertical",
+          "colors": [
+            3,
+            1
+          ]
+        },
+        {
+          "coord1": [
+            4,
+            2
+          ],
+          "coord2": [
+            5,
+            2
+          ],
+          "direction": "vertical",
+          "colors": [
+            4,
+            3
+          ]
+        },
+        {
+          "coord1": [
+            4,
+            4
+          ],
+          "coord2": [
+            5,
+            4
+          ],
+          "direction": "vertical",
+          "colors": [
+            1,
+            4
+          ]
+        },
+        {
+          "coord1": [
+            5,
+            3
+          ],
+          "coord2": [
+            6,
+            3
+          ],
+          "direction": "vertical",
+          "colors": [
+            3,
+            4
+          ]
+        },
+        {
+          "coord1": [
+            5,
+            4
+          ],
+          "coord2": [
+            6,
+            4
+          ],
+          "direction": "vertical",
+          "colors": [
+            4,
+            3
+          ]
+        },
+        {
+          "coord1": [
+            5,
+            5
+          ],
+          "coord2": [
+            6,
+            5
+          ],
+          "direction": "vertical",
+          "colors": [
+            4,
+            3
+          ]
+        },
+        {
+          "coord1": [
+            5,
+            6
+          ],
+          "coord2": [
+            6,
+            6
+          ],
+          "direction": "vertical",
+          "colors": [
+            2,
+            4
+          ]
+        },
+        {
+          "coord1": [
+            6,
+            7
+          ],
+          "coord2": [
+            7,
+            7
+          ],
+          "direction": "vertical",
+          "colors": [
+            4,
+            2
+          ]
+        }
+      ],
+      "potential_matches": [
+        {
+          "coord1": [
+            1,
+            2
+          ],
+          "coord2": [
+            1,
+            3
+          ],
+          "direction": "horizontal",
+          "colors": [
+            3,
+            2
+          ]
+        },
+        {
+          "coord1": [
+            1,
+            3
+          ],
+          "coord2": [
+            1,
+            4
+          ],
+          "direction": "horizontal",
+          "colors": [
+            2,
+            3
+          ]
+        },
+        {
+          "coord1": [
+            1,
+            5
+          ],
+          "coord2": [
+            1,
+            6
+          ],
+          "direction": "horizontal",
+          "colors": [
+            3,
+            1
+          ]
+        },
+        {
+          "coord1": [
+            2,
+            2
+          ],
+          "coord2": [
+            2,
+            3
+          ],
+          "direction": "horizontal",
+          "colors": [
+            2,
+            3
+          ]
+        },
+        {
+          "coord1": [
+            2,
+            5
+          ],
+          "coord2": [
+            2,
+            6
+          ],
+          "direction": "horizontal",
+          "colors": [
+            4,
+            3
+          ]
+        },
+        {
+          "coord1": [
+            3,
+            4
+          ],
+          "coord2": [
+            3,
+            5
+          ],
+          "direction": "horizontal",
+          "colors": [
+            4,
+            3
+          ]
+        },
+        {
+          "coord1": [
+            4,
+            4
+          ],
+          "coord2": [
+            4,
+            5
+          ],
+          "direction": "horizontal",
+          "colors": [
+            1,
+            4
+          ]
+        },
+        {
+          "coord1": [
+            5,
+            0
+          ],
+          "coord2": [
+            5,
+            1
+          ],
+          "direction": "horizontal",
+          "colors": [
+            3,
+            1
+          ]
+        },
+        {
+          "coord1": [
+            5,
+            1
+          ],
+          "coord2": [
+            5,
+            2
+          ],
+          "direction": "horizontal",
+          "colors": [
+            1,
+            3
+          ]
+        },
+        {
+          "coord1": [
+            6,
+            3
+          ],
+          "coord2": [
+            6,
+            4
+          ],
+          "direction": "horizontal",
+          "colors": [
+            4,
+            3
+          ]
+        },
+        {
+          "coord1": [
+            6,
+            5
+          ],
+          "coord2": [
+            6,
+            6
+          ],
+          "direction": "horizontal",
+          "colors": [
+            3,
+            4
+          ]
+        },
+        {
+          "coord1": [
+            7,
+            3
+          ],
+          "coord2": [
+            7,
+            4
+          ],
+          "direction": "horizontal",
+          "colors": [
+            1,
+            2
+          ]
+        },
+        {
+          "coord1": [
+            0,
+            0
+          ],
+          "coord2": [
+            1,
+            0
+          ],
+          "direction": "vertical",
+          "colors": [
+            3,
+            4
+          ]
+        },
+        {
+          "coord1": [
+            0,
+            3
+          ],
+          "coord2": [
+            1,
+            3
+          ],
+          "direction": "vertical",
+          "colors": [
+            3,
+            2
+          ]
+        },
+        {
+          "coord1": [
+            0,
+            4
+          ],
+          "coord2": [
+            1,
+            4
+          ],
+          "direction": "vertical",
+          "colors": [
+            4,
+            3
+          ]
+        },
+        {
+          "coord1": [
+            0,
+            6
+          ],
+          "coord2": [
+            1,
+            6
+          ],
+          "direction": "vertical",
+          "colors": [
+            3,
+            1
+          ]
+        },
+        {
+          "coord1": [
+            1,
+            1
+          ],
+          "coord2": [
+            2,
+            1
+          ],
+          "direction": "vertical",
+          "colors": [
+            3,
+            1
+          ]
+        },
+        {
+          "coord1": [
+            1,
+            3
+          ],
+          "coord2": [
+            2,
+            3
+          ],
+          "direction": "vertical",
+          "colors": [
+            2,
+            3
+          ]
+        },
+        {
+          "coord1": [
+            1,
+            5
+          ],
+          "coord2": [
+            2,
+            5
+          ],
+          "direction": "vertical",
+          "colors": [
+            3,
+            4
+          ]
+        },
+        {
+          "coord1": [
+            1,
+            6
+          ],
+          "coord2": [
+            2,
+            6
+          ],
+          "direction": "vertical",
+          "colors": [
+            1,
+            3
+          ]
+        },
+        {
+          "coord1": [
+            2,
+            3
+          ],
+          "coord2": [
+            3,
+            3
+          ],
+          "direction": "vertical",
+          "colors": [
+            3,
+            2
+          ]
+        },
+        {
+          "coord1": [
+            2,
+            5
+          ],
+          "coord2": [
+            3,
+            5
+          ],
+          "direction": "vertical",
+          "colors": [
+            4,
+            3
+          ]
+        },
+        {
+          "coord1": [
+            2,
+            7
+          ],
+          "coord2": [
+            3,
+            7
+          ],
+          "direction": "vertical",
+          "colors": [
+            3,
+            4
+          ]
+        },
+        {
+          "coord1": [
+            4,
+            0
+          ],
+          "coord2": [
+            5,
+            0
+          ],
+          "direction": "vertical",
+          "colors": [
+            4,
+            3
+          ]
+        },
+        {
+          "coord1": [
+            4,
+            1
+          ],
+          "coord2": [
+            5,
+            1
+          ],
+          "direction": "vertical",
+          "colors": [
+            3,
+            1
+          ]
+        },
+        {
+          "coord1": [
+            4,
+            2
+          ],
+          "coord2": [
+            5,
+            2
+          ],
+          "direction": "vertical",
+          "colors": [
+            4,
+            3
+          ]
+        },
+        {
+          "coord1": [
+            4,
+            4
+          ],
+          "coord2": [
+            5,
+            4
+          ],
+          "direction": "vertical",
+          "colors": [
+            1,
+            4
+          ]
+        },
+        {
+          "coord1": [
+            5,
+            3
+          ],
+          "coord2": [
+            6,
+            3
+          ],
+          "direction": "vertical",
+          "colors": [
+            3,
+            4
+          ]
+        },
+        {
+          "coord1": [
+            5,
+            4
+          ],
+          "coord2": [
+            6,
+            4
+          ],
+          "direction": "vertical",
+          "colors": [
+            4,
+            3
+          ]
+        },
+        {
+          "coord1": [
+            5,
+            5
+          ],
+          "coord2": [
+            6,
+            5
+          ],
+          "direction": "vertical",
+          "colors": [
+            4,
+            3
+          ]
+        },
+        {
+          "coord1": [
+            5,
+            6
+          ],
+          "coord2": [
+            6,
+            6
+          ],
+          "direction": "vertical",
+          "colors": [
+            2,
+            4
+          ]
+        },
+        {
+          "coord1": [
+            6,
+            7
+          ],
+          "coord2": [
+            7,
+            7
+          ],
+          "direction": "vertical",
+          "colors": [
+            4,
+            2
+          ]
+        }
+      ],
+      "num_potential_matches": 32
+    },
+    "last_action": [
+      [
+        4,
+        5
+      ],
+      [
+        5,
+        5
+      ]
+    ],
+    "reflection": "Swapping (4, 5) 3 with (5, 5) 1 converted both spots to 4s and shuffled colours around the centre columns. No immediate 3-in-a-row was formed, so the move scored nothing, but it did lower the number of 3s on the board and raised 4s, slightly diversifying colours. Potential moves rose from 30 to 32, so the grid is now a bit richer in options. Several near-matches cluster around rows 1-2 and columns 3-5; focus on completing those (e.g., shift col-3 pieces upward) to trigger cascades. Prioritize moves that clear the dense 3s to open the board further."
+  },
+  {
+    "timestamp": 1746596532.7731385,
+    "game_state": {
+      "board": [
+        [
+          3,
+          4,
+          2,
+          1,
+          4,
+          4,
+          3,
+          2
+        ],
+        [
+          4,
+          2,
+          4,
+          4,
+          2,
+          2,
+          1,
+          1
+        ],
+        [
+          1,
+          1,
+          2,
+          2,
+          4,
+          3,
+          3,
+          2
+        ],
+        [
+          1,
+          3,
+          4,
+          3,
+          3,
+          4,
+          1,
+          4
+        ],
+        [
+          4,
+          3,
+          4,
+          2,
+          4,
+          4,
+          3,
+          2
+        ],
+        [
+          3,
+          1,
+          3,
+          3,
+          4,
+          3,
+          1,
+          4
+        ],
+        [
+          4,
+          1,
+          2,
+          4,
+          3,
+          4,
+          3,
+          3
+        ],
+        [
+          4,
+          3,
+          3,
+          1,
+          2,
+          1,
+          1,
+          4
+        ]
+      ],
+      "board_shape": [
+        8,
+        8
+      ],
+      "empty_spaces": [],
+      "num_empty_spaces": 0,
+      "highest_color": 4,
+      "color_counts": {
+        "1": 13,
+        "2": 12,
+        "3": 18,
+        "4": 21
+      },
+      "horizontal_matches": [
+        {
+          "coord1": [
+            1,
+            0
+          ],
+          "coord2": [
+            1,
+            1
+          ],
+          "direction": "horizontal",
+          "colors": [
+            4,
+            2
+          ]
+        },
+        {
+          "coord1": [
+            1,
+            1
+          ],
+          "coord2": [
+            1,
+            2
+          ],
+          "direction": "horizontal",
+          "colors": [
+            2,
+            4
+          ]
+        },
+        {
+          "coord1": [
+            1,
+            3
+          ],
+          "coord2": [
+            1,
+            4
+          ],
+          "direction": "horizontal",
+          "colors": [
+            4,
+            2
+          ]
+        },
+        {
+          "coord1": [
+            2,
+            4
+          ],
+          "coord2": [
+            2,
+            5
+          ],
+          "direction": "horizontal",
+          "colors": [
+            4,
+            3
+          ]
+        },
+        {
+          "coord1": [
+            3,
+            1
+          ],
+          "coord2": [
+            3,
+            2
+          ],
+          "direction": "horizontal",
+          "colors": [
+            3,
+            4
+          ]
+        },
+        {
+          "coord1": [
+            3,
+            4
+          ],
+          "coord2": [
+            3,
+            5
+          ],
+          "direction": "horizontal",
+          "colors": [
+            3,
+            4
+          ]
+        },
+        {
+          "coord1": [
+            4,
+            2
+          ],
+          "coord2": [
+            4,
+            3
+          ],
+          "direction": "horizontal",
+          "colors": [
+            4,
+            2
+          ]
+        },
+        {
+          "coord1": [
+            5,
+            0
+          ],
+          "coord2": [
+            5,
+            1
+          ],
+          "direction": "horizontal",
+          "colors": [
+            3,
+            1
+          ]
+        },
+        {
+          "coord1": [
+            5,
+            1
+          ],
+          "coord2": [
+            5,
+            2
+          ],
+          "direction": "horizontal",
+          "colors": [
+            1,
+            3
+          ]
+        },
+        {
+          "coord1": [
+            5,
+            4
+          ],
+          "coord2": [
+            5,
+            5
+          ],
+          "direction": "horizontal",
+          "colors": [
+            4,
+            3
+          ]
+        },
+        {
+          "coord1": [
+            5,
+            5
+          ],
+          "coord2": [
+            5,
+            6
+          ],
+          "direction": "horizontal",
+          "colors": [
+            3,
+            1
+          ]
+        },
+        {
+          "coord1": [
+            6,
+            3
+          ],
+          "coord2": [
+            6,
+            4
+          ],
+          "direction": "horizontal",
+          "colors": [
+            4,
+            3
+          ]
+        },
+        {
+          "coord1": [
+            6,
+            4
+          ],
+          "coord2": [
+            6,
+            5
+          ],
+          "direction": "horizontal",
+          "colors": [
+            3,
+            4
+          ]
+        },
+        {
+          "coord1": [
+            7,
+            3
+          ],
+          "coord2": [
+            7,
+            4
+          ],
+          "direction": "horizontal",
+          "colors": [
+            1,
+            2
+          ]
+        }
+      ],
+      "vertical_matches": [
+        {
+          "coord1": [
+            0,
+            1
+          ],
+          "coord2": [
+            1,
+            1
+          ],
+          "direction": "vertical",
+          "colors": [
+            4,
+            2
+          ]
+        },
+        {
+          "coord1": [
+            0,
+            3
+          ],
+          "coord2": [
+            1,
+            3
+          ],
+          "direction": "vertical",
+          "colors": [
+            1,
+            4
+          ]
+        },
+        {
+          "coord1": [
+            0,
+            4
+          ],
+          "coord2": [
+            1,
+            4
+          ],
+          "direction": "vertical",
+          "colors": [
+            4,
+            2
+          ]
+        },
+        {
+          "coord1": [
+            1,
+            1
+          ],
+          "coord2": [
+            2,
+            1
+          ],
+          "direction": "vertical",
+          "colors": [
+            2,
+            1
+          ]
+        },
+        {
+          "coord1": [
+            1,
+            2
+          ],
+          "coord2": [
+            2,
+            2
+          ],
+          "direction": "vertical",
+          "colors": [
+            4,
+            2
+          ]
+        },
+        {
+          "coord1": [
+            1,
+            3
+          ],
+          "coord2": [
+            2,
+            3
+          ],
+          "direction": "vertical",
+          "colors": [
+            4,
+            2
+          ]
+        },
+        {
+          "coord1": [
+            1,
+            4
+          ],
+          "coord2": [
+            2,
+            4
+          ],
+          "direction": "vertical",
+          "colors": [
+            2,
+            4
+          ]
+        },
+        {
+          "coord1": [
+            2,
+            4
+          ],
+          "coord2": [
+            3,
+            4
+          ],
+          "direction": "vertical",
+          "colors": [
+            4,
+            3
+          ]
+        },
+        {
+          "coord1": [
+            2,
+            5
+          ],
+          "coord2": [
+            3,
+            5
+          ],
+          "direction": "vertical",
+          "colors": [
+            3,
+            4
+          ]
+        },
+        {
+          "coord1": [
+            4,
+            0
+          ],
+          "coord2": [
+            5,
+            0
+          ],
+          "direction": "vertical",
+          "colors": [
+            4,
+            3
+          ]
+        },
+        {
+          "coord1": [
+            4,
+            1
+          ],
+          "coord2": [
+            5,
+            1
+          ],
+          "direction": "vertical",
+          "colors": [
+            3,
+            1
+          ]
+        },
+        {
+          "coord1": [
+            5,
+            4
+          ],
+          "coord2": [
+            6,
+            4
+          ],
+          "direction": "vertical",
+          "colors": [
+            4,
+            3
+          ]
+        },
+        {
+          "coord1": [
+            5,
+            5
+          ],
+          "coord2": [
+            6,
+            5
+          ],
+          "direction": "vertical",
+          "colors": [
+            3,
+            4
+          ]
+        }
+      ],
+      "potential_matches": [
+        {
+          "coord1": [
+            1,
+            0
+          ],
+          "coord2": [
+            1,
+            1
+          ],
+          "direction": "horizontal",
+          "colors": [
+            4,
+            2
+          ]
+        },
+        {
+          "coord1": [
+            1,
+            1
+          ],
+          "coord2": [
+            1,
+            2
+          ],
+          "direction": "horizontal",
+          "colors": [
+            2,
+            4
+          ]
+        },
+        {
+          "coord1": [
+            1,
+            3
+          ],
+          "coord2": [
+            1,
+            4
+          ],
+          "direction": "horizontal",
+          "colors": [
+            4,
+            2
+          ]
+        },
+        {
+          "coord1": [
+            2,
+            4
+          ],
+          "coord2": [
+            2,
+            5
+          ],
+          "direction": "horizontal",
+          "colors": [
+            4,
+            3
+          ]
+        },
+        {
+          "coord1": [
+            3,
+            1
+          ],
+          "coord2": [
+            3,
+            2
+          ],
+          "direction": "horizontal",
+          "colors": [
+            3,
+            4
+          ]
+        },
+        {
+          "coord1": [
+            3,
+            4
+          ],
+          "coord2": [
+            3,
+            5
+          ],
+          "direction": "horizontal",
+          "colors": [
+            3,
+            4
+          ]
+        },
+        {
+          "coord1": [
+            4,
+            2
+          ],
+          "coord2": [
+            4,
+            3
+          ],
+          "direction": "horizontal",
+          "colors": [
+            4,
+            2
+          ]
+        },
+        {
+          "coord1": [
+            5,
+            0
+          ],
+          "coord2": [
+            5,
+            1
+          ],
+          "direction": "horizontal",
+          "colors": [
+            3,
+            1
+          ]
+        },
+        {
+          "coord1": [
+            5,
+            1
+          ],
+          "coord2": [
+            5,
+            2
+          ],
+          "direction": "horizontal",
+          "colors": [
+            1,
+            3
+          ]
+        },
+        {
+          "coord1": [
+            5,
+            4
+          ],
+          "coord2": [
+            5,
+            5
+          ],
+          "direction": "horizontal",
+          "colors": [
+            4,
+            3
+          ]
+        },
+        {
+          "coord1": [
+            5,
+            5
+          ],
+          "coord2": [
+            5,
+            6
+          ],
+          "direction": "horizontal",
+          "colors": [
+            3,
+            1
+          ]
+        },
+        {
+          "coord1": [
+            6,
+            3
+          ],
+          "coord2": [
+            6,
+            4
+          ],
+          "direction": "horizontal",
+          "colors": [
+            4,
+            3
+          ]
+        },
+        {
+          "coord1": [
+            6,
+            4
+          ],
+          "coord2": [
+            6,
+            5
+          ],
+          "direction": "horizontal",
+          "colors": [
+            3,
+            4
+          ]
+        },
+        {
+          "coord1": [
+            7,
+            3
+          ],
+          "coord2": [
+            7,
+            4
+          ],
+          "direction": "horizontal",
+          "colors": [
+            1,
+            2
+          ]
+        },
+        {
+          "coord1": [
+            0,
+            1
+          ],
+          "coord2": [
+            1,
+            1
+          ],
+          "direction": "vertical",
+          "colors": [
+            4,
+            2
+          ]
+        },
+        {
+          "coord1": [
+            0,
+            3
+          ],
+          "coord2": [
+            1,
+            3
+          ],
+          "direction": "vertical",
+          "colors": [
+            1,
+            4
+          ]
+        },
+        {
+          "coord1": [
+            0,
+            4
+          ],
+          "coord2": [
+            1,
+            4
+          ],
+          "direction": "vertical",
+          "colors": [
+            4,
+            2
+          ]
+        },
+        {
+          "coord1": [
+            1,
+            1
+          ],
+          "coord2": [
+            2,
+            1
+          ],
+          "direction": "vertical",
+          "colors": [
+            2,
+            1
+          ]
+        },
+        {
+          "coord1": [
+            1,
+            2
+          ],
+          "coord2": [
+            2,
+            2
+          ],
+          "direction": "vertical",
+          "colors": [
+            4,
+            2
+          ]
+        },
+        {
+          "coord1": [
+            1,
+            3
+          ],
+          "coord2": [
+            2,
+            3
+          ],
+          "direction": "vertical",
+          "colors": [
+            4,
+            2
+          ]
+        },
+        {
+          "coord1": [
+            1,
+            4
+          ],
+          "coord2": [
+            2,
+            4
+          ],
+          "direction": "vertical",
+          "colors": [
+            2,
+            4
+          ]
+        },
+        {
+          "coord1": [
+            2,
+            4
+          ],
+          "coord2": [
+            3,
+            4
+          ],
+          "direction": "vertical",
+          "colors": [
+            4,
+            3
+          ]
+        },
+        {
+          "coord1": [
+            2,
+            5
+          ],
+          "coord2": [
+            3,
+            5
+          ],
+          "direction": "vertical",
+          "colors": [
+            3,
+            4
+          ]
+        },
+        {
+          "coord1": [
+            4,
+            0
+          ],
+          "coord2": [
+            5,
+            0
+          ],
+          "direction": "vertical",
+          "colors": [
+            4,
+            3
+          ]
+        },
+        {
+          "coord1": [
+            4,
+            1
+          ],
+          "coord2": [
+            5,
+            1
+          ],
+          "direction": "vertical",
+          "colors": [
+            3,
+            1
+          ]
+        },
+        {
+          "coord1": [
+            5,
+            4
+          ],
+          "coord2": [
+            6,
+            4
+          ],
+          "direction": "vertical",
+          "colors": [
+            4,
+            3
+          ]
+        },
+        {
+          "coord1": [
+            5,
+            5
+          ],
+          "coord2": [
+            6,
+            5
+          ],
+          "direction": "vertical",
+          "colors": [
+            3,
+            4
+          ]
+        }
+      ],
+      "num_potential_matches": 27
+    },
+    "last_action": [
+      [
+        3,
+        4
+      ],
+      [
+        3,
+        5
+      ]
+    ],
+    "reflection": "The swap of (3,4) and (3,5) merely turned a 4-3 pair into a 3-4 pair\u2014no match resulted, and potential moves dropped from 32 to 27. Counts shifted only slightly, so the move gained no points and didn\u2019t open meaningful cascades. Plenty of two-in-a-row setups remain; the richest are in color-4 clusters. For a quick score, swap (2,5) 3 with (2,4) 4 to create three 4s vertically in column 5, or target other spots where a single move will turn a pair into a triple rather than making more pairs."
+  },
+  {
+    "timestamp": 1746597426.5762892,
+    "game_state": {
+      "board": [
+        [
+          4,
+          4,
+          2,
+          3,
+          4,
+          4,
+          3,
+          2
+        ],
+        [
+          1,
+          4,
+          1,
+          1,
+          2,
+          2,
+          1,
+          1
+        ],
+        [
+          3,
+          2,
+          4,
+          2,
+          4,
+          3,
+          3,
+          2
+        ],
+        [
+          1,
+          3,
+          4,
+          3,
+          3,
+          4,
+          1,
+          4
+        ],
+        [
+          4,
+          3,
+          3,
+          2,
+          4,
+          4,
+          3,
+          2
+        ],
+        [
+          3,
+          1,
+          3,
+          3,
+          4,
+          3,
+          1,
+          4
+        ],
+        [
+          4,
+          1,
+          2,
+          4,
+          3,
+          4,
+          3,
+          3
+        ],
+        [
+          4,
+          3,
+          3,
+          1,
+          2,
+          1,
+          1,
+          4
+        ]
+      ],
+      "board_shape": [
+        8,
+        8
+      ],
+      "empty_spaces": [],
+      "num_empty_spaces": 0,
+      "highest_color": 4,
+      "color_counts": {
+        "1": 13,
+        "2": 11,
+        "3": 20,
+        "4": 20
+      },
+      "horizontal_matches": [
+        {
+          "coord1": [
+            1,
+            0
+          ],
+          "coord2": [
+            1,
+            1
+          ],
+          "direction": "horizontal",
+          "colors": [
+            1,
+            4
+          ]
+        },
+        {
+          "coord1": [
+            1,
+            1
+          ],
+          "coord2": [
+            1,
+            2
+          ],
+          "direction": "horizontal",
+          "colors": [
+            4,
+            1
+          ]
+        },
+        {
+          "coord1": [
+            2,
+            0
+          ],
+          "coord2": [
+            2,
+            1
+          ],
+          "direction": "horizontal",
+          "colors": [
+            3,
+            2
+          ]
+        },
+        {
+          "coord1": [
+            2,
+            1
+          ],
+          "coord2": [
+            2,
+            2
+          ],
+          "direction": "horizontal",
+          "colors": [
+            2,
+            4
+          ]
+        },
+        {
+          "coord1": [
+            2,
+            4
+          ],
+          "coord2": [
+            2,
+            5
+          ],
+          "direction": "horizontal",
+          "colors": [
+            4,
+            3
+          ]
+        },
+        {
+          "coord1": [
+            3,
+            1
+          ],
+          "coord2": [
+            3,
+            2
+          ],
+          "direction": "horizontal",
+          "colors": [
+            3,
+            4
+          ]
+        },
+        {
+          "coord1": [
+            3,
+            2
+          ],
+          "coord2": [
+            3,
+            3
+          ],
+          "direction": "horizontal",
+          "colors": [
+            4,
+            3
+          ]
+        },
+        {
+          "coord1": [
+            3,
+            4
+          ],
+          "coord2": [
+            3,
+            5
+          ],
+          "direction": "horizontal",
+          "colors": [
+            3,
+            4
+          ]
+        },
+        {
+          "coord1": [
+            4,
+            2
+          ],
+          "coord2": [
+            4,
+            3
+          ],
+          "direction": "horizontal",
+          "colors": [
+            3,
+            2
+          ]
+        },
+        {
+          "coord1": [
+            5,
+            0
+          ],
+          "coord2": [
+            5,
+            1
+          ],
+          "direction": "horizontal",
+          "colors": [
+            3,
+            1
+          ]
+        },
+        {
+          "coord1": [
+            5,
+            1
+          ],
+          "coord2": [
+            5,
+            2
+          ],
+          "direction": "horizontal",
+          "colors": [
+            1,
+            3
+          ]
+        },
+        {
+          "coord1": [
+            5,
+            4
+          ],
+          "coord2": [
+            5,
+            5
+          ],
+          "direction": "horizontal",
+          "colors": [
+            4,
+            3
+          ]
+        },
+        {
+          "coord1": [
+            5,
+            5
+          ],
+          "coord2": [
+            5,
+            6
+          ],
+          "direction": "horizontal",
+          "colors": [
+            3,
+            1
+          ]
+        },
+        {
+          "coord1": [
+            6,
+            3
+          ],
+          "coord2": [
+            6,
+            4
+          ],
+          "direction": "horizontal",
+          "colors": [
+            4,
+            3
+          ]
+        },
+        {
+          "coord1": [
+            6,
+            4
+          ],
+          "coord2": [
+            6,
+            5
+          ],
+          "direction": "horizontal",
+          "colors": [
+            3,
+            4
+          ]
+        },
+        {
+          "coord1": [
+            7,
+            3
+          ],
+          "coord2": [
+            7,
+            4
+          ],
+          "direction": "horizontal",
+          "colors": [
+            1,
+            2
+          ]
+        }
+      ],
+      "vertical_matches": [
+        {
+          "coord1": [
+            1,
+            3
+          ],
+          "coord2": [
+            2,
+            3
+          ],
+          "direction": "vertical",
+          "colors": [
+            1,
+            2
+          ]
+        },
+        {
+          "coord1": [
+            2,
+            4
+          ],
+          "coord2": [
+            3,
+            4
+          ],
+          "direction": "vertical",
+          "colors": [
+            4,
+            3
+          ]
+        },
+        {
+          "coord1": [
+            2,
+            5
+          ],
+          "coord2": [
+            3,
+            5
+          ],
+          "direction": "vertical",
+          "colors": [
+            3,
+            4
+          ]
+        },
+        {
+          "coord1": [
+            3,
+            2
+          ],
+          "coord2": [
+            4,
+            2
+          ],
+          "direction": "vertical",
+          "colors": [
+            4,
+            3
+          ]
+        },
+        {
+          "coord1": [
+            3,
+            3
+          ],
+          "coord2": [
+            4,
+            3
+          ],
+          "direction": "vertical",
+          "colors": [
+            3,
+            2
+          ]
+        },
+        {
+          "coord1": [
+            4,
+            0
+          ],
+          "coord2": [
+            5,
+            0
+          ],
+          "direction": "vertical",
+          "colors": [
+            4,
+            3
+          ]
+        },
+        {
+          "coord1": [
+            4,
+            1
+          ],
+          "coord2": [
+            5,
+            1
+          ],
+          "direction": "vertical",
+          "colors": [
+            3,
+            1
+          ]
+        },
+        {
+          "coord1": [
+            4,
+            3
+          ],
+          "coord2": [
+            5,
+            3
+          ],
+          "direction": "vertical",
+          "colors": [
+            2,
+            3
+          ]
+        },
+        {
+          "coord1": [
+            5,
+            4
+          ],
+          "coord2": [
+            6,
+            4
+          ],
+          "direction": "vertical",
+          "colors": [
+            4,
+            3
+          ]
+        },
+        {
+          "coord1": [
+            5,
+            5
+          ],
+          "coord2": [
+            6,
+            5
+          ],
+          "direction": "vertical",
+          "colors": [
+            3,
+            4
+          ]
+        },
+        {
+          "coord1": [
+            6,
+            2
+          ],
+          "coord2": [
+            7,
+            2
+          ],
+          "direction": "vertical",
+          "colors": [
+            2,
+            3
+          ]
+        }
+      ],
+      "potential_matches": [
+        {
+          "coord1": [
+            1,
+            0
+          ],
+          "coord2": [
+            1,
+            1
+          ],
+          "direction": "horizontal",
+          "colors": [
+            1,
+            4
+          ]
+        },
+        {
+          "coord1": [
+            1,
+            1
+          ],
+          "coord2": [
+            1,
+            2
+          ],
+          "direction": "horizontal",
+          "colors": [
+            4,
+            1
+          ]
+        },
+        {
+          "coord1": [
+            2,
+            0
+          ],
+          "coord2": [
+            2,
+            1
+          ],
+          "direction": "horizontal",
+          "colors": [
+            3,
+            2
+          ]
+        },
+        {
+          "coord1": [
+            2,
+            1
+          ],
+          "coord2": [
+            2,
+            2
+          ],
+          "direction": "horizontal",
+          "colors": [
+            2,
+            4
+          ]
+        },
+        {
+          "coord1": [
+            2,
+            4
+          ],
+          "coord2": [
+            2,
+            5
+          ],
+          "direction": "horizontal",
+          "colors": [
+            4,
+            3
+          ]
+        },
+        {
+          "coord1": [
+            3,
+            1
+          ],
+          "coord2": [
+            3,
+            2
+          ],
+          "direction": "horizontal",
+          "colors": [
+            3,
+            4
+          ]
+        },
+        {
+          "coord1": [
+            3,
+            2
+          ],
+          "coord2": [
+            3,
+            3
+          ],
+          "direction": "horizontal",
+          "colors": [
+            4,
+            3
+          ]
+        },
+        {
+          "coord1": [
+            3,
+            4
+          ],
+          "coord2": [
+            3,
+            5
+          ],
+          "direction": "horizontal",
+          "colors": [
+            3,
+            4
+          ]
+        },
+        {
+          "coord1": [
+            4,
+            2
+          ],
+          "coord2": [
+            4,
+            3
+          ],
+          "direction": "horizontal",
+          "colors": [
+            3,
+            2
+          ]
+        },
+        {
+          "coord1": [
+            5,
+            0
+          ],
+          "coord2": [
+            5,
+            1
+          ],
+          "direction": "horizontal",
+          "colors": [
+            3,
+            1
+          ]
+        },
+        {
+          "coord1": [
+            5,
+            1
+          ],
+          "coord2": [
+            5,
+            2
+          ],
+          "direction": "horizontal",
+          "colors": [
+            1,
+            3
+          ]
+        },
+        {
+          "coord1": [
+            5,
+            4
+          ],
+          "coord2": [
+            5,
+            5
+          ],
+          "direction": "horizontal",
+          "colors": [
+            4,
+            3
+          ]
+        },
+        {
+          "coord1": [
+            5,
+            5
+          ],
+          "coord2": [
+            5,
+            6
+          ],
+          "direction": "horizontal",
+          "colors": [
+            3,
+            1
+          ]
+        },
+        {
+          "coord1": [
+            6,
+            3
+          ],
+          "coord2": [
+            6,
+            4
+          ],
+          "direction": "horizontal",
+          "colors": [
+            4,
+            3
+          ]
+        },
+        {
+          "coord1": [
+            6,
+            4
+          ],
+          "coord2": [
+            6,
+            5
+          ],
+          "direction": "horizontal",
+          "colors": [
+            3,
+            4
+          ]
+        },
+        {
+          "coord1": [
+            7,
+            3
+          ],
+          "coord2": [
+            7,
+            4
+          ],
+          "direction": "horizontal",
+          "colors": [
+            1,
+            2
+          ]
+        },
+        {
+          "coord1": [
+            1,
+            3
+          ],
+          "coord2": [
+            2,
+            3
+          ],
+          "direction": "vertical",
+          "colors": [
+            1,
+            2
+          ]
+        },
+        {
+          "coord1": [
+            2,
+            4
+          ],
+          "coord2": [
+            3,
+            4
+          ],
+          "direction": "vertical",
+          "colors": [
+            4,
+            3
+          ]
+        },
+        {
+          "coord1": [
+            2,
+            5
+          ],
+          "coord2": [
+            3,
+            5
+          ],
+          "direction": "vertical",
+          "colors": [
+            3,
+            4
+          ]
+        },
+        {
+          "coord1": [
+            3,
+            2
+          ],
+          "coord2": [
+            4,
+            2
+          ],
+          "direction": "vertical",
+          "colors": [
+            4,
+            3
+          ]
+        },
+        {
+          "coord1": [
+            3,
+            3
+          ],
+          "coord2": [
+            4,
+            3
+          ],
+          "direction": "vertical",
+          "colors": [
+            3,
+            2
+          ]
+        },
+        {
+          "coord1": [
+            4,
+            0
+          ],
+          "coord2": [
+            5,
+            0
+          ],
+          "direction": "vertical",
+          "colors": [
+            4,
+            3
+          ]
+        },
+        {
+          "coord1": [
+            4,
+            1
+          ],
+          "coord2": [
+            5,
+            1
+          ],
+          "direction": "vertical",
+          "colors": [
+            3,
+            1
+          ]
+        },
+        {
+          "coord1": [
+            4,
+            3
+          ],
+          "coord2": [
+            5,
+            3
+          ],
+          "direction": "vertical",
+          "colors": [
+            2,
+            3
+          ]
+        },
+        {
+          "coord1": [
+            5,
+            4
+          ],
+          "coord2": [
+            6,
+            4
+          ],
+          "direction": "vertical",
+          "colors": [
+            4,
+            3
+          ]
+        },
+        {
+          "coord1": [
+            5,
+            5
+          ],
+          "coord2": [
+            6,
+            5
+          ],
+          "direction": "vertical",
+          "colors": [
+            3,
+            4
+          ]
+        },
+        {
+          "coord1": [
+            6,
+            2
+          ],
+          "coord2": [
+            7,
+            2
+          ],
+          "direction": "vertical",
+          "colors": [
+            2,
+            3
+          ]
+        }
+      ],
+      "num_potential_matches": 27
+    },
+    "last_action": [
+      [
+        0,
+        1
+      ],
+      [
+        1,
+        1
+      ]
+    ],
+    "reflection": "Swapping (0,1) with (1,1) only shuffled a few candies in the upper-left but produced no 3-in-a-row; color totals barely moved and the list of 27 potential moves is unchanged. In short, the move cost a turn without scoring or creating fresh openings. Look for swaps that complete existing pairs: e.g., column 2 already has two 4\u2019s at rows 2-3\u2014bringing a third 4 down (swap (4,2)\u2194(4,3) or (3,1)\u2194(3,2)) would score immediately. Also inspect the 3/4 clusters around (5,4-6) and (6,3-5). Prioritize moves that guarantee matches rather than lateral color shifts."
+  },
+  {
+    "timestamp": 1746597631.0127897,
+    "game_state": {
+      "board": [
+        [
+          4,
+          4,
+          2,
+          2,
+          1,
+          2,
+          1,
+          3
+        ],
+        [
+          1,
+          4,
+          1,
+          1,
+          4,
+          2,
+          3,
+          2
+        ],
+        [
+          3,
+          2,
+          4,
+          2,
+          2,
+          4,
+          1,
+          1
+        ],
+        [
+          1,
+          3,
+          4,
+          3,
+          4,
+          2,
+          3,
+          2
+        ],
+        [
+          4,
+          3,
+          3,
+          2,
+          3,
+          3,
+          1,
+          4
+        ],
+        [
+          3,
+          1,
+          3,
+          3,
+          4,
+          2,
+          3,
+          2
+        ],
+        [
+          4,
+          1,
+          2,
+          4,
+          3,
+          2,
+          1,
+          4
+        ],
+        [
+          4,
+          3,
+          3,
+          1,
+          2,
+          1,
+          1,
+          4
+        ]
+      ],
+      "board_shape": [
+        8,
+        8
+      ],
+      "empty_spaces": [],
+      "num_empty_spaces": 0,
+      "highest_color": 4,
+      "color_counts": {
+        "1": 15,
+        "2": 16,
+        "3": 17,
+        "4": 16
+      },
+      "horizontal_matches": [
+        {
+          "coord1": [
+            0,
+            4
+          ],
+          "coord2": [
+            0,
+            5
+          ],
+          "direction": "horizontal",
+          "colors": [
+            1,
+            2
+          ]
+        },
+        {
+          "coord1": [
+            1,
+            0
+          ],
+          "coord2": [
+            1,
+            1
+          ],
+          "direction": "horizontal",
+          "colors": [
+            1,
+            4
+          ]
+        },
+        {
+          "coord1": [
+            1,
+            1
+          ],
+          "coord2": [
+            1,
+            2
+          ],
+          "direction": "horizontal",
+          "colors": [
+            4,
+            1
+          ]
+        },
+        {
+          "coord1": [
+            2,
+            0
+          ],
+          "coord2": [
+            2,
+            1
+          ],
+          "direction": "horizontal",
+          "colors": [
+            3,
+            2
+          ]
+        },
+        {
+          "coord1": [
+            2,
+            1
+          ],
+          "coord2": [
+            2,
+            2
+          ],
+          "direction": "horizontal",
+          "colors": [
+            2,
+            4
+          ]
+        },
+        {
+          "coord1": [
+            2,
+            4
+          ],
+          "coord2": [
+            2,
+            5
+          ],
+          "direction": "horizontal",
+          "colors": [
+            2,
+            4
+          ]
+        },
+        {
+          "coord1": [
+            3,
+            1
+          ],
+          "coord2": [
+            3,
+            2
+          ],
+          "direction": "horizontal",
+          "colors": [
+            3,
+            4
+          ]
+        },
+        {
+          "coord1": [
+            3,
+            2
+          ],
+          "coord2": [
+            3,
+            3
+          ],
+          "direction": "horizontal",
+          "colors": [
+            4,
+            3
+          ]
+        },
+        {
+          "coord1": [
+            4,
+            2
+          ],
+          "coord2": [
+            4,
+            3
+          ],
+          "direction": "horizontal",
+          "colors": [
+            3,
+            2
+          ]
+        },
+        {
+          "coord1": [
+            4,
+            3
+          ],
+          "coord2": [
+            4,
+            4
+          ],
+          "direction": "horizontal",
+          "colors": [
+            2,
+            3
+          ]
+        },
+        {
+          "coord1": [
+            4,
+            5
+          ],
+          "coord2": [
+            4,
+            6
+          ],
+          "direction": "horizontal",
+          "colors": [
+            3,
+            1
+          ]
+        },
+        {
+          "coord1": [
+            5,
+            0
+          ],
+          "coord2": [
+            5,
+            1
+          ],
+          "direction": "horizontal",
+          "colors": [
+            3,
+            1
+          ]
+        },
+        {
+          "coord1": [
+            5,
+            1
+          ],
+          "coord2": [
+            5,
+            2
+          ],
+          "direction": "horizontal",
+          "colors": [
+            1,
+            3
+          ]
+        },
+        {
+          "coord1": [
+            5,
+            3
+          ],
+          "coord2": [
+            5,
+            4
+          ],
+          "direction": "horizontal",
+          "colors": [
+            3,
+            4
+          ]
+        },
+        {
+          "coord1": [
+            7,
+            3
+          ],
+          "coord2": [
+            7,
+            4
+          ],
+          "direction": "horizontal",
+          "colors": [
+            1,
+            2
+          ]
+        },
+        {
+          "coord1": [
+            7,
+            4
+          ],
+          "coord2": [
+            7,
+            5
+          ],
+          "direction": "horizontal",
+          "colors": [
+            2,
+            1
+          ]
+        }
+      ],
+      "vertical_matches": [
+        {
+          "coord1": [
+            0,
+            4
+          ],
+          "coord2": [
+            1,
+            4
+          ],
+          "direction": "vertical",
+          "colors": [
+            1,
+            4
+          ]
+        },
+        {
+          "coord1": [
+            1,
+            5
+          ],
+          "coord2": [
+            2,
+            5
+          ],
+          "direction": "vertical",
+          "colors": [
+            2,
+            4
+          ]
+        },
+        {
+          "coord1": [
+            2,
+            5
+          ],
+          "coord2": [
+            3,
+            5
+          ],
+          "direction": "vertical",
+          "colors": [
+            4,
+            2
+          ]
+        },
+        {
+          "coord1": [
+            3,
+            2
+          ],
+          "coord2": [
+            4,
+            2
+          ],
+          "direction": "vertical",
+          "colors": [
+            4,
+            3
+          ]
+        },
+        {
+          "coord1": [
+            3,
+            3
+          ],
+          "coord2": [
+            4,
+            3
+          ],
+          "direction": "vertical",
+          "colors": [
+            3,
+            2
+          ]
+        },
+        {
+          "coord1": [
+            3,
+            5
+          ],
+          "coord2": [
+            4,
+            5
+          ],
+          "direction": "vertical",
+          "colors": [
+            2,
+            3
+          ]
+        },
+        {
+          "coord1": [
+            3,
+            6
+          ],
+          "coord2": [
+            4,
+            6
+          ],
+          "direction": "vertical",
+          "colors": [
+            3,
+            1
+          ]
+        },
+        {
+          "coord1": [
+            4,
+            0
+          ],
+          "coord2": [
+            5,
+            0
+          ],
+          "direction": "vertical",
+          "colors": [
+            4,
+            3
+          ]
+        },
+        {
+          "coord1": [
+            4,
+            1
+          ],
+          "coord2": [
+            5,
+            1
+          ],
+          "direction": "vertical",
+          "colors": [
+            3,
+            1
+          ]
+        },
+        {
+          "coord1": [
+            4,
+            3
+          ],
+          "coord2": [
+            5,
+            3
+          ],
+          "direction": "vertical",
+          "colors": [
+            2,
+            3
+          ]
+        },
+        {
+          "coord1": [
+            4,
+            4
+          ],
+          "coord2": [
+            5,
+            4
+          ],
+          "direction": "vertical",
+          "colors": [
+            3,
+            4
+          ]
+        },
+        {
+          "coord1": [
+            4,
+            6
+          ],
+          "coord2": [
+            5,
+            6
+          ],
+          "direction": "vertical",
+          "colors": [
+            1,
+            3
+          ]
+        },
+        {
+          "coord1": [
+            4,
+            7
+          ],
+          "coord2": [
+            5,
+            7
+          ],
+          "direction": "vertical",
+          "colors": [
+            4,
+            2
+          ]
+        },
+        {
+          "coord1": [
+            5,
+            4
+          ],
+          "coord2": [
+            6,
+            4
+          ],
+          "direction": "vertical",
+          "colors": [
+            4,
+            3
+          ]
+        },
+        {
+          "coord1": [
+            6,
+            2
+          ],
+          "coord2": [
+            7,
+            2
+          ],
+          "direction": "vertical",
+          "colors": [
+            2,
+            3
+          ]
+        }
+      ],
+      "potential_matches": [
+        {
+          "coord1": [
+            0,
+            4
+          ],
+          "coord2": [
+            0,
+            5
+          ],
+          "direction": "horizontal",
+          "colors": [
+            1,
+            2
+          ]
+        },
+        {
+          "coord1": [
+            1,
+            0
+          ],
+          "coord2": [
+            1,
+            1
+          ],
+          "direction": "horizontal",
+          "colors": [
+            1,
+            4
+          ]
+        },
+        {
+          "coord1": [
+            1,
+            1
+          ],
+          "coord2": [
+            1,
+            2
+          ],
+          "direction": "horizontal",
+          "colors": [
+            4,
+            1
+          ]
+        },
+        {
+          "coord1": [
+            2,
+            0
+          ],
+          "coord2": [
+            2,
+            1
+          ],
+          "direction": "horizontal",
+          "colors": [
+            3,
+            2
+          ]
+        },
+        {
+          "coord1": [
+            2,
+            1
+          ],
+          "coord2": [
+            2,
+            2
+          ],
+          "direction": "horizontal",
+          "colors": [
+            2,
+            4
+          ]
+        },
+        {
+          "coord1": [
+            2,
+            4
+          ],
+          "coord2": [
+            2,
+            5
+          ],
+          "direction": "horizontal",
+          "colors": [
+            2,
+            4
+          ]
+        },
+        {
+          "coord1": [
+            3,
+            1
+          ],
+          "coord2": [
+            3,
+            2
+          ],
+          "direction": "horizontal",
+          "colors": [
+            3,
+            4
+          ]
+        },
+        {
+          "coord1": [
+            3,
+            2
+          ],
+          "coord2": [
+            3,
+            3
+          ],
+          "direction": "horizontal",
+          "colors": [
+            4,
+            3
+          ]
+        },
+        {
+          "coord1": [
+            4,
+            2
+          ],
+          "coord2": [
+            4,
+            3
+          ],
+          "direction": "horizontal",
+          "colors": [
+            3,
+            2
+          ]
+        },
+        {
+          "coord1": [
+            4,
+            3
+          ],
+          "coord2": [
+            4,
+            4
+          ],
+          "direction": "horizontal",
+          "colors": [
+            2,
+            3
+          ]
+        },
+        {
+          "coord1": [
+            4,
+            5
+          ],
+          "coord2": [
+            4,
+            6
+          ],
+          "direction": "horizontal",
+          "colors": [
+            3,
+            1
+          ]
+        },
+        {
+          "coord1": [
+            5,
+            0
+          ],
+          "coord2": [
+            5,
+            1
+          ],
+          "direction": "horizontal",
+          "colors": [
+            3,
+            1
+          ]
+        },
+        {
+          "coord1": [
+            5,
+            1
+          ],
+          "coord2": [
+            5,
+            2
+          ],
+          "direction": "horizontal",
+          "colors": [
+            1,
+            3
+          ]
+        },
+        {
+          "coord1": [
+            5,
+            3
+          ],
+          "coord2": [
+            5,
+            4
+          ],
+          "direction": "horizontal",
+          "colors": [
+            3,
+            4
+          ]
+        },
+        {
+          "coord1": [
+            7,
+            3
+          ],
+          "coord2": [
+            7,
+            4
+          ],
+          "direction": "horizontal",
+          "colors": [
+            1,
+            2
+          ]
+        },
+        {
+          "coord1": [
+            7,
+            4
+          ],
+          "coord2": [
+            7,
+            5
+          ],
+          "direction": "horizontal",
+          "colors": [
+            2,
+            1
+          ]
+        },
+        {
+          "coord1": [
+            0,
+            4
+          ],
+          "coord2": [
+            1,
+            4
+          ],
+          "direction": "vertical",
+          "colors": [
+            1,
+            4
+          ]
+        },
+        {
+          "coord1": [
+            1,
+            5
+          ],
+          "coord2": [
+            2,
+            5
+          ],
+          "direction": "vertical",
+          "colors": [
+            2,
+            4
+          ]
+        },
+        {
+          "coord1": [
+            2,
+            5
+          ],
+          "coord2": [
+            3,
+            5
+          ],
+          "direction": "vertical",
+          "colors": [
+            4,
+            2
+          ]
+        },
+        {
+          "coord1": [
+            3,
+            2
+          ],
+          "coord2": [
+            4,
+            2
+          ],
+          "direction": "vertical",
+          "colors": [
+            4,
+            3
+          ]
+        },
+        {
+          "coord1": [
+            3,
+            3
+          ],
+          "coord2": [
+            4,
+            3
+          ],
+          "direction": "vertical",
+          "colors": [
+            3,
+            2
+          ]
+        },
+        {
+          "coord1": [
+            3,
+            5
+          ],
+          "coord2": [
+            4,
+            5
+          ],
+          "direction": "vertical",
+          "colors": [
+            2,
+            3
+          ]
+        },
+        {
+          "coord1": [
+            3,
+            6
+          ],
+          "coord2": [
+            4,
+            6
+          ],
+          "direction": "vertical",
+          "colors": [
+            3,
+            1
+          ]
+        },
+        {
+          "coord1": [
+            4,
+            0
+          ],
+          "coord2": [
+            5,
+            0
+          ],
+          "direction": "vertical",
+          "colors": [
+            4,
+            3
+          ]
+        },
+        {
+          "coord1": [
+            4,
+            1
+          ],
+          "coord2": [
+            5,
+            1
+          ],
+          "direction": "vertical",
+          "colors": [
+            3,
+            1
+          ]
+        },
+        {
+          "coord1": [
+            4,
+            3
+          ],
+          "coord2": [
+            5,
+            3
+          ],
+          "direction": "vertical",
+          "colors": [
+            2,
+            3
+          ]
+        },
+        {
+          "coord1": [
+            4,
+            4
+          ],
+          "coord2": [
+            5,
+            4
+          ],
+          "direction": "vertical",
+          "colors": [
+            3,
+            4
+          ]
+        },
+        {
+          "coord1": [
+            4,
+            6
+          ],
+          "coord2": [
+            5,
+            6
+          ],
+          "direction": "vertical",
+          "colors": [
+            1,
+            3
+          ]
+        },
+        {
+          "coord1": [
+            4,
+            7
+          ],
+          "coord2": [
+            5,
+            7
+          ],
+          "direction": "vertical",
+          "colors": [
+            4,
+            2
+          ]
+        },
+        {
+          "coord1": [
+            5,
+            4
+          ],
+          "coord2": [
+            6,
+            4
+          ],
+          "direction": "vertical",
+          "colors": [
+            4,
+            3
+          ]
+        },
+        {
+          "coord1": [
+            6,
+            2
+          ],
+          "coord2": [
+            7,
+            2
+          ],
+          "direction": "vertical",
+          "colors": [
+            2,
+            3
+          ]
+        }
+      ],
+      "num_potential_matches": 31
+    },
+    "last_action": [
+      [
+        5,
+        4
+      ],
+      [
+        5,
+        5
+      ]
+    ],
+    "reflection": "The row-5 swap (4 \u2194 2) shifted colours but cleared nothing, so it cost a turn without scoring. Still, it nudged the board into a looser layout: potential moves rose from 27 to 31, leaving many fresh options.  Strongest opportunity: column 2 already has two 4\u2019s stacked (rows 2-3); swapping row 1, col 1 (4) with row 1, col 2 (1) would drop a third 4 on top for a clean vertical crush.  Prioritise moves that finish existing pairs\u2014especially columns 2 and 5\u2014to guarantee matches and open cascades."
+  },
+  {
+    "timestamp": 1746597793.6412168,
+    "game_state": {
+      "board": [
+        [
+          4,
+          3,
+          4,
+          2,
+          4,
+          4,
+          1,
+          3
+        ],
+        [
+          1,
+          4,
+          2,
+          2,
+          1,
+          2,
+          3,
+          2
+        ],
+        [
+          3,
+          4,
+          1,
+          1,
+          4,
+          4,
+          1,
+          1
+        ],
+        [
+          1,
+          2,
+          4,
+          2,
+          2,
+          4,
+          3,
+          2
+        ],
+        [
+          4,
+          3,
+          4,
+          2,
+          4,
+          2,
+          1,
+          4
+        ],
+        [
+          3,
+          1,
+          3,
+          3,
+          4,
+          2,
+          3,
+          2
+        ],
+        [
+          4,
+          1,
+          2,
+          4,
+          3,
+          4,
+          1,
+          4
+        ],
+        [
+          4,
+          3,
+          3,
+          1,
+          2,
+          1,
+          1,
+          4
+        ]
+      ],
+      "board_shape": [
+        8,
+        8
+      ],
+      "empty_spaces": [],
+      "num_empty_spaces": 0,
+      "highest_color": 4,
+      "color_counts": {
+        "1": 15,
+        "2": 15,
+        "3": 13,
+        "4": 21
+      },
+      "horizontal_matches": [
+        {
+          "coord1": [
+            0,
+            0
+          ],
+          "coord2": [
+            0,
+            1
+          ],
+          "direction": "horizontal",
+          "colors": [
+            4,
+            3
+          ]
+        },
+        {
+          "coord1": [
+            0,
+            1
+          ],
+          "coord2": [
+            0,
+            2
+          ],
+          "direction": "horizontal",
+          "colors": [
+            3,
+            4
+          ]
+        },
+        {
+          "coord1": [
+            0,
+            2
+          ],
+          "coord2": [
+            0,
+            3
+          ],
+          "direction": "horizontal",
+          "colors": [
+            4,
+            2
+          ]
+        },
+        {
+          "coord1": [
+            1,
+            4
+          ],
+          "coord2": [
+            1,
+            5
+          ],
+          "direction": "horizontal",
+          "colors": [
+            1,
+            2
+          ]
+        },
+        {
+          "coord1": [
+            2,
+            1
+          ],
+          "coord2": [
+            2,
+            2
+          ],
+          "direction": "horizontal",
+          "colors": [
+            4,
+            1
+          ]
+        },
+        {
+          "coord1": [
+            3,
+            1
+          ],
+          "coord2": [
+            3,
+            2
+          ],
+          "direction": "horizontal",
+          "colors": [
+            2,
+            4
+          ]
+        },
+        {
+          "coord1": [
+            3,
+            4
+          ],
+          "coord2": [
+            3,
+            5
+          ],
+          "direction": "horizontal",
+          "colors": [
+            2,
+            4
+          ]
+        },
+        {
+          "coord1": [
+            4,
+            4
+          ],
+          "coord2": [
+            4,
+            5
+          ],
+          "direction": "horizontal",
+          "colors": [
+            4,
+            2
+          ]
+        },
+        {
+          "coord1": [
+            5,
+            0
+          ],
+          "coord2": [
+            5,
+            1
+          ],
+          "direction": "horizontal",
+          "colors": [
+            3,
+            1
+          ]
+        },
+        {
+          "coord1": [
+            6,
+            3
+          ],
+          "coord2": [
+            6,
+            4
+          ],
+          "direction": "horizontal",
+          "colors": [
+            4,
+            3
+          ]
+        },
+        {
+          "coord1": [
+            6,
+            4
+          ],
+          "coord2": [
+            6,
+            5
+          ],
+          "direction": "horizontal",
+          "colors": [
+            3,
+            4
+          ]
+        },
+        {
+          "coord1": [
+            7,
+            3
+          ],
+          "coord2": [
+            7,
+            4
+          ],
+          "direction": "horizontal",
+          "colors": [
+            1,
+            2
+          ]
+        }
+      ],
+      "vertical_matches": [
+        {
+          "coord1": [
+            0,
+            1
+          ],
+          "coord2": [
+            1,
+            1
+          ],
+          "direction": "vertical",
+          "colors": [
+            3,
+            4
+          ]
+        },
+        {
+          "coord1": [
+            0,
+            5
+          ],
+          "coord2": [
+            1,
+            5
+          ],
+          "direction": "vertical",
+          "colors": [
+            4,
+            2
+          ]
+        },
+        {
+          "coord1": [
+            1,
+            3
+          ],
+          "coord2": [
+            2,
+            3
+          ],
+          "direction": "vertical",
+          "colors": [
+            2,
+            1
+          ]
+        },
+        {
+          "coord1": [
+            1,
+            4
+          ],
+          "coord2": [
+            2,
+            4
+          ],
+          "direction": "vertical",
+          "colors": [
+            1,
+            4
+          ]
+        },
+        {
+          "coord1": [
+            2,
+            3
+          ],
+          "coord2": [
+            3,
+            3
+          ],
+          "direction": "vertical",
+          "colors": [
+            1,
+            2
+          ]
+        },
+        {
+          "coord1": [
+            2,
+            4
+          ],
+          "coord2": [
+            3,
+            4
+          ],
+          "direction": "vertical",
+          "colors": [
+            4,
+            2
+          ]
+        },
+        {
+          "coord1": [
+            3,
+            4
+          ],
+          "coord2": [
+            4,
+            4
+          ],
+          "direction": "vertical",
+          "colors": [
+            2,
+            4
+          ]
+        },
+        {
+          "coord1": [
+            3,
+            5
+          ],
+          "coord2": [
+            4,
+            5
+          ],
+          "direction": "vertical",
+          "colors": [
+            4,
+            2
+          ]
+        },
+        {
+          "coord1": [
+            4,
+            0
+          ],
+          "coord2": [
+            5,
+            0
+          ],
+          "direction": "vertical",
+          "colors": [
+            4,
+            3
+          ]
+        },
+        {
+          "coord1": [
+            4,
+            1
+          ],
+          "coord2": [
+            5,
+            1
+          ],
+          "direction": "vertical",
+          "colors": [
+            3,
+            1
+          ]
+        },
+        {
+          "coord1": [
+            4,
+            6
+          ],
+          "coord2": [
+            5,
+            6
+          ],
+          "direction": "vertical",
+          "colors": [
+            1,
+            3
+          ]
+        },
+        {
+          "coord1": [
+            4,
+            7
+          ],
+          "coord2": [
+            5,
+            7
+          ],
+          "direction": "vertical",
+          "colors": [
+            4,
+            2
+          ]
+        },
+        {
+          "coord1": [
+            5,
+            4
+          ],
+          "coord2": [
+            6,
+            4
+          ],
+          "direction": "vertical",
+          "colors": [
+            4,
+            3
+          ]
+        }
+      ],
+      "potential_matches": [
+        {
+          "coord1": [
+            0,
+            0
+          ],
+          "coord2": [
+            0,
+            1
+          ],
+          "direction": "horizontal",
+          "colors": [
+            4,
+            3
+          ]
+        },
+        {
+          "coord1": [
+            0,
+            1
+          ],
+          "coord2": [
+            0,
+            2
+          ],
+          "direction": "horizontal",
+          "colors": [
+            3,
+            4
+          ]
+        },
+        {
+          "coord1": [
+            0,
+            2
+          ],
+          "coord2": [
+            0,
+            3
+          ],
+          "direction": "horizontal",
+          "colors": [
+            4,
+            2
+          ]
+        },
+        {
+          "coord1": [
+            1,
+            4
+          ],
+          "coord2": [
+            1,
+            5
+          ],
+          "direction": "horizontal",
+          "colors": [
+            1,
+            2
+          ]
+        },
+        {
+          "coord1": [
+            2,
+            1
+          ],
+          "coord2": [
+            2,
+            2
+          ],
+          "direction": "horizontal",
+          "colors": [
+            4,
+            1
+          ]
+        },
+        {
+          "coord1": [
+            3,
+            1
+          ],
+          "coord2": [
+            3,
+            2
+          ],
+          "direction": "horizontal",
+          "colors": [
+            2,
+            4
+          ]
+        },
+        {
+          "coord1": [
+            3,
+            4
+          ],
+          "coord2": [
+            3,
+            5
+          ],
+          "direction": "horizontal",
+          "colors": [
+            2,
+            4
+          ]
+        },
+        {
+          "coord1": [
+            4,
+            4
+          ],
+          "coord2": [
+            4,
+            5
+          ],
+          "direction": "horizontal",
+          "colors": [
+            4,
+            2
+          ]
+        },
+        {
+          "coord1": [
+            5,
+            0
+          ],
+          "coord2": [
+            5,
+            1
+          ],
+          "direction": "horizontal",
+          "colors": [
+            3,
+            1
+          ]
+        },
+        {
+          "coord1": [
+            6,
+            3
+          ],
+          "coord2": [
+            6,
+            4
+          ],
+          "direction": "horizontal",
+          "colors": [
+            4,
+            3
+          ]
+        },
+        {
+          "coord1": [
+            6,
+            4
+          ],
+          "coord2": [
+            6,
+            5
+          ],
+          "direction": "horizontal",
+          "colors": [
+            3,
+            4
+          ]
+        },
+        {
+          "coord1": [
+            7,
+            3
+          ],
+          "coord2": [
+            7,
+            4
+          ],
+          "direction": "horizontal",
+          "colors": [
+            1,
+            2
+          ]
+        },
+        {
+          "coord1": [
+            0,
+            1
+          ],
+          "coord2": [
+            1,
+            1
+          ],
+          "direction": "vertical",
+          "colors": [
+            3,
+            4
+          ]
+        },
+        {
+          "coord1": [
+            0,
+            5
+          ],
+          "coord2": [
+            1,
+            5
+          ],
+          "direction": "vertical",
+          "colors": [
+            4,
+            2
+          ]
+        },
+        {
+          "coord1": [
+            1,
+            3
+          ],
+          "coord2": [
+            2,
+            3
+          ],
+          "direction": "vertical",
+          "colors": [
+            2,
+            1
+          ]
+        },
+        {
+          "coord1": [
+            1,
+            4
+          ],
+          "coord2": [
+            2,
+            4
+          ],
+          "direction": "vertical",
+          "colors": [
+            1,
+            4
+          ]
+        },
+        {
+          "coord1": [
+            2,
+            3
+          ],
+          "coord2": [
+            3,
+            3
+          ],
+          "direction": "vertical",
+          "colors": [
+            1,
+            2
+          ]
+        },
+        {
+          "coord1": [
+            2,
+            4
+          ],
+          "coord2": [
+            3,
+            4
+          ],
+          "direction": "vertical",
+          "colors": [
+            4,
+            2
+          ]
+        },
+        {
+          "coord1": [
+            3,
+            4
+          ],
+          "coord2": [
+            4,
+            4
+          ],
+          "direction": "vertical",
+          "colors": [
+            2,
+            4
+          ]
+        },
+        {
+          "coord1": [
+            3,
+            5
+          ],
+          "coord2": [
+            4,
+            5
+          ],
+          "direction": "vertical",
+          "colors": [
+            4,
+            2
+          ]
+        },
+        {
+          "coord1": [
+            4,
+            0
+          ],
+          "coord2": [
+            5,
+            0
+          ],
+          "direction": "vertical",
+          "colors": [
+            4,
+            3
+          ]
+        },
+        {
+          "coord1": [
+            4,
+            1
+          ],
+          "coord2": [
+            5,
+            1
+          ],
+          "direction": "vertical",
+          "colors": [
+            3,
+            1
+          ]
+        },
+        {
+          "coord1": [
+            4,
+            6
+          ],
+          "coord2": [
+            5,
+            6
+          ],
+          "direction": "vertical",
+          "colors": [
+            1,
+            3
+          ]
+        },
+        {
+          "coord1": [
+            4,
+            7
+          ],
+          "coord2": [
+            5,
+            7
+          ],
+          "direction": "vertical",
+          "colors": [
+            4,
+            2
+          ]
+        },
+        {
+          "coord1": [
+            5,
+            4
+          ],
+          "coord2": [
+            6,
+            4
+          ],
+          "direction": "vertical",
+          "colors": [
+            4,
+            3
+          ]
+        }
+      ],
+      "num_potential_matches": 25
+    },
+    "last_action": [
+      [
+        3,
+        3
+      ],
+      [
+        4,
+        3
+      ]
+    ],
+    "reflection": "The swap at (3,3)\u2194(4,3) only exchanged a 3 and a 2; no three-in-a-row formed, no candies cleared, and the pool of potential moves actually shrank (31 \u2192 25). The board is now even more 4-heavy (21 fours), but matches remain fragmentary\u2014mostly isolated pairs such as 4-3-4 in row 6 or 1-2 pairs in row 7. Look for moves that turn those pairs into triples: e.g., slide the 4 at (2,5) down or the 4 at (6,5) left to complete 4-4-4, or shift a 1 into column 4 to chain three 1\u2019s vertically."
+  },
+  {
+    "timestamp": 1746598325.4052205,
+    "game_state": {
+      "board": [
+        [
+          4,
+          1,
+          3,
+          4,
+          3,
+          4,
+          1,
+          3
+        ],
+        [
+          1,
+          3,
+          3,
+          4,
+          3,
+          2,
+          3,
+          2
+        ],
+        [
+          3,
+          1,
+          1,
+          2,
+          4,
+          4,
+          1,
+          1
+        ],
+        [
+          1,
+          3,
+          1,
+          1,
+          2,
+          4,
+          3,
+          2
+        ],
+        [
+          4,
+          2,
+          4,
+          2,
+          4,
+          2,
+          1,
+          4
+        ],
+        [
+          3,
+          1,
+          3,
+          3,
+          1,
+          2,
+          3,
+          2
+        ],
+        [
+          4,
+          1,
+          2,
+          4,
+          3,
+          4,
+          1,
+          4
+        ],
+        [
+          4,
+          3,
+          3,
+          1,
+          2,
+          1,
+          1,
+          4
+        ]
+      ],
+      "board_shape": [
+        8,
+        8
+      ],
+      "empty_spaces": [],
+      "num_empty_spaces": 0,
+      "highest_color": 4,
+      "color_counts": {
+        "1": 18,
+        "2": 12,
+        "3": 17,
+        "4": 17
+      },
+      "horizontal_matches": [
+        {
+          "coord1": [
+            1,
+            0
+          ],
+          "coord2": [
+            1,
+            1
+          ],
+          "direction": "horizontal",
+          "colors": [
+            1,
+            3
+          ]
+        },
+        {
+          "coord1": [
+            1,
+            3
+          ],
+          "coord2": [
+            1,
+            4
+          ],
+          "direction": "horizontal",
+          "colors": [
+            4,
+            3
+          ]
+        },
+        {
+          "coord1": [
+            2,
+            0
+          ],
+          "coord2": [
+            2,
+            1
+          ],
+          "direction": "horizontal",
+          "colors": [
+            3,
+            1
+          ]
+        },
+        {
+          "coord1": [
+            2,
+            3
+          ],
+          "coord2": [
+            2,
+            4
+          ],
+          "direction": "horizontal",
+          "colors": [
+            2,
+            4
+          ]
+        },
+        {
+          "coord1": [
+            3,
+            0
+          ],
+          "coord2": [
+            3,
+            1
+          ],
+          "direction": "horizontal",
+          "colors": [
+            1,
+            3
+          ]
+        },
+        {
+          "coord1": [
+            3,
+            3
+          ],
+          "coord2": [
+            3,
+            4
+          ],
+          "direction": "horizontal",
+          "colors": [
+            1,
+            2
+          ]
+        },
+        {
+          "coord1": [
+            3,
+            4
+          ],
+          "coord2": [
+            3,
+            5
+          ],
+          "direction": "horizontal",
+          "colors": [
+            2,
+            4
+          ]
+        },
+        {
+          "coord1": [
+            4,
+            4
+          ],
+          "coord2": [
+            4,
+            5
+          ],
+          "direction": "horizontal",
+          "colors": [
+            4,
+            2
+          ]
+        },
+        {
+          "coord1": [
+            5,
+            0
+          ],
+          "coord2": [
+            5,
+            1
+          ],
+          "direction": "horizontal",
+          "colors": [
+            3,
+            1
+          ]
+        },
+        {
+          "coord1": [
+            7,
+            3
+          ],
+          "coord2": [
+            7,
+            4
+          ],
+          "direction": "horizontal",
+          "colors": [
+            1,
+            2
+          ]
+        }
+      ],
+      "vertical_matches": [
+        {
+          "coord1": [
+            0,
+            5
+          ],
+          "coord2": [
+            1,
+            5
+          ],
+          "direction": "vertical",
+          "colors": [
+            4,
+            2
+          ]
+        },
+        {
+          "coord1": [
+            1,
+            0
+          ],
+          "coord2": [
+            2,
+            0
+          ],
+          "direction": "vertical",
+          "colors": [
+            1,
+            3
+          ]
+        },
+        {
+          "coord1": [
+            1,
+            3
+          ],
+          "coord2": [
+            2,
+            3
+          ],
+          "direction": "vertical",
+          "colors": [
+            4,
+            2
+          ]
+        },
+        {
+          "coord1": [
+            2,
+            0
+          ],
+          "coord2": [
+            3,
+            0
+          ],
+          "direction": "vertical",
+          "colors": [
+            3,
+            1
+          ]
+        },
+        {
+          "coord1": [
+            2,
+            1
+          ],
+          "coord2": [
+            3,
+            1
+          ],
+          "direction": "vertical",
+          "colors": [
+            1,
+            3
+          ]
+        },
+        {
+          "coord1": [
+            2,
+            3
+          ],
+          "coord2": [
+            3,
+            3
+          ],
+          "direction": "vertical",
+          "colors": [
+            2,
+            1
+          ]
+        },
+        {
+          "coord1": [
+            3,
+            4
+          ],
+          "coord2": [
+            4,
+            4
+          ],
+          "direction": "vertical",
+          "colors": [
+            2,
+            4
+          ]
+        },
+        {
+          "coord1": [
+            4,
+            0
+          ],
+          "coord2": [
+            5,
+            0
+          ],
+          "direction": "vertical",
+          "colors": [
+            4,
+            3
+          ]
+        },
+        {
+          "coord1": [
+            4,
+            6
+          ],
+          "coord2": [
+            5,
+            6
+          ],
+          "direction": "vertical",
+          "colors": [
+            1,
+            3
+          ]
+        },
+        {
+          "coord1": [
+            4,
+            7
+          ],
+          "coord2": [
+            5,
+            7
+          ],
+          "direction": "vertical",
+          "colors": [
+            4,
+            2
+          ]
+        },
+        {
+          "coord1": [
+            5,
+            4
+          ],
+          "coord2": [
+            6,
+            4
+          ],
+          "direction": "vertical",
+          "colors": [
+            1,
+            3
+          ]
+        }
+      ],
+      "potential_matches": [
+        {
+          "coord1": [
+            1,
+            0
+          ],
+          "coord2": [
+            1,
+            1
+          ],
+          "direction": "horizontal",
+          "colors": [
+            1,
+            3
+          ]
+        },
+        {
+          "coord1": [
+            1,
+            3
+          ],
+          "coord2": [
+            1,
+            4
+          ],
+          "direction": "horizontal",
+          "colors": [
+            4,
+            3
+          ]
+        },
+        {
+          "coord1": [
+            2,
+            0
+          ],
+          "coord2": [
+            2,
+            1
+          ],
+          "direction": "horizontal",
+          "colors": [
+            3,
+            1
+          ]
+        },
+        {
+          "coord1": [
+            2,
+            3
+          ],
+          "coord2": [
+            2,
+            4
+          ],
+          "direction": "horizontal",
+          "colors": [
+            2,
+            4
+          ]
+        },
+        {
+          "coord1": [
+            3,
+            0
+          ],
+          "coord2": [
+            3,
+            1
+          ],
+          "direction": "horizontal",
+          "colors": [
+            1,
+            3
+          ]
+        },
+        {
+          "coord1": [
+            3,
+            3
+          ],
+          "coord2": [
+            3,
+            4
+          ],
+          "direction": "horizontal",
+          "colors": [
+            1,
+            2
+          ]
+        },
+        {
+          "coord1": [
+            3,
+            4
+          ],
+          "coord2": [
+            3,
+            5
+          ],
+          "direction": "horizontal",
+          "colors": [
+            2,
+            4
+          ]
+        },
+        {
+          "coord1": [
+            4,
+            4
+          ],
+          "coord2": [
+            4,
+            5
+          ],
+          "direction": "horizontal",
+          "colors": [
+            4,
+            2
+          ]
+        },
+        {
+          "coord1": [
+            5,
+            0
+          ],
+          "coord2": [
+            5,
+            1
+          ],
+          "direction": "horizontal",
+          "colors": [
+            3,
+            1
+          ]
+        },
+        {
+          "coord1": [
+            7,
+            3
+          ],
+          "coord2": [
+            7,
+            4
+          ],
+          "direction": "horizontal",
+          "colors": [
+            1,
+            2
+          ]
+        },
+        {
+          "coord1": [
+            0,
+            5
+          ],
+          "coord2": [
+            1,
+            5
+          ],
+          "direction": "vertical",
+          "colors": [
+            4,
+            2
+          ]
+        },
+        {
+          "coord1": [
+            1,
+            0
+          ],
+          "coord2": [
+            2,
+            0
+          ],
+          "direction": "vertical",
+          "colors": [
+            1,
+            3
+          ]
+        },
+        {
+          "coord1": [
+            1,
+            3
+          ],
+          "coord2": [
+            2,
+            3
+          ],
+          "direction": "vertical",
+          "colors": [
+            4,
+            2
+          ]
+        },
+        {
+          "coord1": [
+            2,
+            0
+          ],
+          "coord2": [
+            3,
+            0
+          ],
+          "direction": "vertical",
+          "colors": [
+            3,
+            1
+          ]
+        },
+        {
+          "coord1": [
+            2,
+            1
+          ],
+          "coord2": [
+            3,
+            1
+          ],
+          "direction": "vertical",
+          "colors": [
+            1,
+            3
+          ]
+        },
+        {
+          "coord1": [
+            2,
+            3
+          ],
+          "coord2": [
+            3,
+            3
+          ],
+          "direction": "vertical",
+          "colors": [
+            2,
+            1
+          ]
+        },
+        {
+          "coord1": [
+            3,
+            4
+          ],
+          "coord2": [
+            4,
+            4
+          ],
+          "direction": "vertical",
+          "colors": [
+            2,
+            4
+          ]
+        },
+        {
+          "coord1": [
+            4,
+            0
+          ],
+          "coord2": [
+            5,
+            0
+          ],
+          "direction": "vertical",
+          "colors": [
+            4,
+            3
+          ]
+        },
+        {
+          "coord1": [
+            4,
+            6
+          ],
+          "coord2": [
+            5,
+            6
+          ],
+          "direction": "vertical",
+          "colors": [
+            1,
+            3
+          ]
+        },
+        {
+          "coord1": [
+            4,
+            7
+          ],
+          "coord2": [
+            5,
+            7
+          ],
+          "direction": "vertical",
+          "colors": [
+            4,
+            2
+          ]
+        },
+        {
+          "coord1": [
+            5,
+            4
+          ],
+          "coord2": [
+            6,
+            4
+          ],
+          "direction": "vertical",
+          "colors": [
+            1,
+            3
+          ]
+        }
+      ],
+      "num_potential_matches": 21
+    },
+    "last_action": [
+      [
+        3,
+        1
+      ],
+      [
+        3,
+        2
+      ]
+    ],
+    "reflection": "Swapping (3,1) with (3,2) triggered cascades: 4s and 2s disappeared, raising 1s/3s and cutting total 4s from 21\u219217, 2s from 15\u219212. The board reshuffled noticeably (row 3 now 1-3-1-1-2-4\u2026), so the move was productive. Potential matches fell from 25 to 21, yet plenty remain\u2014many clustered around rows 3-5 (e.g., 3-4-5 columns) and the central 4-2 pairs. Look for swaps that extend the frequent 1/3 chains or exploit the dense 4s in columns 4-5; vertical plays there could trigger further cascades."
+  },
+  {
+    "timestamp": 1746598831.965079,
+    "game_state": {
+      "board": [
+        [
+          1,
+          3,
+          3,
+          2,
+          1,
+          2,
+          1,
+          3
+        ],
+        [
+          4,
+          1,
+          4,
+          4,
+          2,
+          4,
+          3,
+          2
+        ],
+        [
+          1,
+          3,
+          3,
+          4,
+          3,
+          2,
+          1,
+          1
+        ],
+        [
+          3,
+          3,
+          1,
+          2,
+          2,
+          4,
+          3,
+          2
+        ],
+        [
+          4,
+          2,
+          4,
+          2,
+          4,
+          2,
+          1,
+          4
+        ],
+        [
+          3,
+          1,
+          3,
+          3,
+          1,
+          2,
+          3,
+          2
+        ],
+        [
+          4,
+          1,
+          2,
+          4,
+          3,
+          4,
+          1,
+          4
+        ],
+        [
+          4,
+          3,
+          3,
+          1,
+          2,
+          1,
+          1,
+          4
+        ]
+      ],
+      "board_shape": [
+        8,
+        8
+      ],
+      "empty_spaces": [],
+      "num_empty_spaces": 0,
+      "highest_color": 4,
+      "color_counts": {
+        "1": 16,
+        "2": 15,
+        "3": 17,
+        "4": 16
+      },
+      "horizontal_matches": [
+        {
+          "coord1": [
+            1,
+            0
+          ],
+          "coord2": [
+            1,
+            1
+          ],
+          "direction": "horizontal",
+          "colors": [
+            4,
+            1
+          ]
+        },
+        {
+          "coord1": [
+            1,
+            4
+          ],
+          "coord2": [
+            1,
+            5
+          ],
+          "direction": "horizontal",
+          "colors": [
+            2,
+            4
+          ]
+        },
+        {
+          "coord1": [
+            2,
+            3
+          ],
+          "coord2": [
+            2,
+            4
+          ],
+          "direction": "horizontal",
+          "colors": [
+            4,
+            3
+          ]
+        },
+        {
+          "coord1": [
+            2,
+            4
+          ],
+          "coord2": [
+            2,
+            5
+          ],
+          "direction": "horizontal",
+          "colors": [
+            3,
+            2
+          ]
+        },
+        {
+          "coord1": [
+            3,
+            4
+          ],
+          "coord2": [
+            3,
+            5
+          ],
+          "direction": "horizontal",
+          "colors": [
+            2,
+            4
+          ]
+        },
+        {
+          "coord1": [
+            5,
+            0
+          ],
+          "coord2": [
+            5,
+            1
+          ],
+          "direction": "horizontal",
+          "colors": [
+            3,
+            1
+          ]
+        },
+        {
+          "coord1": [
+            7,
+            3
+          ],
+          "coord2": [
+            7,
+            4
+          ],
+          "direction": "horizontal",
+          "colors": [
+            1,
+            2
+          ]
+        }
+      ],
+      "vertical_matches": [
+        {
+          "coord1": [
+            0,
+            1
+          ],
+          "coord2": [
+            1,
+            1
+          ],
+          "direction": "vertical",
+          "colors": [
+            3,
+            1
+          ]
+        },
+        {
+          "coord1": [
+            0,
+            4
+          ],
+          "coord2": [
+            1,
+            4
+          ],
+          "direction": "vertical",
+          "colors": [
+            1,
+            2
+          ]
+        },
+        {
+          "coord1": [
+            2,
+            0
+          ],
+          "coord2": [
+            3,
+            0
+          ],
+          "direction": "vertical",
+          "colors": [
+            1,
+            3
+          ]
+        },
+        {
+          "coord1": [
+            2,
+            2
+          ],
+          "coord2": [
+            3,
+            2
+          ],
+          "direction": "vertical",
+          "colors": [
+            3,
+            1
+          ]
+        },
+        {
+          "coord1": [
+            2,
+            5
+          ],
+          "coord2": [
+            3,
+            5
+          ],
+          "direction": "vertical",
+          "colors": [
+            2,
+            4
+          ]
+        },
+        {
+          "coord1": [
+            3,
+            4
+          ],
+          "coord2": [
+            4,
+            4
+          ],
+          "direction": "vertical",
+          "colors": [
+            2,
+            4
+          ]
+        },
+        {
+          "coord1": [
+            3,
+            5
+          ],
+          "coord2": [
+            4,
+            5
+          ],
+          "direction": "vertical",
+          "colors": [
+            4,
+            2
+          ]
+        },
+        {
+          "coord1": [
+            4,
+            0
+          ],
+          "coord2": [
+            5,
+            0
+          ],
+          "direction": "vertical",
+          "colors": [
+            4,
+            3
+          ]
+        },
+        {
+          "coord1": [
+            4,
+            6
+          ],
+          "coord2": [
+            5,
+            6
+          ],
+          "direction": "vertical",
+          "colors": [
+            1,
+            3
+          ]
+        },
+        {
+          "coord1": [
+            4,
+            7
+          ],
+          "coord2": [
+            5,
+            7
+          ],
+          "direction": "vertical",
+          "colors": [
+            4,
+            2
+          ]
+        },
+        {
+          "coord1": [
+            5,
+            4
+          ],
+          "coord2": [
+            6,
+            4
+          ],
+          "direction": "vertical",
+          "colors": [
+            1,
+            3
+          ]
+        }
+      ],
+      "potential_matches": [
+        {
+          "coord1": [
+            1,
+            0
+          ],
+          "coord2": [
+            1,
+            1
+          ],
+          "direction": "horizontal",
+          "colors": [
+            4,
+            1
+          ]
+        },
+        {
+          "coord1": [
+            1,
+            4
+          ],
+          "coord2": [
+            1,
+            5
+          ],
+          "direction": "horizontal",
+          "colors": [
+            2,
+            4
+          ]
+        },
+        {
+          "coord1": [
+            2,
+            3
+          ],
+          "coord2": [
+            2,
+            4
+          ],
+          "direction": "horizontal",
+          "colors": [
+            4,
+            3
+          ]
+        },
+        {
+          "coord1": [
+            2,
+            4
+          ],
+          "coord2": [
+            2,
+            5
+          ],
+          "direction": "horizontal",
+          "colors": [
+            3,
+            2
+          ]
+        },
+        {
+          "coord1": [
+            3,
+            4
+          ],
+          "coord2": [
+            3,
+            5
+          ],
+          "direction": "horizontal",
+          "colors": [
+            2,
+            4
+          ]
+        },
+        {
+          "coord1": [
+            5,
+            0
+          ],
+          "coord2": [
+            5,
+            1
+          ],
+          "direction": "horizontal",
+          "colors": [
+            3,
+            1
+          ]
+        },
+        {
+          "coord1": [
+            7,
+            3
+          ],
+          "coord2": [
+            7,
+            4
+          ],
+          "direction": "horizontal",
+          "colors": [
+            1,
+            2
+          ]
+        },
+        {
+          "coord1": [
+            0,
+            1
+          ],
+          "coord2": [
+            1,
+            1
+          ],
+          "direction": "vertical",
+          "colors": [
+            3,
+            1
+          ]
+        },
+        {
+          "coord1": [
+            0,
+            4
+          ],
+          "coord2": [
+            1,
+            4
+          ],
+          "direction": "vertical",
+          "colors": [
+            1,
+            2
+          ]
+        },
+        {
+          "coord1": [
+            2,
+            0
+          ],
+          "coord2": [
+            3,
+            0
+          ],
+          "direction": "vertical",
+          "colors": [
+            1,
+            3
+          ]
+        },
+        {
+          "coord1": [
+            2,
+            2
+          ],
+          "coord2": [
+            3,
+            2
+          ],
+          "direction": "vertical",
+          "colors": [
+            3,
+            1
+          ]
+        },
+        {
+          "coord1": [
+            2,
+            5
+          ],
+          "coord2": [
+            3,
+            5
+          ],
+          "direction": "vertical",
+          "colors": [
+            2,
+            4
+          ]
+        },
+        {
+          "coord1": [
+            3,
+            4
+          ],
+          "coord2": [
+            4,
+            4
+          ],
+          "direction": "vertical",
+          "colors": [
+            2,
+            4
+          ]
+        },
+        {
+          "coord1": [
+            3,
+            5
+          ],
+          "coord2": [
+            4,
+            5
+          ],
+          "direction": "vertical",
+          "colors": [
+            4,
+            2
+          ]
+        },
+        {
+          "coord1": [
+            4,
+            0
+          ],
+          "coord2": [
+            5,
+            0
+          ],
+          "direction": "vertical",
+          "colors": [
+            4,
+            3
+          ]
+        },
+        {
+          "coord1": [
+            4,
+            6
+          ],
+          "coord2": [
+            5,
+            6
+          ],
+          "direction": "vertical",
+          "colors": [
+            1,
+            3
+          ]
+        },
+        {
+          "coord1": [
+            4,
+            7
+          ],
+          "coord2": [
+            5,
+            7
+          ],
+          "direction": "vertical",
+          "colors": [
+            4,
+            2
+          ]
+        },
+        {
+          "coord1": [
+            5,
+            4
+          ],
+          "coord2": [
+            6,
+            4
+          ],
+          "direction": "vertical",
+          "colors": [
+            1,
+            3
+          ]
+        }
+      ],
+      "num_potential_matches": 18
+    },
+    "last_action": [
+      [
+        2,
+        1
+      ],
+      [
+        3,
+        1
+      ]
+    ],
+    "reflection": "The swap (2,1) \u21c4 (3,1) only traded a 1 and a 3; no three-in-a-row resulted, and potential matches dropped from 21 to 18. Thus the move neither scored nor clearly improved the board. Several easy setups remain: horizontal 3-pairs at (1,0-1), (2,3-4), (5,0-1) and vertical 2-pairs in columns 0, 4, 5. Prioritise swaps that extend these pairs into triples\u2014especially around columns 4-5, where stacked 2/4 and 4/2 pairs could cascade. Avoid lateral shuffles that don\u2019t touch existing pairs; aim for vertical clears to create space and new candy flow."
+  },
+  {
+    "timestamp": 1746599060.7956672,
+    "game_state": {
+      "board": [
+        [
+          1,
+          3,
+          3,
+          2,
+          3,
+          3,
+          4,
+          1
+        ],
+        [
+          4,
+          1,
+          4,
+          4,
+          1,
+          4,
+          3,
+          3
+        ],
+        [
+          1,
+          3,
+          3,
+          4,
+          2,
+          2,
+          1,
+          2
+        ],
+        [
+          3,
+          3,
+          1,
+          2,
+          4,
+          1,
+          3,
+          2
+        ],
+        [
+          4,
+          2,
+          4,
+          2,
+          4,
+          4,
+          1,
+          4
+        ],
+        [
+          3,
+          1,
+          3,
+          3,
+          1,
+          3,
+          3,
+          2
+        ],
+        [
+          4,
+          1,
+          2,
+          4,
+          3,
+          1,
+          1,
+          4
+        ],
+        [
+          4,
+          3,
+          3,
+          1,
+          2,
+          1,
+          1,
+          4
+        ]
+      ],
+      "board_shape": [
+        8,
+        8
+      ],
+      "empty_spaces": [],
+      "num_empty_spaces": 0,
+      "highest_color": 4,
+      "color_counts": {
+        "1": 17,
+        "2": 11,
+        "3": 19,
+        "4": 17
+      },
+      "horizontal_matches": [
+        {
+          "coord1": [
+            0,
+            2
+          ],
+          "coord2": [
+            0,
+            3
+          ],
+          "direction": "horizontal",
+          "colors": [
+            3,
+            2
+          ]
+        },
+        {
+          "coord1": [
+            0,
+            3
+          ],
+          "coord2": [
+            0,
+            4
+          ],
+          "direction": "horizontal",
+          "colors": [
+            2,
+            3
+          ]
+        },
+        {
+          "coord1": [
+            1,
+            0
+          ],
+          "coord2": [
+            1,
+            1
+          ],
+          "direction": "horizontal",
+          "colors": [
+            4,
+            1
+          ]
+        },
+        {
+          "coord1": [
+            1,
+            4
+          ],
+          "coord2": [
+            1,
+            5
+          ],
+          "direction": "horizontal",
+          "colors": [
+            1,
+            4
+          ]
+        },
+        {
+          "coord1": [
+            2,
+            3
+          ],
+          "coord2": [
+            2,
+            4
+          ],
+          "direction": "horizontal",
+          "colors": [
+            4,
+            2
+          ]
+        },
+        {
+          "coord1": [
+            2,
+            6
+          ],
+          "coord2": [
+            2,
+            7
+          ],
+          "direction": "horizontal",
+          "colors": [
+            1,
+            2
+          ]
+        },
+        {
+          "coord1": [
+            3,
+            3
+          ],
+          "coord2": [
+            3,
+            4
+          ],
+          "direction": "horizontal",
+          "colors": [
+            2,
+            4
+          ]
+        },
+        {
+          "coord1": [
+            3,
+            5
+          ],
+          "coord2": [
+            3,
+            6
+          ],
+          "direction": "horizontal",
+          "colors": [
+            1,
+            3
+          ]
+        },
+        {
+          "coord1": [
+            4,
+            2
+          ],
+          "coord2": [
+            4,
+            3
+          ],
+          "direction": "horizontal",
+          "colors": [
+            4,
+            2
+          ]
+        },
+        {
+          "coord1": [
+            4,
+            6
+          ],
+          "coord2": [
+            4,
+            7
+          ],
+          "direction": "horizontal",
+          "colors": [
+            1,
+            4
+          ]
+        },
+        {
+          "coord1": [
+            5,
+            0
+          ],
+          "coord2": [
+            5,
+            1
+          ],
+          "direction": "horizontal",
+          "colors": [
+            3,
+            1
+          ]
+        },
+        {
+          "coord1": [
+            5,
+            3
+          ],
+          "coord2": [
+            5,
+            4
+          ],
+          "direction": "horizontal",
+          "colors": [
+            3,
+            1
+          ]
+        },
+        {
+          "coord1": [
+            5,
+            4
+          ],
+          "coord2": [
+            5,
+            5
+          ],
+          "direction": "horizontal",
+          "colors": [
+            1,
+            3
+          ]
+        },
+        {
+          "coord1": [
+            7,
+            3
+          ],
+          "coord2": [
+            7,
+            4
+          ],
+          "direction": "horizontal",
+          "colors": [
+            1,
+            2
+          ]
+        }
+      ],
+      "vertical_matches": [
+        {
+          "coord1": [
+            0,
+            1
+          ],
+          "coord2": [
+            1,
+            1
+          ],
+          "direction": "vertical",
+          "colors": [
+            3,
+            1
+          ]
+        },
+        {
+          "coord1": [
+            0,
+            5
+          ],
+          "coord2": [
+            1,
+            5
+          ],
+          "direction": "vertical",
+          "colors": [
+            3,
+            4
+          ]
+        },
+        {
+          "coord1": [
+            0,
+            6
+          ],
+          "coord2": [
+            1,
+            6
+          ],
+          "direction": "vertical",
+          "colors": [
+            4,
+            3
+          ]
+        },
+        {
+          "coord1": [
+            2,
+            0
+          ],
+          "coord2": [
+            3,
+            0
+          ],
+          "direction": "vertical",
+          "colors": [
+            1,
+            3
+          ]
+        },
+        {
+          "coord1": [
+            2,
+            2
+          ],
+          "coord2": [
+            3,
+            2
+          ],
+          "direction": "vertical",
+          "colors": [
+            3,
+            1
+          ]
+        },
+        {
+          "coord1": [
+            2,
+            3
+          ],
+          "coord2": [
+            3,
+            3
+          ],
+          "direction": "vertical",
+          "colors": [
+            4,
+            2
+          ]
+        },
+        {
+          "coord1": [
+            4,
+            0
+          ],
+          "coord2": [
+            5,
+            0
+          ],
+          "direction": "vertical",
+          "colors": [
+            4,
+            3
+          ]
+        },
+        {
+          "coord1": [
+            4,
+            6
+          ],
+          "coord2": [
+            5,
+            6
+          ],
+          "direction": "vertical",
+          "colors": [
+            1,
+            3
+          ]
+        },
+        {
+          "coord1": [
+            4,
+            7
+          ],
+          "coord2": [
+            5,
+            7
+          ],
+          "direction": "vertical",
+          "colors": [
+            4,
+            2
+          ]
+        },
+        {
+          "coord1": [
+            5,
+            4
+          ],
+          "coord2": [
+            6,
+            4
+          ],
+          "direction": "vertical",
+          "colors": [
+            1,
+            3
+          ]
+        }
+      ],
+      "potential_matches": [
+        {
+          "coord1": [
+            0,
+            2
+          ],
+          "coord2": [
+            0,
+            3
+          ],
+          "direction": "horizontal",
+          "colors": [
+            3,
+            2
+          ]
+        },
+        {
+          "coord1": [
+            0,
+            3
+          ],
+          "coord2": [
+            0,
+            4
+          ],
+          "direction": "horizontal",
+          "colors": [
+            2,
+            3
+          ]
+        },
+        {
+          "coord1": [
+            1,
+            0
+          ],
+          "coord2": [
+            1,
+            1
+          ],
+          "direction": "horizontal",
+          "colors": [
+            4,
+            1
+          ]
+        },
+        {
+          "coord1": [
+            1,
+            4
+          ],
+          "coord2": [
+            1,
+            5
+          ],
+          "direction": "horizontal",
+          "colors": [
+            1,
+            4
+          ]
+        },
+        {
+          "coord1": [
+            2,
+            3
+          ],
+          "coord2": [
+            2,
+            4
+          ],
+          "direction": "horizontal",
+          "colors": [
+            4,
+            2
+          ]
+        },
+        {
+          "coord1": [
+            2,
+            6
+          ],
+          "coord2": [
+            2,
+            7
+          ],
+          "direction": "horizontal",
+          "colors": [
+            1,
+            2
+          ]
+        },
+        {
+          "coord1": [
+            3,
+            3
+          ],
+          "coord2": [
+            3,
+            4
+          ],
+          "direction": "horizontal",
+          "colors": [
+            2,
+            4
+          ]
+        },
+        {
+          "coord1": [
+            3,
+            5
+          ],
+          "coord2": [
+            3,
+            6
+          ],
+          "direction": "horizontal",
+          "colors": [
+            1,
+            3
+          ]
+        },
+        {
+          "coord1": [
+            4,
+            2
+          ],
+          "coord2": [
+            4,
+            3
+          ],
+          "direction": "horizontal",
+          "colors": [
+            4,
+            2
+          ]
+        },
+        {
+          "coord1": [
+            4,
+            6
+          ],
+          "coord2": [
+            4,
+            7
+          ],
+          "direction": "horizontal",
+          "colors": [
+            1,
+            4
+          ]
+        },
+        {
+          "coord1": [
+            5,
+            0
+          ],
+          "coord2": [
+            5,
+            1
+          ],
+          "direction": "horizontal",
+          "colors": [
+            3,
+            1
+          ]
+        },
+        {
+          "coord1": [
+            5,
+            3
+          ],
+          "coord2": [
+            5,
+            4
+          ],
+          "direction": "horizontal",
+          "colors": [
+            3,
+            1
+          ]
+        },
+        {
+          "coord1": [
+            5,
+            4
+          ],
+          "coord2": [
+            5,
+            5
+          ],
+          "direction": "horizontal",
+          "colors": [
+            1,
+            3
+          ]
+        },
+        {
+          "coord1": [
+            7,
+            3
+          ],
+          "coord2": [
+            7,
+            4
+          ],
+          "direction": "horizontal",
+          "colors": [
+            1,
+            2
+          ]
+        },
+        {
+          "coord1": [
+            0,
+            1
+          ],
+          "coord2": [
+            1,
+            1
+          ],
+          "direction": "vertical",
+          "colors": [
+            3,
+            1
+          ]
+        },
+        {
+          "coord1": [
+            0,
+            5
+          ],
+          "coord2": [
+            1,
+            5
+          ],
+          "direction": "vertical",
+          "colors": [
+            3,
+            4
+          ]
+        },
+        {
+          "coord1": [
+            0,
+            6
+          ],
+          "coord2": [
+            1,
+            6
+          ],
+          "direction": "vertical",
+          "colors": [
+            4,
+            3
+          ]
+        },
+        {
+          "coord1": [
+            2,
+            0
+          ],
+          "coord2": [
+            3,
+            0
+          ],
+          "direction": "vertical",
+          "colors": [
+            1,
+            3
+          ]
+        },
+        {
+          "coord1": [
+            2,
+            2
+          ],
+          "coord2": [
+            3,
+            2
+          ],
+          "direction": "vertical",
+          "colors": [
+            3,
+            1
+          ]
+        },
+        {
+          "coord1": [
+            2,
+            3
+          ],
+          "coord2": [
+            3,
+            3
+          ],
+          "direction": "vertical",
+          "colors": [
+            4,
+            2
+          ]
+        },
+        {
+          "coord1": [
+            4,
+            0
+          ],
+          "coord2": [
+            5,
+            0
+          ],
+          "direction": "vertical",
+          "colors": [
+            4,
+            3
+          ]
+        },
+        {
+          "coord1": [
+            4,
+            6
+          ],
+          "coord2": [
+            5,
+            6
+          ],
+          "direction": "vertical",
+          "colors": [
+            1,
+            3
+          ]
+        },
+        {
+          "coord1": [
+            4,
+            7
+          ],
+          "coord2": [
+            5,
+            7
+          ],
+          "direction": "vertical",
+          "colors": [
+            4,
+            2
+          ]
+        },
+        {
+          "coord1": [
+            5,
+            4
+          ],
+          "coord2": [
+            6,
+            4
+          ],
+          "direction": "vertical",
+          "colors": [
+            1,
+            3
+          ]
+        }
+      ],
+      "num_potential_matches": 24
+    },
+    "last_action": [
+      [
+        3,
+        4
+      ],
+      [
+        3,
+        5
+      ]
+    ],
+    "reflection": "Swapping (3,4) with (3,5) dropped a 2 into column 5, completing a vertical run of four 2\u2019s (rows 2-5). Those candies vanished and the refill shifted counts (2\u2019s \u22124, 3\u2019s +2, 1\u2019s +1). Good move: it scored immediately and scrambled the centre columns, raising available potentials from 18 to 24.\n\nThe board is now rich in \u201ctwo-in-a-row\u201d setups\u2014especially columns 1, 4, 6 and rows 0, 5. Look for swaps that extend these into triples, or aim to line four identical colors to earn a striped candy. Central columns remain the most promising zone for cascade-friendly matches."
+  },
+  {
+    "timestamp": 1746600009.0333483,
+    "game_state": {
+      "board": [
+        [
+          1,
+          2,
+          4,
+          1,
+          3,
+          3,
+          4,
+          1
+        ],
+        [
+          4,
+          4,
+          3,
+          2,
+          1,
+          4,
+          3,
+          3
+        ],
+        [
+          1,
+          3,
+          3,
+          4,
+          2,
+          2,
+          1,
+          2
+        ],
+        [
+          3,
+          3,
+          1,
+          2,
+          4,
+          1,
+          3,
+          2
+        ],
+        [
+          4,
+          2,
+          4,
+          2,
+          4,
+          4,
+          1,
+          4
+        ],
+        [
+          3,
+          1,
+          3,
+          3,
+          1,
+          3,
+          3,
+          2
+        ],
+        [
+          4,
+          1,
+          2,
+          4,
+          3,
+          1,
+          1,
+          4
+        ],
+        [
+          4,
+          3,
+          3,
+          1,
+          2,
+          1,
+          1,
+          4
+        ]
+      ],
+      "board_shape": [
+        8,
+        8
+      ],
+      "empty_spaces": [],
+      "num_empty_spaces": 0,
+      "highest_color": 4,
+      "color_counts": {
+        "1": 17,
+        "2": 12,
+        "3": 18,
+        "4": 17
+      },
+      "horizontal_matches": [
+        {
+          "coord1": [
+            1,
+            1
+          ],
+          "coord2": [
+            1,
+            2
+          ],
+          "direction": "horizontal",
+          "colors": [
+            4,
+            3
+          ]
+        },
+        {
+          "coord1": [
+            2,
+            3
+          ],
+          "coord2": [
+            2,
+            4
+          ],
+          "direction": "horizontal",
+          "colors": [
+            4,
+            2
+          ]
+        },
+        {
+          "coord1": [
+            2,
+            6
+          ],
+          "coord2": [
+            2,
+            7
+          ],
+          "direction": "horizontal",
+          "colors": [
+            1,
+            2
+          ]
+        },
+        {
+          "coord1": [
+            3,
+            1
+          ],
+          "coord2": [
+            3,
+            2
+          ],
+          "direction": "horizontal",
+          "colors": [
+            3,
+            1
+          ]
+        },
+        {
+          "coord1": [
+            3,
+            5
+          ],
+          "coord2": [
+            3,
+            6
+          ],
+          "direction": "horizontal",
+          "colors": [
+            1,
+            3
+          ]
+        },
+        {
+          "coord1": [
+            4,
+            2
+          ],
+          "coord2": [
+            4,
+            3
+          ],
+          "direction": "horizontal",
+          "colors": [
+            4,
+            2
+          ]
+        },
+        {
+          "coord1": [
+            4,
+            6
+          ],
+          "coord2": [
+            4,
+            7
+          ],
+          "direction": "horizontal",
+          "colors": [
+            1,
+            4
+          ]
+        },
+        {
+          "coord1": [
+            5,
+            0
+          ],
+          "coord2": [
+            5,
+            1
+          ],
+          "direction": "horizontal",
+          "colors": [
+            3,
+            1
+          ]
+        },
+        {
+          "coord1": [
+            5,
+            3
+          ],
+          "coord2": [
+            5,
+            4
+          ],
+          "direction": "horizontal",
+          "colors": [
+            3,
+            1
+          ]
+        },
+        {
+          "coord1": [
+            5,
+            4
+          ],
+          "coord2": [
+            5,
+            5
+          ],
+          "direction": "horizontal",
+          "colors": [
+            1,
+            3
+          ]
+        },
+        {
+          "coord1": [
+            7,
+            3
+          ],
+          "coord2": [
+            7,
+            4
+          ],
+          "direction": "horizontal",
+          "colors": [
+            1,
+            2
+          ]
+        }
+      ],
+      "vertical_matches": [
+        {
+          "coord1": [
+            0,
+            2
+          ],
+          "coord2": [
+            1,
+            2
+          ],
+          "direction": "vertical",
+          "colors": [
+            4,
+            3
+          ]
+        },
+        {
+          "coord1": [
+            0,
+            5
+          ],
+          "coord2": [
+            1,
+            5
+          ],
+          "direction": "vertical",
+          "colors": [
+            3,
+            4
+          ]
+        },
+        {
+          "coord1": [
+            0,
+            6
+          ],
+          "coord2": [
+            1,
+            6
+          ],
+          "direction": "vertical",
+          "colors": [
+            4,
+            3
+          ]
+        },
+        {
+          "coord1": [
+            1,
+            3
+          ],
+          "coord2": [
+            2,
+            3
+          ],
+          "direction": "vertical",
+          "colors": [
+            2,
+            4
+          ]
+        },
+        {
+          "coord1": [
+            2,
+            0
+          ],
+          "coord2": [
+            3,
+            0
+          ],
+          "direction": "vertical",
+          "colors": [
+            1,
+            3
+          ]
+        },
+        {
+          "coord1": [
+            2,
+            2
+          ],
+          "coord2": [
+            3,
+            2
+          ],
+          "direction": "vertical",
+          "colors": [
+            3,
+            1
+          ]
+        },
+        {
+          "coord1": [
+            2,
+            3
+          ],
+          "coord2": [
+            3,
+            3
+          ],
+          "direction": "vertical",
+          "colors": [
+            4,
+            2
+          ]
+        },
+        {
+          "coord1": [
+            4,
+            0
+          ],
+          "coord2": [
+            5,
+            0
+          ],
+          "direction": "vertical",
+          "colors": [
+            4,
+            3
+          ]
+        },
+        {
+          "coord1": [
+            4,
+            6
+          ],
+          "coord2": [
+            5,
+            6
+          ],
+          "direction": "vertical",
+          "colors": [
+            1,
+            3
+          ]
+        },
+        {
+          "coord1": [
+            4,
+            7
+          ],
+          "coord2": [
+            5,
+            7
+          ],
+          "direction": "vertical",
+          "colors": [
+            4,
+            2
+          ]
+        },
+        {
+          "coord1": [
+            5,
+            4
+          ],
+          "coord2": [
+            6,
+            4
+          ],
+          "direction": "vertical",
+          "colors": [
+            1,
+            3
+          ]
+        }
+      ],
+      "potential_matches": [
+        {
+          "coord1": [
+            1,
+            1
+          ],
+          "coord2": [
+            1,
+            2
+          ],
+          "direction": "horizontal",
+          "colors": [
+            4,
+            3
+          ]
+        },
+        {
+          "coord1": [
+            2,
+            3
+          ],
+          "coord2": [
+            2,
+            4
+          ],
+          "direction": "horizontal",
+          "colors": [
+            4,
+            2
+          ]
+        },
+        {
+          "coord1": [
+            2,
+            6
+          ],
+          "coord2": [
+            2,
+            7
+          ],
+          "direction": "horizontal",
+          "colors": [
+            1,
+            2
+          ]
+        },
+        {
+          "coord1": [
+            3,
+            1
+          ],
+          "coord2": [
+            3,
+            2
+          ],
+          "direction": "horizontal",
+          "colors": [
+            3,
+            1
+          ]
+        },
+        {
+          "coord1": [
+            3,
+            5
+          ],
+          "coord2": [
+            3,
+            6
+          ],
+          "direction": "horizontal",
+          "colors": [
+            1,
+            3
+          ]
+        },
+        {
+          "coord1": [
+            4,
+            2
+          ],
+          "coord2": [
+            4,
+            3
+          ],
+          "direction": "horizontal",
+          "colors": [
+            4,
+            2
+          ]
+        },
+        {
+          "coord1": [
+            4,
+            6
+          ],
+          "coord2": [
+            4,
+            7
+          ],
+          "direction": "horizontal",
+          "colors": [
+            1,
+            4
+          ]
+        },
+        {
+          "coord1": [
+            5,
+            0
+          ],
+          "coord2": [
+            5,
+            1
+          ],
+          "direction": "horizontal",
+          "colors": [
+            3,
+            1
+          ]
+        },
+        {
+          "coord1": [
+            5,
+            3
+          ],
+          "coord2": [
+            5,
+            4
+          ],
+          "direction": "horizontal",
+          "colors": [
+            3,
+            1
+          ]
+        },
+        {
+          "coord1": [
+            5,
+            4
+          ],
+          "coord2": [
+            5,
+            5
+          ],
+          "direction": "horizontal",
+          "colors": [
+            1,
+            3
+          ]
+        },
+        {
+          "coord1": [
+            7,
+            3
+          ],
+          "coord2": [
+            7,
+            4
+          ],
+          "direction": "horizontal",
+          "colors": [
+            1,
+            2
+          ]
+        },
+        {
+          "coord1": [
+            0,
+            2
+          ],
+          "coord2": [
+            1,
+            2
+          ],
+          "direction": "vertical",
+          "colors": [
+            4,
+            3
+          ]
+        },
+        {
+          "coord1": [
+            0,
+            5
+          ],
+          "coord2": [
+            1,
+            5
+          ],
+          "direction": "vertical",
+          "colors": [
+            3,
+            4
+          ]
+        },
+        {
+          "coord1": [
+            0,
+            6
+          ],
+          "coord2": [
+            1,
+            6
+          ],
+          "direction": "vertical",
+          "colors": [
+            4,
+            3
+          ]
+        },
+        {
+          "coord1": [
+            1,
+            3
+          ],
+          "coord2": [
+            2,
+            3
+          ],
+          "direction": "vertical",
+          "colors": [
+            2,
+            4
+          ]
+        },
+        {
+          "coord1": [
+            2,
+            0
+          ],
+          "coord2": [
+            3,
+            0
+          ],
+          "direction": "vertical",
+          "colors": [
+            1,
+            3
+          ]
+        },
+        {
+          "coord1": [
+            2,
+            2
+          ],
+          "coord2": [
+            3,
+            2
+          ],
+          "direction": "vertical",
+          "colors": [
+            3,
+            1
+          ]
+        },
+        {
+          "coord1": [
+            2,
+            3
+          ],
+          "coord2": [
+            3,
+            3
+          ],
+          "direction": "vertical",
+          "colors": [
+            4,
+            2
+          ]
+        },
+        {
+          "coord1": [
+            4,
+            0
+          ],
+          "coord2": [
+            5,
+            0
+          ],
+          "direction": "vertical",
+          "colors": [
+            4,
+            3
+          ]
+        },
+        {
+          "coord1": [
+            4,
+            6
+          ],
+          "coord2": [
+            5,
+            6
+          ],
+          "direction": "vertical",
+          "colors": [
+            1,
+            3
+          ]
+        },
+        {
+          "coord1": [
+            4,
+            7
+          ],
+          "coord2": [
+            5,
+            7
+          ],
+          "direction": "vertical",
+          "colors": [
+            4,
+            2
+          ]
+        },
+        {
+          "coord1": [
+            5,
+            4
+          ],
+          "coord2": [
+            6,
+            4
+          ],
+          "direction": "vertical",
+          "colors": [
+            1,
+            3
+          ]
+        }
+      ],
+      "num_potential_matches": 22
+    },
+    "last_action": [
+      [
+        1,
+        0
+      ],
+      [
+        1,
+        1
+      ]
+    ],
+    "reflection": "Swapping (1,0)-(1,1) turned 4-1-4-4 into 1-4-4-4, clearing a horizontal trio of 4s. The row refilled, colour totals re-balanced, and potential moves dropped from 24 to 22\u2014proof the move was productive but didn\u2019t open large cascades. The board now holds only two-in-a-row \u201calmosts\u201d, e.g. (2,3-4), (3,5-6), (4,2-3) and vertical setups in columns 2, 5 and 6. Focus next on the column-3/4 cluster: several horizontal and vertical pairs converge there, so a well-placed swap could yield another triple and possibly chain reactions that loosen the still-crowded lower rows."
+  },
+  {
+    "timestamp": 1746600586.8100433,
+    "game_state": {
+      "board": [
+        [
+          4,
+          2,
+          1,
+          2,
+          2,
+          3,
+          4,
+          1
+        ],
+        [
+          1,
+          2,
+          1,
+          3,
+          1,
+          4,
+          3,
+          3
+        ],
+        [
+          1,
+          3,
+          3,
+          4,
+          2,
+          2,
+          1,
+          2
+        ],
+        [
+          3,
+          3,
+          1,
+          2,
+          3,
+          1,
+          3,
+          2
+        ],
+        [
+          4,
+          2,
+          4,
+          1,
+          1,
+          4,
+          1,
+          4
+        ],
+        [
+          3,
+          1,
+          3,
+          3,
+          1,
+          3,
+          3,
+          2
+        ],
+        [
+          4,
+          1,
+          2,
+          4,
+          3,
+          1,
+          1,
+          4
+        ],
+        [
+          4,
+          3,
+          3,
+          1,
+          2,
+          1,
+          1,
+          4
+        ]
+      ],
+      "board_shape": [
+        8,
+        8
+      ],
+      "empty_spaces": [],
+      "num_empty_spaces": 0,
+      "highest_color": 4,
+      "color_counts": {
+        "1": 20,
+        "2": 13,
+        "3": 18,
+        "4": 13
+      },
+      "horizontal_matches": [
+        {
+          "coord1": [
+            0,
+            1
+          ],
+          "coord2": [
+            0,
+            2
+          ],
+          "direction": "horizontal",
+          "colors": [
+            2,
+            1
+          ]
+        },
+        {
+          "coord1": [
+            2,
+            6
+          ],
+          "coord2": [
+            2,
+            7
+          ],
+          "direction": "horizontal",
+          "colors": [
+            1,
+            2
+          ]
+        },
+        {
+          "coord1": [
+            3,
+            4
+          ],
+          "coord2": [
+            3,
+            5
+          ],
+          "direction": "horizontal",
+          "colors": [
+            3,
+            1
+          ]
+        },
+        {
+          "coord1": [
+            3,
+            5
+          ],
+          "coord2": [
+            3,
+            6
+          ],
+          "direction": "horizontal",
+          "colors": [
+            1,
+            3
+          ]
+        },
+        {
+          "coord1": [
+            4,
+            5
+          ],
+          "coord2": [
+            4,
+            6
+          ],
+          "direction": "horizontal",
+          "colors": [
+            4,
+            1
+          ]
+        },
+        {
+          "coord1": [
+            5,
+            0
+          ],
+          "coord2": [
+            5,
+            1
+          ],
+          "direction": "horizontal",
+          "colors": [
+            3,
+            1
+          ]
+        },
+        {
+          "coord1": [
+            5,
+            3
+          ],
+          "coord2": [
+            5,
+            4
+          ],
+          "direction": "horizontal",
+          "colors": [
+            3,
+            1
+          ]
+        },
+        {
+          "coord1": [
+            5,
+            4
+          ],
+          "coord2": [
+            5,
+            5
+          ],
+          "direction": "horizontal",
+          "colors": [
+            1,
+            3
+          ]
+        },
+        {
+          "coord1": [
+            6,
+            4
+          ],
+          "coord2": [
+            6,
+            5
+          ],
+          "direction": "horizontal",
+          "colors": [
+            3,
+            1
+          ]
+        },
+        {
+          "coord1": [
+            7,
+            3
+          ],
+          "coord2": [
+            7,
+            4
+          ],
+          "direction": "horizontal",
+          "colors": [
+            1,
+            2
+          ]
+        }
+      ],
+      "vertical_matches": [
+        {
+          "coord1": [
+            0,
+            5
+          ],
+          "coord2": [
+            1,
+            5
+          ],
+          "direction": "vertical",
+          "colors": [
+            3,
+            4
+          ]
+        },
+        {
+          "coord1": [
+            1,
+            3
+          ],
+          "coord2": [
+            2,
+            3
+          ],
+          "direction": "vertical",
+          "colors": [
+            3,
+            4
+          ]
+        },
+        {
+          "coord1": [
+            2,
+            0
+          ],
+          "coord2": [
+            3,
+            0
+          ],
+          "direction": "vertical",
+          "colors": [
+            1,
+            3
+          ]
+        },
+        {
+          "coord1": [
+            2,
+            2
+          ],
+          "coord2": [
+            3,
+            2
+          ],
+          "direction": "vertical",
+          "colors": [
+            3,
+            1
+          ]
+        },
+        {
+          "coord1": [
+            2,
+            3
+          ],
+          "coord2": [
+            3,
+            3
+          ],
+          "direction": "vertical",
+          "colors": [
+            4,
+            2
+          ]
+        },
+        {
+          "coord1": [
+            3,
+            2
+          ],
+          "coord2": [
+            4,
+            2
+          ],
+          "direction": "vertical",
+          "colors": [
+            1,
+            4
+          ]
+        },
+        {
+          "coord1": [
+            3,
+            5
+          ],
+          "coord2": [
+            4,
+            5
+          ],
+          "direction": "vertical",
+          "colors": [
+            1,
+            4
+          ]
+        },
+        {
+          "coord1": [
+            4,
+            0
+          ],
+          "coord2": [
+            5,
+            0
+          ],
+          "direction": "vertical",
+          "colors": [
+            4,
+            3
+          ]
+        },
+        {
+          "coord1": [
+            4,
+            6
+          ],
+          "coord2": [
+            5,
+            6
+          ],
+          "direction": "vertical",
+          "colors": [
+            1,
+            3
+          ]
+        },
+        {
+          "coord1": [
+            4,
+            7
+          ],
+          "coord2": [
+            5,
+            7
+          ],
+          "direction": "vertical",
+          "colors": [
+            4,
+            2
+          ]
+        },
+        {
+          "coord1": [
+            5,
+            4
+          ],
+          "coord2": [
+            6,
+            4
+          ],
+          "direction": "vertical",
+          "colors": [
+            1,
+            3
+          ]
+        }
+      ],
+      "potential_matches": [
+        {
+          "coord1": [
+            0,
+            1
+          ],
+          "coord2": [
+            0,
+            2
+          ],
+          "direction": "horizontal",
+          "colors": [
+            2,
+            1
+          ]
+        },
+        {
+          "coord1": [
+            2,
+            6
+          ],
+          "coord2": [
+            2,
+            7
+          ],
+          "direction": "horizontal",
+          "colors": [
+            1,
+            2
+          ]
+        },
+        {
+          "coord1": [
+            3,
+            4
+          ],
+          "coord2": [
+            3,
+            5
+          ],
+          "direction": "horizontal",
+          "colors": [
+            3,
+            1
+          ]
+        },
+        {
+          "coord1": [
+            3,
+            5
+          ],
+          "coord2": [
+            3,
+            6
+          ],
+          "direction": "horizontal",
+          "colors": [
+            1,
+            3
+          ]
+        },
+        {
+          "coord1": [
+            4,
+            5
+          ],
+          "coord2": [
+            4,
+            6
+          ],
+          "direction": "horizontal",
+          "colors": [
+            4,
+            1
+          ]
+        },
+        {
+          "coord1": [
+            5,
+            0
+          ],
+          "coord2": [
+            5,
+            1
+          ],
+          "direction": "horizontal",
+          "colors": [
+            3,
+            1
+          ]
+        },
+        {
+          "coord1": [
+            5,
+            3
+          ],
+          "coord2": [
+            5,
+            4
+          ],
+          "direction": "horizontal",
+          "colors": [
+            3,
+            1
+          ]
+        },
+        {
+          "coord1": [
+            5,
+            4
+          ],
+          "coord2": [
+            5,
+            5
+          ],
+          "direction": "horizontal",
+          "colors": [
+            1,
+            3
+          ]
+        },
+        {
+          "coord1": [
+            6,
+            4
+          ],
+          "coord2": [
+            6,
+            5
+          ],
+          "direction": "horizontal",
+          "colors": [
+            3,
+            1
+          ]
+        },
+        {
+          "coord1": [
+            7,
+            3
+          ],
+          "coord2": [
+            7,
+            4
+          ],
+          "direction": "horizontal",
+          "colors": [
+            1,
+            2
+          ]
+        },
+        {
+          "coord1": [
+            0,
+            5
+          ],
+          "coord2": [
+            1,
+            5
+          ],
+          "direction": "vertical",
+          "colors": [
+            3,
+            4
+          ]
+        },
+        {
+          "coord1": [
+            1,
+            3
+          ],
+          "coord2": [
+            2,
+            3
+          ],
+          "direction": "vertical",
+          "colors": [
+            3,
+            4
+          ]
+        },
+        {
+          "coord1": [
+            2,
+            0
+          ],
+          "coord2": [
+            3,
+            0
+          ],
+          "direction": "vertical",
+          "colors": [
+            1,
+            3
+          ]
+        },
+        {
+          "coord1": [
+            2,
+            2
+          ],
+          "coord2": [
+            3,
+            2
+          ],
+          "direction": "vertical",
+          "colors": [
+            3,
+            1
+          ]
+        },
+        {
+          "coord1": [
+            2,
+            3
+          ],
+          "coord2": [
+            3,
+            3
+          ],
+          "direction": "vertical",
+          "colors": [
+            4,
+            2
+          ]
+        },
+        {
+          "coord1": [
+            3,
+            2
+          ],
+          "coord2": [
+            4,
+            2
+          ],
+          "direction": "vertical",
+          "colors": [
+            1,
+            4
+          ]
+        },
+        {
+          "coord1": [
+            3,
+            5
+          ],
+          "coord2": [
+            4,
+            5
+          ],
+          "direction": "vertical",
+          "colors": [
+            1,
+            4
+          ]
+        },
+        {
+          "coord1": [
+            4,
+            0
+          ],
+          "coord2": [
+            5,
+            0
+          ],
+          "direction": "vertical",
+          "colors": [
+            4,
+            3
+          ]
+        },
+        {
+          "coord1": [
+            4,
+            6
+          ],
+          "coord2": [
+            5,
+            6
+          ],
+          "direction": "vertical",
+          "colors": [
+            1,
+            3
+          ]
+        },
+        {
+          "coord1": [
+            4,
+            7
+          ],
+          "coord2": [
+            5,
+            7
+          ],
+          "direction": "vertical",
+          "colors": [
+            4,
+            2
+          ]
+        },
+        {
+          "coord1": [
+            5,
+            4
+          ],
+          "coord2": [
+            6,
+            4
+          ],
+          "direction": "vertical",
+          "colors": [
+            1,
+            3
+          ]
+        }
+      ],
+      "num_potential_matches": 21
+    },
+    "last_action": [
+      [
+        2,
+        3
+      ],
+      [
+        2,
+        4
+      ]
+    ],
+    "reflection": "The swap at (2,3) \u2194 (2,4) did little: the row reverted to its original 4-2 order, no three-in-a-row formed, and overall potential matches dropped from 22 to 21. Color 1s rose while 4s fell, but the board still has only two-in-a-row \u201cnear-misses.\u201d Good openings remain: \n\u2022 Row 3/col 5\u20136 (1\u20133) or row 4/col 5\u20136 (4\u20131) can be finished with a neighboring swap.  \n\u2022 Several vertical 2-chains (e.g., col 5) are one move from completion.  \nNext move should target one of these to finally clear candies and trigger cascades."
+  }
+]

@@ -1,0 +1,1015 @@
+{
+  "o4-mini-2025-04-16": {
+    "runs": [
+      {
+        "run": 1,
+        "accuracy": 0.1,
+        "correct": 1,
+        "total": 10,
+        "prediction": [
+          "J",
+          "C",
+          "F",
+          "N",
+          "G",
+          "D",
+          "K",
+          "M",
+          "H",
+          "P"
+        ]
+      },
+      {
+        "run": 2,
+        "accuracy": 0.2,
+        "correct": 2,
+        "total": 10,
+        "prediction": [
+          "J",
+          "G",
+          "N",
+          "P",
+          "F",
+          "H",
+          "M",
+          "C",
+          "D",
+          "K"
+        ]
+      },
+      {
+        "run": 3,
+        "accuracy": 0.2,
+        "correct": 2,
+        "total": 10,
+        "prediction": [
+          "J",
+          "C",
+          "K",
+          "M",
+          "N",
+          "H",
+          "F",
+          "D",
+          "G",
+          "P"
+        ]
+      },
+      {
+        "run": 4,
+        "accuracy": 0.2,
+        "correct": 2,
+        "total": 10,
+        "prediction": [
+          "J",
+          "C",
+          "G",
+          "H",
+          "F",
+          "P",
+          "N",
+          "D",
+          "K",
+          "M"
+        ]
+      },
+      {
+        "run": 5,
+        "accuracy": 0.2,
+        "correct": 2,
+        "total": 10,
+        "prediction": [
+          "J",
+          "C",
+          "K",
+          "D",
+          "N",
+          "G",
+          "F",
+          "M",
+          "P",
+          "H"
+        ]
+      },
+      {
+        "run": 6,
+        "accuracy": 0.2,
+        "correct": 2,
+        "total": 10,
+        "prediction": [
+          "J",
+          "F",
+          "C",
+          "G",
+          "H",
+          "K",
+          "D",
+          "M",
+          "P",
+          "N"
+        ]
+      },
+      {
+        "run": 7,
+        "accuracy": 0.3,
+        "correct": 3,
+        "total": 10,
+        "prediction": [
+          "J",
+          "C",
+          "G",
+          "H",
+          "P",
+          "N",
+          "F",
+          "M",
+          "D",
+          "K"
+        ]
+      },
+      {
+        "run": 8,
+        "accuracy": 0.1,
+        "correct": 1,
+        "total": 10,
+        "prediction": [
+          "J",
+          "G",
+          "N",
+          "D",
+          "F",
+          "K",
+          "H",
+          "M",
+          "C",
+          "P"
+        ]
+      },
+      {
+        "run": 9,
+        "accuracy": 0.3,
+        "correct": 3,
+        "total": 10,
+        "prediction": [
+          "J",
+          "C",
+          "G",
+          "P",
+          "F",
+          "N",
+          "M",
+          "H",
+          "K",
+          "D"
+        ]
+      }
+    ],
+    "average_accuracy": 0.2,
+    "total_runs": 9,
+    "successful_runs": 9
+  },
+  "o3-2025-04-16": {
+    "runs": [
+      {
+        "run": 1,
+        "accuracy": 0.2,
+        "correct": 2,
+        "total": 10,
+        "prediction": [
+          "J",
+          "C",
+          "P",
+          "F",
+          "K",
+          "N",
+          "G",
+          "H",
+          "M",
+          "D"
+        ]
+      },
+      {
+        "run": 2,
+        "accuracy": 0.5,
+        "correct": 5,
+        "total": 10,
+        "prediction": [
+          "J",
+          "N",
+          "H",
+          "G",
+          "F",
+          "K",
+          "C",
+          "P",
+          "M",
+          "D"
+        ]
+      },
+      {
+        "run": 3,
+        "accuracy": 0.3,
+        "correct": 3,
+        "total": 10,
+        "prediction": [
+          "J",
+          "N",
+          "G",
+          "F",
+          "H",
+          "K",
+          "C",
+          "M",
+          "P",
+          "D"
+        ]
+      },
+      {
+        "run": 4,
+        "accuracy": 0.3,
+        "correct": 3,
+        "total": 10,
+        "prediction": [
+          "J",
+          "C",
+          "P",
+          "N",
+          "G",
+          "H",
+          "F",
+          "D",
+          "K",
+          "M"
+        ]
+      },
+      {
+        "run": 5,
+        "accuracy": 0.3,
+        "correct": 3,
+        "total": 10,
+        "prediction": [
+          "J",
+          "N",
+          "C",
+          "H",
+          "G",
+          "P",
+          "K",
+          "M",
+          "F",
+          "D"
+        ]
+      },
+      {
+        "run": 6,
+        "accuracy": 0.2,
+        "correct": 2,
+        "total": 10,
+        "prediction": [
+          "J",
+          "C",
+          "F",
+          "G",
+          "N",
+          "H",
+          "D",
+          "P",
+          "M",
+          "K"
+        ]
+      },
+      {
+        "run": 7,
+        "accuracy": 0.3,
+        "correct": 3,
+        "total": 10,
+        "prediction": [
+          "J",
+          "N",
+          "C",
+          "G",
+          "H",
+          "K",
+          "D",
+          "F",
+          "M",
+          "P"
+        ]
+      },
+      {
+        "run": 8,
+        "accuracy": 0.3,
+        "correct": 3,
+        "total": 10,
+        "prediction": [
+          "J",
+          "F",
+          "C",
+          "H",
+          "G",
+          "N",
+          "M",
+          "P",
+          "K",
+          "D"
+        ]
+      },
+      {
+        "run": 9,
+        "accuracy": 0.3,
+        "correct": 3,
+        "total": 10,
+        "prediction": [
+          "J",
+          "C",
+          "P",
+          "F",
+          "N",
+          "H",
+          "G",
+          "M",
+          "K",
+          "D"
+        ]
+      }
+    ],
+    "average_accuracy": 0.3,
+    "total_runs": 9,
+    "successful_runs": 9
+  },
+  "gemini-2.5-pro-preview-03-25": {
+    "runs": [
+      {
+        "run": 1,
+        "accuracy": 0.3,
+        "correct": 3,
+        "total": 10,
+        "prediction": [
+          "J",
+          "G",
+          "H",
+          "N",
+          "C",
+          "K",
+          "M",
+          "P",
+          "F",
+          "D"
+        ]
+      },
+      {
+        "run": 2,
+        "accuracy": 0.3,
+        "correct": 3,
+        "total": 10,
+        "prediction": [
+          "J",
+          "G",
+          "C",
+          "N",
+          "F",
+          "P",
+          "M",
+          "H",
+          "K",
+          "D"
+        ]
+      },
+      {
+        "run": 3,
+        "accuracy": 0.4,
+        "correct": 4,
+        "total": 10,
+        "prediction": [
+          "J",
+          "C",
+          "N",
+          "G",
+          "M",
+          "P",
+          "F",
+          "K",
+          "H",
+          "D"
+        ]
+      },
+      {
+        "run": 4,
+        "accuracy": 0.3,
+        "correct": 3,
+        "total": 10,
+        "prediction": [
+          "J",
+          "F",
+          "G",
+          "N",
+          "P",
+          "C",
+          "H",
+          "K",
+          "M",
+          "D"
+        ]
+      },
+      {
+        "run": 5,
+        "accuracy": 0.2,
+        "correct": 2,
+        "total": 10,
+        "prediction": [
+          "J",
+          "C",
+          "N",
+          "H",
+          "K",
+          "D",
+          "F",
+          "G",
+          "M",
+          "P"
+        ]
+      },
+      {
+        "run": 6,
+        "accuracy": 0.2,
+        "correct": 2,
+        "total": 10,
+        "prediction": [
+          "J",
+          "C",
+          "P",
+          "N",
+          "H",
+          "G",
+          "F",
+          "K",
+          "D",
+          "M"
+        ]
+      },
+      {
+        "run": 7,
+        "accuracy": 0.2,
+        "correct": 2,
+        "total": 10,
+        "prediction": [
+          "J",
+          "C",
+          "K",
+          "H",
+          "F",
+          "N",
+          "P",
+          "G",
+          "M",
+          "D"
+        ]
+      },
+      {
+        "run": 8,
+        "accuracy": 0.4,
+        "correct": 4,
+        "total": 10,
+        "prediction": [
+          "J",
+          "C",
+          "N",
+          "H",
+          "G",
+          "M",
+          "P",
+          "F",
+          "K",
+          "D"
+        ]
+      },
+      {
+        "run": 9,
+        "accuracy": 0.4,
+        "correct": 4,
+        "total": 10,
+        "prediction": [
+          "J",
+          "N",
+          "P",
+          "F",
+          "H",
+          "G",
+          "C",
+          "M",
+          "K",
+          "D"
+        ]
+      }
+    ],
+    "average_accuracy": 0.3,
+    "total_runs": 9,
+    "successful_runs": 9
+  },
+  "claude-3-7-sonnet-20250219": {
+    "runs": [
+      {
+        "run": 1,
+        "accuracy": 0.1,
+        "correct": 1,
+        "total": 10,
+        "prediction": [
+          "J",
+          "F",
+          "G",
+          "D",
+          "K",
+          "H",
+          "C",
+          "M",
+          "P",
+          "N"
+        ]
+      },
+      {
+        "run": 2,
+        "accuracy": 0.0,
+        "correct": 0,
+        "total": 10,
+        "prediction": [
+          "P",
+          "C",
+          "N",
+          "J",
+          "G",
+          "H",
+          "D",
+          "K",
+          "F",
+          "M"
+        ]
+      },
+      {
+        "run": 3,
+        "accuracy": 0.1,
+        "correct": 1,
+        "total": 10,
+        "prediction": [
+          "J",
+          "D",
+          "G",
+          "F",
+          "K",
+          "H",
+          "C",
+          "N",
+          "P",
+          "M"
+        ]
+      },
+      {
+        "run": 4,
+        "accuracy": 0.2,
+        "correct": 2,
+        "total": 10,
+        "prediction": [
+          "J",
+          "G",
+          "H",
+          "D",
+          "K",
+          "C",
+          "M",
+          "N",
+          "F",
+          "P"
+        ]
+      },
+      {
+        "run": 5,
+        "accuracy": 0.2,
+        "correct": 2,
+        "total": 10,
+        "prediction": [
+          "J",
+          "F",
+          "D",
+          "G",
+          "H",
+          "C",
+          "K",
+          "P",
+          "M",
+          "N"
+        ]
+      },
+      {
+        "run": 6,
+        "accuracy": 0.2,
+        "correct": 2,
+        "total": 10,
+        "prediction": [
+          "J",
+          "F",
+          "G",
+          "D",
+          "K",
+          "H",
+          "N",
+          "C",
+          "P",
+          "M"
+        ]
+      },
+      {
+        "run": 7,
+        "accuracy": 0.1,
+        "correct": 1,
+        "total": 10,
+        "prediction": [
+          "J",
+          "D",
+          "G",
+          "H",
+          "F",
+          "C",
+          "N",
+          "K",
+          "M",
+          "P"
+        ]
+      },
+      {
+        "run": 8,
+        "accuracy": 0.1,
+        "correct": 1,
+        "total": 10,
+        "prediction": [
+          "J",
+          "G",
+          "D",
+          "F",
+          "K",
+          "C",
+          "N",
+          "M",
+          "P"
+        ]
+      },
+      {
+        "run": 9,
+        "accuracy": 0.1,
+        "correct": 1,
+        "total": 10,
+        "prediction": [
+          "J",
+          "G",
+          "D",
+          "K",
+          "H",
+          "C",
+          "P",
+          "F",
+          "N",
+          "M"
+        ]
+      }
+    ],
+    "average_accuracy": 0.12222222222222223,
+    "total_runs": 9,
+    "successful_runs": 9
+  },
+  "Llama-4-Maverick-17B-128E-Instruct-FP8": {
+    "runs": [
+      {
+        "run": 1,
+        "accuracy": 0.3,
+        "correct": 3,
+        "total": 10,
+        "prediction": [
+          "J",
+          "F",
+          "N",
+          "C",
+          "P",
+          "M",
+          "D",
+          "K",
+          "G",
+          "H"
+        ]
+      },
+      {
+        "run": 2,
+        "accuracy": 0.1,
+        "correct": 1,
+        "total": 10,
+        "prediction": [
+          "J",
+          "K",
+          "D",
+          "C",
+          "F",
+          "N",
+          "H",
+          "M",
+          "G",
+          "P"
+        ]
+      },
+      {
+        "run": 3,
+        "accuracy": 0.0,
+        "correct": 0,
+        "total": 10,
+        "prediction": [
+          "D",
+          "K",
+          "C",
+          "F",
+          "N",
+          "P",
+          "H",
+          "G",
+          "M",
+          "J"
+        ]
+      },
+      {
+        "run": 4,
+        "accuracy": 0.3,
+        "correct": 3,
+        "total": 10,
+        "prediction": [
+          "J",
+          "N",
+          "C",
+          "F",
+          "K",
+          "G",
+          "H",
+          "M",
+          "P",
+          "D"
+        ]
+      },
+      {
+        "run": 5,
+        "accuracy": 0.2,
+        "correct": 2,
+        "total": 10,
+        "prediction": [
+          "F",
+          "C",
+          "J",
+          "P",
+          "H",
+          "G",
+          "M",
+          "N",
+          "K",
+          "D"
+        ]
+      },
+      {
+        "run": 6,
+        "accuracy": 0.1,
+        "correct": 1,
+        "total": 10,
+        "prediction": [
+          "G",
+          "H",
+          "J",
+          "P",
+          "M",
+          "C",
+          "F",
+          "K",
+          "D",
+          "N"
+        ]
+      },
+      {
+        "run": 7,
+        "accuracy": 0.1,
+        "correct": 1,
+        "total": 10,
+        "prediction": [
+          "G",
+          "H",
+          "J",
+          "D",
+          "C",
+          "K",
+          "F",
+          "M",
+          "N",
+          "P"
+        ]
+      },
+      {
+        "run": 8,
+        "accuracy": 0.0,
+        "correct": 0,
+        "total": 10,
+        "prediction": [
+          "D",
+          "K",
+          "C",
+          "M",
+          "H",
+          "J",
+          "G",
+          "F",
+          "P",
+          "N"
+        ]
+      },
+      {
+        "run": 9,
+        "accuracy": 0.1,
+        "correct": 1,
+        "total": 10,
+        "prediction": [
+          "C",
+          "N",
+          "P",
+          "F",
+          "M",
+          "J",
+          "H",
+          "G",
+          "D",
+          "K"
+        ]
+      }
+    ],
+    "average_accuracy": 0.13333333333333336,
+    "total_runs": 9,
+    "successful_runs": 9
+  },
+  "claude-3-5-sonnet-20241022": {
+    "runs": [
+      {
+        "run": 1,
+        "accuracy": 0.3,
+        "correct": 3,
+        "total": 10,
+        "prediction": [
+          "J",
+          "F",
+          "H",
+          "G",
+          "D",
+          "K",
+          "C",
+          "N",
+          "M",
+          "P"
+        ]
+      },
+      {
+        "run": 2,
+        "accuracy": 0.0,
+        "correct": 0,
+        "total": 10,
+        "prediction": [
+          "D",
+          "K",
+          "C",
+          "F",
+          "G",
+          "H",
+          "J",
+          "N",
+          "M",
+          "P"
+        ]
+      },
+      {
+        "run": 3,
+        "accuracy": 0.2,
+        "correct": 2,
+        "total": 10,
+        "prediction": [
+          "J",
+          "G",
+          "H",
+          "K",
+          "D",
+          "F",
+          "C",
+          "N",
+          "M",
+          "P"
+        ]
+      },
+      {
+        "run": 4,
+        "accuracy": 0.1,
+        "correct": 1,
+        "total": 10,
+        "prediction": [
+          "J",
+          "D",
+          "K",
+          "C",
+          "M",
+          "N",
+          "G",
+          "H",
+          "F",
+          "P"
+        ]
+      },
+      {
+        "run": 5,
+        "accuracy": 0.4,
+        "correct": 4,
+        "total": 10,
+        "prediction": [
+          "J",
+          "G",
+          "H",
+          "C",
+          "N",
+          "P",
+          "F",
+          "D",
+          "K",
+          "M"
+        ]
+      },
+      {
+        "run": 6,
+        "accuracy": 0.1,
+        "correct": 1,
+        "total": 10,
+        "prediction": [
+          "J",
+          "D",
+          "C",
+          "F",
+          "G",
+          "H",
+          "K",
+          "M",
+          "N",
+          "P"
+        ]
+      },
+      {
+        "run": 7,
+        "accuracy": 0.2,
+        "correct": 2,
+        "total": 10,
+        "prediction": [
+          "J",
+          "P",
+          "D",
+          "N",
+          "F",
+          "M",
+          "C",
+          "G",
+          "H",
+          "K"
+        ]
+      },
+      {
+        "run": 8,
+        "accuracy": 0.3,
+        "correct": 3,
+        "total": 10,
+        "prediction": [
+          "J",
+          "G",
+          "H",
+          "N",
+          "P",
+          "F",
+          "K",
+          "D",
+          "M",
+          "C"
+        ]
+      },
+      {
+        "run": 9,
+        "accuracy": 0.3,
+        "correct": 3,
+        "total": 10,
+        "prediction": [
+          "F",
+          "J",
+          "H",
+          "G",
+          "P",
+          "N",
+          "M",
+          "K",
+          "D",
+          "C"
+        ]
+      }
+    ],
+    "average_accuracy": 0.21111111111111114,
+    "total_runs": 9,
+    "successful_runs": 9
+  }
+}

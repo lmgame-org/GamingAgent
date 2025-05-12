@@ -1,0 +1,368 @@
+{
+  "o4-mini-2025-04-16": {
+    "runs": [
+      {
+        "run": 1,
+        "accuracy": 0.4,
+        "correct": 4,
+        "total": 10,
+        "prediction": [
+          "J",
+          "C",
+          "N",
+          "G",
+          "H",
+          "F",
+          "P",
+          "M",
+          "K",
+          "D"
+        ]
+      },
+      {
+        "run": 2,
+        "accuracy": 0.4,
+        "correct": 4,
+        "total": 10,
+        "prediction": [
+          "J",
+          "C",
+          "G",
+          "H",
+          "P",
+          "N",
+          "F",
+          "K",
+          "M",
+          "D"
+        ]
+      },
+      {
+        "run": 3,
+        "accuracy": 0.3,
+        "correct": 3,
+        "total": 10,
+        "prediction": [
+          "J",
+          "C",
+          "G",
+          "F",
+          "H",
+          "N",
+          "M",
+          "P",
+          "K",
+          "D"
+        ]
+      }
+    ],
+    "average_accuracy": 0.3666666666666667,
+    "total_runs": 3,
+    "successful_runs": 3
+  },
+  "o3-2025-04-16": {
+    "runs": [
+      {
+        "run": 1,
+        "accuracy": 0.3,
+        "correct": 3,
+        "total": 10,
+        "prediction": [
+          "J",
+          "C",
+          "N",
+          "K",
+          "H",
+          "G",
+          "F",
+          "M",
+          "P",
+          "D"
+        ]
+      },
+      {
+        "run": 2,
+        "accuracy": 0.1,
+        "correct": 1,
+        "total": 10,
+        "prediction": [
+          "J",
+          "C",
+          "N",
+          "D",
+          "F",
+          "G",
+          "H",
+          "K",
+          "M",
+          "P"
+        ]
+      },
+      {
+        "run": 3,
+        "accuracy": 0.4,
+        "correct": 4,
+        "total": 10,
+        "prediction": [
+          "J",
+          "C",
+          "P",
+          "N",
+          "G",
+          "H",
+          "F",
+          "M",
+          "K",
+          "D"
+        ]
+      }
+    ],
+    "average_accuracy": 0.26666666666666666,
+    "total_runs": 3,
+    "successful_runs": 3
+  },
+  "gemini-2.5-pro-preview-03-25": {
+    "runs": [
+      {
+        "run": 1,
+        "accuracy": 0.4,
+        "correct": 4,
+        "total": 10,
+        "prediction": [
+          "J",
+          "C",
+          "N",
+          "H",
+          "K",
+          "M",
+          "F",
+          "P",
+          "G",
+          "D"
+        ]
+      },
+      {
+        "run": 2,
+        "accuracy": 0.2,
+        "correct": 2,
+        "total": 10,
+        "prediction": [
+          "J",
+          "C",
+          "P",
+          "N",
+          "G",
+          "H",
+          "F",
+          "K",
+          "D",
+          "M"
+        ]
+      },
+      {
+        "run": 3,
+        "accuracy": 0.4,
+        "correct": 4,
+        "total": 10,
+        "prediction": [
+          "J",
+          "F",
+          "N",
+          "H",
+          "G",
+          "M",
+          "C",
+          "P",
+          "K",
+          "D"
+        ]
+      }
+    ],
+    "average_accuracy": 0.3333333333333333,
+    "total_runs": 3,
+    "successful_runs": 3
+  },
+  "Llama-4-Maverick-17B-128E-Instruct-FP8": {
+    "runs": [
+      {
+        "run": 1,
+        "accuracy": 0.1,
+        "correct": 1,
+        "total": 10,
+        "prediction": [
+          "G",
+          "H",
+          "J",
+          "C",
+          "P",
+          "F",
+          "M",
+          "N",
+          "D",
+          "K"
+        ]
+      },
+      {
+        "run": 2,
+        "accuracy": 0.0,
+        "correct": 0,
+        "total": 10,
+        "prediction": [
+          "C",
+          "H",
+          "K",
+          "D",
+          "M",
+          "J",
+          "G",
+          "N",
+          "F",
+          "P"
+        ]
+      },
+      {
+        "run": 3,
+        "accuracy": 0.0,
+        "correct": 0,
+        "total": 10,
+        "prediction": [
+          "G",
+          "H",
+          "J",
+          "D",
+          "K",
+          "C",
+          "N",
+          "P",
+          "F",
+          "M"
+        ]
+      }
+    ],
+    "average_accuracy": 0.03333333333333333,
+    "total_runs": 3,
+    "successful_runs": 3
+  },
+  "claude-3-7-sonnet-20250219": {
+    "runs": [
+      {
+        "run": 1,
+        "accuracy": 0.3,
+        "correct": 3,
+        "total": 10,
+        "prediction": [
+          "J",
+          "G",
+          "H",
+          "D",
+          "K",
+          "C",
+          "F",
+          "N",
+          "M",
+          "P"
+        ]
+      },
+      {
+        "run": 2,
+        "accuracy": 0.2,
+        "correct": 2,
+        "total": 10,
+        "prediction": [
+          "J",
+          "G",
+          "D",
+          "F",
+          "P",
+          "H",
+          "N",
+          "K",
+          "C",
+          "M"
+        ]
+      },
+      {
+        "run": 3,
+        "accuracy": 0.1,
+        "correct": 1,
+        "total": 10,
+        "prediction": [
+          "J",
+          "P",
+          "C",
+          "F",
+          "G",
+          "H",
+          "D",
+          "K",
+          "N",
+          "M"
+        ]
+      }
+    ],
+    "average_accuracy": 0.19999999999999998,
+    "total_runs": 3,
+    "successful_runs": 3
+  },
+  "claude-3-5-sonnet-20241022": {
+    "runs": [
+      {
+        "run": 1,
+        "accuracy": 0.0,
+        "correct": 0,
+        "total": 10,
+        "prediction": [
+          "C",
+          "K",
+          "G",
+          "J",
+          "H",
+          "D",
+          "N",
+          "P",
+          "M",
+          "F"
+        ]
+      },
+      {
+        "run": 2,
+        "accuracy": 0.1,
+        "correct": 1,
+        "total": 10,
+        "prediction": [
+          "J",
+          "F",
+          "N",
+          "C",
+          "K",
+          "D",
+          "M",
+          "P",
+          "G",
+          "H"
+        ]
+      },
+      {
+        "run": 3,
+        "accuracy": 0.2,
+        "correct": 2,
+        "total": 10,
+        "prediction": [
+          "J",
+          "G",
+          "H",
+          "D",
+          "K",
+          "C",
+          "N",
+          "F",
+          "P",
+          "M"
+        ]
+      }
+    ],
+    "average_accuracy": 0.10000000000000002,
+    "total_runs": 3,
+    "successful_runs": 3
+  }
+}
