@@ -1243,7 +1243,7 @@ def generate_overall_statistics(cache_dir, all_individual_death_x_coords, averag
     Args:
         cache_dir (str): Directory to save statistics
         all_individual_death_x_coords (list): List of all x-positions at deaths
-        averages_for_each_run (list): List of average x-positions per run
+        averages_for_each_run (list): List of highest x-positions per run
         args: Command line arguments
     """
     try:
@@ -1251,7 +1251,7 @@ def generate_overall_statistics(cache_dir, all_individual_death_x_coords, averag
         
         # Convert NumPy values to native Python types
         all_death_positions = [int(pos) if hasattr(pos, 'item') else pos for pos in all_individual_death_x_coords]
-        run_averages = [float(avg) if hasattr(avg, 'item') else avg for avg in averages_for_each_run]
+        run_highest_positions = [float(pos) if hasattr(pos, 'item') else pos for pos in averages_for_each_run]
         
         # Prepare the overall statistics data
         overall_stats = {
@@ -1260,8 +1260,8 @@ def generate_overall_statistics(cache_dir, all_individual_death_x_coords, averag
             "model_name": args.model,
             "module_type": "random" if args.random else ("base" if args.base else "full"),
             "individual_run_statistics": [],
-            "all_death_x_positions": all_death_positions,  # Use converted values
-            "per_run_averages": run_averages,  # Use converted values
+            "all_death_x_positions": all_death_positions,
+            "per_run_highest": run_highest_positions,
             "overall_average": None
         }
         
@@ -1274,29 +1274,29 @@ def generate_overall_statistics(cache_dir, all_individual_death_x_coords, averag
                         run_stats = json.load(f)
                         overall_stats["individual_run_statistics"].append(run_stats)
                         
-                        # Add the average to per_run_averages if it exists and not already added
-                        if run_stats.get("average_death_x_position") is not None and len(run_averages) < len(averages_for_each_run):
-                            # This is redundant now as we've already converted averages
+                        # Add the highest position to per_run_highest if it exists and not already added
+                        if run_stats.get("highest_death_x_position") is not None and len(run_highest_positions) < len(averages_for_each_run):
+                            # This is redundant now as we've already converted values
                             pass
             except Exception as e:
                 print(f"Error reading run {run_num} statistics: {e}")
         
         # Calculate the final overall average
-        if run_averages:  # Use converted values
-            overall_stats["overall_average"] = sum(run_averages) / len(run_averages)
+        if run_highest_positions:
+            overall_stats["overall_average"] = sum(run_highest_positions) / len(run_highest_positions)
         
         # Print statistics to console
-        if all_death_positions:  # Use converted values
+        if all_death_positions:
             print(f"All individual x-positions at death across all runs: {all_death_positions}")
         else:
             print("No deaths recorded across any runs.")
 
-        if run_averages:  # Use converted values
-            print(f"Average x-position for each run (based on deaths in that run): {[f'{avg:.2f}' for avg in run_averages]}")
-            final_overall_average = sum(run_averages) / len(run_averages)
-            print(f"Final average of per-run averages: {final_overall_average:.2f}")
+        if run_highest_positions:
+            print(f"Highest x-position for each run: {[f'{pos:.0f}' for pos in run_highest_positions]}")
+            final_overall_average = sum(run_highest_positions) / len(run_highest_positions)
+            print(f"Final average of per-run highest positions: {final_overall_average:.2f}")
         else:
-            print("No run averages to calculate final overall average (no runs had deaths).")
+            print("No run highest positions to calculate final overall average (no runs had deaths).")
         
         # First ensure all values are JSON serializable
         def ensure_serializable(obj):
@@ -1327,12 +1327,12 @@ def generate_overall_statistics(cache_dir, all_individual_death_x_coords, averag
         try:
             # Convert values to ensure they're serializable
             simple_death_positions = [int(pos) if hasattr(pos, 'item') else pos for pos in all_individual_death_x_coords]
-            simple_averages = [float(avg) if hasattr(avg, 'item') else avg for avg in averages_for_each_run]
+            simple_highest_positions = [float(pos) if hasattr(pos, 'item') else pos for pos in averages_for_each_run]
             
             fallback_stats = {
                 "timestamp": datetime.now().isoformat(),
                 "all_death_x_positions": simple_death_positions,
-                "overall_average": sum(simple_averages) / len(simple_averages) if simple_averages else None
+                "overall_average": sum(simple_highest_positions) / len(simple_highest_positions) if simple_highest_positions else None
             }
             fallback_file = os.path.join(cache_dir, "fallback_overall_stats.json")
             with open(fallback_file, 'w') as f:
@@ -1606,19 +1606,19 @@ async def main():
                 run_stats = {
                     "run_number": run_count,
                     "death_x_positions": [],  # Default empty list that will always be valid JSON
-                    "average_death_x_position": None,
+                    "highest_death_x_position": None,
                     "completed_without_deaths": True
                 }
 
                 if current_run_death_x_coords:
                     # Convert any numpy values to native Python types to ensure JSON serialization works
                     death_positions = [int(pos) if hasattr(pos, 'item') else pos for pos in current_run_death_x_coords]
-                    run_average = sum(death_positions) / len(death_positions)
-                    averages_for_each_run.append(run_average)
+                    highest_position = max(death_positions)
+                    averages_for_each_run.append(highest_position)
                     print(f"  Deaths in this run at x-positions: {death_positions}")
-                    print(f"  Average x-position for deaths in this run: {run_average:.2f}")
+                    print(f"  Highest x-position in this run: {highest_position}")
                     run_stats["death_x_positions"] = death_positions
-                    run_stats["average_death_x_position"] = float(run_average)  # Ensure it's a regular float
+                    run_stats["highest_death_x_position"] = highest_position
                     run_stats["completed_without_deaths"] = False
                 else:
                     print("  No deaths recorded in this run for averaging (e.g., level completed or error).")
