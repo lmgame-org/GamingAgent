@@ -26,184 +26,237 @@ DEFAULT_ACTION = [7]  # no_operation
 class TetrisPerceptionModule:
     """Module for analyzing Tetris game state."""
     
-    def __init__(self, model_name="claude-3-7-sonnet-latest"):
+    def __init__(self, model_name="claude-3-7-sonnet-latest", observation=None ):
         """Initialize the Perception Module for Tetris."""
         self.model_name = model_name
+        self.observation = observation
+        self.board = observation['board']
+        self.active_piece = observation['active_tetromino_mask']
+        self.held_piece = observation['holder']
+        self.next_pieces = observation['queue']
+
+    def convert_board_to_symbol(self,board):
+        """Return a simplified text version of the board for debugging"""
+        # Create a copy to visualize, skipping border and showing only the game area
+        # Assuming borders are at indices [0-3, 14-17] horizontally and [20-23] vertically
+        vis_board = board[0:20, 4:14].copy()
+        
+        # Replace numbers with symbols for better visualization
+        symbols = {0: '.', 1: '#', 2: 'I', 3: 'O', 4: 'T', 5: 'S', 6: 'Z', 7: 'J', 8: 'L'}
+        
+        rows = []
+        for row in vis_board:
+            rows.append(''.join([symbols.get(cell, str(cell)) for cell in row]))
+        
+        return '\n'.join(rows)
     
-    def analyze_board(self, observation, info=None):
+    def get_board(self):
+        """Return the board as a numpy array"""
+        return self.convert_board_to_symbol(self.board)
+    
+    def extract_active_tetromino(self, board, active_mask):
+        """Extract the active tetromino from the board using the mask"""
+        # Use element-wise multiplication to extract the active tetromino
+        active_piece = board * active_mask
+        
+        # Find the bounds of the active piece
+        non_zero = np.nonzero(active_mask)
+        if len(non_zero[0]) == 0:
+            return None, None, None, None
+        
+        min_row, max_row = np.min(non_zero[0]), np.max(non_zero[0])
+        min_col, max_col = np.min(non_zero[1]), np.max(non_zero[1])
+        
+        # Extract the piece and its position
+        piece = active_piece[min_row:max_row+1, min_col:max_col+1]
+        
+        return piece, min_row, min_col, active_piece
+    
+    def get_piece_id(self,piece):
+        """Identify the piece type from the piece matrix"""
+        unique_values = np.unique(piece)
+        unique_values = unique_values[unique_values > 0]  # Ignore empty cells
+        if len(unique_values) == 0:
+            return None
+        return unique_values[0] 
+    
+    def rotate_piece(self, piece):
+        """Rotate a tetromino piece clockwise using np.rot90, matching the gymnasium environment"""
+        # Simply use np.rot90 with k=1 for clockwise rotation
+        # This matches the Tetris gymnasium environment's rotate function
+        return np.rot90(piece, k=1)
+    
+    def generate_rotated_and_dropped_boards(self):
         """
-        Analyze the Tetris board state.
+        Generate potential boards with the active piece rotated and dropped
+        using simple rotation and collision detection
         
         Args:
-            observation: The game observation
-            info: Additional information from the environment
-            
+            board: The game board
+            active_mask: Mask of the active tetromino
+            active_orientation: Not used in this simpler implementation
+        
         Returns:
-            dict: A dictionary containing board analysis
+            List of dictionaries with potential board states
         """
-        try:
-            # Start with basic structure even if observation is None
-            perception_data = {
-                'board_shape': None,
-                'board_text': 'Unable to analyze board',
-                'active_piece': None,
-                'active_position': None,
-                'rotated_board_texts': [],
-                'potential_states': []
-            }
+        board = self.board
+        active_mask = self.active_piece
+        # Extract the active tetromino
+        piece, row, col, active_piece_on_board = self.extract_active_tetromino(board, active_mask)
+        if piece is None:
+            return []
+        
+        # Get the piece ID (type)
+        piece_id = self.get_piece_id(piece)
+        if piece_id is None:
+            return []
+        
+        # Determine max rotations based on piece type
+        # I, S, Z have 2 rotations
+        # T, L, J have 4 rotations
+        # O has 1 rotation (no change)
+        max_rotations = 1  # Default for O piece
+        if piece_id in [2]:  # I piece
+            max_rotations = 2
+        elif piece_id in [5, 6]:  # S and Z pieces
+            max_rotations = 2
+        elif piece_id in [4, 7, 8]:  # T, J, L pieces
+            max_rotations = 4
+        
+        # Clean the board by removing the active piece
+        clean_board = board.copy()
+        clean_board[active_mask > 0] = 0
+        
+        results = []
+        
+        # First, add the original position (no rotation, no drop)
+        original_board = clean_board.copy()
+        
+        # Place the original piece on the board
+        for r in range(piece.shape[0]):
+            for c in range(piece.shape[1]):
+                if piece[r, c] > 0:
+                    if (row+r < original_board.shape[0] and 
+                        col+c < original_board.shape[1]):
+                        original_board[row+r, col+c] = piece[r, c]
+        
+        # Add original position board
+        results.append({
+            'rotation': 0,
+            'board': original_board,
+            'row': row,
+            'col': col,
+            'description': "Original position"
+        })
+        
+        # Skip rotation for O piece (ID 3)
+        if piece_id == 3:
+            return results
+        
+        # For each possible rotation (starting from 1)
+        current_piece = piece.copy()
+        for rotation in range(1, max_rotations):
+            # Rotate the piece (apply rotation multiple times for higher rotation states)
+            current_piece = self.rotate_piece(current_piece)
             
-            if observation is None:
-                print("Warning: Received None observation in perception module")
-                return perception_data
+            # Try wall kicks for rotation (simple implementation)
+            # Each tuple is (col_offset, row_offset)
+            wall_kicks = [(0, 0), (-1, 0), (1, 0), (0, -1)]
+            
+            # Try each wall kick until a valid rotation is found
+            rotation_applied = False
+            for col_offset, row_offset in wall_kicks:
+                new_row = row + row_offset
+                new_col = col + col_offset
                 
-            # Extract the board and active piece info
-            board = None
-            active_piece = None
-            active_position = None
-            
-            # Try to parse the observation structure
-            try:
-                # Handle various observation formats
-                if isinstance(observation, dict):
-                    # Dict format observation
-                    board = observation.get('board', None)
-                    if 'active_piece' in observation:
-                        active_piece = observation['active_piece']
-                    if 'active_position' in observation:
-                        active_position = observation['active_position']
-                elif isinstance(observation, np.ndarray):
-                    # Direct board array
-                    board = observation
-                    # Active piece info might be in 'info'
-                    if isinstance(info, dict):
-                        active_piece = info.get('active_piece', None)
-                        active_position = info.get('active_position', None)
-            except Exception as parse_error:
-                print(f"Error parsing observation: {parse_error}")
-            
-            # Update perception with whatever we were able to extract
-            perception_data['board_shape'] = board.shape if board is not None and hasattr(board, 'shape') else None
-            
-            # Convert board to text representation for the agent
-            if board is not None:
-                board_text = self._board_to_text(board)
-                perception_data['board_text'] = board_text
+                # Check if rotation is valid at this position
+                valid = True
+                for r in range(current_piece.shape[0]):
+                    for c in range(current_piece.shape[1]):
+                        if current_piece[r, c] > 0:
+                            board_r = new_row + r
+                            board_c = new_col + c
+                            
+                            # Check bounds and collision
+                            if (board_r < 0 or board_r >= board.shape[0] or
+                                board_c < 0 or board_c >= board.shape[1] or
+                                clean_board[board_r, board_c] > 0):
+                                valid = False
+                                break
+                    if not valid:
+                        break
                 
-                # Generate rotated board texts for decision making
-                rotated_board_texts = self._generate_rotated_boards(board)
-                perception_data['rotated_board_texts'] = rotated_board_texts
+                if valid:
+                    # Found a valid rotation, now try to drop it one row
+                    can_drop = True
+                    drop_row = new_row + 1
+                    
+                    # Check if the piece can be dropped
+                    for r in range(current_piece.shape[0]):
+                        for c in range(current_piece.shape[1]):
+                            if current_piece[r, c] > 0:
+                                board_r = drop_row + r
+                                board_c = new_col + c
+                                
+                                # Check bounds and collision
+                                if (board_r >= board.shape[0] or
+                                    clean_board[board_r, board_c] > 0):
+                                    can_drop = False
+                                    break
+                        if not can_drop:
+                            break
+                    
+                    # Create board with rotated piece
+                    rotated_board = clean_board.copy()
+                    
+                    # Place rotated piece at the appropriate position (dropped if possible)
+                    final_row = drop_row if can_drop else new_row
+                    for r in range(current_piece.shape[0]):
+                        for c in range(current_piece.shape[1]):
+                            if current_piece[r, c] > 0:
+                                if (final_row+r < rotated_board.shape[0] and 
+                                    new_col+c < rotated_board.shape[1]):
+                                    rotated_board[final_row+r, new_col+c] = current_piece[r, c]
+                    
+                    # Add to results
+                    results.append({
+                        'rotation': rotation,
+                        'board': rotated_board,
+                        'row': final_row,
+                        'col': new_col,
+                        'description': f"Rotation {rotation}" + (" + Drop" if can_drop else "")
+                    })
+                    
+                    # We found a valid rotation, mark as applied and break out of wall kicks loop
+                    rotation_applied = True
+                    break
             
-            # Store active piece info
-            perception_data['active_piece'] = active_piece
-            perception_data['active_position'] = active_position
-            
-            # Generate potential board states for each possible move
-            if board is not None and active_piece is not None and active_position is not None:
-                try:
-                    potential_states = self._generate_potential_states(board, active_piece, active_position)
-                    perception_data['potential_states'] = potential_states
-                except Exception as state_error:
-                    print(f"Error generating potential states: {state_error}")
-            
-            return perception_data
+            # If we couldn't apply this rotation, we might still want to continue to the next rotation state
+            if not rotation_applied:
+                continue
         
-        except Exception as e:
-            print(f"Error in perception module: {e}")
-            return {
-                'board_shape': None,
-                'board_text': 'Error in perception module',
-                'active_piece': None,
-                'active_position': None,
-                'rotated_board_texts': [],
-                'potential_states': []
-            }
+        return results
     
-    def _board_to_text(self, board):
-        """Convert board array to text representation."""
-        if board is None:
-            return "No board available"
+    def get_next_pieces(self):
+        """Get the next piece from the queue"""
+        return self.piece_to_symbol(self.next_pieces)
+    
+    def piece_to_symbol(self,pieces):
+        """Convert piece numbers to symbols and return formatted string"""
+        symbols = {0: '.', 2: 'I', 3: 'O', 4: 'T', 5: 'S', 6: 'Z', 7: 'J', 8: 'L'}
+        if isinstance(pieces, np.ndarray):
+            return '\n'.join([''.join([symbols.get(int(cell), str(cell)) for cell in row]) for row in pieces])
+        return symbols.get(int(pieces), str(pieces))
+    
+    def get_perception_data(self):
+        """Get the perception data"""
+        return {
+            "board": self.get_board(),
+            "next_pieces": self.get_next_pieces(),
+            "potential_states": [self.convert_board_to_symbol(state['board']) for state in self.generate_rotated_and_dropped_boards()],
+        }
         
-        try:
-            if not isinstance(board, np.ndarray):
-                try:
-                    board = np.array(board)
-                except:
-                    return "Cannot convert board to array"
-            
-            # Check if board has expected shape
-            if len(board.shape) != 2:
-                # Try to extract a 2D board from a 3D representation
-                if len(board.shape) == 3 and board.shape[0] > 0:
-                    board = board[0]  # Try to use the first channel/layer
-                else:
-                    return f"Board has unexpected shape: {board.shape}"
-            
-            rows, cols = board.shape
-            
-            # Create header
-            board_str = "  " + " ".join([str(i % 10) for i in range(cols)]) + "\n"
-            board_str += "  " + "-" * (cols * 2 - 1) + "\n"
-            
-            # Create rows
-            for r in range(rows):
-                board_str += f"{r % 10}|"
-                for c in range(cols):
-                    cell = board[r, c]
-                    if cell == 0:
-                        board_str += " ."
-                    else:
-                        board_str += f" {cell}"
-                board_str += "\n"
-            
-            return board_str
-        except Exception as e:
-            return f"Error converting board to text: {str(e)}"
     
-    def _generate_rotated_boards(self, board):
-        """
-        Generate text representations of the board for different rotations.
-        
-        Args:
-            board: The current board state
-            
-        Returns:
-            list: List of text representations for different board rotations
-        """
-        try:
-            if board is None:
-                return ["No board available"]
-            
-            # Convert to numpy array if not already
-            if not isinstance(board, np.ndarray):
-                try:
-                    board = np.array(board)
-                except:
-                    return ["Cannot convert board to array"]
-            
-            # If board has unexpected shape, just return the text of the original
-            if len(board.shape) != 2:
-                # Try to extract a 2D board from a 3D representation
-                if len(board.shape) == 3 and board.shape[0] > 0:
-                    board = board[0]  # Try to use the first layer
-                else:
-                    return [self._board_to_text(board)]
-            
-            # Generate text representations for each rotation
-            rotated_texts = []
-            
-            # Original board
-            rotated_texts.append(self._board_to_text(board))
-            
-            return rotated_texts
-        except Exception as e:
-            print(f"Error generating rotated boards: {e}")
-            return ["Error generating rotated boards"]
-    
-    def _generate_potential_states(self, board, active_piece, active_position):
-        """Generate potential board states based on rotations and movements."""
-        # This would simulate dropping the active piece with different rotations and positions
-        # For now, return a placeholder as this requires detailed Tetris game logic
-        return []
 
 class TetrisMemoryModule:
     """Memory module for tracking Tetris game state history."""
@@ -231,6 +284,12 @@ class TetrisMemoryModule:
                     memory_data = json.load(f)
                     # Limit to max_memory entries
                     self.memory = memory_data[-self.max_memory:] if len(memory_data) > self.max_memory else memory_data
+                print(f"Memory loaded successfully: {len(self.memory)} entries")
+            else:
+                if self.memory_file:
+                    print(f"Memory file does not exist: {self.memory_file}")
+                else:
+                    print("No memory file specified")
         except Exception as e:
             print(f"Error loading memory: {e}")
             self.memory = []
@@ -239,8 +298,10 @@ class TetrisMemoryModule:
         """Save the current memory to the memory file."""
         try:
             if self.memory_file:
+                print(f"Saving memory to file: {self.memory_file}")
                 with open(self.memory_file, 'w') as f:
                     json.dump(self.memory, f, indent=2)
+                print(f"Memory saved successfully: {len(self.memory)} entries")
         except Exception as e:
             print(f"Error saving memory: {e}")
     
@@ -249,7 +310,7 @@ class TetrisMemoryModule:
         Generate a reflection on the current game state based on the memory.
         
         Args:
-            current_perception: Current perception data
+            current_perception: Current perception data (simplified to {'board_text': ..., 'next_pieces_text': ...})
             last_action: The last action taken
             
         Returns:
@@ -259,98 +320,109 @@ class TetrisMemoryModule:
             if not current_perception:
                 return "No perception data available for reflection."
             
-            # Extract board information
-            board_text = current_perception.get('board_text', "No board text available")
-            
             # Construct the memory context from recent memory entries
             memory_context = ""
             if self.memory:
-                # Get last few memory entries (limiting to avoid token overflow)
-                recent_entries = self.memory[-5:]
-                
-                for i, entry in enumerate(recent_entries):
-                    memory_context += f"Memory {i+1}:\n"
+                print(f"Using {len(self.memory)} memory entries for reflection context")
+                # Get last few memory entries (respecting self.max_memory, up to 5 if max_memory is 5)
+                # The self.memory already respects max_memory due to how add_game_state works
+                recent_entries = self.memory # Use all available memory up to max_memory
+                if len(self.memory) > 1: # if there is at least one previous state to compare to current
+                    recent_entries = self.memory[:-1] # all but the most recent (which is before current_perception)
+                elif len(self.memory) == 1: # only one entry, which is previous state
+                     recent_entries = self.memory
+                else: # no memory yet, this case should be caught by outer if self.memory, but for safety
+                    recent_entries = []
+
+                for i, entry in enumerate(reversed(recent_entries)): # Show most recent past states first
+                    memory_context += f"Past State {i+1} (from {len(recent_entries)-i} steps ago):\n"
                     memory_context += f"Timestamp: {entry.get('timestamp', 'unknown')}\n"
-                    memory_context += f"Board:\n{entry.get('board_text', 'unknown')}\n"
                     
-                    if 'action' in entry and entry['action'] is not None:
-                        memory_context += f"Action: {entry['action']}\n"
+                    game_state_in_memory = entry.get('game_state', {})
+                    past_board_text = game_state_in_memory.get('board_text', 'Unknown past board')
+                    past_next_pieces_text = game_state_in_memory.get('next_pieces_text', 'Unknown past next pieces')
+                    
+                    memory_context += f"Board:\n{past_board_text}\n"
+                    memory_context += f"Next Pieces:\n{past_next_pieces_text}\n"
+                    
+                    if 'last_action' in entry and entry['last_action'] is not None:
+                        memory_context += f"Action taken before this state: {entry['last_action']}\n"
                     
                     if 'reflection' in entry and entry['reflection'] is not None:
-                        memory_context += f"Reflection: {entry['reflection']}\n"
-                    
-                    memory_context += "\n"
+                        memory_context += f"Reflection on this state: {entry['reflection']}\n"
+                    memory_context += "-----\n"
+            else:
+                memory_context = "No past states in memory.\n"
             
             # Create the reflection prompt
             reflection_prompt = f"""
-You are the memory module of a Tetris-playing AI. Your task is to reflect on the current game state and provide insights.
+You are the memory module of a Tetris-playing AI. Your task is to reflect on the current game state and provide insights to help the AI improve.
 
-Recent memory entries:
 {memory_context}
 
-Current board state:
-{board_text}
+Current State:
+Board:
+{current_perception.get('board_text', "No current board text available")}
+Next Pieces:
+{current_perception.get('next_pieces_text', "No current next pieces text available")}
 
-Last action taken: {last_action if last_action is not None else "None"}
+Last action taken (that led to this Current State): {last_action if last_action is not None else "Game Start or Unknown"}
 
-Please provide a brief reflection (2-3 sentences) on the current game state. Consider:
-1. How has the board changed since previous states?
-2. Was the last move effective?
-3. What areas of the board need attention?
-4. Any strategic insights for future moves?
+Please provide a brief reflection (2-3 sentences) on the situation. Consider:
+1. How has the board changed from the most recent past state (if any) due to the last action?
+2. Was the last action effective in improving the board state or setting up future plays?
+3. What are the immediate opportunities or dangers on the current board?
+4. Are there any strategic considerations based on the current board and upcoming pieces?
 
-Reflection:
-"""
+Reflection:"""
             
             # Get reflection from API
-            response, _ = await self.api_manager.text_completion(
+            response, _ =  self.api_manager.text_completion(
                 model_name=self.model_name,
                 system_prompt="You are the memory module of a Tetris-playing AI that provides concise strategic reflections.",
                 prompt=reflection_prompt,
-                thinking=True,
-                max_tokens=500,
-                token_limit=4000
+                thinking=False,
+                reasoning_effort="medium",
+                token_limit=100000
             )
             
             return response.strip()
             
         except Exception as e:
             print(f"Error generating reflection: {e}")
-            return None
+            return "Reflection error: Could not generate insights."
     
-    def add_game_state(self, game_state, action=None, timestamp=None):
+    async def add_game_state(self, game_state, action=None, timestamp=None):
         """
         Add a new game state to memory.
         
         Args:
-            game_state (dict): The perceived game state to add
-            action (list, optional): Action sequence taken in the previous state
+            game_state (dict): The perceived game state to add (simplified to {'board_text': ..., 'next_pieces_text': ...})
+            action (list, optional): Action sequence taken that LED to this game_state
             timestamp (float, optional): Timestamp for the game state
         """
         if timestamp is None:
             timestamp = time.time()
         
-        # Generate reflection if we have at least one previous state
+        # The reflection should be about the *transition* to the new game_state based on the *previous* state and *action* taken.
+        # So, we generate reflection *before* adding the new state, using the new state as 'current_perception'.
         reflection = None
-        # Note: We'll call the async reflection function outside this synchronous method
-        # Reflection will be added later
-            
-        # Add timestamp, action and reflection to the game state
+        if self.memory: # If there's at least one state in memory (which would be the previous state)
+            reflection = await self.generate_reflection(game_state, action) # game_state is the new state, action is what led to it
+        elif not self.memory and action is None: # Very first state of the game
+             reflection = "Initial game state. No prior actions or board states to compare. Ready to play!"
+
         memory_entry = {
             "timestamp": timestamp,
-            "game_state": game_state,
-            "last_action": action,
-            "reflection": reflection
+            "game_state": game_state, # This is the simplified dict now
+            "last_action": action, # Action that led to this game_state
+            "reflection": reflection # Reflection on the transition to this state, or initial state reflection
         }
         
-        # Add to memory
         self.memory.append(memory_entry)
-        
-        # Keep only the last max_memory entries
         if len(self.memory) > self.max_memory:
-            self.memory = self.memory[-self.max_memory:]
+            self.memory.pop(0) # Remove the oldest entry to maintain max_memory
         
-        # Save updated memory
         self.save_memory()
     
     async def update_reflection(self, current_perception, last_action):
@@ -430,18 +502,58 @@ Your action sequence should include all necessary rotations, movements, and drop
                 
             # Extract board representation from perception data
             board_text = current_perception.get('board_text', "No board text available")
-            rotated_board_texts = current_perception.get('rotated_board_texts', [])
+            
+            # Handle both potential_states and rotated_board_states
+            rotated_states = current_perception.get('rotated_board_states', current_perception.get('potential_states', []))
             
             # Prepare rotation representations for the prompt
-            rotation_info = "Rotated board representations:\n\n"
-            for i, rot_text in enumerate(rotated_board_texts):
-                if i == 0:
-                    rotation_info += f"Rotation 0 (original):\n{rot_text}\n\n"
-                else:
-                    rotation_info += f"Rotation {i} ({i*90} degrees counterclockwise):\n{rot_text}\n\n"
+            rotation_info = "Rotation Information:\n\n"
+            
+            if rotated_states:
+                for i, state in enumerate(rotated_states):
+                    # Check if it's a dict with the expected structure
+                    if isinstance(state, dict) and 'description' in state and 'board' in state:
+                        # This is the new format from generate_rotated_and_dropped_boards
+                        description = state['description']
+                        board = state['board']
+                        # Convert the board to text if needed
+                        if isinstance(board, np.ndarray):
+                            # Use a simple string representation
+                            board_lines = []
+                            rows, cols = board.shape
+                            for r in range(rows):
+                                row_str = ' '.join([str(int(board[r, c])) for c in range(cols)])
+                                board_lines.append(row_str)
+                            board_text = '\n'.join(board_lines)
+                        else:
+                            board_text = str(board)
+                        
+                        rotation_info += f"{description}:\n{board_text}\n\n"
+                    else:
+                        # Fallback for any other format
+                        rotation_info += f"Rotation {i}:\n{state}\n\n"
+            else:
+                rotation_info += "No rotation information available.\n"
+            
+            # Add queue information to the prompt
+            queue_info = "Next Pieces Queue:\n"
+            piece_queue_symbols = current_perception.get('piece_queue_symbols', [])
+            piece_queue_texts = current_perception.get('piece_queue_texts', [])
+            
+            if piece_queue_symbols:
+                queue_info += f"Symbols: {piece_queue_symbols}\n\n"
+                
+                if piece_queue_texts:
+                    for i, piece_text in enumerate(piece_queue_texts):
+                        queue_info += f"Next Piece {i+1}:\n{piece_text}\n\n"
+            else:
+                queue_info += "No upcoming pieces information available.\n"
             
             # Prepare memory context
             memory_context = self._prepare_memory_context(memory_summary)
+
+            board_text = current_perception.get('board_text', "No board text available")
+            queue_info = current_perception.get('next_pieces', "No queue info available")
             
             # Create the action prompt with game mechanics explanation
             tetris_mechanics = """
@@ -456,11 +568,17 @@ Available Actions:
 2: move_down - Move piece one cell down
 3: rotate_clockwise - Rotate piece 90 degrees clockwise
 4: rotate_counterclockwise - Rotate piece 90 degrees counterclockwise
-5: hard_drop - Drop piece to the bottom instantly
+5: hard_drop - Drop piece to the bottom instantly (RECOMMENDED for final placement)
 6: swap - Swap with held piece (if available)
 7: no_operation - Do nothing
 
-Tetris Piece Rotations:
+Examples of common action sequences:
+- [3, 1, 1, 5] → Rotate once clockwise, move right twice, then hard drop
+- [3, 3, 0, 0, 5] → Rotate twice clockwise, move left twice, then hard drop
+- [1, 1, 1, 5] → Move right three times, then hard drop
+- [0, 0, 0, 3, 5] → Move left three times, rotate once, then hard drop
+
+Tetris Piece Rotations (achieved with rotate_clockwise action):
 I-piece (line):
 Rotation 0: IIII
 Rotation 1: I
@@ -525,8 +643,8 @@ Rotation 1:  Z
 Guidelines for planning:
 1. Start with any necessary rotations (action 3 or 4)
 2. Then position the piece horizontally (actions 0 and 1)
-3. Finally, either let it drop gradually (action 2) or use hard drop (action 5)
-4. Your sequence should be complete until the piece is placed
+3. Finally, use hard drop (action 5) for final placement
+4. Consider the next pieces in queue when planning your current move
 """
             
             # Compose the prompt
@@ -534,8 +652,15 @@ Guidelines for planning:
 
 Current Board State:
 {board_text}
+^ This shows the current playfield where '.' are empty spaces and '#' are filled cells. The current falling piece is shown in its position.
 
+Rotation Information:
 {rotation_info}
+^ These show how your piece will look after rotating. To achieve any of these rotations, use the 'rotate_clockwise' action (3) the required number of times.
+
+Next Pieces Queue:
+{queue_info}
+^ These are the upcoming pieces that will appear after the current piece is placed. Plan your current move with these in mind.
 
 Recent Game History:
 {memory_context}
@@ -545,13 +670,14 @@ Recent Game History:
 Your task is to plan a complete action sequence that will:
 1. Rotate the active piece to the optimal orientation
 2. Move it to the optimal position
-3. Drop it into place
+3. Drop it into place (preferably using hard_drop action 5 after positioning)
+4. Consider the upcoming pieces in the queue for better long-term placement.
 
 The sequence should be a list of action indices (0-7) that completely handles the current piece.
-Example: [3, 3, 1, 1, 2, 2, 2, 2, 2] (rotate twice, move right twice, then move down until placed)
+Example: [3, 3, 1, 1, 5] (rotate twice, move right twice, then hard drop)
 
 Format your response exactly as follows:
-thought: [Your detailed reasoning about the optimal placement and why]
+thought: [Your detailed reasoning about the optimal placement, including consideration of the queue, and why]
 action_sequence: [list of action indices]
 
 Make sure your action sequence is comprehensive and includes all steps needed."""
@@ -565,9 +691,8 @@ Make sure your action sequence is comprehensive and includes all steps needed.""
                 if retry_count > 0:
                     print(f"Retry attempt {retry_count}/{max_retries} for reasoning module...")
                     await asyncio.sleep(2)  # Short delay before retry
-                
                 # Use text completion for reasoning
-                response, _ = await self.api_manager.text_completion(
+                response, _ = self.api_manager.text_completion(
                     model_name=self.model_name,
                     system_prompt=self.system_prompt,
                     prompt=user_prompt,
@@ -706,6 +831,18 @@ Your action sequence should include all necessary rotations, movements, and drop
             # If we have a valid observation with image data
             if isinstance(observation, np.ndarray) and len(observation.shape) == 3:
                 # Create a user prompt for image analysis
+                # Try to get queue from info if available (info might not always have it for base module)
+                piece_queue_text = "Piece queue: Not available" 
+                if isinstance(info, dict) and 'next_piece_queue' in info and 'piece_queue_symbols' in info:
+                    # Assuming info is now enriched by the main script if it's base mode
+                    symbols = info.get('piece_queue_symbols', [])
+                    piece_queue_text = f"Upcoming pieces (queue): {symbols}\n\n"
+                    
+                    # Add detailed piece representations if available
+                    if 'piece_queue_texts' in info and info['piece_queue_texts']:
+                        for i, piece_text in enumerate(info['piece_queue_texts']):
+                            piece_queue_text += f"Next Piece {i+1}:\n{piece_text}\n\n"
+
                 tetris_mechanics = """
 Tetris Game Mechanics:
 1. The game board is a grid where pieces (tetrominoes) fall from the top.
@@ -718,11 +855,17 @@ Available Actions:
 2: move_down - Move piece one cell down
 3: rotate_clockwise - Rotate piece 90 degrees clockwise
 4: rotate_counterclockwise - Rotate piece 90 degrees counterclockwise
-5: hard_drop - Drop piece to the bottom instantly
+5: hard_drop - Drop piece to the bottom instantly (RECOMMENDED for final placement)
 6: swap - Swap with held piece (if available)
 7: no_operation - Do nothing
 
-Tetris Piece Rotations:
+Examples of common action sequences:
+- [3, 1, 1, 5] → Rotate once clockwise, move right twice, then hard drop
+- [3, 3, 0, 0, 5] → Rotate twice clockwise, move left twice, then hard drop
+- [1, 1, 1, 5] → Move right three times, then hard drop
+- [0, 0, 0, 3, 5] → Move left three times, rotate once, then hard drop
+
+Tetris Piece Rotations (achieved with rotate_clockwise action):
 I-piece (line):
 Rotation 0: IIII
 Rotation 1: I
@@ -787,32 +930,35 @@ Rotation 1:  Z
 Guidelines for planning:
 1. Start with any necessary rotations (action 3 or 4)
 2. Then position the piece horizontally (actions 0 and 1)
-3. Finally, either let it drop gradually (action 2) or use hard drop (action 5)
-4. Your sequence should be complete until the piece is placed
+3. Finally, use hard drop (action 5) for final placement
+4. Consider the next pieces in queue when planning your current move
 """
                 
                 user_prompt = f"""Analyze this Tetris screenshot and plan an optimal action sequence.
 
+{piece_queue_text}
+
 {tetris_mechanics}
 
 Your task is to:
-1. Analyze the board state and identify the current falling piece
+1. Analyze the board state and identify the current falling piece from the image.
 2. Plan a complete action sequence that will:
-   - Rotate the active piece to the optimal orientation
-   - Move it to the optimal position
-   - Drop it into place
+   - Rotate the active piece to the optimal orientation.
+   - Move it to the optimal position.
+   - Drop it into place.
+3. Consider the upcoming pieces in the queue (provided above as text, if available) for better long-term placement.
 
 The sequence should be a list of action indices (0-7) that completely handles the current piece.
-Example: [3, 3, 1, 1, 2, 2, 2, 2, 2] (rotate twice, move right twice, then move down until placed)
+Example: [3, 3, 1, 1, 5] (rotate twice, move right twice, then hard drop)
 
 Format your response exactly as follows:
-thought: [Your detailed reasoning about the optimal placement and why]
+thought: [Your detailed reasoning about the optimal placement, considering the upcoming pieces if available, and why]
 action_sequence: [list of action indices]
 
 Make sure your action sequence is comprehensive and includes all steps needed."""
                 
                 # Make API call with vision model
-                response, _ = await self.api_manager.vision_text_completion(
+                response, _ = self.api_manager.vision_text_completion(
                     model_name=self.model_name,
                     system_prompt=self.system_prompt,
                     prompt=user_prompt,

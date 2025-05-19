@@ -161,6 +161,13 @@ Do NOT use # or any other prefix. Start directly with "thought:" followed by you
                         prompt=user_prompt,
                         token_limit=100000,
                     )
+                elif "o1-mini" in self.model_name.lower():
+                    response, _ = self.api_manager.text_completion(
+                        model_name=self.model_name,
+                        system_prompt=self.system_prompt,
+                        prompt=user_prompt,
+                        token_limit=65336,
+                    )
                 else:
                     response, _ = self.api_manager.vision_text_completion(
                         model_name=self.model_name,

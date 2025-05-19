@@ -248,8 +248,6 @@ Example responses:
 
 Please analyze the 2048 board in the image and determine the best move.
 
-{board_features}
-
 Key considerations:
 - Look for opportunities to merge similar tiles
 - Maintain your highest tiles in a corner

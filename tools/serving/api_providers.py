@@ -7,7 +7,7 @@ from google.generativeai import types
 from together import Together
 
 def anthropic_completion(system_prompt, model_name, base64_image, prompt, thinking=False, token_limit=30000):
-    print(f"anthropic vision-text activated... thinking: f{thinking}")
+    print(f"anthropic vision-text activated... thinking: {thinking}")
     client = anthropic.Anthropic(api_key=os.getenv("ANTHROPIC_API_KEY"))
     messages = [
         {
@@ -210,7 +210,9 @@ def openai_completion(system_prompt, model_name, base64_image, prompt, temperatu
     if "gpt-4.1" in model_name:
         print("gpt-4.1 only supports 32768 tokens")
         token_limit = 32768
-
+    if "o1-mini" in model_name:
+        print("o1-mini only supports 65336 tokens")
+        token_limit = 65336
     # Force-clean headers to prevent UnicodeEncodeError
     client._client._headers.update({
         k: (v.encode('ascii', 'ignore').decode() if isinstance(v, str) else v)
@@ -235,7 +237,7 @@ def openai_completion(system_prompt, model_name, base64_image, prompt, temperatu
         ]
 
     # Update token parameter logic to include o4 models
-    token_param = "max_completion_tokens" if ("o1" in model_name or "o4" in model_name or "o3" in model_name) else "max_tokens"
+    token_param = "max_completion_tokens" if "o1" in model_name  or "o4" in model_name or "o3" in model_name else "max_tokens"
     request_params = {
         "model": model_name,
         "messages": messages,
@@ -243,7 +245,7 @@ def openai_completion(system_prompt, model_name, base64_image, prompt, temperatu
     }
 
     # Add reasoning_effort for o1, o3, o4 models, temperature for others
-    if "o1" in model_name or "o3" in model_name or "o4" in model_name:
+    if ("o1" in model_name and "o1-mini" not in model_name) or "o3" in model_name or "o4" in model_name:
         request_params["reasoning_effort"] = reasoning_effort
     else:
         request_params["temperature"] = temperature
@@ -260,6 +262,9 @@ def openai_text_completion(system_prompt, model_name, prompt, token_limit=30000,
     if "gpt-4.1" in model_name:
         print("gpt-4.1 only supports 32768 tokens")
         token_limit = 32768
+    if "o1-mini" in model_name:
+        print("o1-mini only supports 65336 tokens")
+        token_limit = 65336
 
     messages = [
             {
@@ -274,7 +279,7 @@ def openai_text_completion(system_prompt, model_name, prompt, token_limit=30000,
         ]
 
     # Update token parameter logic to include all o-series models
-    token_param = "max_completion_tokens" if ("o1" in model_name or "o4" in model_name or "o3" in model_name) else "max_tokens"
+    token_param = "max_completion_tokens" if ("o1" in model_name  or "o4" in model_name or "o3" in model_name) else "max_tokens"
     
     request_params = {
         "model": model_name,
@@ -283,7 +288,7 @@ def openai_text_completion(system_prompt, model_name, prompt, token_limit=30000,
     }
     
     # Add reasoning_effort for o1, o3, o4 models, temperature for others
-    if "o1" in model_name or "o3" in model_name or "o4" in model_name:
+    if ("o1" in model_name and "o1-mini" not in model_name) or "o3" in model_name or "o4" in model_name:
         request_params["reasoning_effort"] = reasoning_effort
     else:
         request_params["temperature"] = 1
@@ -303,6 +308,9 @@ def openai_text_reasoning_completion(system_prompt, model_name, prompt, temperat
     if "gpt-4.1" in model_name:
         print("gpt-4.1 only supports 32768 tokens")
         token_limit = 32768
+    if "o1-mini" in model_name:
+        print("o1-mini only supports 65336 tokens")
+        token_limit = 65336
     
     messages = [
         {
@@ -317,7 +325,7 @@ def openai_text_reasoning_completion(system_prompt, model_name, prompt, temperat
     ]
 
     # Update token parameter logic to include all o-series models
-    token_param = "max_completion_tokens" if ("o1" in model_name or "o4" in model_name or "o3" in model_name) else "max_tokens"
+    token_param = "max_completion_tokens" if ("o1" in model_name  or "o4" in model_name or "o3" in model_name) else "max_tokens"
     
     # Prepare request parameters dynamically
     request_params = {
@@ -327,7 +335,7 @@ def openai_text_reasoning_completion(system_prompt, model_name, prompt, temperat
     }
     
     # Add reasoning_effort for o1, o3, o4 models, temperature for others
-    if "o1" in model_name or "o3" in model_name or "o4" in model_name:
+    if ("o1" in model_name and "o1-mini" not in model_name) or "o3" in model_name or "o4" in model_name:
         request_params["reasoning_effort"] = reasoning_effort
     else:
         request_params["temperature"] = temperature
@@ -418,6 +426,9 @@ def openai_multiimage_completion(system_prompt, model_name, prompt, list_content
     if "gpt-4.1" in model_name:
         print("gpt-4.1 only supports 32768 tokens")
         token_limit = 32768
+    if "o1-mini" in model_name:
+        print("o1-mini only supports 65336 tokens")
+        token_limit = 65336
 
     content_blocks = []
     
@@ -447,7 +458,7 @@ def openai_multiimage_completion(system_prompt, model_name, prompt, list_content
     ]
     
     # Update token parameter logic to include all o-series models
-    token_param = "max_completion_tokens" if ("o1" in model_name or "o4" in model_name or "o3" in model_name) else "max_tokens"
+    token_param = "max_completion_tokens" if ("o1" in model_name  or "o4" in model_name or "o3" in model_name) else "max_tokens"
     
     request_params = {
         "model": model_name,
@@ -456,7 +467,7 @@ def openai_multiimage_completion(system_prompt, model_name, prompt, list_content
     }
     
     # Add reasoning_effort for o1, o3, o4 models, temperature for others
-    if "o1" in model_name or "o3" in model_name or "o4" in model_name:
+    if ("o1" in model_name and "o1-mini" not in model_name) or "o3" in model_name or "o4" in model_name:
         request_params["reasoning_effort"] = reasoning_effort
     else:
         request_params["temperature"] = 1
