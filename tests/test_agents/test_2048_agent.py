@@ -28,7 +28,8 @@ move_to_action = {
     "up": 0,
     "right": 1, 
     "down": 2,
-    "left": 3
+    "left": 3,
+    "skip": -1 # Added skip for internal handling, will be filtered by parse_move_to_action
 }
 
 # Helper function to convert NumPy types to Python native types for JSON serialization
@@ -50,51 +51,68 @@ def convert_numpy_types(obj):
 class Agent2048:
     """A simple 2048 agent that uses either base module or perception+memory+reasoning modules."""
     
-    def __init__(self, model_name="claude-3-7-sonnet-latest", use_base_module=False):
-        """Initialize the agent with either base module or full pipeline."""
+    def __init__(self, model_name="claude-3-7-sonnet-latest", agent_mode="full"):
+        """Initialize the agent based on the specified agent_mode."""
         self.model_name = model_name
-        self.use_base_module = use_base_module
+        self.agent_mode = agent_mode
         self.last_action = None
         
-        if use_base_module:
-            print(f"Using Base Module with model: {model_name}")
+        self.base_module = None
+        self.perception_module = None
+        self.memory_module = None
+        self.reasoning_module = None
+
+        print(f"Initializing Agent2048 with mode: {self.agent_mode}, model: {self.model_name}")
+
+        if self.agent_mode == "base":
             self.base_module = Base_module(model_name=model_name)
-        else:
-            print(f"Using full pipeline (Perception + Memory + Reasoning) with model: {model_name}")
+            print("Base Module initialized.")
+        elif self.agent_mode == "full":
             self.perception_module = PerceptionModule(model_name=model_name, cache_dir=CACHE_DIR, board_img_path=BOARD_IMG_PATH)
-            self.memory_module = MemoryModule(
-                model_name=model_name,
-                memory_file=MEMORY_FILE,
-                cache_dir=CACHE_DIR
-            )
+            self.memory_module = MemoryModule(model_name=model_name, memory_file=MEMORY_FILE, cache_dir=CACHE_DIR)
             self.reasoning_module = ReasoningModule(model_name=model_name)
+            print("Full pipeline (Perception, Memory, Reasoning) initialized.")
+        elif self.agent_mode == "memory_reasoning":
+            self.memory_module = MemoryModule(model_name=model_name, memory_file=MEMORY_FILE, cache_dir=CACHE_DIR)
+            self.reasoning_module = ReasoningModule(model_name=model_name)
+            print("Memory and Reasoning modules initialized.")
+        elif self.agent_mode == "perception_reasoning":
+            self.perception_module = PerceptionModule(model_name=model_name, cache_dir=CACHE_DIR, board_img_path=BOARD_IMG_PATH)
+            self.reasoning_module = ReasoningModule(model_name=model_name)
+            print("Perception and Reasoning modules initialized.")
+        else:
+            raise ValueError(f"Unknown agent_mode: {self.agent_mode}")
     
     async def get_action(self, observation, info=None, max_retries_const=1):
-        """Get the next action from the agent."""
+        """Get the next action from the agent based on its mode."""
         try:
-            if self.use_base_module:
+            action_plan = None
+            perception_data_for_log = None
+            memory_summary_for_log = None
+
+            if self.agent_mode == "base":
                 # Base module: Use RGB image directly
                 print("\n" + "="*80)
                 action_plan = self.base_module.process_observation(observation, info)
-                print("\nACTION PLAN:")
+                print("\nACTION PLAN (Base):")
                 print(f"Action: {action_plan['move']}")
                 print(f"Thought: {action_plan['thought']}")
                 print("="*80 + "\n")
                 self.last_action = action_plan["move"]
                 return action_plan, None, None
-            else:
+
+            elif self.agent_mode == "full":
                 # Full pipeline approach
-                # Step 1: Perception - Simply convert info["board"] to actual 2048 values
+                # Step 1: Perception
                 perception_data = self.perception_module.analyze_board(observation, info)
+                perception_data_for_log = perception_data
                 
-                # Print perception data
                 print("\n" + "="*80)
-                print("PERCEPTION DATA:")
+                print("PERCEPTION DATA (Full):")
                 print(f"Highest tile: {perception_data.get('highest_tile', 'Unknown')} (2^{perception_data.get('highest_tile_power', 0)})")
                 print(f"Empty spaces: {len(perception_data.get('empty_spaces', []))}")
                 
-
-                # Step 2: Memory - Add to memory and generate reflection with retry logic
+                # Step 2: Memory
                 max_retries = max_retries_const
                 retry_count = 0
                 memory_summary = None
@@ -102,57 +120,149 @@ class Agent2048:
                 
                 while memory_summary is None and retry_count < max_retries:
                     memory_summary = self.memory_module.get_memory_summary()
-                    
                     if memory_summary is None or len(memory_summary) == 0:
                         retry_count += 1
                         print(f"Memory retrieval attempt {retry_count}/{max_retries} failed. Retrying...")
-                        await asyncio.sleep(2)  # Short delay before retry
+                        await asyncio.sleep(2)
+                memory_summary_for_log = memory_summary
                 
- 
-                # Print memory summary and reflection
                 if memory_summary:
-                    print("\nMEMORY SUMMARY:")
+                    print("\nMEMORY SUMMARY (Full):")
                     print(f"Memory entries: {len(memory_summary)}")
                     if len(memory_summary) > 0 and 'reflection' in memory_summary[-1]:
                         print(f"Latest reflection: {memory_summary[-1]['reflection']}")
                 
-                # Step 3: Reasoning - Plan the next action with retry logic
+                # Step 3: Reasoning
                 max_retries = max_retries_const
                 retry_count = 0
                 action_plan = None
-                
                 while action_plan is None and retry_count < max_retries:
-                    # Call the async plan_action method directly
                     action_plan = await self.reasoning_module.plan_action(
                         current_perception=perception_data,
                         memory_summary=memory_summary,
-                        img_path=BOARD_IMG_PATH,
-                        max_retries=3  # Handle retries at this level, not inside plan_action
+                        img_path=BOARD_IMG_PATH, # PerceptionModule updates this
+                        max_retries=3 
                     )
-                    
                     if action_plan is None or 'move' not in action_plan:
                         retry_count += 1
                         print(f"Action planning attempt {retry_count}/{max_retries} failed. Retrying...")
-                        await asyncio.sleep(2)  # Short delay before retry
+                        await asyncio.sleep(2)
+
+            elif self.agent_mode == "memory_reasoning":
+                print("\n" + "="*80)
+                # Step 1: Simplified Perception directly from info
+                board = info.get('board')
+                if board is None:
+                    print("Warning: Board not found in info for memory_reasoning mode.")
+                    return {"move": "skip", "thought": "Board info missing for memory_reasoning"}, None, None
+
+                empty_spaces_list = []
+                current_highest_tile_power = 0
+                for r_idx, row_val in enumerate(board):
+                    for c_idx, cell_val in enumerate(row_val):
+                        cell_power = int(cell_val)
+                        if cell_power == 0:
+                            empty_spaces_list.append((r_idx, c_idx))
+                        if cell_power > current_highest_tile_power:
+                            current_highest_tile_power = cell_power
+                actual_highest_tile = 0 if current_highest_tile_power == 0 else 2**current_highest_tile_power
                 
-                # If still no valid action plan after retries, create a fallback
-                if action_plan is None or 'move' not in action_plan:
-                    print("All reasoning attempts failed. Using fallback action.")
-                    action_plan = {
-                        "move": "skip",  # Simple fallback
-                        "thought": "Fallback action after failed reasoning attempts"
-                    }
-                
-                # Print action plan
-                print("\nACTION PLAN:")
-                print(f"Action: {action_plan['move']}")
-                print(f"Thought: {action_plan['thought']}")
-                print("="*80 + "\n")
-                
-                # Store this action for the next iteration
-                self.last_action = action_plan["move"]
-                
-                return action_plan, perception_data, memory_summary
+                simplified_perception_data = {
+                    "board": board.tolist() if isinstance(board, np.ndarray) else list(map(list, board)),
+                    "board_state_str": str(board.tolist() if isinstance(board, np.ndarray) else list(map(list, board))),
+                    "empty_spaces": empty_spaces_list,
+                    "highest_tile": actual_highest_tile,
+                    "highest_tile_power": int(current_highest_tile_power)
+                }
+                perception_data_for_log = simplified_perception_data
+                print("SIMPLIFIED PERCEPTION DATA (Memory+Reasoning):")
+                print(f"Highest tile: {actual_highest_tile} (2^{current_highest_tile_power})")
+                print(f"Empty spaces: {len(empty_spaces_list)}")
+
+                # Update board image for Reasoning Module - REMOVED, image comes from run_agent's env.render() now
+                # create_board_image(board, BOARD_IMG_PATH)
+
+                # Step 2: Memory
+                max_retries = max_retries_const
+                retry_count = 0
+                memory_summary = None
+                self.memory_module.add_game_state(simplified_perception_data, self.last_action)
+                while memory_summary is None and retry_count < max_retries:
+                    memory_summary = self.memory_module.get_memory_summary()
+                    if memory_summary is None or len(memory_summary) == 0:
+                        retry_count += 1
+                        print(f"Memory retrieval attempt {retry_count}/{max_retries} failed. Retrying...")
+                        await asyncio.sleep(2)
+                memory_summary_for_log = memory_summary
+
+                if memory_summary:
+                    print("\nMEMORY SUMMARY (Memory+Reasoning):")
+                    print(f"Memory entries: {len(memory_summary)}")
+                    if len(memory_summary) > 0 and 'reflection' in memory_summary[-1]:
+                        print(f"Latest reflection: {memory_summary[-1]['reflection']}")
+
+                # Step 3: Reasoning
+                max_retries = max_retries_const
+                retry_count = 0
+                action_plan = None
+                while action_plan is None and retry_count < max_retries:
+                    action_plan = await self.reasoning_module.plan_action(
+                        current_perception=simplified_perception_data,
+                        memory_summary=memory_summary,
+                        img_path=BOARD_IMG_PATH,
+                        max_retries=3
+                    )
+                    if action_plan is None or 'move' not in action_plan:
+                        retry_count += 1
+                        print(f"Action planning attempt {retry_count}/{max_retries} failed. Retrying...")
+                        await asyncio.sleep(2)
+
+            elif self.agent_mode == "perception_reasoning":
+                print("\n" + "="*80)
+                # Step 1: Perception
+                perception_data = self.perception_module.analyze_board(observation, info)
+                perception_data_for_log = perception_data
+                print("PERCEPTION DATA (Perception+Reasoning):")
+                print(f"Highest tile: {perception_data.get('highest_tile', 'Unknown')} (2^{perception_data.get('highest_tile_power', 0)})")
+                print(f"Empty spaces: {len(perception_data.get('empty_spaces', []))}")
+
+                # Step 2: Reasoning (no memory)
+                max_retries = max_retries_const
+                retry_count = 0
+                action_plan = None
+                while action_plan is None and retry_count < max_retries:
+                    action_plan = await self.reasoning_module.plan_action(
+                        current_perception=perception_data,
+                        memory_summary=None, # No memory for this mode
+                        img_path=BOARD_IMG_PATH, # PerceptionModule updates this
+                        max_retries=3
+                    )
+                    if action_plan is None or 'move' not in action_plan:
+                        retry_count += 1
+                        print(f"Action planning attempt {retry_count}/{max_retries} failed. Retrying...")
+                        await asyncio.sleep(2)
+                memory_summary_for_log = None # Explicitly None
+
+            else:
+                print(f"Error: Unknown agent mode {self.agent_mode}")
+                self.last_action = "skip"
+                return {"move": "skip", "thought": f"Unknown agent mode: {self.agent_mode}"}, None, None
+
+            # Common fallback and action printing for modes other than "base"
+            if action_plan is None or 'move' not in action_plan:
+                print("All reasoning attempts failed. Using fallback action.")
+                action_plan = {
+                    "move": "skip",
+                    "thought": "Fallback action after failed reasoning attempts"
+                }
+            
+            print("\nACTION PLAN:")
+            print(f"Action: {action_plan['move']}")
+            print(f"Thought: {action_plan['thought']}")
+            print("="*80 + "\n")
+            
+            self.last_action = action_plan["move"]
+            return action_plan, perception_data_for_log, memory_summary_for_log
         
         except Exception as e:
             print(f"Error in get_action: {e}")
@@ -336,7 +446,7 @@ async def run_agent(args):
         json.dump({
             "timestamp": datetime.now().isoformat(),
             "model": args.model,
-            "use_base_module": args.base,
+            "agent_mode": args.agent_mode, # Changed from use_base_module
             "use_random": args.random,
             "num_runs": args.num_runs,
             "cache_dir": CACHE_DIR
@@ -351,7 +461,7 @@ async def run_agent(args):
     if not args.random:
         agent = Agent2048(
             model_name=args.model,
-            use_base_module=args.base
+            agent_mode=args.agent_mode # Changed from use_base_module
         )
     else:
         print("Running with random actions")
@@ -361,11 +471,14 @@ async def run_agent(args):
         print(f"\n========== STARTING RUN {run_id}/{args.num_runs} ==========\n")
         
         # Create the 2048 environment with appropriate render mode
-        if args.base:
+        if args.agent_mode == "base": # Changed from args.base
             # For base agent: Need RGB array to save images and pass to vision model
             render_mode = "rgb_array"
+        elif args.agent_mode == "memory_reasoning" and not args.random:
+             # For memory_reasoning: Use raw rendered image, so need RGB array
+            render_mode = "rgb_array"
         else:
-            # For full pipeline: Human rendering for visualization
+            # For full pipeline and other modes: Human rendering for visualization or direct board state
             render_mode = "human"
         
         env = gym.make("gymnasium_2048:gymnasium_2048/TwentyFortyEight-v0", 
@@ -388,15 +501,33 @@ async def run_agent(args):
         
         while not done:
             # Save board image if needed
-            if args.base or args.random:
+            # Initialize frame_for_base_module to None. It will be updated if base mode is active.
+            frame_for_base_module = None
+            if (args.agent_mode == "base" or args.agent_mode == "memory_reasoning") and not args.random:
                 try:
                     # Save the current frame (for vision API or documentation)
-                    frame = env.render()
-                    if frame is not None:
-                        # Save to the board image path
-                        Image.fromarray(frame).save(BOARD_IMG_PATH)
+                    current_rendered_frame = env.render()
+                    if current_rendered_frame is not None:
+                        Image.fromarray(current_rendered_frame).save(BOARD_IMG_PATH)
+                        if args.agent_mode == "base": # If current mode is base, capture the frame
+                            frame_for_base_module = current_rendered_frame
+                    else:
+                        if args.agent_mode == "base":
+                            print("Warning: env.render() returned None, Base Module might fail.")
                 except Exception as e:
                     print(f"Warning: Could not save frame: {e}")
+            elif args.random: # Random mode might also benefit from seeing the board image if rgb_array is used
+                 if render_mode == "rgb_array":
+                    try:
+                        # This rendering is just for saving the image for random mode, not passed to an AI module.
+                        random_mode_frame = env.render()
+                        if random_mode_frame is not None:
+                            Image.fromarray(random_mode_frame).save(BOARD_IMG_PATH)
+                    except Exception as e:
+                        print(f"Warning: Could not save random mode frame: {e}")
+            # Note: For other modes (full, P+R) with render_mode="human",
+            # PerceptionModule (if used) or log_step handles image creation/saving from info['board']
+            # For M+R, the image is saved to BOARD_IMG_PATH above, ReasoningModule uses this path.
             
             # For random actions
             if args.random:
@@ -416,13 +547,16 @@ async def run_agent(args):
                 
                 while not valid_action and retry_count < max_retries:
                     # Get action from the agent
-                    if args.base:
-                        # For base agent, pass the RGB frame as observation
-                        frame = env.render()
-                        action_plan, perception_data, memory_summary = await agent.get_action(frame, info)
+                    if args.agent_mode == "base": # Changed from args.base
+                        # For base agent, pass the RGB frame (frame_for_base_module) as observation
+                        action_plan, perception_data, memory_summary = await agent.get_action(frame_for_base_module, info, max_retries_const=max_retries)
+                    elif args.agent_mode == "memory_reasoning" and not args.random:
+                        # For memory_reasoning, image is pre-rendered and saved to BOARD_IMG_PATH.
+                        # It needs 'observation' (from env.step/reset) and 'info' for simplified_perception.
+                        action_plan, perception_data, memory_summary = await agent.get_action(observation, info, max_retries_const=max_retries)
                     else:
-                        # For full pipeline, pass the observation and info
-                        action_plan, perception_data, memory_summary = await agent.get_action(observation, info)
+                        # For full pipeline and other modes, pass the observation and info
+                        action_plan, perception_data, memory_summary = await agent.get_action(observation, info, max_retries_const=max_retries)
                     
                     # Convert move to action index
                     action = agent.parse_move_to_action(action_plan["move"])
@@ -550,8 +684,9 @@ def parse_args():
     parser.add_argument('--model', type=str, default="claude-3-7-sonnet-latest",
                         help='Model name to use (default: claude-3-7-sonnet-latest)')
     
-    parser.add_argument('--base', action='store_true',
-                        help='Use the simplified Base_module (default: False)')
+    parser.add_argument('--agent_mode', type=str, default="full",
+                        choices=["full", "base", "memory_reasoning", "perception_reasoning"],
+                        help='Agent mode to use (default: full)')
     
     parser.add_argument('--random', action='store_true',
                         help='Use random actions instead of AI agent (default: False)')
