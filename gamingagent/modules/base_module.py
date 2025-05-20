@@ -4,6 +4,8 @@ from .core_module import CoreModule
 from tools.utils import scale_image_up
 import re
 
+# TODO: 1. with visual state (vision only) 2. without visual state (text only)
+
 class BaseModule(CoreModule):
     """
     Base module that directly processes observations and returns actions.
@@ -36,6 +38,7 @@ class BaseModule(CoreModule):
             reasoning_effort=reasoning_effort
         )
         self.last_action = None
+
     
     def process_observation(self, observation:str):
         """

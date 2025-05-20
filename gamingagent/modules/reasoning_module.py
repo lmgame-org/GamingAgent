@@ -1,6 +1,8 @@
 from abc import abstractmethod
 from .core_module import CoreModule
 
+# TODO: 1.module integration 2.COT thinking mode 
+
 class ReasoningModule(CoreModule):
     """
     Reasoning module that plans actions based on perception and memory.
@@ -144,36 +146,7 @@ class ReasoningModule(CoreModule):
         )
         
         return response
-    
-    def _prepare_memory_context(self, memory_summary):
-        """
-        Prepare a concise summary of memory for the prompt.
-        
-        Args:
-            memory_summary (list): List of memory entries
-            
-        Returns:
-            str: A formatted summary of memory for use in prompts
-        """
-        if not memory_summary:
-            return "No memory of past states available."
-            
-        # Default implementation - can be overridden by game-specific subclasses
-        summary_parts = []
-        for i, entry in enumerate(memory_summary[-3:]):  # Only include the last 3 entries
-            entry_summary = f"State {i+1}:\n"
-            
-            # Basic memory entry visualization
-            if 'last_action' in entry:
-                entry_summary += f"- Last action: {entry['last_action']}\n"
-            if 'thought' in entry:
-                entry_summary += f"- Thought: {entry['thought']}\n"
-            if 'reflection' in entry:
-                entry_summary += f"- Reflection: {entry['reflection']}\n"
-            
-            summary_parts.append(entry_summary)
-            
-        return "\n".join(summary_parts)
+   
     
     def _parse_response(self, response):
         """

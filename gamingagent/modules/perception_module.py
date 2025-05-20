@@ -8,6 +8,9 @@ from .core_module import CoreModule
 from dataclasses import dataclass
 from typing import Optional, Any
 
+# TODO: customize perception data analysis
+# TODO: texual vs system two track
+
 @dataclass
 class Observation:
     """
@@ -97,7 +100,7 @@ class PerceptionModule(CoreModule):
         # Create observations directory for storing game state images
         self.obs_dir = os.path.join(cache_dir, "observations")
         os.makedirs(self.obs_dir, exist_ok=True)
-    
+        
     @abstractmethod
     def process_observation(self, observation):
         """
