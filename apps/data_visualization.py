@@ -56,76 +56,76 @@ def simplify_model_name(name):
     return '-'.join(parts[:4]) + '-...' if len(parts) > 4 else name
 
 def create_horizontal_bar_chart(df, game_name):
-    if game_name == "Super Mario Bros":
-        score_col = "Score"
-        df_sorted = df.sort_values(by=score_col, ascending=True)
-    elif game_name == "Sokoban":
-        # Process Sokoban scores by splitting and getting max level
-        def get_max_level(levels_str):
-            try:
-                # Split by semicolon, strip whitespace, filter empty strings, convert to integers
-                levels = [int(x.strip()) for x in levels_str.split(";") if x.strip()]
-                return max(levels) if levels else 0
-            except:
-                return 0
-        
-        # Create a temporary column with max levels
-        df['Max Level'] = df['Levels Cracked'].apply(get_max_level)
-        df_sorted = df.sort_values(by='Max Level', ascending=True)
-        score_col = 'Max Level'
-    elif game_name == "2048":
-        score_col = "Score"
-        df_sorted = df.sort_values(by=score_col, ascending=True)
-    elif game_name == "Candy Crush":
-        score_col = "Average Score"
-        df_sorted = df.sort_values(by=score_col, ascending=True)
-    elif game_name in ["Tetris (complete)", "Tetris (planning only)"]:
-        score_col = "Score"
-        df_sorted = df.sort_values(by=score_col, ascending=True)
-    elif game_name == "Ace Attorney":
-        score_col = "Score"
-        df_sorted = df.sort_values(by=score_col, ascending=True)
-    else:
-        return None
+    """Creates a horizontal bar chart for a given game's leaderboard data."""
+    
+    if df is None or df.empty:
+        # Return a placeholder or an empty figure if there's no data
+        fig = go.Figure()
+        fig.update_layout(
+            title=f"No data available for {game_name}",
+            xaxis_title="Score",
+            yaxis_title="Player",
+            plot_bgcolor='rgba(0,0,0,0)',
+            paper_bgcolor='rgba(0,0,0,0)',
+            font=dict(color='#2c3e50')
+        )
+        return fig
 
-    x = df_sorted[score_col]
-    y = [f"{row['Player']} [{row['Organization']}]" for _, row in df_sorted.iterrows()]
-    colors = [MODEL_COLORS.get(row['Player'], '#808080') for _, row in df_sorted.iterrows()]
-    texts = [f"{v:.1f}" if game_name == "Candy Crush" else f"{int(v)}" for v in x]
+    score_col = "Score" # Standardized score column name
 
-    fig = go.Figure(go.Bar(
-        x=x,
-        y=y,
-        orientation='h',
-        marker_color=colors,
-        text=texts,
-        textposition='auto',
-        hovertemplate='%{y}<br>Score: %{x}<extra></extra>'
-    ))
+    if score_col not in df.columns:
+        fig = go.Figure()
+        fig.update_layout(title=f"'{score_col}' column not found for {game_name}")
+        return fig
 
-    fig.update_layout(
-        autosize=False,
-        width=1000,
-        height=600,
-        margin=dict(l=200, r=200, t=20, b=20),
-        title=dict(
-            text=f"{game_name} Performance",
-            pad=dict(t=10),
-            font=dict(size=20)
-        ),
-        yaxis=dict(automargin=True),
-        legend=dict(
-            font=dict(size=12),
-            itemsizing='trace',
-            x=1.1,
-            y=1,
-            xanchor='left',
-            yanchor='top',
-            bgcolor='rgba(255,255,255,0.6)',
-            bordercolor='gray',
-            borderwidth=1
+    # Ensure the score column is numeric for sorting and plotting
+    df[score_col] = pd.to_numeric(df[score_col], errors='coerce')
+    df_cleaned = df.dropna(subset=[score_col]) # Remove rows where score is NaN after conversion
+
+    if df_cleaned.empty:
+        fig = go.Figure()
+        fig.update_layout(title=f"No valid score data to plot for {game_name}")
+        return fig
+
+    # Sort values for chart display (lowest score at the top of the chart)
+    # The input df is already sorted descending by score from leaderboard_utils
+    # Re-sorting ascending=True here means player with lowest score is at the top of the y-axis categories
+    df_sorted = df_cleaned.sort_values(by=score_col, ascending=True)
+
+    fig = go.Figure(
+        go.Bar(
+            y=df_sorted['Player'], 
+            x=df_sorted[score_col], 
+            orientation='h',
+            marker=dict(
+                color=df_sorted[score_col],
+                colorscale='Viridis', # Example colorscale, can be changed
+                line=dict(color='#2c3e50', width=1)
+            ),
+            hovertext=df_sorted[score_col].round(2).astype(str) + ' points',
+            hoverinfo='y+text'
         )
     )
+
+    fig.update_layout(
+        title=dict(
+            text=f'{game_name} Scores',
+            x=0.5,
+            font=dict(size=20, color='#2c3e50')
+        ),
+        xaxis_title="Score",
+        yaxis_title="Player",
+        plot_bgcolor='rgba(0,0,0,0)', # Transparent plot background
+        paper_bgcolor='rgba(0,0,0,0)', # Transparent paper background
+        font=dict(color='#2c3e50'), # Dark text for better readability on light backgrounds
+        margin=dict(l=150, r=20, t=50, b=50), # Adjust margins for player names
+        yaxis=dict(
+            automargin=True, 
+            tickfont=dict(size=10)
+        ),
+        xaxis=dict(gridcolor='#e0e0e0') # Light gridlines for x-axis
+    )
+    
     return fig
 
 def create_radar_charts(df):
@@ -324,8 +324,10 @@ def create_single_radar_chart(df, selected_games=None, highlight_models=None):
     # Format game names
     formatted_games = []
     for game in selected_games:
-        if game == 'Super Mario Bros':
+        if game == 'Super Mario Bros (planning only)':
             formatted_games.append('Super Mario')  # Simplified name
+        elif game == 'Tetris (planning only)':
+            formatted_games.append('Tetris')
         else:
             formatted_games.append(game)  # Keep other names as is
 
@@ -387,7 +389,7 @@ def create_single_radar_chart(df, selected_games=None, highlight_models=None):
     fig.update_layout(
         autosize=False,
         width=1000,
-        height=620,  # Increased height to accommodate legend
+        height=700,  # Increased height to accommodate legend
         margin=dict(l=400, r=200, t=20, b=20),
         title=dict(
             text="AI Normalized Performance Across Games",

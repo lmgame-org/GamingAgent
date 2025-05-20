@@ -4,11 +4,12 @@ import numpy as np
 
 # Define game order
 GAME_ORDER = [
-    "Super Mario Bros",
+    # "Super Mario Bros", # Commented out
+    "Super Mario Bros (planning only)",
     "Sokoban",
     "2048",
     "Candy Crush",
-    "Tetris (complete)",
+    # "Tetris (complete)", # Commented out
     "Tetris (planning only)",
     "Ace Attorney"
 ]
@@ -41,18 +42,31 @@ def get_mario_leaderboard(rank_data):
     })
     df["Organization"] = df["Player"].apply(get_organization)
     df = df[["Player", "Organization", "Progress (current/total)", "Score", "Time (s)"]]
+    if "Score" in df.columns:
+        df = df.sort_values("Score", ascending=False)
     return df
 
 def get_sokoban_leaderboard(rank_data):
     data = rank_data.get("Sokoban", {}).get("results", [])
     df = pd.DataFrame(data)
     df = df.rename(columns={
-        "model": "Player", 
-        "levels_cracked": "Levels Cracked", 
-        "steps": "Steps"
+        "model": "Player",
+        "score": "Score",
+        "steps": "Steps",
+        "detail_box_on_target": "Detail Box On Target",
+        "cracked_levels": "Levels Cracked"
     })
     df["Organization"] = df["Player"].apply(get_organization)
-    df = df[["Player", "Organization", "Levels Cracked", "Steps"]]
+    
+    # Define columns to keep, ensuring 'Score' is present
+    columns_to_keep = ["Player", "Organization", "Score", "Levels Cracked", "Detail Box On Target", "Steps"]
+    # Filter to only columns that actually exist in the DataFrame after renaming
+    df_columns = [col for col in columns_to_keep if col in df.columns]
+    df = df[df_columns]
+
+    if "Score" in df.columns:
+        df["Score"] = pd.to_numeric(df["Score"], errors='coerce')
+        df = df.sort_values("Score", ascending=False)
     return df
 
 def get_2048_leaderboard(rank_data):
@@ -60,12 +74,19 @@ def get_2048_leaderboard(rank_data):
     df = pd.DataFrame(data)
     df = df.rename(columns={
         "model": "Player", 
-        "score": "Score", 
-        "steps": "Steps", 
-        "time": "Time"
+        "score": "Score",       # From new JSON structure
+        "details": "Details"    # From new JSON structure
+        # Old fields like "steps", "time", "rank" are removed
     })
     df["Organization"] = df["Player"].apply(get_organization)
-    df = df[["Player", "Organization", "Score", "Steps", "Time"]]
+    
+    columns_to_keep = ["Player", "Organization", "Score", "Details"]
+    df_columns = [col for col in columns_to_keep if col in df.columns]
+    df = df[df_columns]
+
+    if "Score" in df.columns:
+        df["Score"] = pd.to_numeric(df["Score"], errors='coerce')
+        df = df.sort_values("Score", ascending=False)
     return df
 
 def get_candy_leaderboard(rank_data):
@@ -73,12 +94,18 @@ def get_candy_leaderboard(rank_data):
     df = pd.DataFrame(data)
     df = df.rename(columns={
         "model": "Player", 
-        "score_runs": "Score Runs", 
-        "average_score": "Average Score", 
-        "steps": "Steps"
+        "score": "Score",
+        "details": "Details"
     })
     df["Organization"] = df["Player"].apply(get_organization)
-    df = df[["Player", "Organization", "Score Runs", "Average Score", "Steps"]]
+    
+    columns_to_keep = ["Player", "Organization", "Score", "Details"]
+    df_columns = [col for col in columns_to_keep if col in df.columns]
+    df = df[df_columns]
+
+    if "Score" in df.columns:
+        df["Score"] = pd.to_numeric(df["Score"], errors='coerce')
+        df = df.sort_values("Score", ascending=False)
     return df
 
 def get_tetris_leaderboard(rank_data):
@@ -98,11 +125,19 @@ def get_tetris_planning_leaderboard(rank_data):
     df = pd.DataFrame(data)
     df = df.rename(columns={
         "model": "Player", 
-        "score": "Score", 
-        "steps_blocks": "Steps"
+        "score": "Score",       # From new JSON structure
+        "details": "Details"    # From new JSON structure
+        # Old fields like "steps_blocks", "rank" are removed
     })
     df["Organization"] = df["Player"].apply(get_organization)
-    df = df[["Player", "Organization", "Score", "Steps"]]
+    
+    columns_to_keep = ["Player", "Organization", "Score", "Details"]
+    df_columns = [col for col in columns_to_keep if col in df.columns]
+    df = df[df_columns]
+
+    if "Score" in df.columns:
+        df["Score"] = pd.to_numeric(df["Score"], errors='coerce')
+        df = df.sort_values("Score", ascending=False)
     return df
 
 def get_ace_attorney_leaderboard(rank_data):
@@ -110,14 +145,41 @@ def get_ace_attorney_leaderboard(rank_data):
     df = pd.DataFrame(data)
     df = df.rename(columns={
         "model": "Player",
-        "levels_cracked": "Levels Cracked",
-        "lives_left": "Lives Left",
-        "cracked_details": "Progress",
         "score": "Score",
-        "note": "Notes"
+        "progress": "Progress",
+        "evaluator result": "Evaluator Result"
     })
     df["Organization"] = df["Player"].apply(get_organization)
-    df = df[["Player", "Organization", "Levels Cracked", "Lives Left", "Progress", "Score", "Notes"]]
+    
+    # Define columns to keep, including Evaluator Result
+    columns_to_keep = ["Player", "Organization", "Score", "Progress", "Evaluator Result"]
+    # Filter to only columns that actually exist in the DataFrame after renaming
+    df_columns = [col for col in columns_to_keep if col in df.columns]
+    df = df[df_columns]
+
+    if "Score" in df.columns:
+        df["Score"] = pd.to_numeric(df["Score"], errors='coerce')
+        df = df.sort_values("Score", ascending=False)  # Higher score is better
+    return df
+
+def get_mario_planning_leaderboard(rank_data):
+    data = rank_data.get("Super Mario Bros (planning only)", {}).get("results", [])
+    df = pd.DataFrame(data)
+    df = df.rename(columns={
+        "model": "Player", 
+        "score": "Score", 
+        "detail_data": "Detail Data",
+        "progress": "Progress"
+    })
+    df["Organization"] = df["Player"].apply(get_organization)
+    # Define columns to keep
+    columns_to_keep = ["Player", "Organization", "Score", "Progress", "Detail Data"]
+    df_columns = [col for col in columns_to_keep if col in df.columns]
+    df = df[df_columns]
+
+    if "Score" in df.columns:
+        df["Score"] = pd.to_numeric(df["Score"], errors='coerce')
+        df = df.sort_values("Score", ascending=False)
     return df
 
 def calculate_rank_and_completeness(rank_data, selected_games):
@@ -125,16 +187,18 @@ def calculate_rank_and_completeness(rank_data, selected_games):
     game_dfs = {}
     
     # Get DataFrames for selected games
-    if selected_games.get("Super Mario Bros"):
-        game_dfs["Super Mario Bros"] = get_mario_leaderboard(rank_data)
+    # if selected_games.get("Super Mario Bros"): # Commented out
+    #     game_dfs["Super Mario Bros"] = get_mario_leaderboard(rank_data)
+    if selected_games.get("Super Mario Bros (planning only)"):
+        game_dfs["Super Mario Bros (planning only)"] = get_mario_planning_leaderboard(rank_data)
     if selected_games.get("Sokoban"):
         game_dfs["Sokoban"] = get_sokoban_leaderboard(rank_data)
     if selected_games.get("2048"):
         game_dfs["2048"] = get_2048_leaderboard(rank_data)
     if selected_games.get("Candy Crush"):
         game_dfs["Candy Crush"] = get_candy_leaderboard(rank_data)
-    if selected_games.get("Tetris (complete)"):
-        game_dfs["Tetris (complete)"] = get_tetris_leaderboard(rank_data)
+    # if selected_games.get("Tetris (complete)"): # Commented out
+    #     game_dfs["Tetris (complete)"] = get_tetris_leaderboard(rank_data)
     if selected_games.get("Tetris (planning only)"):
         game_dfs["Tetris (planning only)"] = get_tetris_planning_leaderboard(rank_data)
     if selected_games.get("Ace Attorney"):
@@ -163,29 +227,22 @@ def calculate_rank_and_completeness(rank_data, selected_games):
                 if player in df["Player"].values:
                     games_played += 1
                     # Get player's score based on game type
-                    if game == "Super Mario Bros":
+                    # if game == "Super Mario Bros": # Commented out
+                    #     player_score = df[df["Player"] == player]["Score"].iloc[0]
+                    #     rank = len(df[df["Score"] > player_score]) + 1
+                    if game == "Super Mario Bros (planning only)":
                         player_score = df[df["Player"] == player]["Score"].iloc[0]
                         rank = len(df[df["Score"] > player_score]) + 1
                     elif game == "Sokoban":
-                        # Parse Sokoban score string and get maximum level
-                        levels_str = df[df["Player"] == player]["Levels Cracked"].iloc[0]
-                        try:
-                            # Split by semicolon, strip whitespace, filter empty strings, convert to integers
-                            levels = [int(x.strip()) for x in levels_str.split(";") if x.strip()]
-                            player_score = max(levels) if levels else 0
-                        except:
-                            player_score = 0
-                        # Calculate rank based on maximum level
-                        rank = len(df[df["Levels Cracked"].apply(
-                            lambda x: max([int(y.strip()) for y in x.split(";") if y.strip()]) > player_score
-                        )]) + 1
+                        player_score = df[df["Player"] == player]["Score"].iloc[0]
+                        rank = len(df[df["Score"] > player_score]) + 1
                     elif game == "2048":
                         player_score = df[df["Player"] == player]["Score"].iloc[0]
                         rank = len(df[df["Score"] > player_score]) + 1
                     elif game == "Candy Crush":
-                        player_score = df[df["Player"] == player]["Average Score"].iloc[0]
-                        rank = len(df[df["Average Score"] > player_score]) + 1
-                    elif game in ["Tetris (complete)", "Tetris (planning only)"]:
+                        player_score = df[df["Player"] == player]["Score"].iloc[0]
+                        rank = len(df[df["Score"] > player_score]) + 1
+                    elif game in ["Tetris (planning only)"]:
                         player_score = df[df["Player"] == player]["Score"].iloc[0]
                         rank = len(df[df["Score"] > player_score]) + 1
                     elif game == "Ace Attorney":
@@ -197,12 +254,12 @@ def calculate_rank_and_completeness(rank_data, selected_games):
                 else:
                     player_data[f"{game} Score"] = 'n/a'
 
-        # Calculate average rank and completeness for sorting only
+        # Calculate average rank and completeness for sorting
         if ranks:
-            player_data["Sort Rank"] = round(np.mean(ranks), 2)
+            player_data["Average Rank"] = round(np.mean(ranks), 2)
             player_data["Games Played"] = games_played
         else:
-            player_data["Sort Rank"] = float('inf')
+            player_data["Average Rank"] = float('inf')
             player_data["Games Played"] = 0
 
         results.append(player_data)
@@ -210,13 +267,13 @@ def calculate_rank_and_completeness(rank_data, selected_games):
     # Create DataFrame and sort by average rank and completeness
     df_results = pd.DataFrame(results)
     if not df_results.empty:
-        # Sort by average rank (ascending) and completeness (descending)
+        # Sort by average rank (ascending) and games played (descending)
         df_results = df_results.sort_values(
-            by=["Sort Rank", "Games Played"],
+            by=["Average Rank", "Games Played"],
             ascending=[True, False]
         )
         # Drop the sorting columns
-        df_results = df_results.drop(["Sort Rank", "Games Played"], axis=1)
+        df_results = df_results.drop(["Average Rank", "Games Played"], axis=1)
 
     return df_results
 
@@ -235,16 +292,18 @@ def get_combined_leaderboard(rank_data, selected_games):
     game_dfs = {}
     
     # Get DataFrames for selected games
-    if selected_games.get("Super Mario Bros"):
-        game_dfs["Super Mario Bros"] = get_mario_leaderboard(rank_data)
+    # if selected_games.get("Super Mario Bros"): # Commented out
+    #     game_dfs["Super Mario Bros"] = get_mario_leaderboard(rank_data)
+    if selected_games.get("Super Mario Bros (planning only)"):
+        game_dfs["Super Mario Bros (planning only)"] = get_mario_planning_leaderboard(rank_data)
     if selected_games.get("Sokoban"):
         game_dfs["Sokoban"] = get_sokoban_leaderboard(rank_data)
     if selected_games.get("2048"):
         game_dfs["2048"] = get_2048_leaderboard(rank_data)
     if selected_games.get("Candy Crush"):
         game_dfs["Candy Crush"] = get_candy_leaderboard(rank_data)
-    if selected_games.get("Tetris (complete)"):
-        game_dfs["Tetris (complete)"] = get_tetris_leaderboard(rank_data)
+    # if selected_games.get("Tetris (complete)"): # Commented out
+    #     game_dfs["Tetris (complete)"] = get_tetris_leaderboard(rank_data)
     if selected_games.get("Tetris (planning only)"):
         game_dfs["Tetris (planning only)"] = get_tetris_planning_leaderboard(rank_data)
     if selected_games.get("Ace Attorney"):
@@ -269,21 +328,17 @@ def get_combined_leaderboard(rank_data, selected_games):
             if game in game_dfs:
                 df = game_dfs[game]
                 if player in df["Player"].values:
-                    if game == "Super Mario Bros":
+                    # if game == "Super Mario Bros": # Commented out
+                    #     player_data[f"{game} Score"] = df[df["Player"] == player]["Score"].iloc[0]
+                    if game == "Super Mario Bros (planning only)":
                         player_data[f"{game} Score"] = df[df["Player"] == player]["Score"].iloc[0]
                     elif game == "Sokoban":
-                        # Parse Sokoban score string and get maximum level
-                        levels_str = df[df["Player"] == player]["Levels Cracked"].iloc[0]
-                        try:
-                            levels = [int(x.strip()) for x in levels_str.split(";") if x.strip()]
-                            player_data[f"{game} Score"] = max(levels) if levels else 0
-                        except:
-                            player_data[f"{game} Score"] = 0
+                        player_data[f"{game} Score"] = df[df["Player"] == player]["Score"].iloc[0]
                     elif game == "2048":
                         player_data[f"{game} Score"] = df[df["Player"] == player]["Score"].iloc[0]
                     elif game == "Candy Crush":
-                        player_data[f"{game} Score"] = df[df["Player"] == player]["Average Score"].iloc[0]
-                    elif game in ["Tetris (complete)", "Tetris (planning only)"]:
+                        player_data[f"{game} Score"] = df[df["Player"] == player]["Score"].iloc[0]
+                    elif game in ["Tetris (planning only)"]:
                         player_data[f"{game} Score"] = df[df["Player"] == player]["Score"].iloc[0]
                     elif game == "Ace Attorney":
                         player_data[f"{game} Score"] = df[df["Player"] == player]["Score"].iloc[0]

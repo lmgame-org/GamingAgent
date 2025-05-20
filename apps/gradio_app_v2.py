@@ -10,7 +10,7 @@ from datetime import datetime, timedelta
 import matplotlib.pyplot as plt
 from leaderboard_utils import (
     get_organization,
-    get_mario_leaderboard,
+    get_mario_planning_leaderboard,
     get_sokoban_leaderboard,
     get_2048_leaderboard,
     get_candy_leaderboard,
@@ -50,20 +50,22 @@ with open(TIME_POINTS["03/25/2025"], "r") as f:
 leaderboard_state = {
     "current_game": None,
     "previous_overall": {
-        "Super Mario Bros": True,
+        # "Super Mario Bros": True, # Commented out
+        "Super Mario Bros (planning only)": True,
         "Sokoban": True,
         "2048": True,
         "Candy Crush": True,
-        "Tetris (complete)": True,
+        # "Tetris (complete)", # Commented out
         "Tetris (planning only)": True,
         "Ace Attorney": True
     },
     "previous_details": {
-        "Super Mario Bros": False,
+        # "Super Mario Bros": False, # Commented out
+        "Super Mario Bros (planning only)": False,
         "Sokoban": False,
         "2048": False,
         "Candy Crush": False,
-        "Tetris (complete)": False,
+        # "Tetris (complete)": False, # Commented out
         "Tetris (planning only)": False,
         "Ace Attorney": False
     }
@@ -107,7 +109,7 @@ def prepare_dataframe_for_display(df, for_game=None):
         if col.endswith(' Score'):
             display_df[col] = display_df[col].apply(lambda x: '-' if x == '_' else x)
     
-    # If we're in detailed view, add a formatted rank column
+    # If we're in detailed view, sort by score
     if for_game:
         # Sort by relevant score column
         score_col = f"{for_game} Score"
@@ -116,10 +118,30 @@ def prepare_dataframe_for_display(df, for_game=None):
             display_df[score_col] = pd.to_numeric(display_df[score_col], errors='coerce')
             # Sort by score in descending order
             display_df = display_df.sort_values(by=score_col, ascending=False)
-            # Add rank column based on the sort
-            display_df.insert(0, 'Rank', range(1, len(display_df) + 1))
             # Filter out models that didn't participate
             display_df = display_df[~display_df[score_col].isna()]
+    else:
+        # For overall view, sort by average of game scores (implicitly used for ranking)
+        # but we won't add an explicit 'Rank' or 'Average Rank' column to the final display_df
+        
+        # Calculate an internal sorting key based on average scores, but don't add it to the display_df
+        score_cols = [col for col in display_df.columns if col.endswith(' Score')]
+        if score_cols:
+            temp_sort_df = display_df.copy()
+            for col in score_cols:
+                temp_sort_df[col] = pd.to_numeric(temp_sort_df[col], errors='coerce')
+            
+            # Calculate average of the game scores (use mean of ranks from utils for actual ranking logic if different)
+            # For display sorting, let's use a simple average of available scores.
+            # The actual ranking for 'Average Rank' in leaderboard_utils uses mean of ranks, which is more robust.
+            # Here we just need a consistent sort order.
+            
+            # Create a temporary column for sorting
+            temp_sort_df['temp_avg_score_for_sort'] = temp_sort_df[score_cols].mean(axis=1)
+            
+            # Sort by this temporary average score (higher is better for scores)
+            # and then by Player name as a tie-breaker
+            display_df = display_df.loc[temp_sort_df.sort_values(by=['temp_avg_score_for_sort', 'Player'], ascending=[False, True]).index]
     
     # Add line breaks to column headers
     new_columns = {}
@@ -129,9 +151,6 @@ def prepare_dataframe_for_display(df, for_game=None):
             game_name = col.replace(' Score', '')
             new_col = f"{game_name}\nScore"
             new_columns[col] = new_col
-        # Keep Organization without line breaks
-        # elif col == 'Organization':
-        #    new_columns[col] = 'Organi-\nzation'
     
     # Rename columns with new line breaks
     if new_columns:
@@ -158,32 +177,35 @@ def update_df_with_height(df):
                      # max_height=None,  # Remove height limitation - COMMENTED OUT
                      column_widths=col_widths)
 
-def update_leaderboard(mario_overall, mario_details,
+def update_leaderboard(# mario_overall, mario_details, # Commented out
+                       mario_plan_overall, mario_plan_details, # Added
                        sokoban_overall, sokoban_details,
                        _2048_overall, _2048_details,
                        candy_overall, candy_details,
-                       tetris_overall, tetris_details,
+                       # tetris_overall, tetris_details, # Commented out
                        tetris_plan_overall, tetris_plan_details,
                        ace_attorney_overall, ace_attorney_details):
     global leaderboard_state
     
     # Convert current checkbox states to dictionary for easier comparison
     current_overall = {
-        "Super Mario Bros": mario_overall,
+        # "Super Mario Bros": mario_overall, # Commented out
+        "Super Mario Bros (planning only)": mario_plan_overall,
         "Sokoban": sokoban_overall,
         "2048": _2048_overall,
         "Candy Crush": candy_overall,
-        "Tetris (complete)": tetris_overall,
+        # "Tetris (complete)": tetris_overall, # Commented out
         "Tetris (planning only)": tetris_plan_overall,
         "Ace Attorney": ace_attorney_overall
     }
     
     current_details = {
-        "Super Mario Bros": mario_details,
+        # "Super Mario Bros": mario_details, # Commented out
+        "Super Mario Bros (planning only)": mario_plan_details,
         "Sokoban": sokoban_details,
         "2048": _2048_details,
         "Candy Crush": candy_details,
-        "Tetris (complete)": tetris_details,
+        # "Tetris (complete)": tetris_details, # Commented out
         "Tetris (planning only)": tetris_plan_details,
         "Ace Attorney": ace_attorney_details
     }
@@ -266,11 +288,12 @@ def update_leaderboard(mario_overall, mario_details,
     
     # Build dictionary for selected games
     selected_games = {
-        "Super Mario Bros": current_overall["Super Mario Bros"],
+        # "Super Mario Bros": current_overall["Super Mario Bros"], # Commented out
+        "Super Mario Bros (planning only)": current_overall["Super Mario Bros (planning only)"],
         "Sokoban": current_overall["Sokoban"],
         "2048": current_overall["2048"],
         "Candy Crush": current_overall["Candy Crush"],
-        "Tetris (complete)": current_overall["Tetris (complete)"],
+        # "Tetris (complete)": current_overall["Tetris (complete)"], # Commented out
         "Tetris (planning only)": current_overall["Tetris (planning only)"],
         "Ace Attorney": current_overall["Ace Attorney"]
     }
@@ -278,54 +301,49 @@ def update_leaderboard(mario_overall, mario_details,
     # Get the appropriate DataFrame and charts based on current state
     if leaderboard_state["current_game"]:
         # For detailed view
-        if leaderboard_state["current_game"] == "Super Mario Bros":
-            df = get_mario_leaderboard(rank_data)
+        # if leaderboard_state["current_game"] == "Super Mario Bros": # Commented out
+        #     df = get_mario_leaderboard(rank_data)
+        if leaderboard_state["current_game"] == "Super Mario Bros (planning only)":
+            df = get_mario_planning_leaderboard(rank_data)
         elif leaderboard_state["current_game"] == "Sokoban":
             df = get_sokoban_leaderboard(rank_data)
         elif leaderboard_state["current_game"] == "2048":
             df = get_2048_leaderboard(rank_data)
         elif leaderboard_state["current_game"] == "Candy Crush":
             df = get_candy_leaderboard(rank_data)
-        elif leaderboard_state["current_game"] == "Tetris (complete)":
-            df = get_tetris_leaderboard(rank_data)
         elif leaderboard_state["current_game"] == "Tetris (planning only)":
             df = get_tetris_planning_leaderboard(rank_data)
         elif leaderboard_state["current_game"] == "Ace Attorney":
             df = get_ace_attorney_leaderboard(rank_data)
+        else: # Should not happen if current_game is one of the known games
+            df = pd.DataFrame() # Empty df
         
-        # Format the DataFrame for display
         display_df = prepare_dataframe_for_display(df, leaderboard_state["current_game"])
-        
-        # Always create a new chart for detailed view
         chart = create_horizontal_bar_chart(df, leaderboard_state["current_game"])
-        # Use the same chart for all visualizations in detailed view
-        radar_chart = chart
-        group_bar_chart = chart
+        radar_chart = chart # In detailed view, radar and group bar can be the same as the main chart
+        group_bar_chart = chart 
     else:
         # For overall view
-        df, _ = get_combined_leaderboard_with_group_bar(rank_data, selected_games)
-        # Format the DataFrame for display
+        df, group_bar_chart = get_combined_leaderboard_with_group_bar(rank_data, selected_games)
         display_df = prepare_dataframe_for_display(df)
-        # Use the same selected_games for radar chart
         _, radar_chart = get_combined_leaderboard_with_single_radar(rank_data, selected_games)
-        chart = radar_chart
-        group_bar_chart = radar_chart  # Use radar chart instead of bar chart
+        chart = radar_chart # In overall view, the 'detailed' chart can be the radar chart
     
-    # Return exactly 18 values to match the expected outputs
-    return (update_df_with_height(display_df), chart, radar_chart, radar_chart,
-            current_overall["Super Mario Bros"], current_details["Super Mario Bros"],
+    # Return values, including all four plot placeholders
+    return (update_df_with_height(display_df), chart, radar_chart, group_bar_chart,
+            current_overall["Super Mario Bros (planning only)"], current_details["Super Mario Bros (planning only)"],
             current_overall["Sokoban"], current_details["Sokoban"],
             current_overall["2048"], current_details["2048"],
             current_overall["Candy Crush"], current_details["Candy Crush"],
-            current_overall["Tetris (complete)"], current_details["Tetris (complete)"],
             current_overall["Tetris (planning only)"], current_details["Tetris (planning only)"],
             current_overall["Ace Attorney"], current_details["Ace Attorney"])
 
-def update_leaderboard_with_time(time_point, mario_overall, mario_details,
+def update_leaderboard_with_time(time_point, # mario_overall, mario_details, # Commented out
+                               mario_plan_overall, mario_plan_details, # Added
                                sokoban_overall, sokoban_details,
                                _2048_overall, _2048_details,
                                candy_overall, candy_details,
-                               tetris_overall, tetris_details,
+                               # tetris_overall, tetris_details, # Commented out
                                tetris_plan_overall, tetris_plan_details,
                                ace_attorney_overall, ace_attorney_details):
     # Load rank data for the selected time point
@@ -334,12 +352,13 @@ def update_leaderboard_with_time(time_point, mario_overall, mario_details,
     if new_rank_data is not None:
         rank_data = new_rank_data
     
-    # Use the existing update_leaderboard function
-    return update_leaderboard(mario_overall, mario_details,
+    # Use the existing update_leaderboard function, including Super Mario (planning only)
+    return update_leaderboard(# mario_overall, mario_details, # Commented out
+                            mario_plan_overall, mario_plan_details, # Added
                             sokoban_overall, sokoban_details,
                             _2048_overall, _2048_details,
                             candy_overall, candy_details,
-                            tetris_overall, tetris_details,
+                            # tetris_overall, tetris_details, # Commented out
                             tetris_plan_overall, tetris_plan_details,
                             ace_attorney_overall, ace_attorney_details)
 
@@ -348,20 +367,22 @@ def get_initial_state():
     return {
         "current_game": None,
         "previous_overall": {
-            "Super Mario Bros": True,
+            # "Super Mario Bros": True, # Commented out
+            "Super Mario Bros (planning only)": True,
             "Sokoban": True,
             "2048": True,
             "Candy Crush": True,
-            "Tetris (complete)": True,
+            # "Tetris (complete)", # Commented out
             "Tetris (planning only)": True,
             "Ace Attorney": True
         },
         "previous_details": {
-            "Super Mario Bros": False,
+            # "Super Mario Bros": False, # Commented out
+            "Super Mario Bros (planning only)": False,
             "Sokoban": False,
             "2048": False,
             "Candy Crush": False,
-            "Tetris (complete)": False,
+            # "Tetris (complete)": False, # Commented out
             "Tetris (planning only)": False,
             "Ace Attorney": False
         }
@@ -370,36 +391,27 @@ def get_initial_state():
 def clear_filters():
     global leaderboard_state
     
-    # Reset all checkboxes to default state
     selected_games = {
-        "Super Mario Bros": True,
+        "Super Mario Bros (planning only)": True,
         "Sokoban": True,
         "2048": True,
         "Candy Crush": True,
-        "Tetris (complete)": True,
         "Tetris (planning only)": True,
         "Ace Attorney": True
     }
     
-    # Get the combined leaderboard and group bar chart
     df, group_bar_chart = get_combined_leaderboard_with_group_bar(rank_data, selected_games)
-    
-    # Format the DataFrame for display
     display_df = prepare_dataframe_for_display(df)
-    
-    # Get the radar chart using the same selected games
     _, radar_chart = get_combined_leaderboard_with_single_radar(rank_data, selected_games)
     
-    # Reset the leaderboard state to match the default checkbox states
     leaderboard_state = get_initial_state()
     
-    # Return exactly 16 values to match the expected outputs
-    return (update_df_with_height(display_df), radar_chart, radar_chart, radar_chart,
-            True, False,  # mario
+    # Return values, including all four plot placeholders
+    return (update_df_with_height(display_df), radar_chart, radar_chart, group_bar_chart,
+            True, False, # mario_plan
             True, False,  # sokoban
             True, False,  # 2048
             True, False,  # candy
-            True, False,  # tetris
             True, False,  # tetris plan
             True, False)  # ace attorney
 
@@ -861,29 +873,34 @@ def build_app():
                                 label="Comparative Analysis (Radar Chart)",
                                 elem_classes="visualization-container"
                             )
-                        # Comment out the Group Bar Chart tab
-                        # with gr.Tab("📊 Group Bar Chart"):
-                        #     group_bar_visualization = gr.Plot(
-                        #         label="Comparative Analysis (Group Bar Chart)",
-                        #         elem_classes="visualization-container"
-                        #     )
                             gr.Markdown(
-                                "*💡 Click a legend entry to isolate that model. Double-click additional ones to add them for comparison.*",
-                                elem_classes="radar-tip"
+                                    "*💡 Click a legend entry to isolate that model. Double-click additional ones to add them for comparison.*",
+                                    elem_classes="radar-tip"
+                                )
+                        # Comment out the Group Bar Chart tab
+                        with gr.Tab("📊 Group Bar Chart"):
+                            group_bar_visualization = gr.Plot(
+                                label="Comparative Analysis (Group Bar Chart)",
+                                elem_classes="visualization-container"
                             )
+                            
 
                 # Hidden placeholder for group bar visualization (to maintain code references)
-                group_bar_visualization = gr.Plot(visible=False)
+                # group_bar_visualization = gr.Plot(visible=False)
 
                 # Game selection section
                 with gr.Row():
                     gr.Markdown("### 🎮 Game Selection")
                 with gr.Row():
-                    with gr.Column():
-                        gr.Markdown("**🎮 Super Mario Bros**")
-                        mario_overall = gr.Checkbox(label="Super Mario Bros Score", value=True)
-                        mario_details = gr.Checkbox(label="Super Mario Bros Details", value=False)
-                    with gr.Column():
+                    # with gr.Column(): # Commented out Super Mario Bros UI
+                    #     gr.Markdown("**🎮 Super Mario Bros**")
+                    #     mario_overall = gr.Checkbox(label="Super Mario Bros Score", value=True)
+                    #     mario_details = gr.Checkbox(label="Super Mario Bros Details", value=False)
+                    with gr.Column(): # Added Super Mario Bros (planning only) UI
+                        gr.Markdown("**📝 Super Mario Bros (planning only)**")
+                        mario_plan_overall = gr.Checkbox(label="Super Mario Bros (planning only) Score", value=True)
+                        mario_plan_details = gr.Checkbox(label="Super Mario Bros (planning only) Details", value=False)
+                    with gr.Column(): # Sokoban is now after mario_plan
                         gr.Markdown("**📦 Sokoban**")
                         sokoban_overall = gr.Checkbox(label="Sokoban Score", value=True)
                         sokoban_details = gr.Checkbox(label="Sokoban Details", value=False)
@@ -895,10 +912,10 @@ def build_app():
                         gr.Markdown("**🍬 Candy Crush**")
                         candy_overall = gr.Checkbox(label="Candy Crush Score", value=True)
                         candy_details = gr.Checkbox(label="Candy Crush Details", value=False)
-                    with gr.Column():
-                        gr.Markdown("**🎯 Tetris (complete)**")
-                        tetris_overall = gr.Checkbox(label="Tetris (complete) Score", value=True)
-                        tetris_details = gr.Checkbox(label="Tetris (complete) Details", value=False)
+                    # with gr.Column(): # Commented out Tetris (complete) UI
+                    #     gr.Markdown("**🎯 Tetris (complete)**")
+                    #     tetris_overall = gr.Checkbox(label="Tetris (complete) Score", value=True)
+                    #     tetris_details = gr.Checkbox(label="Tetris (complete) Details", value=False)
                     with gr.Column():
                         gr.Markdown("**📋 Tetris (planning)**")
                         tetris_plan_overall = gr.Checkbox(label="Tetris (planning) Score", value=True)
@@ -927,11 +944,12 @@ def build_app():
                 
                 # Get initial leaderboard dataframe
                 initial_df = get_combined_leaderboard(rank_data, {
-                    "Super Mario Bros": True,
+                    # "Super Mario Bros": True, # Commented out
+                    "Super Mario Bros (planning only)": True,
                     "Sokoban": True,
                     "2048": True,
                     "Candy Crush": True,
-                    "Tetris (complete)": True,
+                    # "Tetris (complete)": True, # Commented out
                     "Tetris (planning only)": True,
                     "Ace Attorney": True
                 })
@@ -967,13 +985,14 @@ def build_app():
                 with gr.Row():
                     score_note = add_score_note()
                 
-                # List of all checkboxes
+                # List of all checkboxes, including Super Mario Bros (planning only)
                 checkbox_list = [
-                    mario_overall, mario_details,
+                    # mario_overall, mario_details, # Commented out
+                    mario_plan_overall, mario_plan_details,
                     sokoban_overall, sokoban_details,
                     _2048_overall, _2048_details,
                     candy_overall, candy_details,
-                    tetris_overall, tetris_details,
+                    # tetris_overall, tetris_details, # Commented out
                     tetris_plan_overall, tetris_plan_details,
                     ace_attorney_overall, ace_attorney_details
                 ]
@@ -981,10 +1000,14 @@ def build_app():
                 # Update visualizations when checkboxes change
                 def update_visualizations(*checkbox_states):
                     # Check if any details checkbox is selected
+                    # Adjusted indices due to addition of Super Mario (planning only)
                     is_details_view = any([
-                        checkbox_states[1], checkbox_states[3], checkbox_states[5],
-                        checkbox_states[7], checkbox_states[9], checkbox_states[11],
-                        checkbox_states[13]  # Ace Attorney details checkbox
+                        checkbox_states[1], # Mario Plan details
+                        checkbox_states[3], # Sokoban details
+                        checkbox_states[5], # 2048 details
+                        checkbox_states[7], # Candy Crush details
+                        checkbox_states[9], # Tetris (planning only) details
+                        checkbox_states[11]  # Ace Attorney details
                     ])
                     
                     # Update visibility of visualization blocks
@@ -1010,7 +1033,7 @@ def build_app():
                             leaderboard_df,
                             detailed_visualization,
                             radar_visualization,
-                            group_bar_visualization
+                            group_bar_visualization # RESTORED
                         ] + checkbox_list
                     )
                 
@@ -1022,7 +1045,7 @@ def build_app():
                         leaderboard_df,
                         detailed_visualization,
                         radar_visualization,
-                        group_bar_visualization
+                        group_bar_visualization # RESTORED
                     ] + checkbox_list
                 )
                 
@@ -1034,7 +1057,7 @@ def build_app():
                         leaderboard_df,
                         detailed_visualization,
                         radar_visualization,
-                        group_bar_visualization
+                        group_bar_visualization # RESTORED
                     ] + checkbox_list
                 )
             
