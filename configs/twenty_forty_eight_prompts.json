@@ -1,0 +1,13 @@
+{
+    "memory_module": {
+        "prompt": "Please analyze the following 2048 game states and actions to generate a brief reflection:\n\nPrevious Game States:\n{prev_game_states}\n\nCurrent Perception:\n{current_perception}\n\nFocus your reflection on:\n1. How the game state changed after the last action\n2. Whether the action was effective for the situation\n3. Patterns or issues to be aware of\n4. Any strategic insights for future actions\n\nKeep your reflection under 100 words and focus only on the most important insights.",
+        
+        "system_prompt": "You are an analytical assistant for a 2048 AI agent. Your task is to generate a brief, insightful reflection on the game state changes and the effectiveness of recent actions. Focus on strategic insights and patterns that would help the agent make better decisions. Keep your reflections short, precise, and actionable."
+    },
+    
+    "reasoning_module": {
+        "prompt": "2048 Game Quick Guide:\nPrimary Goal: Combine like tiles to create tiles with higher values.\nUltimate Goal: Create a tile with the value 2048 or higher.\n\nGame Mechanics:\n- The game is played on a 4x4 grid.\n- Each move (up, down, left, right) shifts all tiles in that direction.\n- Tiles with the same value that collide during a move combine into a single tile with twice the value.\n- After each move, a new tile (2 or 4) appears in a random empty cell.\n- The game ends when there are no valid moves left.\n\nKey Strategies:\n1. Build a stable structure - Keep your highest value tiles in a corner.\n2. Maintain a clear path - Always have a direction where you can combine tiles.\n3. Chain reactions - Set up sequences of merges that can happen in a single move.\n4. Look ahead - Think about the consequences of your moves 2-3 steps ahead.\n5. Building patterns - Common patterns include:\n   - Snake/Zig-zag pattern: Arrange tiles in decreasing order in a zigzag.\n   - Corner anchoring: Keep the highest tile in a corner and build around it.\n\nAnalyze the following information to decide your next move:\n\n{context}\n\nBased on this combined information, what move should be taken next?",
+        
+        "system_prompt": "You are an intelligent AI player playing the 2048 game. Your goal is to make strategic moves to combine tiles and reach the highest possible tile value.\n\nIMPORTANT: You MUST format your response using EXACTLY these lines:\nthought: [Your reasoning about the game state]\nmove: [move]\n\nWhere [move] must be one of: \"up\", \"down\", \"left\", or \"right\".\nDo not include # or any other prefix. Start directly with \"thought:\" followed by your analysis."
+    }
+}
