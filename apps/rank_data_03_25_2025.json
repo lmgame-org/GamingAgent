@@ -112,77 +112,91 @@
         ]
     },
     "2048": {
-        "runs": 1,
+        "runs": 3,
         "results": [
             {
                 "model": "claude-3-5-sonnet-20241022",
                 "score": 108.2,
-                "details": "1352;2860;1532"
+                "details": "1352;2860;1532",
+                "highest_tail": 128
             },
             {
                 "model": "claude-3-7-sonnet-20250219 (thinking)",
                 "score": 113.3,
-                "details": "2560;3224;2088"
+                "details": "2560;3224;2088",
+                "highest_tail": 256
             },
             {
                 "model": "deepseek-r1",
                 "score": 105.2,
-                "details": "700;1240;3680"
+                "details": "700;1240;3680",
+                "highest_tail": 128
             },
             {
                 "model": "gemini-2.5-flash-preview-04-17 (thinking)",
                 "score": 106.6,
-                "details": "1304;1316;2472"
+                "details": "1304;1316;2472",
+                "highest_tail": 256
             },
             {
                 "model": "gemini-2.5-pro-preview-05-06 (thinking)",
                 "score": 117.3,
-                "details": "5300;2400;3060"
+                "details": "5300;2400;3060",
+                "highest_tail": 256
             },
             {
                 "model": "grok-3-mini-beta (thinking)",
                 "score": 118.6,
-                "details": "6412;2492;3204"
+                "details": "6412;2492;3204",
+                "highest_tail": 256
             },
             {
                 "model": "llama-4-maverick-17b-128e-instruct-fp8",
                 "score": 106,
-                "details": "1404;1272;2084"
+                "details": "1404;1272;2084",
+                "highest_tail": 128
             },
             {
                 "model": "gpt-4.1-2025-04-14",
                 "score": 105.7,
-                "details": "1156;2664;1148"
+                "details": "1156;2664;1148",
+                "highest_tail": 128
             },
             {
                 "model": "gpt-4o-2024-11-20",
                 "score": 106.7,
-                "details": "1604;1284;2080"
+                "details": "1604;1284;2080",
+                "highest_tail": 256
             },
             {
                 "model": "o1-2024-12-17",
                 "score": 128.9,
-                "details": "3132;2004;3136"
+                "details": "3132;2004;3136",
+                "highest_tail": 512
             },
             {
                 "model": "o1-mini-2024-09-12",
                 "score": 114.0,
-                "details": "21;86;37"
+                "details": "21;86;37",
+                "highest_tail": 256
             },
             {
                 "model": "o3-2025-04-16",
                 "score": 128.0,
-                "details": "7120"
+                "details": "7120",
+                "highest_tail": 512
             },
             {
                 "model": "o4-mini-2025-04-16",
                 "score": 120.6,
-                "details": "4928;5456;2912"
+                "details": "4928;5456;2912",
+                "highest_tail": 256
             },
             {
                 "model": "Random (x30)",
                 "score": 100.4,
-                "details": ""
+                "details": "",
+                "highest_tail": 128
             }
         ]
     },

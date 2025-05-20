@@ -71,18 +71,53 @@ def get_sokoban_leaderboard(rank_data):
 
 def get_2048_leaderboard(rank_data):
     data = rank_data.get("2048", {}).get("results", [])
+    # --- Diagnostic Print Removed ---
+    # if data and isinstance(data, list) and len(data) > 0 and isinstance(data[0], dict):
+    #     print(f"DEBUG_UTILS: Keys in first item of raw data for 2048: {list(data[0].keys())}")
+    # elif not data:
+    #     print("DEBUG_UTILS: Raw data for 2048 is empty.")
+    # else:
+    #     print("DEBUG_UTILS: Raw data for 2048 is not in the expected list of dicts format.")
+    # --- End Diagnostic Print Removed ---
     df = pd.DataFrame(data)
+    # print(f"DEBUG_UTILS: Columns after pd.DataFrame(data): {df.columns.tolist()}") # REMOVED
+
     df = df.rename(columns={
-        "model": "Player", 
+        "model": "Player",
         "score": "Score",       # From new JSON structure
-        "details": "Details"    # From new JSON structure
+        "details": "Details",    # From new JSON structure
+        "highest_tail": "Highest Tail" # Added new column
         # Old fields like "steps", "time", "rank" are removed
     })
-    df["Organization"] = df["Player"].apply(get_organization)
+    # print(f"DEBUG_UTILS: Columns after rename: {df.columns.tolist()}") # REMOVED
+
+    # Ensure 'Player' column exists before applying get_organization
+    if "Player" in df.columns:
+        df["Organization"] = df["Player"].apply(get_organization)
+    else:
+        # Handle case where 'Player' column might be missing after rename (should not happen with current logic)
+        # print("DEBUG_UTILS: 'Player' column not found after rename, skipping Organization.") # REMOVED
+        df["Organization"] = "unknown" # Fallback
+
+    columns_to_keep = ["Player", "Organization", "Score", "Highest Tail", "Details"] # Added "Highest Tail"
     
-    columns_to_keep = ["Player", "Organization", "Score", "Details"]
-    df_columns = [col for col in columns_to_keep if col in df.columns]
-    df = df[df_columns]
+    # Defensive check for 'Highest Tail' before filtering - REMOVED
+    # if 'highest_tail' in df.columns and 'Highest Tail' not in df.columns:
+    #     print("DEBUG_UTILS: 'highest_tail' (lowercase) found, but 'Highest Tail' (capitalized) not. This indicates a rename issue.")
+    # elif 'Highest Tail' not in df.columns and 'highest_tail' not in df.columns:
+    #     print("DEBUG_UTILS: Neither 'Highest Tail' nor 'highest_tail' found in columns before filtering.")
+
+    # df_columns = [col for col in columns_to_keep if col in df.columns] # REMOVED logic that used df_columns
+    # print(f"DEBUG_UTILS: df_columns selected (columns that are in columns_to_keep AND in df.columns): {df_columns}") # REMOVED
+    
+    # Ensure all columns in columns_to_keep exist in df, fill with np.nan if not
+    for col_k in columns_to_keep:
+        if col_k not in df.columns:
+            # print(f"DEBUG_UTILS: Column '{col_k}' from columns_to_keep not found in DataFrame. Adding it with NaN values.") # REMOVED
+            df[col_k] = np.nan # Or some other default like 'n/a' if appropriate
+
+    df = df[columns_to_keep] # Use columns_to_keep directly after ensuring they exist
+    # print(f"DEBUG_UTILS: Columns after final selection: {df.columns.tolist()}") # REMOVED
 
     if "Score" in df.columns:
         df["Score"] = pd.to_numeric(df["Score"], errors='coerce')
