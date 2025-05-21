@@ -4,62 +4,10 @@ import json
 import datetime
 from abc import ABC, abstractmethod
 from PIL import Image
-from .core_module import CoreModule
-from dataclasses import dataclass
-from typing import Optional, Any
+from .core_module import CoreModule, Observation
 
 # TODO: customize perception data analysis
 # TODO: texual vs system two track
-
-@dataclass
-class Observation:
-    """
-    Dataclass representing a game observation.
-    Contains both symbolic representation and image path if available.
-    """
-    symbolic_representation: Optional[Any] = None
-    img_path: Optional[str] = None
-    
-    def __init__(self, symbolic_representation: Optional[Any] = None, img_path: Optional[str] = None):
-        """
-        Initialize an Observation instance.
-        
-        Args:
-            symbolic_representation: The symbolic representation of the observation (any type)
-            img_path: Path to the image file if available
-        """
-        self.symbolic_representation = symbolic_representation
-        self.img_path = img_path
-        
-    def get_parsed_representation(self):
-        """
-        Parse the symbolic_representation, creating a formatted string
-        that includes both symbolic_representation and game_state_details.
-        
-        Returns:
-            str: A formatted string representation
-        """
-        if self.symbolic_representation is None:
-            return ""
-            
-        # Handle dictionary representation with potential game_state_details
-        if isinstance(self.symbolic_representation, dict):
-            # Extract the main symbolic representation and game state details
-            main_repr = self.symbolic_representation.get("symbolic_representation", "")
-            details = self.symbolic_representation.get("game_state_details", "")
-            
-            # Format the string
-            if main_repr and details:
-                return f"symbolic representation:\n {main_repr} \n\ngame state details:\n {details}"
-            elif main_repr:
-                return f"symbolic representation:\n {main_repr}"
-            elif details:
-                return f"game state details:\n {details}"
-            else:
-                return str(self.symbolic_representation)
-        
-        # If it's not a dictionary, just convert to string
-        return str(self.symbolic_representation)
 
 class PerceptionModule(CoreModule):
     """
@@ -70,7 +18,8 @@ class PerceptionModule(CoreModule):
     """
     
     def __init__(self, model_name="claude-3-7-sonnet-latest", observation=None, 
-                 cache_dir="cache", system_prompt="", prompt=""):
+                 cache_dir="cache", system_prompt="", prompt="",
+                 token_limit=100000, reasoning_effort="high"):
         """
         Initialize the perception module.
         
@@ -80,22 +29,22 @@ class PerceptionModule(CoreModule):
             cache_dir (str): Directory for storing logs and cache files.
             system_prompt (str): System prompt for LLM calls.
             prompt (str): Default user prompt for LLM calls.
+            token_limit (int): Maximum number of tokens for API calls.
+            reasoning_effort (str): Reasoning effort for API calls (low, medium, high).
         """
         super().__init__(
             module_name="perception_module",
             model_name=model_name,
             system_prompt=system_prompt,
             prompt=prompt,
-            cache_dir=cache_dir
+            cache_dir=cache_dir,
+            token_limit=token_limit,
+            reasoning_effort=reasoning_effort
         )
         
         # Initialize observation
         self.observation = observation if observation is not None else Observation()
         self.new_observation = observation if observation is not None else Observation()
-        
-        # Unpack observation properties into instance variables for direct access
-        self.img_path = self.observation.img_path
-        self.symbolic_representation = self.observation.symbolic_representation
         
         # Create observations directory for storing game state images
         self.obs_dir = os.path.join(cache_dir, "observations")

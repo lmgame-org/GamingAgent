@@ -20,7 +20,7 @@ class BaseAgent(ABC):
     """
     
     def __init__(self, game_name, model_name, config_path=None, harness=True, 
-                 max_memory=10, cache_dir=None, custom_modules=None):
+                 max_memory=10, cache_dir=None, custom_modules=None, observation_mode="vision"):
         """
         Initialize the agent with base parameters and modules.
         
@@ -33,16 +33,18 @@ class BaseAgent(ABC):
             max_memory (int): Maximum number of memory entries to store
             cache_dir (str, optional): Custom cache directory path
             custom_modules (dict, optional): Custom module classes to use
+            observation_mode (str): Mode for processing observations ("vision", "text", or "both")
         """
         self.game_name = game_name
         self.model_name = model_name
         self.harness = harness
         self.max_memory = max_memory
+        self.observation_mode = observation_mode
         
         # Set up cache directory following the specified pattern
         if cache_dir is None:
             # Use first 10 chars of model name
-            model_name_short = model_name[:10].replace("-", "_")
+            model_name_short = model_name[:15].replace("-", "_")
             timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
             cache_dir = os.path.join("cache", game_name, model_name_short, timestamp)
         
@@ -58,6 +60,23 @@ class BaseAgent(ABC):
         
         # Initialize modules
         self.modules = self._initialize_modules(custom_modules)
+        
+        # Print diagnostic information about loaded modules
+        print(f"Agent for '{self.game_name}' initialized with model '{self.model_name}'.")
+        if self.harness:
+            print("  Agent is in HARNESS mode (Perception-Memory-Reasoning pipeline).")
+            expected_modules = ["perception_module", "memory_module", "reasoning_module"]
+            for module_name in expected_modules:
+                if self.modules.get(module_name) and self.modules[module_name] is not None:
+                    print(f"    -> Using {module_name.replace('_', ' ').title()}: {self.modules[module_name].__class__.__name__}")
+                else:
+                    print(f"    -> WARNING: {module_name.replace('_', ' ').title()} not loaded correctly for harness mode.")
+        else:
+            print("  Agent is in NON-HARNESS mode (BaseModule direct pipeline).")
+            if self.modules.get("base_module") and self.modules["base_module"] is not None:
+                 print(f"    -> Using Base Module: {self.modules['base_module'].__class__.__name__}")
+            else:
+                 print("    -> WARNING: Base Module not loaded correctly.")
         
         # Save agent configuration
         self._save_agent_config()
@@ -127,7 +146,10 @@ class BaseAgent(ABC):
                 model_name=self.model_name,
                 cache_dir=self.cache_dir,
                 system_prompt=self.config["base_module"]["system_prompt"],
-                prompt=self.config["base_module"]["prompt"]
+                prompt=self.config["base_module"]["prompt"],
+                observation_mode=self.observation_mode,
+                token_limit=100000,
+                reasoning_effort="high"
             )
         else:
             # Use default BaseModule
@@ -135,7 +157,10 @@ class BaseAgent(ABC):
                 model_name=self.model_name,
                 cache_dir=self.cache_dir,
                 system_prompt=self.config["base_module"]["system_prompt"],
-                prompt=self.config["base_module"]["prompt"]
+                prompt=self.config["base_module"]["prompt"],
+                observation_mode=self.observation_mode,
+                token_limit=100000,
+                reasoning_effort="high"
             )
         
         # Initialize perception, memory, and reasoning modules if using harness
@@ -196,6 +221,7 @@ class BaseAgent(ABC):
         config_data = {
             "game_name": self.game_name,
             "model_name": self.model_name,
+            "observation_mode": self.observation_mode,
             "harness": self.harness,
             "max_memory": self.max_memory,
             "cache_dir": self.cache_dir,
@@ -256,14 +282,41 @@ class BaseAgent(ABC):
         Get the next action based on the current observation.
         
         Args:
-            observation: Current observation from the environment
+            observation: Current observation from the environment.
+                If it's an Observation object, it will be used directly.
+                Otherwise, it will be converted to an Observation object based on observation_mode.
             
         Returns:
             Action to take in the environment
         """
+        # Ensure observation is an Observation object
+        if not isinstance(observation, Observation):
+            # Convert to Observation based on observation type and mode
+            if isinstance(observation, str) and os.path.exists(observation):
+                # It's an image path
+                observation = Observation(img_path=observation)
+            elif isinstance(observation, np.ndarray):
+                # It's a numpy array, save it as an image
+                img_path = self.save_obs(observation)
+                if img_path:
+                    observation = Observation(img_path=img_path)
+                else:
+                    return {"action": None, "thought": "Failed to process image observation"}
+            else:
+                # It's likely symbolic data based on observation_mode
+                if self.observation_mode == "vision":
+                    # Unexpected input for vision mode, but try our best
+                    observation = Observation(symbolic_representation=str(observation))
+                elif self.observation_mode == "text":
+                    # Text mode expects symbolic representation
+                    observation = Observation(symbolic_representation=str(observation))
+                elif self.observation_mode == "both":
+                    # Both mode, try to interpret as symbolic if not an image
+                    observation = Observation(symbolic_representation=str(observation))
+        
         if not self.harness:
-            # Unharness mode: Use base module directly
-            result = self.modules["base_module"].process_observation(observation)
+            # Unharness mode: Use base module directly with the Observation object
+            result = self.modules["base_module"].process_observation(observation=observation)
             return result
         else:
             # Harness mode: Perception -> Memory -> Reasoning
@@ -276,8 +329,8 @@ class BaseAgent(ABC):
             if reasoning_module is None:
                 raise ValueError("Reasoning module is required for harness mode")
             
-            # 1. Process observation with perception module
-            processed_obs = perception_module.process_observation(Observation(observation))
+            # 1. Process observation with perception module (already an Observation)
+            processed_obs = perception_module.process_observation(observation)
             perception_data = perception_module.get_perception_summary()
             
             # 2. Update memory with perception data

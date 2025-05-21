@@ -1,10 +1,11 @@
 import numpy as np
 from abc import abstractmethod
-from .core_module import CoreModule
+from .core_module import CoreModule, Observation
 from tools.utils import scale_image_up
 import re
+import os
 
-# TODO: 1. with visual state (vision only) 2. without visual state (text only)
+# TODO: 1. with visual state (vision only) 2. without visual state (text only) 3 with visual state + text state (both)
 
 class BaseModule(CoreModule):
     """
@@ -16,7 +17,8 @@ class BaseModule(CoreModule):
     """
     
     def __init__(self, model_name="claude-3-7-sonnet-latest", cache_dir="cache",
-                 system_prompt="", prompt="", token_limit=100000, reasoning_effort="high"):
+                 system_prompt="", prompt="", token_limit=100000, reasoning_effort="high",
+                 observation_mode="vision"):
         """
         Initialize the base module.
         
@@ -27,6 +29,10 @@ class BaseModule(CoreModule):
             prompt (str): Default user prompt for LLM calls.
             token_limit (int): Maximum number of tokens for API calls.
             reasoning_effort (str): Reasoning effort for API calls (low, medium, high).
+            observation_mode (str): Mode for processing observations:
+                - "vision": Uses image path as input
+                - "text": Uses symbolic representation as input
+                - "both": Uses both image path and text representation as inputs
         """
         super().__init__(
             module_name="base_module",
@@ -38,32 +44,112 @@ class BaseModule(CoreModule):
             reasoning_effort=reasoning_effort
         )
         self.last_action = None
+        self.observation_mode = observation_mode
+        self.observation = Observation()  # Using the Observation data class
 
-    
-    def process_observation(self, observation:str):
+    def set_observation(self, observation=None, img_path=None, symbolic_representation=None):
         """
-        Process the observation directly to plan the next action.
-        Default implementation treats the observation as an image path and uses vision API.
+        Set the current observation for later processing.
         
         Args:
-            observation: The game observation (typically an image path)
+            observation (Observation, optional): A complete Observation instance
+            img_path (str, optional): For "vision" or "both" modes: image path
+            symbolic_representation (str, optional): For "text" or "both" modes: symbolic representation of game board
+        """
+        # If an Observation is directly provided, use it
+        if observation is not None:
+            self.observation = observation
+        # Otherwise, update the existing observation with provided data
+        else:
+            if self.observation is None:
+                self.observation = Observation()
+                
+            if img_path is not None and self.observation_mode in ["vision", "both"]:
+                self.observation.img_path = img_path
+                
+            if symbolic_representation is not None and self.observation_mode in ["text", "both"]:
+                self.observation.symbolic_representation = str(symbolic_representation) if symbolic_representation is not None else None
+            
+    def process_observation(self, observation=None, img_path=None, symbolic_representation=None):
+        """
+        Process the observation to plan the next action based on the observation_mode.
+        If no observations are provided, uses previously set observations via set_observation().
+        
+        Args:
+            observation (Observation, optional): A complete Observation instance
+            img_path (str, optional): For "vision" or "both" mode: image path
+            symbolic_representation (str, optional): For "text" or "both" mode: symbolic representation of game board
             
         Returns:
             dict: A dictionary containing 'action' and 'thought' keys
         """
-        # Scale up image if needed
-        scale_image_up(observation)
+        # Update stored observations if provided
+        if observation is not None or img_path is not None or symbolic_representation is not None:
+            self.set_observation(observation, img_path, symbolic_representation)
+            
+        # Validate required observations based on mode
+        if self.observation_mode in ["vision", "both"] and self.observation.img_path is None:
+            return {"action": None, "thought": "No vision observation available"}
+                
+        if self.observation_mode in ["text", "both"] and self.observation.symbolic_representation is None:
+            return {"action": None, "thought": "No symbolic observation available"}
         
-        # Call the vision API
-        response = self.api_manager.vision_text_completion(
-            model_name=self.model_name,
-            system_prompt=self.system_prompt,
-            prompt=self.prompt,
-            image_path=observation,
-            thinking=True,
-            reasoning_effort=self.reasoning_effort,
-            token_limit=self.token_limit
-        )
+        response = None
+        
+        if self.observation_mode == "vision":
+            # Vision-based processing: observation is the image path
+            # Scale up image if needed
+            new_img_path = scale_image_up(self.observation.get_img_path())
+            
+            # Call the vision API
+            response = self.api_manager.vision_text_completion(
+                model_name=self.model_name,
+                system_prompt=self.system_prompt,
+                prompt=self.prompt,
+                image_path=new_img_path,
+                thinking=True,
+                reasoning_effort=self.reasoning_effort,
+                token_limit=self.token_limit
+            )
+            
+        elif self.observation_mode == "text":
+            # Text-based processing: observation is symbolic representation only
+            text_repr = f"Symbolic Representation:\n{self.observation.get_symbolic_representation()}"
+                
+            # Create the full prompt with the symbolic representation
+            full_prompt = f"Text Observation:\n{text_repr}\n\n{self.prompt}"
+            
+            # Call the text API with the symbolic representation in the prompt
+            response = self.api_manager.text_only_completion(
+                model_name=self.model_name,
+                system_prompt=self.system_prompt,
+                prompt=full_prompt,
+                thinking=True,
+                reasoning_effort=self.reasoning_effort,
+                token_limit=self.token_limit
+            )
+            
+        elif self.observation_mode == "both":
+            # Both vision and text processing                
+            # Scale up image if needed
+            new_img_path = scale_image_up(self.observation.get_img_path())
+            
+            # Use only symbolic representation
+            text_repr = f"Symbolic Representation:\n{self.observation.get_symbolic_representation()}"
+            
+            # Create a prompt that includes the symbolic representation
+            full_prompt = f"Text Observation:\n{text_repr}\n\n{self.prompt}"
+            
+            # Call the vision API with both the image and symbolic representation
+            response = self.api_manager.vision_text_completion(
+                model_name=self.model_name,
+                system_prompt=self.system_prompt,
+                prompt=full_prompt,
+                image_path=new_img_path,
+                thinking=True,
+                reasoning_effort=self.reasoning_effort,
+                token_limit=self.token_limit
+            )
         
         # Parse and log the response
         parsed_response = self._parse_response(response)

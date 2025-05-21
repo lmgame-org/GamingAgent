@@ -3,6 +3,64 @@ import os
 import datetime
 from abc import ABC, abstractmethod
 from tools.serving import APIManager
+from dataclasses import dataclass
+from typing import Optional, Any
+
+
+@dataclass
+class Observation:
+    """
+    Dataclass representing a game observation.
+    Can contain multiple types of observations:
+    - img_path: Path to the image file for visual observations
+    - text_data: Textual description of the image/scene
+    - symbolic_representation: Symbolic representation of the game board/state
+    """
+    img_path: Optional[str] = None
+    text_data: Optional[str] = None
+    symbolic_representation: Optional[str] = None
+    
+    def __init__(self, img_path: Optional[str] = None, text_data: Optional[str] = None, 
+                 symbolic_representation: Optional[str] = None):
+        """
+        Initialize an Observation instance.
+        
+        Args:
+            img_path: Path to the image file for visual observations
+            text_data: Textual description of the image/scene (as string)
+            symbolic_representation: Symbolic representation of the game board/state (as string)
+        """
+        self.img_path = img_path
+        self.text_data = str(text_data) if text_data is not None else None
+        self.symbolic_representation = str(symbolic_representation) if symbolic_representation is not None else None
+    
+    def get_img_path(self) -> str:
+        """
+        Get the image path as a string.
+        
+        Returns:
+            str: The image path or empty string if None
+        """
+        return self.img_path if self.img_path is not None else ""
+    
+    def get_text_data(self) -> str:
+        """
+        Get the text data as a string.
+        
+        Returns:
+            str: The text data or empty string if None
+        """
+        return self.text_data if self.text_data is not None else ""
+    
+    def get_symbolic_representation(self) -> str:
+        """
+        Get the symbolic representation as a string.
+        
+        Returns:
+            str: The symbolic representation or empty string if None
+        """
+        return self.symbolic_representation if self.symbolic_representation is not None else ""
+
 
 class CoreModule(ABC):
     """
