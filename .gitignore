@@ -59,7 +59,6 @@ desktop.ini
 setup_env.sh
 
 # 🎮 ROM and Game Files
-*.md
 *.sfc
 *.nes
 *.a26
