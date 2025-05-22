@@ -43,88 +43,40 @@ def parse_arguments(defaults_map=None, argv_to_parse=None):
         return parser.parse_args(argv_to_parse)
     return parser.parse_args()
 
-def run_game_episode(agent: BaseAgent, game_env: BaseGameEnv, episode_id: int, args: argparse.Namespace, episode_log_dir: str):
-    """Runs a single episode of the specified game using the provided game_env wrapper."""
+def run_game_episode(agent: BaseAgent, game_env: BaseGameEnv, episode_id: int, args: argparse.Namespace):
     print(f"Starting Episode {episode_id} for {args.game_name} with seed {args.seed if args.seed is not None else 'default'}...")
 
-    agent_observation, info = game_env.reset(seed=args.seed, episode_id=episode_id)
+    agent_observation, last_info = game_env.reset(seed=args.seed, episode_id=episode_id)
     if args.seed is not None: args.seed += 1
 
     total_reward = 0
-    max_tile_value = 0
-    score = 0
 
-    episode_log_file = os.path.join(episode_log_dir, f"episode_{episode_id:03d}_log.jsonl")
-    # Open file at the start of the episode in append mode to stream logs
-    with open(episode_log_file, 'a') as f_log:
-        for step_num in range(args.max_steps_per_episode):
-            game_env.render_human()
+    for step_num in range(args.max_steps_per_episode):
+        game_env.render_human()
 
-            start_time = time.time()
-            action_dict = agent.get_action(agent_observation)
-            end_time = time.time()
+        start_time = time.time()
+        action_dict = agent.get_action(agent_observation)
+        end_time = time.time()
+        time_taken_s = end_time - start_time
 
-            action_str_agent = action_dict.get("action", "None").strip().lower()
-            thought_process = action_dict.get("thought", "")
+        action_str_agent = action_dict.get("action", "None").strip().lower()
+        thought_process = action_dict.get("thought", "")
 
-            agent_observation, reward, terminated, truncated, info, executed_env_action_idx = game_env.step(action_str_agent)
+        agent_observation, reward, terminated, truncated, last_info = game_env.step(
+            action_str_agent, thought_process, time_taken_s
+        )
             
-            total_reward += reward
-            executed_action_str = game_env.map_env_action_to_agent_action(executed_env_action_idx)
+        total_reward += reward
 
-            if args.game_name == "twenty_forty_eight":
-                score = info.get('score', 0)
-                current_board_state_powers = game_env.get_board_state(game_env.current_raw_observation, info)
-                if isinstance(current_board_state_powers, np.ndarray) and current_board_state_powers.size > 0:
-                    current_max_power_on_board = int(np.max(current_board_state_powers))
-                else:
-                    current_max_power_on_board = 0
-                current_max_tile_val = 2**current_max_power_on_board if current_max_power_on_board > 0 else 0
-                if current_max_tile_val > max_tile_value: max_tile_value = current_max_tile_val
-            else:
-                score = info.get('score', total_reward)
-                current_max_tile_val = info.get('max_value', 0)
-                if current_max_tile_val > max_tile_value: max_tile_value = current_max_tile_val
-
-            print(f"E{episode_id} S{step_num+1}: AgentAct='{action_str_agent}', ExecAct='{executed_action_str}', R={reward:.2f}, Score={score}, MaxVal={max_tile_value}, T={end_time-start_time:.2f}s")
+        if terminated or truncated: break
             
-            log_entry = {
-                "episode_id": episode_id,
-                "step": step_num + 1,
-                "agent_action": action_str_agent,
-                "executed_action": executed_action_str,
-                "executed_action_idx": int(executed_env_action_idx),
-                "thought": thought_process,
-                "reward": float(reward),
-                "total_reward_so_far": float(total_reward),
-                "score": float(score),
-                "max_value_in_step": float(current_max_tile_val),
-                "time_taken_s": float(f"{end_time-start_time:.3f}")
-            }
-            if args.game_name == "twenty_forty_eight" and 'current_board_state_powers' in locals() and isinstance(current_board_state_powers, np.ndarray):
-                log_entry["board_state_powers_2048"] = current_board_state_powers.tolist()
-            
-            # Stream log entry to file immediately
-            try:
-                f_log.write(json.dumps(log_entry) + '\n')
-            except TypeError as te:
-                print(f"ERROR: Failed to serialize log_entry for JSON. Details: {te}")
-                print(f"Log entry causing error: {log_entry}")
-                # Optionally, re-raise the error or handle it to allow the episode to continue without this log entry
-                # For now, we just print and continue, which means this step won't be logged.
-            except Exception as e:
-                print(f"ERROR: Failed to write log_entry to file. Details: {e}")
-                print(f"Log entry: {log_entry}")
-                # Similar handling, printing and continuing.
-
-            if terminated or truncated: break
-            
-    # File is automatically closed when 'with' block exits
     game_env.close()
-    final_score = score
-    print(f"Episode {episode_id} finished after {step_num+1} steps. Final Score: {final_score}, Max Value: {max_tile_value}")
-    print(f"  Episode log streamed to {episode_log_file}") # Updated message
-    return final_score, max_tile_value, step_num + 1, total_reward
+
+    final_score = float(last_info.get('score', 0.0))
+
+    print(f"Episode {episode_id} finished after {step_num+1} steps. Final Score: {final_score}")
+
+    return final_score, step_num + 1, total_reward
 
 def main():
     # 1. Initial parse for config location to load YAML defaults
@@ -202,21 +154,17 @@ def main():
     runner_log_dir = agent.cache_dir 
     # Ensure it exists (though BaseAgent should have created it)
     os.makedirs(runner_log_dir, exist_ok=True) 
-    print(f"Runner logs (episode details, summary) will be saved in agent's cache directory: {runner_log_dir}")
-
-    # Define the path creator for agent's visual observations
-    # This uses the agent's own observations_dir for storing images created by the env_wrapper
-    def agent_obs_path_fn(episode_id, step_num):
-        return os.path.join(agent.observations_dir, f"env_obs_e{episode_id:03d}_s{step_num+1:04d}.png")
+    print(f"Agent cache directory (contains episode logs and summary): {runner_log_dir}")
 
     # Initialize the game environment wrapper
     try:
         game_env = get_game_env_wrapper(
             game_name=args.game_name, 
             observation_mode=args.observation_mode, 
-            agent_obs_path_creator=agent_obs_path_fn, # Pass the function here
+            agent_observations_base_dir=agent.observations_dir,
             env_type=args.env_type,
-            config_root_dir=args.config_root_dir
+            config_root_dir=args.config_root_dir,
+            log_root_dir=runner_log_dir # Pass agent.cache_dir as log_root_dir for BaseGameEnv
         )
     except ValueError as e:
         print(f"Error initializing game environment wrapper: {e}")
@@ -230,11 +178,10 @@ def main():
 
     for i in range(args.num_runs):
         run_id = i + 1
-        score, max_val, steps, total_reward = run_game_episode(agent, game_env, run_id, args, runner_log_dir)
+        score, steps, total_reward = run_game_episode(agent, game_env, run_id, args)
         all_run_results.append({
             "run_id": run_id,
             "score": score,
-            "max_value": max_val,
             "steps": steps,
             "total_reward": total_reward
         })
@@ -251,13 +198,11 @@ def main():
     if args.num_runs > 0 and all_run_results:
         # Calculate overall statistics
         scores = [r['score'] for r in all_run_results]
-        max_values = [r['max_value'] for r in all_run_results]
         steps_list = [r['steps'] for r in all_run_results]
         total_rewards_list = [r['total_reward'] for r in all_run_results]
 
         stats_map = {
             "Scores": scores,
-            "Max Values": max_values,
             "Steps": steps_list,
             "Total Rewards": total_rewards_list
         }

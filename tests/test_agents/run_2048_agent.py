@@ -6,7 +6,7 @@ Demonstrates how to initialize and run the agent with different configurations.
 
 import argparse
 import os
-from gamingagent.agents.agent_2048 import TwentyFortyEightAgent
+from gamingagent.agents.twentyFortyEight_agent import TwentyFortyEightAgent
 
 def run_with_args(args):
     """Run the 2048 agent with command line arguments."""

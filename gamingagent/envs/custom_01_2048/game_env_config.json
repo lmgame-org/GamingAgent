@@ -10,5 +10,6 @@
         "down": 2,
         "left": 3
     },
-    "render_mode_gym_make": "human" 
+    "render_mode_gym_make": "human",
+    "max_unchanged_steps_for_termination": 10 
 } 

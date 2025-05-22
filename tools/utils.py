@@ -144,3 +144,20 @@ def draw_grid_on_image(image_path, grid_dim=(5, 5)):
     print(f"Added {grid_dim[0]}x{grid_dim[1]} grid to image, saved as {output_path}")
     
     return output_path
+
+def convert_numpy_to_python(item):
+    """Recursively converts numpy arrays and numpy scalar types in a data structure to Python lists and base types."""
+    if isinstance(item, np.ndarray):
+        return item.tolist()
+    elif isinstance(item, dict):
+        return {k: convert_numpy_to_python(v) for k, v in item.items()} # Note: recursive call uses new public name
+    elif isinstance(item, list):
+        return [convert_numpy_to_python(i) for i in item] # Note: recursive call uses new public name
+    elif isinstance(item, (np.int_, np.intc, np.intp, np.int8, np.int16, np.int32, np.int64,
+                        np.uint8, np.uint16, np.uint32, np.uint64)):
+        return int(item)
+    elif isinstance(item, (np.float_, np.float16, np.float32, np.float64)):
+        return float(item)
+    elif isinstance(item, np.bool_):
+        return bool(item)
+    return item
