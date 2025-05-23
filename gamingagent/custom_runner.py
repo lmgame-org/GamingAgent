@@ -44,6 +44,71 @@ def parse_arguments(defaults_map=None, argv_to_parse=None):
         return parser.parse_args(argv_to_parse)
     return parser.parse_args()
 
+def create_environment(game_name_arg: str, 
+                       obs_mode_arg: str, 
+                       config_dir_name_for_env_cfg: str, # For loading game_env_config.json
+                       cache_dir_for_adapter: str):
+    """Creates and returns a game environment instance based on the game name."""
+    
+    env_specific_config_path = os.path.join("gamingagent/envs", config_dir_name_for_env_cfg, "game_env_config.json")
+    env_init_params = {} # Will be populated based on the specific game
+
+    if game_name_arg == "twenty_forty_eight":
+        # Load params specific to 2048
+        if os.path.exists(env_specific_config_path):
+            with open(env_specific_config_path, 'r') as f:
+                env_specific_config = json.load(f)
+                env_init_params['size'] = env_specific_config.get('env_init_kwargs', {}).get('size', 4)
+                env_init_params['max_pow'] = env_specific_config.get('env_init_kwargs', {}).get('max_pow', 16)
+                env_init_params['render_mode'] = env_specific_config.get('render_mode_gym_make', 'human')
+                env_init_params['max_stuck_steps_for_adapter'] = env_specific_config.get('max_unchanged_steps_for_termination', 10)
+        else:
+            print(f"Warning: {env_specific_config_path} for {game_name_arg} not found. Using default env parameters.")
+            env_init_params['size'] = 4
+            env_init_params['max_pow'] = 16
+            env_init_params['render_mode'] = 'human'
+            env_init_params['max_stuck_steps_for_adapter'] = 10
+
+        print(f"Initializing environment: {game_name_arg} with params: {env_init_params}")
+        env = TwentyFortyEightEnv(
+            render_mode=env_init_params.get('render_mode'),
+            size=env_init_params.get('size'),
+            max_pow=env_init_params.get('max_pow'),
+            game_name_for_adapter=game_name_arg,
+            observation_mode_for_adapter=obs_mode_arg, 
+            agent_cache_dir_for_adapter=cache_dir_for_adapter, 
+            game_specific_config_path_for_adapter=env_specific_config_path, # This is path to its own config
+            max_stuck_steps_for_adapter=env_init_params.get('max_stuck_steps_for_adapter')
+        )
+        return env
+    # Example for adding another game:
+    # elif game_name_arg == "sokoban":
+    #     # Load params specific to Sokoban (example, adjust as needed)
+    #     if os.path.exists(env_specific_config_path):
+    #         with open(env_specific_config_path, 'r') as f:
+    #             env_specific_config = json.load(f)
+    #             env_init_params['dim_room'] = env_specific_config.get('env_init_kwargs', {}).get('dim_room', (10,10))
+    #             env_init_params['num_boxes'] = env_specific_config.get('env_init_kwargs', {}).get('num_boxes', 3)
+    #             # ... other sokoban params
+    #     else:
+    #         print(f"Warning: {env_specific_config_path} for {game_name_arg} not found. Using default env parameters.")
+    #         # ... set sokoban defaults ...
+    #     from gamingagent.envs.custom_02_sokoban.sokobanEnv import SokobanEnv # Assuming this exists
+    #     print(f"Initializing environment: {game_name_arg} with params: {env_init_params}")
+    #     env = SokobanEnv(
+    #         # ... pass sokoban specific params ...
+    #         dim_room=env_init_params.get('dim_room'),
+    #         num_boxes=env_init_params.get('num_boxes'),
+    #         game_name_for_adapter=game_name_arg, 
+    #         observation_mode_for_adapter=obs_mode_arg, 
+    #         agent_cache_dir_for_adapter=cache_dir_for_adapter, 
+    #         game_specific_config_path_for_adapter=env_specific_config_path 
+    #     )
+    #     return env
+    else:
+        print(f"ERROR: Game '{game_name_arg}' is not defined or implemented in custom_runner.py's create_environment function.")
+        return None
+
 def run_game_episode(agent: BaseAgent, game_env: TwentyFortyEightEnv, episode_id: int, args: argparse.Namespace):
     print(f"Starting Episode {episode_id} for {args.game_name} with seed {args.seed if args.seed is not None else 'default'}...")
 
@@ -83,12 +148,23 @@ def run_game_episode(agent: BaseAgent, game_env: TwentyFortyEightEnv, episode_id
             
     # game_env.close() is called after all runs are complete in main
 
-    # Get final score from the info dict provided by the env
-    # In our modified TwentyFortyEightEnv, 'total_score' is in the info dict.
     final_score_from_env = float(last_info.get('total_score', 0.0)) 
 
     print(f"Episode {episode_id} finished after {final_step_num} steps. Final Env Score: {final_score_from_env}, Total Reward: {total_reward_for_episode:.2f}, Total Perf Score: {total_perf_score_for_episode:.2f}")
-    return final_score_from_env, final_step_num, total_reward_for_episode, total_perf_score_for_episode
+    
+    # Record results with the adapter
+    if hasattr(game_env, 'adapter') and game_env.adapter:
+        game_env.adapter.record_episode_result(
+            episode_id=episode_id,
+            score=final_score_from_env,
+            steps=final_step_num,
+            total_reward=total_reward_for_episode,
+            total_perf_score=total_perf_score_for_episode
+        )
+    else:
+        print("Warning: game_env.adapter not found. Cannot record episode result for summary.")
+
+    return # No need to return individual run results from here, adapter handles them
 
 def main():
     prelim_parser = argparse.ArgumentParser(add_help=False)
@@ -96,14 +172,12 @@ def main():
     prelim_parser.add_argument("--config_root_dir", type=str, default="configs")
     pre_args, remaining_argv = prelim_parser.parse_known_args()
 
-    # Resolve the actual config directory name using the mapping
     config_dir_name = game_config_mapping.get(pre_args.game_name.lower())
     if not config_dir_name:
         print(f"Warning: Game name '{pre_args.game_name}' not found in game_config_mapping. Using game name directly for config path.")
-        config_dir_name = pre_args.game_name # Fallback
+        config_dir_name = pre_args.game_name
 
     defaults_from_yaml = {}
-    # Use the resolved config_dir_name for the path
     config_file_path = os.path.join(pre_args.config_root_dir, config_dir_name, "config.yaml")
 
     if os.path.exists(config_file_path):
@@ -116,7 +190,6 @@ def main():
                         defaults_from_yaml['num_runs'] = game_env_config_yaml.get('num_runs')
                         defaults_from_yaml['max_steps_per_episode'] = game_env_config_yaml.get('max_steps')
                         defaults_from_yaml['seed'] = game_env_config_yaml.get('seed')
-                        # render_mode for env is now an init param of TwentyFortyEightEnv, can be in game_env_config.json
 
                     if loaded_yaml.get('agent'):
                         agent_config_yaml = loaded_yaml['agent']
@@ -135,9 +208,6 @@ def main():
 
     args = parse_arguments(defaults_map=defaults_from_yaml, argv_to_parse=remaining_argv)
 
-    # agent_prompts_config_path should also use the mapped config_dir_name
-    # args.game_name will be the user-friendly name (e.g., "twenty_forty_eight")
-    # config_dir_name will be the mapped name (e.g., "custom_01_2048")
     agent_prompts_config_path = os.path.join(args.config_root_dir, config_dir_name, "module_prompts.json")
     if not os.path.isfile(agent_prompts_config_path):
         print(f"Warning: Agent prompts file {agent_prompts_config_path} not found. Agent will use default prompts.")
@@ -151,9 +221,9 @@ def main():
         print("Initializing agent in NON-HARNESS (BaseModule direct) mode.")
 
     agent = BaseAgent(
-        game_name=args.game_name, # Agent can still use the user-friendly game_name
+        game_name=args.game_name,
         model_name=args.model_name,
-        config_path=agent_prompts_config_path, # This path is now correctly mapped
+        config_path=agent_prompts_config_path,
         harness=args.harness,
         max_memory=args.max_memory, custom_modules=custom_modules_for_agent,
         observation_mode=args.observation_mode
@@ -163,103 +233,49 @@ def main():
     os.makedirs(runner_log_dir, exist_ok=True)
     print(f"Agent cache directory (contains episode logs and summary): {runner_log_dir}")
 
-    # Load env parameters from game_env_config.json
-    env_params = {}
-    # Use the config_dir_name (e.g., "custom_01_2048") from the mapping 
-    # to locate the environment's specific game_env_config.json.
-    # This assumes game_env_config.json is inside a folder named like custom_01_2048 within gamingagent/envs/
-    env_specific_config_path = os.path.join("gamingagent/envs", config_dir_name, "game_env_config.json")
-    
-    if os.path.exists(env_specific_config_path):
-        with open(env_specific_config_path, 'r') as f:
-            env_specific_config = json.load(f)
-            env_params['size'] = env_specific_config.get('env_init_kwargs', {}).get('size', 4)
-            env_params['max_pow'] = env_specific_config.get('env_init_kwargs', {}).get('max_pow', 16)
-            env_params['render_mode'] = env_specific_config.get('render_mode_gym_make', 'human')
-            # max_stuck_steps for adapter is also in this config
-            env_params['max_stuck_steps_for_adapter'] = env_specific_config.get('max_unchanged_steps_for_termination', 10)
-    else:
-        print(f"Warning: {env_specific_config_path} not found. Using default env parameters.")
-        # Set defaults if file not found, to match TwentyFortyEightEnv defaults
-        env_params['size'] = 4
-        env_params['max_pow'] = 16
-        env_params['render_mode'] = 'human'
-        env_params['max_stuck_steps_for_adapter'] = 10
-
-    game_env = TwentyFortyEightEnv(
-        render_mode=env_params['render_mode'],
-        size=env_params['size'],
-        max_pow=env_params['max_pow'],
-        game_name_for_adapter=args.game_name, # User-friendly name for adapter's internal game_name
-        observation_mode_for_adapter=args.observation_mode, 
-        agent_cache_dir_for_adapter=runner_log_dir, 
-        # This path needs to be for the adapter to load its OWN specific settings (like action_mapping)
-        # This should use the mapped config_dir_name if the adapter's settings are in game_env_config.json within that mapped dir.
-        # OR if game_env_config.json is always at the env's own dir, it should be that.
-        # The TwentyFortyEightEnv constructor has `game_specific_config_path_for_adapter` which is used by GymEnvAdapter
-        # This adapter config should indeed come from where the game_env_config.json is located.
-        game_specific_config_path_for_adapter=env_specific_config_path, 
-        max_stuck_steps_for_adapter=env_params['max_stuck_steps_for_adapter']
+    # Env params are now loaded inside create_environment
+    game_env = create_environment(
+        game_name_arg=args.game_name,
+        obs_mode_arg=args.observation_mode,
+        config_dir_name_for_env_cfg=config_dir_name, # Pass the mapped dir name
+        cache_dir_for_adapter=runner_log_dir
     )
 
-    all_run_results = []
+    if game_env is None:
+        print("Failed to create game environment. Exiting.")
+        return
+
     for i in range(args.num_runs):
         run_id = i + 1
-        score, steps, total_reward, total_episode_perf_score = run_game_episode(agent, game_env, run_id, args)
-        all_run_results.append({
-            "run_id": run_id,
-            "score": score, # This is final_score_from_env
-            "steps": steps,
-            "total_reward_for_episode": total_reward,
-            "total_perf_score_for_episode": total_episode_perf_score
-        })
+        # run_game_episode now doesn't return values, results are stored in adapter
+        run_game_episode(agent, game_env, run_id, args)
         if i < args.num_runs - 1:
-            print("Cooldown for 1 second before next run...") # Shorter cooldown
+            print("Cooldown for 1 second before next run...")
             time.sleep(1)
     
+    # Finalize and save summary using the adapter
+    overall_stat_summary = {}
+    if hasattr(game_env, 'adapter') and game_env.adapter:
+        overall_stat_summary = game_env.adapter.finalize_and_save_summary(vars(args))
+    else:
+        print("Warning: game_env.adapter not found. Cannot finalize and save summary.")
+
     game_env.close() # Close environment after all runs
 
     print("\n" + "="*30 + " Overall Summary " + "="*30)
     print(f"Game: {args.game_name}, Model: {args.model_name}, Mode: {'Harness' if args.harness else 'BaseOnly'}, ObsMode: {args.observation_mode}")
     print(f"Number of runs: {args.num_runs}")
     
-    summary_data = {"settings": vars(args), "individual_run_results": all_run_results, "overall_stat_summary": {}}
-
-    if args.num_runs > 0 and all_run_results:
-        scores = [r['score'] for r in all_run_results]
-        steps_list = [r['steps'] for r in all_run_results]
-        total_rewards_list = [r['total_reward_for_episode'] for r in all_run_results]
-        total_perf_scores_list = [r['total_perf_score_for_episode'] for r in all_run_results]
-
-        stats_map = {
-            "Final Env Scores": scores,
-            "Steps Taken": steps_list,
-            "Total Rewards": total_rewards_list,
-            "Total Performance Scores": total_perf_scores_list
-        }
-
-        for key, values in stats_map.items():
-            if values:
-                mean_val = np.mean(values)
-                std_val = np.std(values)
-                min_val = np.min(values)
-                max_val = np.max(values)
-                print(f"Average {key}: {mean_val:.2f} (Std: {std_val:.2f}, Min: {min_val:.2f}, Max: {max_val:.2f})")
-                # Convert NumPy types to Python native types for JSON serialization
-                summary_data["overall_stat_summary"][key.lower().replace(" ", "_")] = {
-                    "mean": float(mean_val),
-                    "std": float(std_val),
-                    "min": int(min_val) if isinstance(min_val, np.integer) else float(min_val),
-                    "max": int(max_val) if isinstance(max_val, np.integer) else float(max_val),
-                    "values": [int(v) if isinstance(v, np.integer) else float(v) for v in values]
-                }
+    if args.num_runs > 0 and overall_stat_summary:
+        for key_snake, stats in overall_stat_summary.items():
+            # Convert snake_case key back to Title Case for printing
+            key_title = key_snake.replace("_", " ").title()
+            if stats["mean"] is not None:
+                print(f"Average {key_title}: {stats['mean']:.2f} (Std: {stats['std']:.2f}, Min: {stats['min']:.2f}, Max: {stats['max']:.2f})")
             else:
-                print(f"Average {key}: N/A (no data)")
-                summary_data["overall_stat_summary"][key.lower().replace(" ", "_")] = {"mean": None, "std": None, "min":None, "max":None, "values": []}
-    
-    summary_file_path = os.path.join(runner_log_dir, "gym_run_summary.json")
-    with open(summary_file_path, 'w') as f: json.dump(summary_data, f, indent=2)
-    print(f"Run summary saved to: {summary_file_path}")
+                print(f"Average {key_title}: N/A (no data)")
+    else:
+        print("No runs were completed or summary data is unavailable.")
 
 if __name__ == "__main__":
     main() 
