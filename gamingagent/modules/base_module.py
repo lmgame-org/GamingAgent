@@ -55,7 +55,7 @@ class BaseModule(CoreModule):
         self.observation_mode = observation_mode
         self.observation = Observation()  # Observation data class
             
-    def process_observation(self, 
+    def plan_action(self, 
             observation=None, 
             img_path=None, 
             textual_representation=None

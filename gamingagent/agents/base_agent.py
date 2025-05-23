@@ -320,7 +320,7 @@ class BaseAgent(ABC):
             # Unharness mode: Use base module directly with the Observation object
             print("Invoking WITHOUT HARNESS mode.")
 
-            result = self.modules["base_module"].process_observation(observation=observation)
+            result = self.modules["base_module"].plan_action(observation=observation)
             return result
         
         else:
