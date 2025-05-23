@@ -28,7 +28,6 @@ class BaseAgent(ABC):
             cache_dir=None,
             custom_modules=None, 
             observation_mode="vision",    # change the abstraction to with or without image
-            obs_source=None
         ):
         """
         Initialize the agent with base parameters and modules.
@@ -43,14 +42,12 @@ class BaseAgent(ABC):
             cache_dir (str, optional): Custom cache directory path
             custom_modules (dict, optional): Custom module classes to use
             observation_mode (str): Mode for processing observations ("vision", "text", or "both")
-            obs_source (str): Source of observation, possible sources are ["backend", "graphic"].
         """
         self.game_name = game_name
         self.model_name = model_name
         self.harness = harness
         self.max_memory = max_memory
         self.observation_mode = observation_mode
-        self.obs_source = obs_source
         
         # Set up cache directory following the specified pattern
         if cache_dir is None:
@@ -340,7 +337,7 @@ class BaseAgent(ABC):
                 raise ValueError("Reasoning module is required for harness mode")
             
             # 1. Process observation with perception module (already an Observation)
-            _ = perception_module.process_observation(observation)
+            processed_observation = perception_module.process_observation(observation)
             perception_data = perception_module.get_perception_summary()
 
             print("perception data:")
@@ -357,6 +354,7 @@ class BaseAgent(ABC):
             
             # 3. Plan action with reasoning module
             action_plan = reasoning_module.plan_action(
+                observation=processed_observation,
                 perception_data=perception_data,
                 memory_summary=memory_summary
             )

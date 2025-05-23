@@ -151,7 +151,7 @@ class BaseModule(CoreModule):
             )
         
         else:
-            raise NotImplementedError(f"observation mode: {observation_mode} not supported.")
+            raise NotImplementedError(f"observation mode: {self.observation_mode} not supported.")
         
         # Parse and log the response
         parsed_response = self._parse_response(response)

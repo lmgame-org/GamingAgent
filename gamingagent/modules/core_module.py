@@ -29,7 +29,6 @@ class Observation:
     """
     Dataclass representing a game observation.
     Can contain multiple types of observations:
-    - prompt_template: base_prompt_template.
     - img_path: Path to the image file for visual observations.
     - game_trajectory: Memory module — past N turns in the game trajectory, each turn contains (state, action, reward).
     - reflection: Memory module — Textual reflection from the game trajectory.
@@ -52,7 +51,6 @@ class Observation:
 
     def __init__(
         self,
-        prompt_template: Optional[str] = None,
         img_path: Optional[str] = None,
         game_trajectory: Optional[GameTrajectory] = None,
         reflection: Optional[str] = None,
@@ -62,7 +60,6 @@ class Observation:
         """
         Initialize an Observation instance.
         """
-        self.prompt_template = prompt_template
         self.game_trajectory = game_trajectory or GameTrajectory(max_length=10)
         self.img_path = img_path
         self.reflection = reflection
@@ -153,7 +150,8 @@ class Observation:
 
     def get_complete_prompt(
         self,
-        observation_mode,                 # kept for signature compatibility
+        observation_mode,
+        prompt_template,
         use_memory_module: bool = False,
         use_perception_module: bool = False,
     ) -> str:
@@ -163,17 +161,27 @@ class Observation:
         +Memory         → MEMORY_ATTR (if ``use_memory_module``)
 
         Any variable referenced in the template NOT in the allowed‑set raises a ValueError.
+        Any variable used in the template is not found in harness, insert "N/A".
         """
         formatter = string.Formatter()
-        var_names = [fld for _, fld, _, _ in formatter.parse(self.prompt_template) if fld]
+        var_names = [fld for _, fld, _, _ in formatter.parse(prompt_template) if fld]
         assert var_names, "Expected at least one variable in prompt_template."
 
-        # check if textual representations are needed
+
+        # Collect values for referenced attributes (initialize with "N/A")
+        harness_content_map = {name: "N/A" for name in var_names}
+        # Fill in existing values
+        for name in var_names:
+            attr = getattr(self, name, None)
+            if name == "game_trajectory":
+                harness_content_map[name] = attr.get() if attr else "N/A"
+            else:
+                harness_content_map[name] = attr if attr is not None else "N/A"
+        
+        # Determine allowed variables
+        allowed_vars = set()
         if observation_mode in ["text", "both"]:
-            allowed_vars = set(self.BASE_ATTR)
-        else:
-            allowed_vars = set()
-        # union module-specific attributes
+            allowed_vars |= self.BASE_ATTR
         if use_perception_module:
             allowed_vars |= self.PERCEPTION_ATTR
         if use_memory_module:
@@ -182,20 +190,8 @@ class Observation:
         print("allowed variables:")
         print(allowed_vars)
 
-        # Ensure only allowed attributes present in the prompt template
-        for name in var_names:
-            if name not in allowed_vars:
-                raise ValueError(f"Template uses invalid variable name: '{name}'")
+        return prompt_template.format(**harness_content_map)
 
-        # collect values for referenced attributes
-        harness_content_map = {module_name: getattr(self, module_name, "") for module_name in var_names}
-
-        # special process on game trajectory
-        # TODO: make this more elegant
-        if "game_trajectory" in harness_content_map.keys():
-            harness_content_map["game_trajectory"] = str(harness_content_map["game_trajectory"].get())
-
-        return self.prompt_template.format(**harness_content_map)
 
 class CoreModule(ABC):
     """

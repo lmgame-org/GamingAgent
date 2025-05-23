@@ -1,6 +1,8 @@
 from abc import abstractmethod
 from .core_module import CoreModule, Observation
 
+import re
+
 # TODO: 
 # 1.module integration 
 # 2.COT thinking mode 
@@ -51,11 +53,12 @@ class ReasoningModule(CoreModule):
 
         self.observation_mode = observation_mode
 
-    def plan_action(self, perception_data, memory_summary, img_path=None):
+    def plan_action(self, observation, perception_data, memory_summary, img_path=None):
         """
         Plan the next action sequence based on current perception and memory.
         
         Args:
+            observation (Observation, optional): An Observation instance
             perception_data (dict): Output from perception_module.get_perception_summary()
             memory_summary (dict): Output from memory_module.get_memory_summary()
             img_path (str, optional): Path to the current game image (override for perception_data["img_path"])
@@ -83,11 +86,9 @@ class ReasoningModule(CoreModule):
         use_memory = bool(game_trajectory.strip() and reflection.strip())
         use_perception = bool(processed_visual_description.strip())
 
-        formatter_obs = Observation(
-            prompt_template=self.prompt
-        )
-        full_context = formatter_obs.get_complete_prompt(
+        full_context = observation.get_complete_prompt(
             observation_mode=self.observation_mode,
+            prompt_template=self.prompt,
             use_memory_module=use_memory,
             use_perception_module=use_perception,
         )
@@ -174,15 +175,53 @@ class ReasoningModule(CoreModule):
    
     def _parse_response(self, response):
         """
-        Parse the reasoning response to extract structured action data.
+        Parse the response to extract thought and action.
         
         Args:
             response (str): The raw response from the LLM
             
         Returns:
-            dict: Structured information extracted from the response
+            dict: A dictionary containing action and thought
         """
-        # Default implementation - should be overridden by game-specific subclasses
-        return {
-            "generation": response.strip()
+        if not response:
+            return {"action": None, "thought": "No response received"}
+        
+        # Initialize result with defaults
+        result = {
+            "action": None,
+            "thought": None
         }
+        
+        # Use regex to find thought and action sections
+        # Match patterns like "thought:", "# thought:", "Thought:", etc.
+        thought_pattern = r'(?:^|\n)(?:#\s*)?thought:(.+?)(?=(?:\n(?:#\s*)?(?:action|move):)|$)'
+        action_pattern = r'(?:^|\n)(?:#\s*)?(?:action|move):(.+?)(?=(?:\n(?:#\s*)?thought:)|$)'
+        
+        # Find thought section using regex (case insensitive)
+        thought_match = re.search(thought_pattern, response, re.DOTALL | re.IGNORECASE)
+        if thought_match:
+            result["thought"] = thought_match.group(1).strip()
+        
+        # Find action section using regex (case insensitive)
+        action_match = re.search(action_pattern, response, re.DOTALL | re.IGNORECASE)
+        if action_match:
+            result["action"] = action_match.group(1).strip()
+        
+        # If no structured format was found, treat the whole response as thought
+        if not result["thought"] and not result["action"]:
+            result["thought"] = response.strip()
+        elif not result["thought"]:  # If only action was found
+            # Look for any text before the action as thought
+            pre_action = re.split(r'(?:^|\n)(?:#\s*)?(?:action|move):', response, flags=re.IGNORECASE)[0]
+            if pre_action and pre_action.strip():
+                result["thought"] = pre_action.strip()
+            # action is left as none
+        
+        # If only thought is found, action is left as none
+        
+        # Normalize action format if needed
+        if result["action"]:
+            # Process specific action formats if needed
+            pass
+        
+        return result
