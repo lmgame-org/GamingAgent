@@ -5,34 +5,43 @@ from tools.utils import scale_image_up
 import re
 import os
 
-# TODO: 1. with visual state (vision only) 2. without visual state (text only) 3 with visual state + text state (both)
+# TODO: 
+# 1. with visual state (vision only) 
+# 2. without visual state (text only) 
+# 3. with visual state + text state (both)
 
 class BaseModule(CoreModule):
     """
-    Base module that directly processes observations and returns actions.
-    This is a simplified module that bypasses the perception-memory-reasoning pipeline.
+    Base module that directly processes visual/textual observations and returns actions.
+    This is a simplified module that leverages gaming harness (in replacement of the agentic perception-memory-reasoning workflow).
     
     Game-specific implementations should inherit from this class and implement
     the required abstract methods.
     """
     
-    def __init__(self, model_name="claude-3-7-sonnet-latest", cache_dir="cache",
-                 system_prompt="", prompt="", token_limit=100000, reasoning_effort="high",
-                 observation_mode="vision"):
+    def __init__(self, 
+                model_name="claude-3-7-sonnet-latest", 
+                observation_mode="vision",
+                cache_dir="cache",
+                system_prompt="", 
+                prompt="", 
+                token_limit=100000, 
+                reasoning_effort="high"
+        ):
         """
         Initialize the base module.
         
         Args:
             model_name (str): The name of the model to use for inference.
+            observation_mode (str): Mode for processing observations:
+                - "vision": Uses image path as input
+                - "text": Uses textual representation as input
+                - "both": Uses both image path and textual representation as inputs
             cache_dir (str): Directory for storing logs and cache files.
             system_prompt (str): System prompt for LLM calls.
             prompt (str): Default user prompt for LLM calls.
             token_limit (int): Maximum number of tokens for API calls.
             reasoning_effort (str): Reasoning effort for API calls (low, medium, high).
-            observation_mode (str): Mode for processing observations:
-                - "vision": Uses image path as input
-                - "text": Uses symbolic representation as input
-                - "both": Uses both image path and text representation as inputs
         """
         super().__init__(
             module_name="base_module",
@@ -43,59 +52,51 @@ class BaseModule(CoreModule):
             token_limit=token_limit,
             reasoning_effort=reasoning_effort
         )
-        self.last_action = None
         self.observation_mode = observation_mode
-        self.observation = Observation()  # Using the Observation data class
-
-    def set_observation(self, observation=None, img_path=None, symbolic_representation=None):
-        """
-        Set the current observation for later processing.
-        
-        Args:
-            observation (Observation, optional): A complete Observation instance
-            img_path (str, optional): For "vision" or "both" modes: image path
-            symbolic_representation (str, optional): For "text" or "both" modes: symbolic representation of game board
-        """
-        # If an Observation is directly provided, use it
-        if observation is not None:
-            self.observation = observation
-        # Otherwise, update the existing observation with provided data
-        else:
-            if self.observation is None:
-                self.observation = Observation()
-                
-            if img_path is not None and self.observation_mode in ["vision", "both"]:
-                self.observation.img_path = img_path
-                
-            if symbolic_representation is not None and self.observation_mode in ["text", "both"]:
-                self.observation.symbolic_representation = str(symbolic_representation) if symbolic_representation is not None else None
+        self.observation = Observation()  # Observation data class
             
-    def process_observation(self, observation=None, img_path=None, symbolic_representation=None):
+    def plan_action(self, 
+            observation=None, 
+            img_path=None, 
+            textual_representation=None
+        ):
         """
         Process the observation to plan the next action based on the observation_mode.
-        If no observations are provided, uses previously set observations via set_observation().
+        If no observations are provided, uses previously set observations via set_perception_observation().
         
         Args:
             observation (Observation, optional): A complete Observation instance
             img_path (str, optional): For "vision" or "both" mode: image path
-            symbolic_representation (str, optional): For "text" or "both" mode: symbolic representation of game board
+            textual_representation (str, optional): For "text" or "both" mode: textual representation of game board
             
         Returns:
             dict: A dictionary containing 'action' and 'thought' keys
         """
-        # Update stored observations if provided
-        if observation is not None or img_path is not None or symbolic_representation is not None:
-            self.set_observation(observation, img_path, symbolic_representation)
+        # Update observation
+        if observation or img_path or textual_representation:
+            self.observation.set_perception_observation(observation, img_path, textual_representation)
+        
+        # Validate observation based on mode
+        if self.observation_mode in ["vision", "both"]:
+            assert self.observation.img_path is not None, "No vision observation available"
+        if self.observation_mode in ["text", "both"]: 
+            assert (self.observation.textual_representation is not None) or (self.observation.processed_visual_description is not None), "No textual representation available"
+    
+        def prepare_text_based_game_state():
+            textual_representation = self.observation.get_textual_representation()
+            processed_visual_description = self.observation.get_processed_visual_description()
+            if textual_representation and processed_visual_description:
+                text_repr = f"Game Textual Representation:\n{textual_representation}\n\nGmae Visual Elements Description:\n{processed_visual_description}\n\n"
+            elif textual_representation:
+                text_repr = f"Game Textual Representation:\n{textual_representation}\n\n"
+            elif processed_visual_description:
+                text_repr = f"Gmae Visual Elements Description:\n{processed_visual_description}\n\n"
+            else:
+                text_repr = "No Text-Based Game State Provided."
             
-        # Validate required observations based on mode
-        if self.observation_mode in ["vision", "both"] and self.observation.img_path is None:
-            return {"action": None, "thought": "No vision observation available"}
-                
-        if self.observation_mode in ["text", "both"] and self.observation.symbolic_representation is None:
-            return {"action": None, "thought": "No symbolic observation available"}
+            return text_repr
         
         response = None
-        
         if self.observation_mode == "vision":
             # Vision-based processing: observation is the image path
             # Scale up image if needed
@@ -111,15 +112,14 @@ class BaseModule(CoreModule):
                 reasoning_effort=self.reasoning_effort,
                 token_limit=self.token_limit
             )
-            
+        
         elif self.observation_mode == "text":
-            # Text-based processing: observation is symbolic representation only
-            text_repr = f"Symbolic Representation:\n{self.observation.get_symbolic_representation()}"
-                
-            # Create the full prompt with the symbolic representation
-            full_prompt = f"Text Observation:\n{text_repr}\n\n{self.prompt}"
+            # Create the full prompt with the text-based game state
+            # TODO (lanxiang): replace with Observation.get_complete_prompt
+            text_repr = prepare_text_based_game_state()
+            full_prompt = f"{self.prompt}\n\n{text_repr}"
             
-            # Call the text API with the symbolic representation in the prompt
+            # Call the text API with the textual representation in the prompt
             response = self.api_manager.text_only_completion(
                 model_name=self.model_name,
                 system_prompt=self.system_prompt,
@@ -127,20 +127,19 @@ class BaseModule(CoreModule):
                 thinking=True,
                 reasoning_effort=self.reasoning_effort,
                 token_limit=self.token_limit
-            )
-            
+            )    
+        
         elif self.observation_mode == "both":
             # Both vision and text processing                
             # Scale up image if needed
             new_img_path = scale_image_up(self.observation.get_img_path())
             
-            # Use only symbolic representation
-            text_repr = f"Symbolic Representation:\n{self.observation.get_symbolic_representation()}"
+            # Create the full prompt with the text-based game state
+            # TODO (lanxiang): replace with Observation.get_complete_prompt
+            text_repr = prepare_text_based_game_state()
+            full_prompt = f"{self.prompt}\n\n{text_repr}"
             
-            # Create a prompt that includes the symbolic representation
-            full_prompt = f"Text Observation:\n{text_repr}\n\n{self.prompt}"
-            
-            # Call the vision API with both the image and symbolic representation
+            # Call the vision API with both the image and textual representation
             response = self.api_manager.vision_text_completion(
                 model_name=self.model_name,
                 system_prompt=self.system_prompt,
@@ -150,6 +149,9 @@ class BaseModule(CoreModule):
                 reasoning_effort=self.reasoning_effort,
                 token_limit=self.token_limit
             )
+        
+        else:
+            raise NotImplementedError(f"observation mode: {self.observation_mode} not supported.")
         
         # Parse and log the response
         parsed_response = self._parse_response(response)
@@ -177,7 +179,7 @@ class BaseModule(CoreModule):
         # Initialize result with defaults
         result = {
             "action": None,
-            "thought": ""
+            "thought": None
         }
         
         # Use regex to find thought and action sections
@@ -203,10 +205,13 @@ class BaseModule(CoreModule):
             pre_action = re.split(r'(?:^|\n)(?:#\s*)?(?:action|move):', response, flags=re.IGNORECASE)[0]
             if pre_action and pre_action.strip():
                 result["thought"] = pre_action.strip()
+            # action is left as none
+        
+        # If only thought is found, action is left as none
         
         # Normalize action format if needed
         if result["action"]:
-            # Handle specific action formats if needed
+            # Process specific action formats if needed
             pass
         
         return result

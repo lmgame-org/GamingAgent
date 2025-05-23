@@ -25,7 +25,12 @@ dependencies = [
     "pygame==2.6.1",
     "PyGetWindow==0.0.9",
     "google-generativeai==0.8.4",
-    "google.genai==1.5.0"
+    "google.genai==1.5.0",
+    "pyyaml==6.0.2",
+    "together",
+    "gymnasium",
+    "gymnasium_2048",
+    "stable-retro"
 ]
 license = {text = "MIT"}
 repository = "https://github.com/lmgame-org/GamingAgent"

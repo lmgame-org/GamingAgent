@@ -10,7 +10,7 @@ game_env:
 agent:
   # Global agent settings
   name: "2048_agent"
-  model_name: "claude-3-5-sonnet-latest"
+  model_name: "claude-3-7-sonnet-latest"
   cache_dir: "cache/twenty_forty_eight"
   reasoning_effort: "high"
   token_limit: 100000
@@ -22,8 +22,12 @@ agent:
       observation_mode: "vision"  # Options: "vision", "text", "both"
     
     perception_module:
+      obs_source: "backend"
 
     memory_module:
       max_memory: 10  # Maximum number of memory entries to store
     
     reasoning_module:
+      use_perception: True
+      use_memory: True
+      use_cot: True
