@@ -71,49 +71,65 @@ class Observation:
         Set the current observation from raw game states.
         
         Args:
-            observation (Observation, optional): An Observation instance
-            img_path (str, optional): For "vision" or "both" modes: image path
-            textual_representation (str, optional): For "text" or "both" modes: textual representation of game state from game backend
-            processed_visual_description (str, optional): For "text" or "both" modes: textual descriptions of key visual elements from UI
+            observation (Observation, optional): An Observation instance. If provided, its attributes are copied.
+            img_path (str, optional): Overrides or sets img_path. For "vision" or "both" modes.
+            textual_representation (str, optional): Overrides or sets textual_representation. For "text" or "both" modes.
+            processed_visual_description (str, optional): Overrides or sets processed_visual_description. For "text" or "both" modes.
         """
-        # If an Observation is directly provided, use it
+        # If an Observation object is directly provided, copy its relevant attributes to self
         if observation is not None:
-            self.observation = observation
-        # Otherwise, update the existing observation
-        else:
-            # TODO (lanxiang): refactor and move the intialization to earlier stage
-            # make a new observation object
-            if self.observation is None:
-                self.observation = Observation()
+            if hasattr(observation, 'img_path') and observation.img_path is not None:
+                self.img_path = observation.img_path
+            if hasattr(observation, 'textual_representation') and observation.textual_representation is not None:
+                self.textual_representation = observation.textual_representation
+            if hasattr(observation, 'processed_visual_description') and observation.processed_visual_description is not None:
+                self.processed_visual_description = observation.processed_visual_description
+            # If the passed 'observation' object also carries memory attributes, copy them too.
+            if hasattr(observation, 'game_trajectory') and observation.game_trajectory is not None:
+                 self.game_trajectory = observation.game_trajectory
+            if hasattr(observation, 'reflection') and observation.reflection is not None:
+                 self.reflection = observation.reflection
+
+        # Update/override with individual arguments if they are provided.
+        # These apply regardless of whether 'observation' (object) was passed, allowing specific overrides.
+        if img_path is not None:
+            self.img_path = img_path
                 
-            if img_path is not None and self.observation_mode in ["vision", "both"]:
-                self.observation.img_path = img_path
-                
-            if self.observation_mode in ["text", "both"]:
-                self.observation.textual_representation = textual_representation if textual_representation is not None else None
-                self.observation.processed_visual_description = processed_visual_description if processed_visual_description is not None else None
+        if textual_representation is not None:
+            self.textual_representation = textual_representation
+        
+        if processed_visual_description is not None:
+            self.processed_visual_description = processed_visual_description
     
-    def set_memory_observation(self, observation=None, gaming_trajectory=None, reflection=None):
+    def set_memory_observation(self, observation=None, game_trajectory=None, reflection=None):
         """
         Set the current memory context.
         
         Args:
-            observation (Observation, optional): A complete Observation instance
-            gaming_trajectory (GameTrajectory, optional): past N game states
-            reflection (str, optional): latest reflection synthesized from memory module
+            observation (Observation, optional): A complete Observation instance. If provided, its attributes are copied.
+            game_trajectory (GameTrajectory, optional): past N game states.
+            reflection (str, optional): latest reflection synthesized from memory module.
         """
-        # If an Observation is directly provided, use it
+        # If an Observation object is directly provided, copy its relevant attributes to self
         if observation is not None:
-            self.observation = observation
-        # Otherwise, update the existing observation
-        else:
-            # TODO (lanxiang): refactor and move the intialization to earlier stage
-            # make a new observation object
-            if self.observation is None:
-                self.observation = Observation()
+            if hasattr(observation, 'game_trajectory') and observation.game_trajectory is not None:
+                self.game_trajectory = observation.game_trajectory
+            if hasattr(observation, 'reflection') and observation.reflection is not None:
+                self.reflection = observation.reflection
+            # If the passed 'observation' object also carries perception attributes, copy them too.
+            if hasattr(observation, 'img_path') and observation.img_path is not None:
+                self.img_path = observation.img_path
+            if hasattr(observation, 'textual_representation') and observation.textual_representation is not None:
+                self.textual_representation = observation.textual_representation
+            if hasattr(observation, 'processed_visual_description') and observation.processed_visual_description is not None:
+                self.processed_visual_description = observation.processed_visual_description
                 
-            self.observation.gaming_trajectory = gaming_trajectory if gaming_trajectory is not None else None
-            self.observation.reflection = reflection if reflection is not None else None
+        # Update/override with individual arguments if they are provided
+        if game_trajectory is not None:
+            self.game_trajectory = game_trajectory
+                
+        if reflection is not None:
+            self.reflection = reflection
     
     def get_img_path(self) -> str:
         """
@@ -201,8 +217,10 @@ class Observation:
         """
         data = {
             "img_path": self.img_path,
-            "text_data": self.text_data,
-            "symbolic_representation": self.symbolic_representation
+            "game_trajectory": self.game_trajectory.get() if self.game_trajectory else None,
+            "reflection": self.reflection,
+            "processed_visual_description": self.processed_visual_description,
+            "textual_representation": self.textual_representation
         }
         return json.dumps(data)
 

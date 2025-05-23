@@ -33,10 +33,16 @@ def anthropic_completion(system_prompt, model_name, base64_image, prompt, thinki
         print("claude-3-5 only supports 8192 tokens and no thinking")
         thinking = False
         token_limit = 8192
+
+    if "claude-3-haiku" in model_name:
+        print("claude-3-haiku only supports 4096 tokens and no thinking")
+        thinking = False
+        token_limit = 4096
     
     if "claude-3-7" in model_name:
         print("claude-3-7 supports 64000 tokens")
         token_limit = 64000
+    
 
     if thinking:
         with client.messages.stream(
@@ -91,6 +97,12 @@ def anthropic_text_completion(system_prompt, model_name, prompt, thinking=False,
         print("claude-3-5 only supports 8192 tokens and no thinking")
         thinking = False
         token_limit = 8192
+
+    
+    if "claude-3-haiku" in model_name:
+        print("claude-3-haiku only supports 4096 tokens and no thinking")
+        thinking = False
+        token_limit = 4096
 
     if thinking:
         with client.messages.stream(
@@ -159,6 +171,11 @@ def anthropic_multiimage_completion(system_prompt, model_name, prompt, list_cont
             "content": content_blocks,
         }
     ]
+
+    if "claude-3-haiku" in model_name:
+        print("claude-3-haiku only supports 4096 tokens and no thinking")
+        thinking = False
+        token_limit = 4096
 
     print(f"message size: {len(content_blocks)+1}")
 

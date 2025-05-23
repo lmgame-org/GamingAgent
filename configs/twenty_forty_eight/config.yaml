@@ -10,11 +10,11 @@ game_env:
 agent:
   # Global agent settings
   name: "2048_agent"
-  model_name: "claude-3-7-sonnet-latest"
+  model_name: "claude-3-haiku-20240307"
   cache_dir: "cache/twenty_forty_eight"
   reasoning_effort: "high"
   token_limit: 100000
-  harness: false  # Whether to use the perception-memory-reasoning pipeline
+  harness: true  # Whether to use the perception-memory-reasoning pipeline
   
   # Module-specific settings
   modules:
