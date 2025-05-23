@@ -1,3 +1,6 @@
+# Credits to https://github.com/Quentin18/gymnasium-2048/tree/main for the original 2048 game implementation.
+# We thank the author for their work, which serves as an excellent testbed for our agent.
+
 from typing import Any, Dict, Tuple, Optional, List
 
 import gymnasium as gym
