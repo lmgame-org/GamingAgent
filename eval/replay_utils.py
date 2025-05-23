@@ -157,10 +157,10 @@ def create_board_image_2048(board_powers: np.ndarray, save_path: str, size: int 
 def generate_2048_median_score_replay(
     game_perf_json_path: str, 
     model_name_prefix: str, 
-    game_display_name: str, # e.g. "2048" as in game_perf.json
+    game_display_name: str, # e.g. "2048" or "twenty_forty_eight" as key in game_perf.json
     harness_status_key: str, # e.g. "harness_false"
     video_output_base_dir: str,
-    seconds_per_frame: float = DEFAULT_SECONDS_PER_FRAME # Renamed and default updated
+    seconds_per_frame: float = DEFAULT_SECONDS_PER_FRAME
 ):
     """
     Generates an MP4 video replay for the median-scoring episode of a given model 
@@ -168,7 +168,7 @@ def generate_2048_median_score_replay(
     Frames are generated using step_infos (board and step_score).
     Video is created using ffmpeg.
     """
-    print(f"Attempting to generate median score MP4 replay for {model_name_prefix} in {game_display_name} ({harness_status_key}).")
+    print(f"Attempting to generate median score MP4 replay for {model_name_prefix} in game '{game_display_name}' ({harness_status_key}).")
 
     # Check for ffmpeg first
     try:
@@ -190,14 +190,15 @@ def generate_2048_median_score_replay(
         return
 
     try:
+        # Use game_display_name to access the game's data
         model_data = all_game_perf_data.get(game_display_name, {}).get(model_name_prefix, {}).get(harness_status_key, {})
         if not model_data or "episodes_data" not in model_data:
-            print(f"No data found for {model_name_prefix} - {game_display_name} - {harness_status_key} in {game_perf_json_path}")
+            print(f"No data found for {model_name_prefix} - game '{game_display_name}' - {harness_status_key} in {game_perf_json_path}")
             return
 
         episodes_data = model_data["episodes_data"]
         if not episodes_data:
-            print(f"No episodes found for {model_name_prefix} - {game_display_name} - {harness_status_key}.")
+            print(f"No episodes found for {model_name_prefix} - game '{game_display_name}' - {harness_status_key}.")
             return
 
         # Sort episodes by total_episode_perf_score to find the median
@@ -276,7 +277,7 @@ def generate_2048_median_score_replay(
         safe_model_name = safe_model_name[:15]
 
         
-        video_name = f"{game_display_name.replace('_', '')}_{safe_model_name}_{harness_short}_median_ep{episode_id_str}_score{actual_median_score:.0f}.mp4" # Changed to .mp4
+        video_name = f"{game_display_name.replace('_', '').replace(' ', '')}_{safe_model_name}_{harness_short}_median_ep{episode_id_str}_score{actual_median_score:.0f}.mp4"
         
         model_video_dir = os.path.join(video_output_base_dir, safe_model_name)
         os.makedirs(model_video_dir, exist_ok=True)

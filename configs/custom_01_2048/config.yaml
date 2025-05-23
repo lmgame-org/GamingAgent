@@ -1,0 +1,33 @@
+game_env:
+  name: "twenty_forty_eight"
+  description: "2048 game environment"
+  env_type: "custom"
+  render_mode: "human"
+  max_steps: 1000
+  seed: 42
+  num_runs: 2
+
+agent:
+  # Global agent settings
+  name: "2048_agent"
+  model_name: "claude-3-haiku-20240307"
+  cache_dir: "cache/twenty_forty_eight"
+  reasoning_effort: "high"
+  token_limit: 100000
+  harness: true  # Whether to use the perception-memory-reasoning pipeline
+  
+  # Module-specific settings
+  modules:
+    base_module:
+      observation_mode: "vision"  # Options: "vision", "text", "both"
+    
+    perception_module:
+      obs_source: "backend"
+
+    memory_module:
+      max_memory: 10  # Maximum number of memory entries to store
+    
+    reasoning_module:
+      use_perception: True
+      use_memory: True
+      use_cot: True

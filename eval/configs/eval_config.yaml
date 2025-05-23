@@ -6,7 +6,7 @@ game_list: ["twenty_forty_eight"]
 
 # List of model names/prefixes to process
 # Example: ["claude-3-5-sonnet-20241022", "gpt-4o"]
-model_list: ["claude-3-5-sonnet-20241022"]
+model_list: ["claude-3-haiku-20240307"]
 
 # Force update existing entries in model_perf_rank.json (boolean)
 force_model_perf_rank: false

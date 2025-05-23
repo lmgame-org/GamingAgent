@@ -211,7 +211,7 @@ def main():
                 print(f"    No new data from processor to update {MODEL_PERF_RANK_FILE} for {model_prefix_to_search}.")
 
             # 2. Update detailed game performance data for game_perf.json
-            print(f"    Updating detailed performance for {game_display_name} in {DETAILED_GAME_PERF_FILE}...")
+            print(f"    Updating detailed performance for game '{game_display_name}' (model: {model_prefix_to_search}) in {DETAILED_GAME_PERF_FILE}...")
             # For game_perf.json, we want the raw scores, which generate_game_perf_update provides.
             new_game_perf_subset_for_model = processor.generate_game_perf_update()
             if new_game_perf_subset_for_model:
@@ -223,9 +223,9 @@ def main():
             else:
                 print(f"    No new detailed data from processor for {model_prefix_to_search} in {game_name}.")
         
-        # After processing all models for the current game, update the main dictionary
+        # After processing all models for the current game, update the main dictionary using game_display_name as the key
         all_detailed_game_perf_data[game_display_name] = current_game_detailed_data
-        print(f"Finished processing for game: {game_name} ({game_display_name})")
+        print(f"Finished processing for game: {game_name} (display name: {game_display_name})")
 
     # After processing all games, save the consolidated detailed game performance data once
     print(f"\nSaving all detailed game performance data to {DETAILED_GAME_PERF_FILE}...")
@@ -353,20 +353,21 @@ def main():
 
         for game_name_for_replay in game_list_to_process: # Iterate through games processed in this run
             # Get the display name as used in game_perf.json keys
-            game_display_name_for_replay = game_specific_configs.get(game_name_for_replay, {}).get("display_name", game_name_for_replay)
+            game_display_name_for_replay_lookup = game_specific_configs.get(game_name_for_replay, {}).get("display_name", game_name_for_replay)
 
-            if game_name_for_replay == "twenty_forty_eight":
-                print(f"  Preparing to generate 2048 median replays for game: {game_name_for_replay} (display name in JSON: {game_display_name_for_replay})")
+            if game_name_for_replay == "twenty_forty_eight": # Still check against internal name for specific logic
+                print(f"  Preparing to generate 2048 median replays for game: {game_name_for_replay} (using display name: {game_display_name_for_replay_lookup} for JSON key)")
                 for model_name in model_list_to_process:
                     print(f"    Processing model: {model_name} for 2048 median replay")
                     for harness_key in ["harness_true", "harness_false"]:
                         print(f"      Generating for harness: {harness_key}")
                         try:
                             # Call the function from replay_utils for 2048
+                            # Pass game_display_name_for_replay_lookup for the JSON key
                             generate_2048_median_score_replay(
                                 game_perf_json_path=DETAILED_GAME_PERF_FILE,
-                                model_name_prefix=model_name, # This is the model name used as key in game_perf.json
-                                game_display_name=game_display_name_for_replay, # This is the game name used as key
+                                model_name_prefix=model_name, 
+                                game_display_name=game_display_name_for_replay_lookup, # Use display name for JSON key
                                 harness_status_key=harness_key,
                                 video_output_base_dir=VIDEO_OUTPUT_BASE_DIR
                                 # frame_duration will use default from replay_utils
