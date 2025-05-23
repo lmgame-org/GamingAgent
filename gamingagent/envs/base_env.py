@@ -143,12 +143,12 @@ class BaseGameEnv(ABC):
         agent_observation = self.extract_observation(self.current_raw_observation, self.current_info)
         return agent_observation, self.current_info
 
-    def _log_and_print_step_data(self, agent_action_str: Optional[str], thought_process: str, reward: float, info: Dict[str, Any], terminated: bool, truncated: bool, time_taken_s: float):
+    def _log_and_print_step_data(self, agent_action_str: Optional[str], thought_process: str, reward: float, info: Dict[str, Any], terminated: bool, truncated: bool, time_taken_s: float, perf_score: float, agent_observation: Observation):
         """Helper function to log step data to file and print a summary to console."""
         # executed_action_str = self.map_env_action_to_agent_action(executed_env_action_idx) # Removed
         
-        # Standardized console printout - ExecAct removed
-        print(f"[BaseGameEnv] E{self.current_episode_id} S{self.current_step_num}: AgentAct='{agent_action_str}', R={reward:.2f}, Term={terminated}, Trunc={truncated}, T={time_taken_s:.2f}s")
+        # Standardized console printout - ExecAct removed, added PerfScore
+        print(f"[BaseGameEnv] E{self.current_episode_id} S{self.current_step_num}: AgentAct='{agent_action_str}', R={reward:.2f}, Perf={perf_score:.2f}, Term={terminated}, Trunc={truncated}, T={time_taken_s:.2f}s")
 
         log_entry = {
             "episode_id": self.current_episode_id,
@@ -156,7 +156,9 @@ class BaseGameEnv(ABC):
             "agent_action": agent_action_str,
             "thought": thought_process,
             "reward": float(reward),
+            "perf_score": float(perf_score),
             "info": info, 
+            "agent_observation": str(agent_observation),
             "terminated": terminated,
             "truncated": truncated,
             # "executed_env_action_idx": int(executed_env_action_idx), # Removed
@@ -177,11 +179,12 @@ class BaseGameEnv(ABC):
         else:
             print(f"[BaseGameEnv] Warning: Episode log file handle is None. Cannot write log for E{self.current_episode_id} S{self.current_step_num}. Path intended: {self.episode_log_file_path}")
 
-    def step(self, agent_action_str: Optional[str], thought_process: str, time_taken_s: float) -> Tuple[Observation, float, bool, bool, Dict[str, Any]]:
+    def step(self, agent_action_str: Optional[str], thought_process: str, time_taken_s: float) -> Tuple[Observation, float, bool, bool, Dict[str, Any], float]:
         """
         Takes a step in the environment using the agent's string action.
         Handles invalid or "skip" actions by not stepping the underlying environment
         and returning a neutral outcome (0 reward, no termination).
+        Returns observation, reward, terminated, truncated, info, and perf_score.
         """
         if not self.env:
             raise ConnectionError("[BaseGameEnv] Environment not initialized. Call reset() first.")
@@ -211,9 +214,11 @@ class BaseGameEnv(ABC):
 
             # Verify termination status after extracting observation
             terminated, truncated = self.verify_termination(current_agent_observation, terminated, truncated)
+            
+            current_step_perf_score = self.perf_score(reward, self.current_info) # Calculate perf_score for skipped step
 
-            self._log_and_print_step_data(agent_action_str, thought_process, reward, self.current_info, terminated, truncated, time_taken_s)
-            return current_agent_observation, reward, terminated, truncated, self.current_info # Return signature changed
+            self._log_and_print_step_data(agent_action_str, thought_process, reward, self.current_info, terminated, truncated, time_taken_s, current_step_perf_score, current_agent_observation) # Pass current_agent_observation
+            return current_agent_observation, reward, terminated, truncated, self.current_info, current_step_perf_score # Return signature changed
         else:
             # This is a valid, non-skip action; env_action_idx must be valid here
             self.current_raw_observation, reward, terminated, truncated, self.current_info = self.env.step(env_action_idx)
@@ -222,8 +227,10 @@ class BaseGameEnv(ABC):
             # Verify termination status after extracting observation
             terminated, truncated = self.verify_termination(new_agent_observation, terminated, truncated)
             
-            self._log_and_print_step_data(agent_action_str, thought_process, float(reward), self.current_info, terminated, truncated, time_taken_s)
-            return new_agent_observation, float(reward), terminated, truncated, self.current_info # Return signature changed
+            current_step_perf_score = self.perf_score(float(reward), self.current_info) # Calculate perf_score
+
+            self._log_and_print_step_data(agent_action_str, thought_process, float(reward), self.current_info, terminated, truncated, time_taken_s, current_step_perf_score, new_agent_observation) # Pass new_agent_observation
+            return new_agent_observation, float(reward), terminated, truncated, self.current_info, current_step_perf_score # Return signature changed
 
     def verify_termination(self, observation: Observation, current_terminated: bool, current_truncated: bool) -> Tuple[bool, bool]:
         """
@@ -286,3 +293,17 @@ class BaseGameEnv(ABC):
         `step_num` is assumed to be the 0-indexed current step number.
         """
         return os.path.join(self.agent_observations_base_dir, f"env_obs_e{episode_id:03d}_s{step_num + 1:04d}.png")
+
+    @abstractmethod
+    def game_replay(self, trajectory_data: List[Dict[str, Any]]) -> None:
+        """
+        Replays a game episode from the log file.
+        """
+        pass
+
+
+    def perf_score(self, reward: float, info: Dict[str, Any]) -> float:
+        """
+        Calculates the performance score for a game episode.
+        """
+        return reward

@@ -1,0 +1,693 @@
+{
+  "claude-3-5-sonnet-20241022": {
+    "harness_true": {
+      "Sokoban": [
+        0,
+        0,
+        0
+      ],
+      "SMB": [
+        709,
+        1532,
+        1562
+      ],
+      "Tetris": [
+        16,
+        14,
+        14
+      ],
+      "twenty_forty_eight": [
+        1352,
+        2860,
+        1532
+      ],
+      "Candy Crash": [
+        92,
+        165,
+        61
+      ],
+      "Ace Attorney": [
+        2
+      ]
+    },
+    "harness_false": {
+      "Sokoban": [
+        0,
+        0,
+        0
+      ],
+      "SMB": [
+        1551,
+        1515,
+        1554
+      ],
+      "Tetris": [
+        10,
+        15,
+        12
+      ],
+      "twenty_forty_eight": [
+        188,
+        20,
+        44
+      ],
+      "Candy Crash": [
+        15,
+        36,
+        0
+      ],
+      "Ace Attorney": [
+        1
+      ]
+    }
+  },
+  "claude-3-7-sonnet-20250219 (thinking)": {
+    "harness_true": {
+      "Sokoban": [
+        2,
+        4,
+        1
+      ],
+      "SMB": [
+        2015,
+        709,
+        1532
+      ],
+      "Tetris": [
+        19,
+        15,
+        15
+      ],
+      "twenty_forty_eight": [
+        2560,
+        3224,
+        2088
+      ],
+      "Candy Crash": [
+        535,
+        428,
+        489
+      ],
+      "Ace Attorney": [
+        7
+      ]
+    },
+    "harness_false": {
+      "Sokoban": [
+        0,
+        0,
+        0
+      ],
+      "SMB": [
+        1532,
+        1515,
+        1243
+      ],
+      "Tetris": [
+        13,
+        13,
+        13
+      ],
+      "twenty_forty_eight": [
+        1596,
+        4256,
+        3008
+      ],
+      "Candy Crash": [
+        148,
+        182,
+        49
+      ],
+      "Ace Attorney": [
+        3
+      ]
+    }
+  },
+  "deepseek-r1": {
+    "harness_true": {
+      "Sokoban": [
+        2,
+        0,
+        2
+      ],
+      "SMB": [],
+      "Tetris": [
+        15,
+        14,
+        14
+      ],
+      "twenty_forty_eight": [
+        700,
+        1240,
+        3680
+      ],
+      "Candy Crash": [
+        409,
+        436,
+        497
+      ],
+      "Ace Attorney": [
+        0
+      ]
+    },
+    "harness_false": {
+      "Sokoban": [],
+      "SMB": [],
+      "Tetris": [],
+      "twenty_forty_eight": [],
+      "Candy Crash": [],
+      "Ace Attorney": []
+    }
+  },
+  "gemini-2.5-flash-preview-04-17": {
+    "harness_true": {
+      "Sokoban": [
+        3,
+        0,
+        2
+      ],
+      "SMB": [
+        1672,
+        1266,
+        1247
+      ],
+      "Tetris": [
+        20,
+        14,
+        15
+      ],
+      "twenty_forty_eight": [
+        1304,
+        1316,
+        2472
+      ],
+      "Candy Crash": [
+        259,
+        372,
+        373
+      ],
+      "Ace Attorney": [
+        4
+      ]
+    },
+    "harness_false": {
+      "Sokoban": [
+        0,
+        0,
+        0
+      ],
+      "SMB": [
+        1794,
+        1270,
+        1558
+      ],
+      "Tetris": [
+        15,
+        18,
+        24
+      ],
+      "twenty_forty_eight": [
+        2228,
+        1424,
+        1564
+      ],
+      "Candy Crash": [
+        60,
+        101,
+        132
+      ],
+      "Ace Attorney": [
+        1
+      ]
+    }
+  },
+  "gemini-2.5-pro-preview-05-06": {
+    "harness_true": {
+      "Sokoban": [
+        4,
+        4,
+        5
+      ],
+      "SMB": [
+        1561,
+        1271,
+        1663
+      ],
+      "Tetris": [
+        23,
+        23,
+        24
+      ],
+      "twenty_forty_eight": [
+        5300,
+        2400,
+        3060
+      ],
+      "Candy Crash": [
+        411,
+        414,
+        424
+      ],
+      "Ace Attorney": [
+        7
+      ]
+    },
+    "harness_false": {
+      "Sokoban": [
+        1,
+        1,
+        1
+      ],
+      "SMB": [
+        820,
+        1534,
+        722
+      ],
+      "Tetris": [
+        15,
+        9,
+        13
+      ],
+      "twenty_forty_eight": [
+        5784,
+        3544,
+        3704
+      ],
+      "Candy Crash": [
+        117,
+        169,
+        246
+      ],
+      "Ace Attorney": [
+        8
+      ]
+    }
+  },
+  "grok-3-mini-beta (thinking)": {
+    "harness_true": {
+      "Sokoban": [
+        5,
+        6,
+        6
+      ],
+      "SMB": [],
+      "Tetris": [
+        20,
+        15,
+        29
+      ],
+      "twenty_forty_eight": [
+        6412,
+        2492,
+        3204
+      ],
+      "Candy Crash": [
+        299,
+        332,
+        131
+      ],
+      "Ace Attorney": [
+        0
+      ]
+    },
+    "harness_false": {
+      "Sokoban": [],
+      "SMB": [],
+      "Tetris": [],
+      "twenty_forty_eight": [],
+      "Candy Crash": [],
+      "Ace Attorney": []
+    }
+  },
+  "llama-4-maverick-17b-128e-instruct-fp8": {
+    "harness_true": {
+      "Sokoban": [
+        0,
+        0,
+        0
+      ],
+      "SMB": [
+        898,
+        2008,
+        1500
+      ],
+      "Tetris": [
+        9,
+        10,
+        12
+      ],
+      "twenty_forty_eight": [
+        1404,
+        1272,
+        2084
+      ],
+      "Candy Crash": [
+        67,
+        139,
+        180
+      ],
+      "Ace Attorney": [
+        0
+      ]
+    },
+    "harness_false": {
+      "Sokoban": [
+        0,
+        0,
+        0
+      ],
+      "SMB": [
+        837,
+        300,
+        1221
+      ],
+      "Tetris": [
+        13,
+        11,
+        11
+      ],
+      "twenty_forty_eight": [
+        16,
+        56,
+        12
+      ],
+      "Candy Crash": [
+        18,
+        79,
+        0
+      ],
+      "Ace Attorney": [
+        0
+      ]
+    }
+  },
+  "gpt-4.1-2025-04-14": {
+    "harness_true": {
+      "Sokoban": [
+        0,
+        0,
+        0
+      ],
+      "SMB": [
+        1531,
+        722,
+        4126
+      ],
+      "Tetris": [
+        13,
+        14,
+        14
+      ],
+      "twenty_forty_eight": [
+        1156,
+        2664,
+        1148
+      ],
+      "Candy Crash": [
+        163,
+        215,
+        168
+      ],
+      "Ace Attorney": [
+        2
+      ]
+    },
+    "harness_false": {
+      "Sokoban": [
+        0,
+        0,
+        0
+      ],
+      "SMB": [
+        1563,
+        1257,
+        3154
+      ],
+      "Tetris": [
+        11,
+        14,
+        14
+      ],
+      "twenty_forty_eight": [
+        264,
+        500,
+        2576
+      ],
+      "Candy Crash": [
+        13,
+        238,
+        52
+      ],
+      "Ace Attorney": [
+        0
+      ]
+    }
+  },
+  "gpt-4o-2024-11-20": {
+    "harness_true": {
+      "Sokoban": [
+        0,
+        0,
+        0
+      ],
+      "SMB": [
+        2017,
+        2590,
+        1535
+      ],
+      "Tetris": [
+        18,
+        11,
+        13
+      ],
+      "twenty_forty_eight": [
+        1604,
+        1284,
+        2080
+      ],
+      "Candy Crash": [
+        131,
+        104,
+        207
+      ],
+      "Ace Attorney": [
+        0
+      ]
+    },
+    "harness_false": {
+      "Sokoban": [
+        0,
+        0,
+        0
+      ],
+      "SMB": [
+        1565,
+        297,
+        1223
+      ],
+      "Tetris": [
+        14,
+        17,
+        13
+      ],
+      "twenty_forty_eight": [
+        292,
+        196,
+        40
+      ],
+      "Candy Crash": [
+        29,
+        122,
+        26
+      ],
+      "Ace Attorney": [
+        0
+      ]
+    }
+  },
+  "o1-2024-12-17": {
+    "harness_true": {
+      "Sokoban": [
+        2,
+        2,
+        3
+      ],
+      "SMB": [
+        855
+      ],
+      "Tetris": [
+        35
+      ],
+      "twenty_forty_eight": [
+        7580
+      ],
+      "Candy Crash": [
+        159
+      ],
+      "Ace Attorney": [
+        16
+      ]
+    },
+    "harness_false": {
+      "Sokoban": [
+        0
+      ],
+      "SMB": [
+        1434
+      ],
+      "Tetris": [
+        13
+      ],
+      "twenty_forty_eight": [
+        7176
+      ],
+      "Candy Crash": [
+        90
+      ],
+      "Ace Attorney": [
+        3
+      ]
+    }
+  },
+  "o1-mini-2024-09-12": {
+    "harness_true": {
+      "Sokoban": [
+        1,
+        2,
+        1
+      ],
+      "SMB": [],
+      "Tetris": [
+        11,
+        11,
+        13
+      ],
+      "twenty_forty_eight": [
+        3132,
+        2004,
+        3136
+      ],
+      "Candy Crash": [
+        21,
+        86,
+        37
+      ],
+      "Ace Attorney": [
+        0
+      ]
+    },
+    "harness_false": {
+      "Sokoban": [],
+      "SMB": [],
+      "Tetris": [],
+      "twenty_forty_eight": [],
+      "Candy Crash": [],
+      "Ace Attorney": []
+    }
+  },
+  "o3-2025-04-16": {
+    "harness_true": {
+      "Sokoban": [
+        10,
+        6
+      ],
+      "SMB": [
+        3445
+      ],
+      "Tetris": [
+        42
+      ],
+      "twenty_forty_eight": [
+        7120
+      ],
+      "Candy Crash": [
+        647
+      ],
+      "Ace Attorney": [
+        16
+      ]
+    },
+    "harness_false": {
+      "Sokoban": [
+        2
+      ],
+      "SMB": [
+        1955
+      ],
+      "Tetris": [
+        31
+      ],
+      "twenty_forty_eight": [
+        7220
+      ],
+      "Candy Crash": [
+        106
+      ],
+      "Ace Attorney": [
+        8
+      ]
+    }
+  },
+  "o4-mini-2025-04-16": {
+    "harness_true": {
+      "Sokoban": [
+        4,
+        6,
+        6
+      ],
+      "SMB": [
+        1525,
+        1263,
+        1556
+      ],
+      "Tetris": [
+        22,
+        35,
+        19
+      ],
+      "twenty_forty_eight": [
+        4928,
+        5456,
+        2912
+      ],
+      "Candy Crash": [
+        259,
+        591,
+        612
+      ],
+      "Ace Attorney": [
+        4
+      ]
+    },
+    "harness_false": {
+      "Sokoban": [
+        1,
+        2,
+        1
+      ],
+      "SMB": [
+        1554,
+        1245,
+        1246
+      ],
+      "Tetris": [
+        14,
+        12,
+        19
+      ],
+      "twenty_forty_eight": [
+        3004,
+        84,
+        2560
+      ],
+      "Candy Crash": [
+        82,
+        82,
+        168
+      ],
+      "Ace Attorney": [
+        2
+      ]
+    }
+  }
+}

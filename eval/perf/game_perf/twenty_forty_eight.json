@@ -1,0 +1,4613 @@
+{
+  "claude-3-5-sonnet-20241022": {
+    "harness_false": {
+      "num_episodes_processed": 6,
+      "total_reward_values": [
+        72.0,
+        20.0,
+        4.0,
+        12.0,
+        16.0,
+        72.0
+      ],
+      "total_perf_score_values": [
+        72.0,
+        20.0,
+        4.0,
+        12.0,
+        16.0,
+        72.0
+      ],
+      "episodes_data": [
+        {
+          "episode_id": "002",
+          "steps": 27,
+          "total_reward": 72.0,
+          "total_episode_perf_score": 72.0,
+          "step_infos": [
+            {
+              "board": [
+                [
+                  0,
+                  0,
+                  0,
+                  0
+                ],
+                [
+                  1,
+                  0,
+                  0,
+                  0
+                ],
+                [
+                  3,
+                  0,
+                  0,
+                  0
+                ],
+                [
+                  0,
+                  0,
+                  0,
+                  0
+                ]
+              ],
+              "step_score": 8,
+              "total_score": 8,
+              "max": 3,
+              "is_legal": true,
+              "illegal_count": 0
+            },
+            {
+              "board": [
+                [
+                  1,
+                  0,
+                  0,
+                  0
+                ],
+                [
+                  3,
+                  0,
+                  0,
+                  0
+                ],
+                [
+                  0,
+                  0,
+                  0,
+                  0
+                ],
+                [
+                  0,
+                  1,
+                  0,
+                  0
+                ]
+              ],
+              "step_score": 0,
+              "total_score": 8,
+              "max": 3,
+              "is_legal": true,
+              "illegal_count": 0
+            },
+            {
+              "board": [
+                [
+                  1,
+                  0,
+                  0,
+                  0
+                ],
+                [
+                  3,
+                  0,
+                  0,
+                  0
+                ],
+                [
+                  0,
+                  0,
+                  0,
+                  0
+                ],
+                [
+                  1,
+                  0,
+                  1,
+                  0
+                ]
+              ],
+              "step_score": 0,
+              "total_score": 8,
+              "max": 3,
+              "is_legal": true,
+              "illegal_count": 0
+            },
+            {
+              "board": [
+                [
+                  1,
+                  0,
+                  0,
+                  0
+                ],
+                [
+                  3,
+                  0,
+                  0,
+                  0
+                ],
+                [
+                  0,
+                  0,
+                  0,
+                  1
+                ],
+                [
+                  2,
+                  0,
+                  0,
+                  0
+                ]
+              ],
+              "step_score": 4,
+              "total_score": 12,
+              "max": 3,
+              "is_legal": true,
+              "illegal_count": 0
+            },
+            {
+              "board": [
+                [
+                  1,
+                  0,
+                  0,
+                  0
+                ],
+                [
+                  3,
+                  0,
+                  0,
+                  0
+                ],
+                [
+                  1,
+                  0,
+                  1,
+                  0
+                ],
+                [
+                  2,
+                  0,
+                  0,
+                  0
+                ]
+              ],
+              "step_score": 0,
+              "total_score": 12,
+              "max": 3,
+              "is_legal": true,
+              "illegal_count": 0
+            },
+            {
+              "board": [
+                [
+                  1,
+                  0,
+                  0,
+                  0
+                ],
+                [
+                  3,
+                  0,
+                  0,
+                  1
+                ],
+                [
+                  2,
+                  0,
+                  0,
+                  0
+                ],
+                [
+                  2,
+                  0,
+                  0,
+                  0
+                ]
+              ],
+              "step_score": 4,
+              "total_score": 16,
+              "max": 3,
+              "is_legal": true,
+              "illegal_count": 0
+            },
+            {
+              "board": [
+                [
+                  1,
+                  0,
+                  0,
+                  1
+                ],
+                [
+                  3,
+                  1,
+                  0,
+                  0
+                ],
+                [
+                  2,
+                  0,
+                  0,
+                  0
+                ],
+                [
+                  2,
+                  0,
+                  0,
+                  0
+                ]
+              ],
+              "step_score": 0,
+              "total_score": 16,
+              "max": 3,
+              "is_legal": true,
+              "illegal_count": 0
+            },
+            {
+              "board": [
+                [
+                  2,
+                  0,
+                  0,
+                  0
+                ],
+                [
+                  3,
+                  1,
+                  1,
+                  0
+                ],
+                [
+                  2,
+                  0,
+                  0,
+                  0
+                ],
+                [
+                  2,
+                  0,
+                  0,
+                  0
+                ]
+              ],
+              "step_score": 4,
+              "total_score": 20,
+              "max": 3,
+              "is_legal": true,
+              "illegal_count": 0
+            },
+            {
+              "board": [
+                [
+                  2,
+                  0,
+                  0,
+                  0
+                ],
+                [
+                  3,
+                  2,
+                  0,
+                  0
+                ],
+                [
+                  2,
+                  1,
+                  0,
+                  0
+                ],
+                [
+                  2,
+                  0,
+                  0,
+                  0
+                ]
+              ],
+              "step_score": 4,
+              "total_score": 24,
+              "max": 3,
+              "is_legal": true,
+              "illegal_count": 0
+            },
+            {
+              "board": [
+                [
+                  2,
+                  2,
+                  1,
+                  0
+                ],
+                [
+                  3,
+                  1,
+                  0,
+                  0
+                ],
+                [
+                  3,
+                  0,
+                  0,
+                  0
+                ],
+                [
+                  0,
+                  0,
+                  0,
+                  0
+                ]
+              ],
+              "step_score": 8,
+              "total_score": 32,
+              "max": 3,
+              "is_legal": true,
+              "illegal_count": 0
+            },
+            {
+              "board": [
+                [
+                  3,
+                  1,
+                  1,
+                  0
+                ],
+                [
+                  3,
+                  1,
+                  0,
+                  0
+                ],
+                [
+                  3,
+                  0,
+                  0,
+                  0
+                ],
+                [
+                  0,
+                  0,
+                  0,
+                  0
+                ]
+              ],
+              "step_score": 8,
+              "total_score": 40,
+              "max": 3,
+              "is_legal": true,
+              "illegal_count": 0
+            },
+            {
+              "board": [
+                [
+                  3,
+                  2,
+                  0,
+                  0
+                ],
+                [
+                  3,
+                  1,
+                  0,
+                  0
+                ],
+                [
+                  3,
+                  0,
+                  0,
+                  0
+                ],
+                [
+                  0,
+                  0,
+                  1,
+                  0
+                ]
+              ],
+              "step_score": 4,
+              "total_score": 44,
+              "max": 3,
+              "is_legal": true,
+              "illegal_count": 0
+            },
+            {
+              "board": [
+                [
+                  4,
+                  2,
+                  1,
+                  0
+                ],
+                [
+                  3,
+                  1,
+                  0,
+                  0
+                ],
+                [
+                  0,
+                  0,
+                  0,
+                  0
+                ],
+                [
+                  0,
+                  0,
+                  1,
+                  0
+                ]
+              ],
+              "step_score": 16,
+              "total_score": 60,
+              "max": 4,
+              "is_legal": true,
+              "illegal_count": 0
+            },
+            {
+              "board": [
+                [
+                  4,
+                  2,
+                  1,
+                  0
+                ],
+                [
+                  3,
+                  1,
+                  0,
+                  0
+                ],
+                [
+                  0,
+                  0,
+                  0,
+                  0
+                ],
+                [
+                  1,
+                  0,
+                  0,
+                  1
+                ]
+              ],
+              "step_score": 0,
+              "total_score": 60,
+              "max": 4,
+              "is_legal": true,
+              "illegal_count": 0
+            },
+            {
+              "board": [
+                [
+                  4,
+                  2,
+                  1,
+                  0
+                ],
+                [
+                  3,
+                  1,
+                  0,
+                  0
+                ],
+                [
+                  0,
+                  0,
+                  0,
+                  0
+                ],
+                [
+                  2,
+                  0,
+                  0,
+                  2
+                ]
+              ],
+              "step_score": 4,
+              "total_score": 64,
+              "max": 4,
+              "is_legal": true,
+              "illegal_count": 0
+            },
+            {
+              "board": [
+                [
+                  0,
+                  4,
+                  2,
+                  1
+                ],
+                [
+                  0,
+                  0,
+                  3,
+                  1
+                ],
+                [
+                  0,
+                  0,
+                  0,
+                  0
+                ],
+                [
+                  0,
+                  0,
+                  1,
+                  3
+                ]
+              ],
+              "step_score": 8,
+              "total_score": 72,
+              "max": 4,
+              "is_legal": true,
+              "illegal_count": 0
+            },
+            {
+              "board": [
+                [
+                  4,
+                  2,
+                  1,
+                  0
+                ],
+                [
+                  3,
+                  1,
+                  0,
+                  0
+                ],
+                [
+                  0,
+                  0,
+                  0,
+                  0
+                ],
+                [
+                  1,
+                  3,
+                  1,
+                  0
+                ]
+              ],
+              "step_score": 0,
+              "total_score": 72,
+              "max": 4,
+              "is_legal": true,
+              "illegal_count": 0
+            },
+            {
+              "board": [
+                [
+                  4,
+                  2,
+                  1,
+                  0
+                ],
+                [
+                  3,
+                  1,
+                  0,
+                  0
+                ],
+                [
+                  0,
+                  0,
+                  0,
+                  0
+                ],
+                [
+                  1,
+                  3,
+                  1,
+                  0
+                ]
+              ],
+              "step_score": 0,
+              "total_score": 72,
+              "max": 4,
+              "is_legal": false,
+              "illegal_count": 1
+            },
+            {
+              "board": [
+                [
+                  4,
+                  2,
+                  1,
+                  0
+                ],
+                [
+                  3,
+                  1,
+                  0,
+                  0
+                ],
+                [
+                  0,
+                  0,
+                  0,
+                  0
+                ],
+                [
+                  1,
+                  3,
+                  1,
+                  0
+                ]
+              ],
+              "step_score": 0,
+              "total_score": 72,
+              "max": 4,
+              "is_legal": false,
+              "illegal_count": 2
+            },
+            {
+              "board": [
+                [
+                  4,
+                  2,
+                  1,
+                  0
+                ],
+                [
+                  3,
+                  1,
+                  0,
+                  0
+                ],
+                [
+                  0,
+                  0,
+                  0,
+                  0
+                ],
+                [
+                  1,
+                  3,
+                  1,
+                  0
+                ]
+              ],
+              "step_score": 0,
+              "total_score": 72,
+              "max": 4,
+              "is_legal": false,
+              "illegal_count": 3
+            },
+            {
+              "board": [
+                [
+                  4,
+                  2,
+                  1,
+                  0
+                ],
+                [
+                  3,
+                  1,
+                  0,
+                  0
+                ],
+                [
+                  0,
+                  0,
+                  0,
+                  0
+                ],
+                [
+                  1,
+                  3,
+                  1,
+                  0
+                ]
+              ],
+              "step_score": 0,
+              "total_score": 72,
+              "max": 4,
+              "is_legal": false,
+              "illegal_count": 4
+            },
+            {
+              "board": [
+                [
+                  4,
+                  2,
+                  1,
+                  0
+                ],
+                [
+                  3,
+                  1,
+                  0,
+                  0
+                ],
+                [
+                  0,
+                  0,
+                  0,
+                  0
+                ],
+                [
+                  1,
+                  3,
+                  1,
+                  0
+                ]
+              ],
+              "step_score": 0,
+              "total_score": 72,
+              "max": 4,
+              "is_legal": false,
+              "illegal_count": 5
+            },
+            {
+              "board": [
+                [
+                  4,
+                  2,
+                  1,
+                  0
+                ],
+                [
+                  3,
+                  1,
+                  0,
+                  0
+                ],
+                [
+                  0,
+                  0,
+                  0,
+                  0
+                ],
+                [
+                  1,
+                  3,
+                  1,
+                  0
+                ]
+              ],
+              "step_score": 0,
+              "total_score": 72,
+              "max": 4,
+              "is_legal": false,
+              "illegal_count": 6
+            },
+            {
+              "board": [
+                [
+                  4,
+                  2,
+                  1,
+                  0
+                ],
+                [
+                  3,
+                  1,
+                  0,
+                  0
+                ],
+                [
+                  0,
+                  0,
+                  0,
+                  0
+                ],
+                [
+                  1,
+                  3,
+                  1,
+                  0
+                ]
+              ],
+              "step_score": 0,
+              "total_score": 72,
+              "max": 4,
+              "is_legal": false,
+              "illegal_count": 7
+            },
+            {
+              "board": [
+                [
+                  4,
+                  2,
+                  1,
+                  0
+                ],
+                [
+                  3,
+                  1,
+                  0,
+                  0
+                ],
+                [
+                  0,
+                  0,
+                  0,
+                  0
+                ],
+                [
+                  1,
+                  3,
+                  1,
+                  0
+                ]
+              ],
+              "step_score": 0,
+              "total_score": 72,
+              "max": 4,
+              "is_legal": false,
+              "illegal_count": 8
+            },
+            {
+              "board": [
+                [
+                  4,
+                  2,
+                  1,
+                  0
+                ],
+                [
+                  3,
+                  1,
+                  0,
+                  0
+                ],
+                [
+                  0,
+                  0,
+                  0,
+                  0
+                ],
+                [
+                  1,
+                  3,
+                  1,
+                  0
+                ]
+              ],
+              "step_score": 0,
+              "total_score": 72,
+              "max": 4,
+              "is_legal": false,
+              "illegal_count": 9
+            },
+            {
+              "board": [
+                [
+                  4,
+                  2,
+                  1,
+                  0
+                ],
+                [
+                  3,
+                  1,
+                  0,
+                  0
+                ],
+                [
+                  0,
+                  0,
+                  0,
+                  0
+                ],
+                [
+                  1,
+                  3,
+                  1,
+                  0
+                ]
+              ],
+              "step_score": 0,
+              "total_score": 72,
+              "max": 4,
+              "is_legal": false,
+              "illegal_count": 10
+            }
+          ],
+          "step_observations": [
+            {
+              "img_path": null,
+              "text_data": null,
+              "symbolic_representation": "[[0, 0, 0, 0], [1, 0, 0, 0], [3, 0, 0, 0], [0, 0, 0, 0]]"
+            },
+            {
+              "img_path": null,
+              "text_data": null,
+              "symbolic_representation": "[[1, 0, 0, 0], [3, 0, 0, 0], [0, 0, 0, 0], [0, 1, 0, 0]]"
+            },
+            {
+              "img_path": null,
+              "text_data": null,
+              "symbolic_representation": "[[1, 0, 0, 0], [3, 0, 0, 0], [0, 0, 0, 0], [1, 0, 1, 0]]"
+            },
+            {
+              "img_path": null,
+              "text_data": null,
+              "symbolic_representation": "[[1, 0, 0, 0], [3, 0, 0, 0], [0, 0, 0, 1], [2, 0, 0, 0]]"
+            },
+            {
+              "img_path": null,
+              "text_data": null,
+              "symbolic_representation": "[[1, 0, 0, 0], [3, 0, 0, 0], [1, 0, 1, 0], [2, 0, 0, 0]]"
+            },
+            {
+              "img_path": null,
+              "text_data": null,
+              "symbolic_representation": "[[1, 0, 0, 0], [3, 0, 0, 1], [2, 0, 0, 0], [2, 0, 0, 0]]"
+            },
+            {
+              "img_path": null,
+              "text_data": null,
+              "symbolic_representation": "[[1, 0, 0, 1], [3, 1, 0, 0], [2, 0, 0, 0], [2, 0, 0, 0]]"
+            },
+            {
+              "img_path": null,
+              "text_data": null,
+              "symbolic_representation": "[[2, 0, 0, 0], [3, 1, 1, 0], [2, 0, 0, 0], [2, 0, 0, 0]]"
+            },
+            {
+              "img_path": null,
+              "text_data": null,
+              "symbolic_representation": "[[2, 0, 0, 0], [3, 2, 0, 0], [2, 1, 0, 0], [2, 0, 0, 0]]"
+            },
+            {
+              "img_path": null,
+              "text_data": null,
+              "symbolic_representation": "[[2, 2, 1, 0], [3, 1, 0, 0], [3, 0, 0, 0], [0, 0, 0, 0]]"
+            },
+            {
+              "img_path": null,
+              "text_data": null,
+              "symbolic_representation": "[[3, 1, 1, 0], [3, 1, 0, 0], [3, 0, 0, 0], [0, 0, 0, 0]]"
+            },
+            {
+              "img_path": null,
+              "text_data": null,
+              "symbolic_representation": "[[3, 2, 0, 0], [3, 1, 0, 0], [3, 0, 0, 0], [0, 0, 1, 0]]"
+            },
+            {
+              "img_path": null,
+              "text_data": null,
+              "symbolic_representation": "[[4, 2, 1, 0], [3, 1, 0, 0], [0, 0, 0, 0], [0, 0, 1, 0]]"
+            },
+            {
+              "img_path": null,
+              "text_data": null,
+              "symbolic_representation": "[[4, 2, 1, 0], [3, 1, 0, 0], [0, 0, 0, 0], [1, 0, 0, 1]]"
+            },
+            {
+              "img_path": null,
+              "text_data": null,
+              "symbolic_representation": "[[4, 2, 1, 0], [3, 1, 0, 0], [0, 0, 0, 0], [2, 0, 0, 2]]"
+            },
+            {
+              "img_path": null,
+              "text_data": null,
+              "symbolic_representation": "[[0, 4, 2, 1], [0, 0, 3, 1], [0, 0, 0, 0], [0, 0, 1, 3]]"
+            },
+            {
+              "img_path": null,
+              "text_data": null,
+              "symbolic_representation": "[[4, 2, 1, 0], [3, 1, 0, 0], [0, 0, 0, 0], [1, 3, 1, 0]]"
+            },
+            {
+              "img_path": null,
+              "text_data": null,
+              "symbolic_representation": "[[4, 2, 1, 0], [3, 1, 0, 0], [0, 0, 0, 0], [1, 3, 1, 0]]"
+            },
+            {
+              "img_path": null,
+              "text_data": null,
+              "symbolic_representation": "[[4, 2, 1, 0], [3, 1, 0, 0], [0, 0, 0, 0], [1, 3, 1, 0]]"
+            },
+            {
+              "img_path": null,
+              "text_data": null,
+              "symbolic_representation": "[[4, 2, 1, 0], [3, 1, 0, 0], [0, 0, 0, 0], [1, 3, 1, 0]]"
+            },
+            {
+              "img_path": null,
+              "text_data": null,
+              "symbolic_representation": "[[4, 2, 1, 0], [3, 1, 0, 0], [0, 0, 0, 0], [1, 3, 1, 0]]"
+            },
+            {
+              "img_path": null,
+              "text_data": null,
+              "symbolic_representation": "[[4, 2, 1, 0], [3, 1, 0, 0], [0, 0, 0, 0], [1, 3, 1, 0]]"
+            },
+            {
+              "img_path": null,
+              "text_data": null,
+              "symbolic_representation": "[[4, 2, 1, 0], [3, 1, 0, 0], [0, 0, 0, 0], [1, 3, 1, 0]]"
+            },
+            {
+              "img_path": null,
+              "text_data": null,
+              "symbolic_representation": "[[4, 2, 1, 0], [3, 1, 0, 0], [0, 0, 0, 0], [1, 3, 1, 0]]"
+            },
+            {
+              "img_path": null,
+              "text_data": null,
+              "symbolic_representation": "[[4, 2, 1, 0], [3, 1, 0, 0], [0, 0, 0, 0], [1, 3, 1, 0]]"
+            },
+            {
+              "img_path": null,
+              "text_data": null,
+              "symbolic_representation": "[[4, 2, 1, 0], [3, 1, 0, 0], [0, 0, 0, 0], [1, 3, 1, 0]]"
+            },
+            {
+              "img_path": null,
+              "text_data": null,
+              "symbolic_representation": "[[4, 2, 1, 0], [3, 1, 0, 0], [0, 0, 0, 0], [1, 3, 1, 0]]"
+            }
+          ],
+          "total_time_taken": 78.3537757396698
+        },
+        {
+          "episode_id": "001",
+          "steps": 18,
+          "total_reward": 20.0,
+          "total_episode_perf_score": 20.0,
+          "step_infos": [
+            {
+              "board": [
+                [
+                  1,
+                  0,
+                  2,
+                  0
+                ],
+                [
+                  0,
+                  0,
+                  0,
+                  0
+                ],
+                [
+                  0,
+                  0,
+                  0,
+                  0
+                ],
+                [
+                  1,
+                  0,
+                  0,
+                  0
+                ]
+              ],
+              "step_score": 0,
+              "total_score": 0,
+              "max": 2,
+              "is_legal": true,
+              "illegal_count": 0
+            },
+            {
+              "board": [
+                [
+                  1,
+                  2,
+                  0,
+                  0
+                ],
+                [
+                  0,
+                  0,
+                  0,
+                  0
+                ],
+                [
+                  0,
+                  0,
+                  0,
+                  1
+                ],
+                [
+                  1,
+                  0,
+                  0,
+                  0
+                ]
+              ],
+              "step_score": 0,
+              "total_score": 0,
+              "max": 2,
+              "is_legal": true,
+              "illegal_count": 0
+            },
+            {
+              "board": [
+                [
+                  1,
+                  2,
+                  0,
+                  0
+                ],
+                [
+                  0,
+                  0,
+                  0,
+                  0
+                ],
+                [
+                  1,
+                  0,
+                  0,
+                  1
+                ],
+                [
+                  1,
+                  0,
+                  0,
+                  0
+                ]
+              ],
+              "step_score": 0,
+              "total_score": 0,
+              "max": 2,
+              "is_legal": true,
+              "illegal_count": 0
+            },
+            {
+              "board": [
+                [
+                  1,
+                  2,
+                  0,
+                  0
+                ],
+                [
+                  0,
+                  0,
+                  0,
+                  0
+                ],
+                [
+                  2,
+                  0,
+                  0,
+                  0
+                ],
+                [
+                  1,
+                  1,
+                  0,
+                  0
+                ]
+              ],
+              "step_score": 4,
+              "total_score": 4,
+              "max": 2,
+              "is_legal": true,
+              "illegal_count": 0
+            },
+            {
+              "board": [
+                [
+                  1,
+                  2,
+                  0,
+                  0
+                ],
+                [
+                  0,
+                  0,
+                  0,
+                  0
+                ],
+                [
+                  2,
+                  0,
+                  0,
+                  0
+                ],
+                [
+                  2,
+                  0,
+                  1,
+                  0
+                ]
+              ],
+              "step_score": 4,
+              "total_score": 8,
+              "max": 2,
+              "is_legal": true,
+              "illegal_count": 0
+            },
+            {
+              "board": [
+                [
+                  0,
+                  0,
+                  0,
+                  0
+                ],
+                [
+                  0,
+                  1,
+                  0,
+                  0
+                ],
+                [
+                  1,
+                  0,
+                  0,
+                  0
+                ],
+                [
+                  3,
+                  2,
+                  1,
+                  0
+                ]
+              ],
+              "step_score": 8,
+              "total_score": 16,
+              "max": 3,
+              "is_legal": true,
+              "illegal_count": 0
+            },
+            {
+              "board": [
+                [
+                  0,
+                  0,
+                  0,
+                  0
+                ],
+                [
+                  1,
+                  0,
+                  0,
+                  0
+                ],
+                [
+                  1,
+                  0,
+                  1,
+                  0
+                ],
+                [
+                  3,
+                  2,
+                  1,
+                  0
+                ]
+              ],
+              "step_score": 0,
+              "total_score": 16,
+              "max": 3,
+              "is_legal": true,
+              "illegal_count": 0
+            },
+            {
+              "board": [
+                [
+                  0,
+                  0,
+                  0,
+                  0
+                ],
+                [
+                  1,
+                  0,
+                  0,
+                  0
+                ],
+                [
+                  2,
+                  1,
+                  0,
+                  0
+                ],
+                [
+                  3,
+                  2,
+                  1,
+                  0
+                ]
+              ],
+              "step_score": 4,
+              "total_score": 20,
+              "max": 3,
+              "is_legal": true,
+              "illegal_count": 0
+            },
+            {
+              "board": [
+                [
+                  0,
+                  0,
+                  0,
+                  0
+                ],
+                [
+                  1,
+                  0,
+                  0,
+                  0
+                ],
+                [
+                  2,
+                  1,
+                  0,
+                  0
+                ],
+                [
+                  3,
+                  2,
+                  1,
+                  0
+                ]
+              ],
+              "step_score": 0,
+              "total_score": 20,
+              "max": 3,
+              "is_legal": false,
+              "illegal_count": 1
+            },
+            {
+              "board": [
+                [
+                  0,
+                  0,
+                  0,
+                  0
+                ],
+                [
+                  1,
+                  0,
+                  0,
+                  0
+                ],
+                [
+                  2,
+                  1,
+                  0,
+                  0
+                ],
+                [
+                  3,
+                  2,
+                  1,
+                  0
+                ]
+              ],
+              "step_score": 0,
+              "total_score": 20,
+              "max": 3,
+              "is_legal": false,
+              "illegal_count": 2
+            },
+            {
+              "board": [
+                [
+                  0,
+                  0,
+                  0,
+                  0
+                ],
+                [
+                  1,
+                  0,
+                  0,
+                  0
+                ],
+                [
+                  2,
+                  1,
+                  0,
+                  0
+                ],
+                [
+                  3,
+                  2,
+                  1,
+                  0
+                ]
+              ],
+              "step_score": 0,
+              "total_score": 20,
+              "max": 3,
+              "is_legal": false,
+              "illegal_count": 3
+            },
+            {
+              "board": [
+                [
+                  0,
+                  0,
+                  0,
+                  0
+                ],
+                [
+                  1,
+                  0,
+                  0,
+                  0
+                ],
+                [
+                  2,
+                  1,
+                  0,
+                  0
+                ],
+                [
+                  3,
+                  2,
+                  1,
+                  0
+                ]
+              ],
+              "step_score": 0,
+              "total_score": 20,
+              "max": 3,
+              "is_legal": false,
+              "illegal_count": 4
+            },
+            {
+              "board": [
+                [
+                  0,
+                  0,
+                  0,
+                  0
+                ],
+                [
+                  1,
+                  0,
+                  0,
+                  0
+                ],
+                [
+                  2,
+                  1,
+                  0,
+                  0
+                ],
+                [
+                  3,
+                  2,
+                  1,
+                  0
+                ]
+              ],
+              "step_score": 0,
+              "total_score": 20,
+              "max": 3,
+              "is_legal": false,
+              "illegal_count": 5
+            },
+            {
+              "board": [
+                [
+                  0,
+                  0,
+                  0,
+                  0
+                ],
+                [
+                  1,
+                  0,
+                  0,
+                  0
+                ],
+                [
+                  2,
+                  1,
+                  0,
+                  0
+                ],
+                [
+                  3,
+                  2,
+                  1,
+                  0
+                ]
+              ],
+              "step_score": 0,
+              "total_score": 20,
+              "max": 3,
+              "is_legal": false,
+              "illegal_count": 6
+            },
+            {
+              "board": [
+                [
+                  0,
+                  0,
+                  0,
+                  0
+                ],
+                [
+                  1,
+                  0,
+                  0,
+                  0
+                ],
+                [
+                  2,
+                  1,
+                  0,
+                  0
+                ],
+                [
+                  3,
+                  2,
+                  1,
+                  0
+                ]
+              ],
+              "step_score": 0,
+              "total_score": 20,
+              "max": 3,
+              "is_legal": false,
+              "illegal_count": 7
+            },
+            {
+              "board": [
+                [
+                  0,
+                  0,
+                  0,
+                  0
+                ],
+                [
+                  1,
+                  0,
+                  0,
+                  0
+                ],
+                [
+                  2,
+                  1,
+                  0,
+                  0
+                ],
+                [
+                  3,
+                  2,
+                  1,
+                  0
+                ]
+              ],
+              "step_score": 0,
+              "total_score": 20,
+              "max": 3,
+              "is_legal": false,
+              "illegal_count": 8
+            },
+            {
+              "board": [
+                [
+                  0,
+                  0,
+                  0,
+                  0
+                ],
+                [
+                  1,
+                  0,
+                  0,
+                  0
+                ],
+                [
+                  2,
+                  1,
+                  0,
+                  0
+                ],
+                [
+                  3,
+                  2,
+                  1,
+                  0
+                ]
+              ],
+              "step_score": 0,
+              "total_score": 20,
+              "max": 3,
+              "is_legal": false,
+              "illegal_count": 9
+            },
+            {
+              "board": [
+                [
+                  0,
+                  0,
+                  0,
+                  0
+                ],
+                [
+                  1,
+                  0,
+                  0,
+                  0
+                ],
+                [
+                  2,
+                  1,
+                  0,
+                  0
+                ],
+                [
+                  3,
+                  2,
+                  1,
+                  0
+                ]
+              ],
+              "step_score": 0,
+              "total_score": 20,
+              "max": 3,
+              "is_legal": false,
+              "illegal_count": 10
+            }
+          ],
+          "step_observations": [
+            {
+              "img_path": null,
+              "text_data": null,
+              "symbolic_representation": "[[1, 0, 2, 0], [0, 0, 0, 0], [0, 0, 0, 0], [1, 0, 0, 0]]"
+            },
+            {
+              "img_path": null,
+              "text_data": null,
+              "symbolic_representation": "[[1, 2, 0, 0], [0, 0, 0, 0], [0, 0, 0, 1], [1, 0, 0, 0]]"
+            },
+            {
+              "img_path": null,
+              "text_data": null,
+              "symbolic_representation": "[[1, 2, 0, 0], [0, 0, 0, 0], [1, 0, 0, 1], [1, 0, 0, 0]]"
+            },
+            {
+              "img_path": null,
+              "text_data": null,
+              "symbolic_representation": "[[1, 2, 0, 0], [0, 0, 0, 0], [2, 0, 0, 0], [1, 1, 0, 0]]"
+            },
+            {
+              "img_path": null,
+              "text_data": null,
+              "symbolic_representation": "[[1, 2, 0, 0], [0, 0, 0, 0], [2, 0, 0, 0], [2, 0, 1, 0]]"
+            },
+            {
+              "img_path": null,
+              "text_data": null,
+              "symbolic_representation": "[[0, 0, 0, 0], [0, 1, 0, 0], [1, 0, 0, 0], [3, 2, 1, 0]]"
+            },
+            {
+              "img_path": null,
+              "text_data": null,
+              "symbolic_representation": "[[0, 0, 0, 0], [1, 0, 0, 0], [1, 0, 1, 0], [3, 2, 1, 0]]"
+            },
+            {
+              "img_path": null,
+              "text_data": null,
+              "symbolic_representation": "[[0, 0, 0, 0], [1, 0, 0, 0], [2, 1, 0, 0], [3, 2, 1, 0]]"
+            },
+            {
+              "img_path": null,
+              "text_data": null,
+              "symbolic_representation": "[[0, 0, 0, 0], [1, 0, 0, 0], [2, 1, 0, 0], [3, 2, 1, 0]]"
+            },
+            {
+              "img_path": null,
+              "text_data": null,
+              "symbolic_representation": "[[0, 0, 0, 0], [1, 0, 0, 0], [2, 1, 0, 0], [3, 2, 1, 0]]"
+            },
+            {
+              "img_path": null,
+              "text_data": null,
+              "symbolic_representation": "[[0, 0, 0, 0], [1, 0, 0, 0], [2, 1, 0, 0], [3, 2, 1, 0]]"
+            },
+            {
+              "img_path": null,
+              "text_data": null,
+              "symbolic_representation": "[[0, 0, 0, 0], [1, 0, 0, 0], [2, 1, 0, 0], [3, 2, 1, 0]]"
+            },
+            {
+              "img_path": null,
+              "text_data": null,
+              "symbolic_representation": "[[0, 0, 0, 0], [1, 0, 0, 0], [2, 1, 0, 0], [3, 2, 1, 0]]"
+            },
+            {
+              "img_path": null,
+              "text_data": null,
+              "symbolic_representation": "[[0, 0, 0, 0], [1, 0, 0, 0], [2, 1, 0, 0], [3, 2, 1, 0]]"
+            },
+            {
+              "img_path": null,
+              "text_data": null,
+              "symbolic_representation": "[[0, 0, 0, 0], [1, 0, 0, 0], [2, 1, 0, 0], [3, 2, 1, 0]]"
+            },
+            {
+              "img_path": null,
+              "text_data": null,
+              "symbolic_representation": "[[0, 0, 0, 0], [1, 0, 0, 0], [2, 1, 0, 0], [3, 2, 1, 0]]"
+            },
+            {
+              "img_path": null,
+              "text_data": null,
+              "symbolic_representation": "[[0, 0, 0, 0], [1, 0, 0, 0], [2, 1, 0, 0], [3, 2, 1, 0]]"
+            },
+            {
+              "img_path": null,
+              "text_data": null,
+              "symbolic_representation": "[[0, 0, 0, 0], [1, 0, 0, 0], [2, 1, 0, 0], [3, 2, 1, 0]]"
+            }
+          ],
+          "total_time_taken": 59.03127479553223
+        },
+        {
+          "episode_id": "003",
+          "steps": 13,
+          "total_reward": 4.0,
+          "total_episode_perf_score": 4.0,
+          "step_infos": [
+            {
+              "board": [
+                [
+                  1,
+                  0,
+                  1,
+                  0
+                ],
+                [
+                  0,
+                  0,
+                  0,
+                  0
+                ],
+                [
+                  1,
+                  0,
+                  0,
+                  0
+                ],
+                [
+                  0,
+                  0,
+                  0,
+                  0
+                ]
+              ],
+              "step_score": 0,
+              "total_score": 0,
+              "max": 1,
+              "is_legal": true,
+              "illegal_count": 0
+            },
+            {
+              "board": [
+                [
+                  2,
+                  0,
+                  0,
+                  0
+                ],
+                [
+                  0,
+                  0,
+                  0,
+                  0
+                ],
+                [
+                  1,
+                  0,
+                  0,
+                  0
+                ],
+                [
+                  0,
+                  0,
+                  0,
+                  1
+                ]
+              ],
+              "step_score": 4,
+              "total_score": 4,
+              "max": 2,
+              "is_legal": true,
+              "illegal_count": 0
+            },
+            {
+              "board": [
+                [
+                  2,
+                  1,
+                  0,
+                  0
+                ],
+                [
+                  0,
+                  0,
+                  0,
+                  0
+                ],
+                [
+                  1,
+                  0,
+                  0,
+                  0
+                ],
+                [
+                  1,
+                  0,
+                  0,
+                  0
+                ]
+              ],
+              "step_score": 0,
+              "total_score": 4,
+              "max": 2,
+              "is_legal": true,
+              "illegal_count": 0
+            },
+            {
+              "board": [
+                [
+                  2,
+                  1,
+                  0,
+                  0
+                ],
+                [
+                  0,
+                  0,
+                  0,
+                  0
+                ],
+                [
+                  1,
+                  0,
+                  0,
+                  0
+                ],
+                [
+                  1,
+                  0,
+                  0,
+                  0
+                ]
+              ],
+              "step_score": 0,
+              "total_score": 4,
+              "max": 2,
+              "is_legal": false,
+              "illegal_count": 1
+            },
+            {
+              "board": [
+                [
+                  2,
+                  1,
+                  0,
+                  0
+                ],
+                [
+                  0,
+                  0,
+                  0,
+                  0
+                ],
+                [
+                  1,
+                  0,
+                  0,
+                  0
+                ],
+                [
+                  1,
+                  0,
+                  0,
+                  0
+                ]
+              ],
+              "step_score": 0,
+              "total_score": 4,
+              "max": 2,
+              "is_legal": false,
+              "illegal_count": 2
+            },
+            {
+              "board": [
+                [
+                  2,
+                  1,
+                  0,
+                  0
+                ],
+                [
+                  0,
+                  0,
+                  0,
+                  0
+                ],
+                [
+                  1,
+                  0,
+                  0,
+                  0
+                ],
+                [
+                  1,
+                  0,
+                  0,
+                  0
+                ]
+              ],
+              "step_score": 0,
+              "total_score": 4,
+              "max": 2,
+              "is_legal": false,
+              "illegal_count": 3
+            },
+            {
+              "board": [
+                [
+                  2,
+                  1,
+                  0,
+                  0
+                ],
+                [
+                  0,
+                  0,
+                  0,
+                  0
+                ],
+                [
+                  1,
+                  0,
+                  0,
+                  0
+                ],
+                [
+                  1,
+                  0,
+                  0,
+                  0
+                ]
+              ],
+              "step_score": 0,
+              "total_score": 4,
+              "max": 2,
+              "is_legal": false,
+              "illegal_count": 4
+            },
+            {
+              "board": [
+                [
+                  2,
+                  1,
+                  0,
+                  0
+                ],
+                [
+                  0,
+                  0,
+                  0,
+                  0
+                ],
+                [
+                  1,
+                  0,
+                  0,
+                  0
+                ],
+                [
+                  1,
+                  0,
+                  0,
+                  0
+                ]
+              ],
+              "step_score": 0,
+              "total_score": 4,
+              "max": 2,
+              "is_legal": false,
+              "illegal_count": 5
+            },
+            {
+              "board": [
+                [
+                  2,
+                  1,
+                  0,
+                  0
+                ],
+                [
+                  0,
+                  0,
+                  0,
+                  0
+                ],
+                [
+                  1,
+                  0,
+                  0,
+                  0
+                ],
+                [
+                  1,
+                  0,
+                  0,
+                  0
+                ]
+              ],
+              "step_score": 0,
+              "total_score": 4,
+              "max": 2,
+              "is_legal": false,
+              "illegal_count": 6
+            },
+            {
+              "board": [
+                [
+                  2,
+                  1,
+                  0,
+                  0
+                ],
+                [
+                  0,
+                  0,
+                  0,
+                  0
+                ],
+                [
+                  1,
+                  0,
+                  0,
+                  0
+                ],
+                [
+                  1,
+                  0,
+                  0,
+                  0
+                ]
+              ],
+              "step_score": 0,
+              "total_score": 4,
+              "max": 2,
+              "is_legal": false,
+              "illegal_count": 7
+            },
+            {
+              "board": [
+                [
+                  2,
+                  1,
+                  0,
+                  0
+                ],
+                [
+                  0,
+                  0,
+                  0,
+                  0
+                ],
+                [
+                  1,
+                  0,
+                  0,
+                  0
+                ],
+                [
+                  1,
+                  0,
+                  0,
+                  0
+                ]
+              ],
+              "step_score": 0,
+              "total_score": 4,
+              "max": 2,
+              "is_legal": false,
+              "illegal_count": 8
+            },
+            {
+              "board": [
+                [
+                  2,
+                  1,
+                  0,
+                  0
+                ],
+                [
+                  0,
+                  0,
+                  0,
+                  0
+                ],
+                [
+                  1,
+                  0,
+                  0,
+                  0
+                ],
+                [
+                  1,
+                  0,
+                  0,
+                  0
+                ]
+              ],
+              "step_score": 0,
+              "total_score": 4,
+              "max": 2,
+              "is_legal": false,
+              "illegal_count": 9
+            },
+            {
+              "board": [
+                [
+                  2,
+                  1,
+                  0,
+                  0
+                ],
+                [
+                  0,
+                  0,
+                  0,
+                  0
+                ],
+                [
+                  1,
+                  0,
+                  0,
+                  0
+                ],
+                [
+                  1,
+                  0,
+                  0,
+                  0
+                ]
+              ],
+              "step_score": 0,
+              "total_score": 4,
+              "max": 2,
+              "is_legal": false,
+              "illegal_count": 10
+            }
+          ],
+          "step_observations": [
+            {
+              "img_path": null,
+              "text_data": null,
+              "symbolic_representation": "[[1, 0, 1, 0], [0, 0, 0, 0], [1, 0, 0, 0], [0, 0, 0, 0]]"
+            },
+            {
+              "img_path": null,
+              "text_data": null,
+              "symbolic_representation": "[[2, 0, 0, 0], [0, 0, 0, 0], [1, 0, 0, 0], [0, 0, 0, 1]]"
+            },
+            {
+              "img_path": null,
+              "text_data": null,
+              "symbolic_representation": "[[2, 1, 0, 0], [0, 0, 0, 0], [1, 0, 0, 0], [1, 0, 0, 0]]"
+            },
+            {
+              "img_path": null,
+              "text_data": null,
+              "symbolic_representation": "[[2, 1, 0, 0], [0, 0, 0, 0], [1, 0, 0, 0], [1, 0, 0, 0]]"
+            },
+            {
+              "img_path": null,
+              "text_data": null,
+              "symbolic_representation": "[[2, 1, 0, 0], [0, 0, 0, 0], [1, 0, 0, 0], [1, 0, 0, 0]]"
+            },
+            {
+              "img_path": null,
+              "text_data": null,
+              "symbolic_representation": "[[2, 1, 0, 0], [0, 0, 0, 0], [1, 0, 0, 0], [1, 0, 0, 0]]"
+            },
+            {
+              "img_path": null,
+              "text_data": null,
+              "symbolic_representation": "[[2, 1, 0, 0], [0, 0, 0, 0], [1, 0, 0, 0], [1, 0, 0, 0]]"
+            },
+            {
+              "img_path": null,
+              "text_data": null,
+              "symbolic_representation": "[[2, 1, 0, 0], [0, 0, 0, 0], [1, 0, 0, 0], [1, 0, 0, 0]]"
+            },
+            {
+              "img_path": null,
+              "text_data": null,
+              "symbolic_representation": "[[2, 1, 0, 0], [0, 0, 0, 0], [1, 0, 0, 0], [1, 0, 0, 0]]"
+            },
+            {
+              "img_path": null,
+              "text_data": null,
+              "symbolic_representation": "[[2, 1, 0, 0], [0, 0, 0, 0], [1, 0, 0, 0], [1, 0, 0, 0]]"
+            },
+            {
+              "img_path": null,
+              "text_data": null,
+              "symbolic_representation": "[[2, 1, 0, 0], [0, 0, 0, 0], [1, 0, 0, 0], [1, 0, 0, 0]]"
+            },
+            {
+              "img_path": null,
+              "text_data": null,
+              "symbolic_representation": "[[2, 1, 0, 0], [0, 0, 0, 0], [1, 0, 0, 0], [1, 0, 0, 0]]"
+            },
+            {
+              "img_path": null,
+              "text_data": null,
+              "symbolic_representation": "[[2, 1, 0, 0], [0, 0, 0, 0], [1, 0, 0, 0], [1, 0, 0, 0]]"
+            }
+          ],
+          "total_time_taken": 38.60168671607971
+        },
+        {
+          "episode_id": "002",
+          "steps": 19,
+          "total_reward": 12.0,
+          "total_episode_perf_score": 12.0,
+          "step_infos": [
+            {
+              "board": [
+                [
+                  0,
+                  0,
+                  0,
+                  0
+                ],
+                [
+                  1,
+                  0,
+                  0,
+                  0
+                ],
+                [
+                  3,
+                  0,
+                  0,
+                  0
+                ],
+                [
+                  0,
+                  0,
+                  0,
+                  0
+                ]
+              ],
+              "step_score": 8,
+              "total_score": 8,
+              "max": 3,
+              "is_legal": true,
+              "illegal_count": 0
+            },
+            {
+              "board": [
+                [
+                  0,
+                  0,
+                  0,
+                  0
+                ],
+                [
+                  1,
+                  0,
+                  0,
+                  0
+                ],
+                [
+                  3,
+                  0,
+                  0,
+                  0
+                ],
+                [
+                  0,
+                  0,
+                  0,
+                  0
+                ]
+              ],
+              "step_score": 0,
+              "total_score": 8,
+              "max": 3,
+              "is_legal": false,
+              "illegal_count": 1
+            },
+            {
+              "board": [
+                [
+                  0,
+                  0,
+                  0,
+                  0
+                ],
+                [
+                  1,
+                  0,
+                  0,
+                  0
+                ],
+                [
+                  3,
+                  0,
+                  0,
+                  0
+                ],
+                [
+                  0,
+                  0,
+                  0,
+                  0
+                ]
+              ],
+              "step_score": 0,
+              "total_score": 8,
+              "max": 3,
+              "is_legal": false,
+              "illegal_count": 2
+            },
+            {
+              "board": [
+                [
+                  0,
+                  0,
+                  0,
+                  0
+                ],
+                [
+                  1,
+                  0,
+                  0,
+                  0
+                ],
+                [
+                  3,
+                  0,
+                  0,
+                  0
+                ],
+                [
+                  0,
+                  0,
+                  0,
+                  0
+                ]
+              ],
+              "step_score": 0,
+              "total_score": 8,
+              "max": 3,
+              "is_legal": false,
+              "illegal_count": 3
+            },
+            {
+              "board": [
+                [
+                  0,
+                  0,
+                  0,
+                  0
+                ],
+                [
+                  1,
+                  0,
+                  0,
+                  0
+                ],
+                [
+                  3,
+                  0,
+                  0,
+                  0
+                ],
+                [
+                  0,
+                  0,
+                  0,
+                  0
+                ]
+              ],
+              "step_score": 0,
+              "total_score": 8,
+              "max": 3,
+              "is_legal": false,
+              "illegal_count": 4
+            },
+            {
+              "board": [
+                [
+                  0,
+                  0,
+                  0,
+                  0
+                ],
+                [
+                  0,
+                  0,
+                  0,
+                  1
+                ],
+                [
+                  0,
+                  0,
+                  0,
+                  3
+                ],
+                [
+                  0,
+                  1,
+                  0,
+                  0
+                ]
+              ],
+              "step_score": 0,
+              "total_score": 8,
+              "max": 3,
+              "is_legal": true,
+              "illegal_count": 4
+            },
+            {
+              "board": [
+                [
+                  0,
+                  0,
+                  0,
+                  0
+                ],
+                [
+                  1,
+                  0,
+                  0,
+                  0
+                ],
+                [
+                  3,
+                  0,
+                  0,
+                  0
+                ],
+                [
+                  1,
+                  0,
+                  1,
+                  0
+                ]
+              ],
+              "step_score": 0,
+              "total_score": 8,
+              "max": 3,
+              "is_legal": true,
+              "illegal_count": 4
+            },
+            {
+              "board": [
+                [
+                  0,
+                  0,
+                  0,
+                  0
+                ],
+                [
+                  0,
+                  0,
+                  0,
+                  1
+                ],
+                [
+                  0,
+                  0,
+                  1,
+                  3
+                ],
+                [
+                  0,
+                  0,
+                  0,
+                  2
+                ]
+              ],
+              "step_score": 4,
+              "total_score": 12,
+              "max": 3,
+              "is_legal": true,
+              "illegal_count": 4
+            },
+            {
+              "board": [
+                [
+                  0,
+                  0,
+                  0,
+                  0
+                ],
+                [
+                  1,
+                  0,
+                  0,
+                  0
+                ],
+                [
+                  1,
+                  3,
+                  1,
+                  0
+                ],
+                [
+                  2,
+                  0,
+                  0,
+                  0
+                ]
+              ],
+              "step_score": 0,
+              "total_score": 12,
+              "max": 3,
+              "is_legal": true,
+              "illegal_count": 4
+            },
+            {
+              "board": [
+                [
+                  0,
+                  0,
+                  0,
+                  0
+                ],
+                [
+                  1,
+                  0,
+                  0,
+                  0
+                ],
+                [
+                  1,
+                  3,
+                  1,
+                  0
+                ],
+                [
+                  2,
+                  0,
+                  0,
+                  0
+                ]
+              ],
+              "step_score": 0,
+              "total_score": 12,
+              "max": 3,
+              "is_legal": false,
+              "illegal_count": 5
+            },
+            {
+              "board": [
+                [
+                  0,
+                  0,
+                  0,
+                  0
+                ],
+                [
+                  1,
+                  0,
+                  0,
+                  0
+                ],
+                [
+                  1,
+                  3,
+                  1,
+                  0
+                ],
+                [
+                  2,
+                  0,
+                  0,
+                  0
+                ]
+              ],
+              "step_score": 0,
+              "total_score": 12,
+              "max": 3,
+              "is_legal": false,
+              "illegal_count": 6
+            },
+            {
+              "board": [
+                [
+                  0,
+                  0,
+                  0,
+                  0
+                ],
+                [
+                  1,
+                  0,
+                  0,
+                  0
+                ],
+                [
+                  1,
+                  3,
+                  1,
+                  0
+                ],
+                [
+                  2,
+                  0,
+                  0,
+                  0
+                ]
+              ],
+              "step_score": 0,
+              "total_score": 12,
+              "max": 3,
+              "is_legal": false,
+              "illegal_count": 7
+            },
+            {
+              "board": [
+                [
+                  0,
+                  0,
+                  0,
+                  0
+                ],
+                [
+                  1,
+                  0,
+                  0,
+                  0
+                ],
+                [
+                  1,
+                  3,
+                  1,
+                  0
+                ],
+                [
+                  2,
+                  0,
+                  0,
+                  0
+                ]
+              ],
+              "step_score": 0,
+              "total_score": 12,
+              "max": 3,
+              "is_legal": false,
+              "illegal_count": 8
+            },
+            {
+              "board": [
+                [
+                  0,
+                  0,
+                  0,
+                  0
+                ],
+                [
+                  1,
+                  0,
+                  0,
+                  0
+                ],
+                [
+                  1,
+                  3,
+                  1,
+                  0
+                ],
+                [
+                  2,
+                  0,
+                  0,
+                  0
+                ]
+              ],
+              "step_score": 0,
+              "total_score": 12,
+              "max": 3,
+              "is_legal": false,
+              "illegal_count": 9
+            },
+            {
+              "board": [
+                [
+                  0,
+                  0,
+                  0,
+                  0
+                ],
+                [
+                  1,
+                  0,
+                  0,
+                  0
+                ],
+                [
+                  1,
+                  3,
+                  1,
+                  0
+                ],
+                [
+                  2,
+                  0,
+                  0,
+                  0
+                ]
+              ],
+              "step_score": 0,
+              "total_score": 12,
+              "max": 3,
+              "is_legal": false,
+              "illegal_count": 10
+            },
+            {
+              "board": [
+                [
+                  0,
+                  0,
+                  0,
+                  0
+                ],
+                [
+                  1,
+                  0,
+                  0,
+                  0
+                ],
+                [
+                  1,
+                  3,
+                  1,
+                  0
+                ],
+                [
+                  2,
+                  0,
+                  0,
+                  0
+                ]
+              ],
+              "step_score": 0,
+              "total_score": 12,
+              "max": 3,
+              "is_legal": false,
+              "illegal_count": 11
+            },
+            {
+              "board": [
+                [
+                  0,
+                  0,
+                  0,
+                  0
+                ],
+                [
+                  1,
+                  0,
+                  0,
+                  0
+                ],
+                [
+                  1,
+                  3,
+                  1,
+                  0
+                ],
+                [
+                  2,
+                  0,
+                  0,
+                  0
+                ]
+              ],
+              "step_score": 0,
+              "total_score": 12,
+              "max": 3,
+              "is_legal": false,
+              "illegal_count": 12
+            },
+            {
+              "board": [
+                [
+                  0,
+                  0,
+                  0,
+                  0
+                ],
+                [
+                  1,
+                  0,
+                  0,
+                  0
+                ],
+                [
+                  1,
+                  3,
+                  1,
+                  0
+                ],
+                [
+                  2,
+                  0,
+                  0,
+                  0
+                ]
+              ],
+              "step_score": 0,
+              "total_score": 12,
+              "max": 3,
+              "is_legal": false,
+              "illegal_count": 13
+            },
+            {
+              "board": [
+                [
+                  0,
+                  0,
+                  0,
+                  0
+                ],
+                [
+                  1,
+                  0,
+                  0,
+                  0
+                ],
+                [
+                  1,
+                  3,
+                  1,
+                  0
+                ],
+                [
+                  2,
+                  0,
+                  0,
+                  0
+                ]
+              ],
+              "step_score": 0,
+              "total_score": 12,
+              "max": 3,
+              "is_legal": false,
+              "illegal_count": 14
+            }
+          ],
+          "step_observations": [
+            {
+              "img_path": "cache/twenty_forty_eight/claude_3_5_sonn/20250522_204929/observations/env_obs_e002_s0002.png",
+              "text_data": null,
+              "symbolic_representation": null
+            },
+            {
+              "img_path": "cache/twenty_forty_eight/claude_3_5_sonn/20250522_204929/observations/env_obs_e002_s0003.png",
+              "text_data": null,
+              "symbolic_representation": null
+            },
+            {
+              "img_path": "cache/twenty_forty_eight/claude_3_5_sonn/20250522_204929/observations/env_obs_e002_s0004.png",
+              "text_data": null,
+              "symbolic_representation": null
+            },
+            {
+              "img_path": "cache/twenty_forty_eight/claude_3_5_sonn/20250522_204929/observations/env_obs_e002_s0005.png",
+              "text_data": null,
+              "symbolic_representation": null
+            },
+            {
+              "img_path": "cache/twenty_forty_eight/claude_3_5_sonn/20250522_204929/observations/env_obs_e002_s0006.png",
+              "text_data": null,
+              "symbolic_representation": null
+            },
+            {
+              "img_path": "cache/twenty_forty_eight/claude_3_5_sonn/20250522_204929/observations/env_obs_e002_s0007.png",
+              "text_data": null,
+              "symbolic_representation": null
+            },
+            {
+              "img_path": "cache/twenty_forty_eight/claude_3_5_sonn/20250522_204929/observations/env_obs_e002_s0008.png",
+              "text_data": null,
+              "symbolic_representation": null
+            },
+            {
+              "img_path": "cache/twenty_forty_eight/claude_3_5_sonn/20250522_204929/observations/env_obs_e002_s0009.png",
+              "text_data": null,
+              "symbolic_representation": null
+            },
+            {
+              "img_path": "cache/twenty_forty_eight/claude_3_5_sonn/20250522_204929/observations/env_obs_e002_s0010.png",
+              "text_data": null,
+              "symbolic_representation": null
+            },
+            {
+              "img_path": "cache/twenty_forty_eight/claude_3_5_sonn/20250522_204929/observations/env_obs_e002_s0011.png",
+              "text_data": null,
+              "symbolic_representation": null
+            },
+            {
+              "img_path": "cache/twenty_forty_eight/claude_3_5_sonn/20250522_204929/observations/env_obs_e002_s0012.png",
+              "text_data": null,
+              "symbolic_representation": null
+            },
+            {
+              "img_path": "cache/twenty_forty_eight/claude_3_5_sonn/20250522_204929/observations/env_obs_e002_s0013.png",
+              "text_data": null,
+              "symbolic_representation": null
+            },
+            {
+              "img_path": "cache/twenty_forty_eight/claude_3_5_sonn/20250522_204929/observations/env_obs_e002_s0014.png",
+              "text_data": null,
+              "symbolic_representation": null
+            },
+            {
+              "img_path": "cache/twenty_forty_eight/claude_3_5_sonn/20250522_204929/observations/env_obs_e002_s0015.png",
+              "text_data": null,
+              "symbolic_representation": null
+            },
+            {
+              "img_path": "cache/twenty_forty_eight/claude_3_5_sonn/20250522_204929/observations/env_obs_e002_s0016.png",
+              "text_data": null,
+              "symbolic_representation": null
+            },
+            {
+              "img_path": "cache/twenty_forty_eight/claude_3_5_sonn/20250522_204929/observations/env_obs_e002_s0017.png",
+              "text_data": null,
+              "symbolic_representation": null
+            },
+            {
+              "img_path": "cache/twenty_forty_eight/claude_3_5_sonn/20250522_204929/observations/env_obs_e002_s0018.png",
+              "text_data": null,
+              "symbolic_representation": null
+            },
+            {
+              "img_path": "cache/twenty_forty_eight/claude_3_5_sonn/20250522_204929/observations/env_obs_e002_s0019.png",
+              "text_data": null,
+              "symbolic_representation": null
+            },
+            {
+              "img_path": "cache/twenty_forty_eight/claude_3_5_sonn/20250522_204929/observations/env_obs_e002_s0020.png",
+              "text_data": null,
+              "symbolic_representation": null
+            }
+          ],
+          "total_time_taken": 82.22727298736572
+        },
+        {
+          "episode_id": "001",
+          "steps": 14,
+          "total_reward": 16.0,
+          "total_episode_perf_score": 16.0,
+          "step_infos": [
+            {
+              "board": [
+                [
+                  1,
+                  1,
+                  0,
+                  2
+                ],
+                [
+                  0,
+                  0,
+                  0,
+                  0
+                ],
+                [
+                  0,
+                  0,
+                  0,
+                  0
+                ],
+                [
+                  0,
+                  0,
+                  0,
+                  0
+                ]
+              ],
+              "step_score": 0,
+              "total_score": 0,
+              "max": 2,
+              "is_legal": true,
+              "illegal_count": 0
+            },
+            {
+              "board": [
+                [
+                  2,
+                  2,
+                  0,
+                  0
+                ],
+                [
+                  0,
+                  0,
+                  0,
+                  0
+                ],
+                [
+                  0,
+                  0,
+                  0,
+                  1
+                ],
+                [
+                  0,
+                  0,
+                  0,
+                  0
+                ]
+              ],
+              "step_score": 4,
+              "total_score": 4,
+              "max": 2,
+              "is_legal": true,
+              "illegal_count": 0
+            },
+            {
+              "board": [
+                [
+                  3,
+                  0,
+                  0,
+                  0
+                ],
+                [
+                  0,
+                  0,
+                  0,
+                  0
+                ],
+                [
+                  1,
+                  0,
+                  0,
+                  0
+                ],
+                [
+                  1,
+                  0,
+                  0,
+                  0
+                ]
+              ],
+              "step_score": 8,
+              "total_score": 12,
+              "max": 3,
+              "is_legal": true,
+              "illegal_count": 0
+            },
+            {
+              "board": [
+                [
+                  3,
+                  0,
+                  0,
+                  0
+                ],
+                [
+                  2,
+                  0,
+                  0,
+                  0
+                ],
+                [
+                  0,
+                  0,
+                  0,
+                  0
+                ],
+                [
+                  1,
+                  0,
+                  0,
+                  0
+                ]
+              ],
+              "step_score": 4,
+              "total_score": 16,
+              "max": 3,
+              "is_legal": true,
+              "illegal_count": 0
+            },
+            {
+              "board": [
+                [
+                  3,
+                  0,
+                  0,
+                  0
+                ],
+                [
+                  2,
+                  0,
+                  0,
+                  0
+                ],
+                [
+                  0,
+                  0,
+                  0,
+                  0
+                ],
+                [
+                  1,
+                  0,
+                  0,
+                  0
+                ]
+              ],
+              "step_score": 0,
+              "total_score": 16,
+              "max": 3,
+              "is_legal": false,
+              "illegal_count": 1
+            },
+            {
+              "board": [
+                [
+                  3,
+                  0,
+                  0,
+                  0
+                ],
+                [
+                  2,
+                  0,
+                  0,
+                  0
+                ],
+                [
+                  0,
+                  0,
+                  0,
+                  0
+                ],
+                [
+                  1,
+                  0,
+                  0,
+                  0
+                ]
+              ],
+              "step_score": 0,
+              "total_score": 16,
+              "max": 3,
+              "is_legal": false,
+              "illegal_count": 2
+            },
+            {
+              "board": [
+                [
+                  3,
+                  0,
+                  0,
+                  0
+                ],
+                [
+                  2,
+                  0,
+                  0,
+                  0
+                ],
+                [
+                  0,
+                  0,
+                  0,
+                  0
+                ],
+                [
+                  1,
+                  0,
+                  0,
+                  0
+                ]
+              ],
+              "step_score": 0,
+              "total_score": 16,
+              "max": 3,
+              "is_legal": false,
+              "illegal_count": 3
+            },
+            {
+              "board": [
+                [
+                  3,
+                  0,
+                  0,
+                  0
+                ],
+                [
+                  2,
+                  0,
+                  0,
+                  0
+                ],
+                [
+                  0,
+                  0,
+                  0,
+                  0
+                ],
+                [
+                  1,
+                  0,
+                  0,
+                  0
+                ]
+              ],
+              "step_score": 0,
+              "total_score": 16,
+              "max": 3,
+              "is_legal": false,
+              "illegal_count": 4
+            },
+            {
+              "board": [
+                [
+                  3,
+                  0,
+                  0,
+                  0
+                ],
+                [
+                  2,
+                  0,
+                  0,
+                  0
+                ],
+                [
+                  0,
+                  0,
+                  0,
+                  0
+                ],
+                [
+                  1,
+                  0,
+                  0,
+                  0
+                ]
+              ],
+              "step_score": 0,
+              "total_score": 16,
+              "max": 3,
+              "is_legal": false,
+              "illegal_count": 5
+            },
+            {
+              "board": [
+                [
+                  3,
+                  0,
+                  0,
+                  0
+                ],
+                [
+                  2,
+                  0,
+                  0,
+                  0
+                ],
+                [
+                  0,
+                  0,
+                  0,
+                  0
+                ],
+                [
+                  1,
+                  0,
+                  0,
+                  0
+                ]
+              ],
+              "step_score": 0,
+              "total_score": 16,
+              "max": 3,
+              "is_legal": false,
+              "illegal_count": 6
+            },
+            {
+              "board": [
+                [
+                  3,
+                  0,
+                  0,
+                  0
+                ],
+                [
+                  2,
+                  0,
+                  0,
+                  0
+                ],
+                [
+                  0,
+                  0,
+                  0,
+                  0
+                ],
+                [
+                  1,
+                  0,
+                  0,
+                  0
+                ]
+              ],
+              "step_score": 0,
+              "total_score": 16,
+              "max": 3,
+              "is_legal": false,
+              "illegal_count": 7
+            },
+            {
+              "board": [
+                [
+                  3,
+                  0,
+                  0,
+                  0
+                ],
+                [
+                  2,
+                  0,
+                  0,
+                  0
+                ],
+                [
+                  0,
+                  0,
+                  0,
+                  0
+                ],
+                [
+                  1,
+                  0,
+                  0,
+                  0
+                ]
+              ],
+              "step_score": 0,
+              "total_score": 16,
+              "max": 3,
+              "is_legal": false,
+              "illegal_count": 8
+            },
+            {
+              "board": [
+                [
+                  3,
+                  0,
+                  0,
+                  0
+                ],
+                [
+                  2,
+                  0,
+                  0,
+                  0
+                ],
+                [
+                  0,
+                  0,
+                  0,
+                  0
+                ],
+                [
+                  1,
+                  0,
+                  0,
+                  0
+                ]
+              ],
+              "step_score": 0,
+              "total_score": 16,
+              "max": 3,
+              "is_legal": false,
+              "illegal_count": 9
+            },
+            {
+              "board": [
+                [
+                  3,
+                  0,
+                  0,
+                  0
+                ],
+                [
+                  2,
+                  0,
+                  0,
+                  0
+                ],
+                [
+                  0,
+                  0,
+                  0,
+                  0
+                ],
+                [
+                  1,
+                  0,
+                  0,
+                  0
+                ]
+              ],
+              "step_score": 0,
+              "total_score": 16,
+              "max": 3,
+              "is_legal": false,
+              "illegal_count": 10
+            }
+          ],
+          "step_observations": [
+            {
+              "img_path": "cache/twenty_forty_eight/claude_3_5_sonn/20250522_204929/observations/env_obs_e001_s0002.png",
+              "text_data": null,
+              "symbolic_representation": null
+            },
+            {
+              "img_path": "cache/twenty_forty_eight/claude_3_5_sonn/20250522_204929/observations/env_obs_e001_s0003.png",
+              "text_data": null,
+              "symbolic_representation": null
+            },
+            {
+              "img_path": "cache/twenty_forty_eight/claude_3_5_sonn/20250522_204929/observations/env_obs_e001_s0004.png",
+              "text_data": null,
+              "symbolic_representation": null
+            },
+            {
+              "img_path": "cache/twenty_forty_eight/claude_3_5_sonn/20250522_204929/observations/env_obs_e001_s0005.png",
+              "text_data": null,
+              "symbolic_representation": null
+            },
+            {
+              "img_path": "cache/twenty_forty_eight/claude_3_5_sonn/20250522_204929/observations/env_obs_e001_s0006.png",
+              "text_data": null,
+              "symbolic_representation": null
+            },
+            {
+              "img_path": "cache/twenty_forty_eight/claude_3_5_sonn/20250522_204929/observations/env_obs_e001_s0007.png",
+              "text_data": null,
+              "symbolic_representation": null
+            },
+            {
+              "img_path": "cache/twenty_forty_eight/claude_3_5_sonn/20250522_204929/observations/env_obs_e001_s0008.png",
+              "text_data": null,
+              "symbolic_representation": null
+            },
+            {
+              "img_path": "cache/twenty_forty_eight/claude_3_5_sonn/20250522_204929/observations/env_obs_e001_s0009.png",
+              "text_data": null,
+              "symbolic_representation": null
+            },
+            {
+              "img_path": "cache/twenty_forty_eight/claude_3_5_sonn/20250522_204929/observations/env_obs_e001_s0010.png",
+              "text_data": null,
+              "symbolic_representation": null
+            },
+            {
+              "img_path": "cache/twenty_forty_eight/claude_3_5_sonn/20250522_204929/observations/env_obs_e001_s0011.png",
+              "text_data": null,
+              "symbolic_representation": null
+            },
+            {
+              "img_path": "cache/twenty_forty_eight/claude_3_5_sonn/20250522_204929/observations/env_obs_e001_s0012.png",
+              "text_data": null,
+              "symbolic_representation": null
+            },
+            {
+              "img_path": "cache/twenty_forty_eight/claude_3_5_sonn/20250522_204929/observations/env_obs_e001_s0013.png",
+              "text_data": null,
+              "symbolic_representation": null
+            },
+            {
+              "img_path": "cache/twenty_forty_eight/claude_3_5_sonn/20250522_204929/observations/env_obs_e001_s0014.png",
+              "text_data": null,
+              "symbolic_representation": null
+            },
+            {
+              "img_path": "cache/twenty_forty_eight/claude_3_5_sonn/20250522_204929/observations/env_obs_e001_s0015.png",
+              "text_data": null,
+              "symbolic_representation": null
+            }
+          ],
+          "total_time_taken": 61.47157406806946
+        },
+        {
+          "episode_id": "003",
+          "steps": 28,
+          "total_reward": 72.0,
+          "total_episode_perf_score": 72.0,
+          "step_infos": [
+            {
+              "board": [
+                [
+                  0,
+                  1,
+                  1,
+                  1
+                ],
+                [
+                  0,
+                  0,
+                  0,
+                  0
+                ],
+                [
+                  0,
+                  0,
+                  0,
+                  0
+                ],
+                [
+                  0,
+                  0,
+                  0,
+                  0
+                ]
+              ],
+              "step_score": 0,
+              "total_score": 0,
+              "max": 1,
+              "is_legal": true,
+              "illegal_count": 0
+            },
+            {
+              "board": [
+                [
+                  2,
+                  1,
+                  0,
+                  0
+                ],
+                [
+                  0,
+                  0,
+                  0,
+                  0
+                ],
+                [
+                  0,
+                  0,
+                  0,
+                  0
+                ],
+                [
+                  0,
+                  0,
+                  0,
+                  1
+                ]
+              ],
+              "step_score": 4,
+              "total_score": 4,
+              "max": 2,
+              "is_legal": true,
+              "illegal_count": 0
+            },
+            {
+              "board": [
+                [
+                  2,
+                  1,
+                  1,
+                  0
+                ],
+                [
+                  0,
+                  0,
+                  0,
+                  0
+                ],
+                [
+                  0,
+                  0,
+                  0,
+                  0
+                ],
+                [
+                  1,
+                  0,
+                  0,
+                  0
+                ]
+              ],
+              "step_score": 0,
+              "total_score": 4,
+              "max": 2,
+              "is_legal": true,
+              "illegal_count": 0
+            },
+            {
+              "board": [
+                [
+                  2,
+                  2,
+                  0,
+                  0
+                ],
+                [
+                  1,
+                  0,
+                  0,
+                  0
+                ],
+                [
+                  0,
+                  0,
+                  0,
+                  0
+                ],
+                [
+                  1,
+                  0,
+                  0,
+                  0
+                ]
+              ],
+              "step_score": 4,
+              "total_score": 8,
+              "max": 2,
+              "is_legal": true,
+              "illegal_count": 0
+            },
+            {
+              "board": [
+                [
+                  3,
+                  0,
+                  0,
+                  0
+                ],
+                [
+                  1,
+                  0,
+                  0,
+                  0
+                ],
+                [
+                  0,
+                  0,
+                  0,
+                  1
+                ],
+                [
+                  1,
+                  0,
+                  0,
+                  0
+                ]
+              ],
+              "step_score": 8,
+              "total_score": 16,
+              "max": 3,
+              "is_legal": true,
+              "illegal_count": 0
+            },
+            {
+              "board": [
+                [
+                  3,
+                  0,
+                  0,
+                  0
+                ],
+                [
+                  1,
+                  0,
+                  0,
+                  0
+                ],
+                [
+                  1,
+                  0,
+                  1,
+                  0
+                ],
+                [
+                  1,
+                  0,
+                  0,
+                  0
+                ]
+              ],
+              "step_score": 0,
+              "total_score": 16,
+              "max": 3,
+              "is_legal": true,
+              "illegal_count": 0
+            },
+            {
+              "board": [
+                [
+                  0,
+                  0,
+                  0,
+                  3
+                ],
+                [
+                  0,
+                  1,
+                  0,
+                  1
+                ],
+                [
+                  0,
+                  0,
+                  0,
+                  2
+                ],
+                [
+                  0,
+                  0,
+                  0,
+                  1
+                ]
+              ],
+              "step_score": 4,
+              "total_score": 20,
+              "max": 3,
+              "is_legal": true,
+              "illegal_count": 0
+            },
+            {
+              "board": [
+                [
+                  3,
+                  0,
+                  0,
+                  0
+                ],
+                [
+                  2,
+                  0,
+                  0,
+                  0
+                ],
+                [
+                  2,
+                  0,
+                  0,
+                  0
+                ],
+                [
+                  1,
+                  0,
+                  0,
+                  1
+                ]
+              ],
+              "step_score": 4,
+              "total_score": 24,
+              "max": 3,
+              "is_legal": true,
+              "illegal_count": 0
+            },
+            {
+              "board": [
+                [
+                  3,
+                  0,
+                  0,
+                  1
+                ],
+                [
+                  3,
+                  0,
+                  0,
+                  1
+                ],
+                [
+                  1,
+                  0,
+                  0,
+                  0
+                ],
+                [
+                  0,
+                  0,
+                  0,
+                  0
+                ]
+              ],
+              "step_score": 8,
+              "total_score": 32,
+              "max": 3,
+              "is_legal": true,
+              "illegal_count": 0
+            },
+            {
+              "board": [
+                [
+                  4,
+                  1,
+                  0,
+                  2
+                ],
+                [
+                  1,
+                  0,
+                  0,
+                  0
+                ],
+                [
+                  0,
+                  0,
+                  0,
+                  0
+                ],
+                [
+                  0,
+                  0,
+                  0,
+                  0
+                ]
+              ],
+              "step_score": 20,
+              "total_score": 52,
+              "max": 4,
+              "is_legal": true,
+              "illegal_count": 0
+            },
+            {
+              "board": [
+                [
+                  4,
+                  1,
+                  2,
+                  0
+                ],
+                [
+                  1,
+                  0,
+                  0,
+                  0
+                ],
+                [
+                  0,
+                  0,
+                  1,
+                  0
+                ],
+                [
+                  0,
+                  0,
+                  0,
+                  0
+                ]
+              ],
+              "step_score": 0,
+              "total_score": 52,
+              "max": 4,
+              "is_legal": true,
+              "illegal_count": 0
+            },
+            {
+              "board": [
+                [
+                  4,
+                  1,
+                  2,
+                  0
+                ],
+                [
+                  1,
+                  0,
+                  0,
+                  0
+                ],
+                [
+                  1,
+                  0,
+                  1,
+                  0
+                ],
+                [
+                  0,
+                  0,
+                  0,
+                  0
+                ]
+              ],
+              "step_score": 0,
+              "total_score": 52,
+              "max": 4,
+              "is_legal": true,
+              "illegal_count": 0
+            },
+            {
+              "board": [
+                [
+                  4,
+                  1,
+                  2,
+                  0
+                ],
+                [
+                  1,
+                  0,
+                  0,
+                  0
+                ],
+                [
+                  2,
+                  0,
+                  0,
+                  0
+                ],
+                [
+                  0,
+                  2,
+                  0,
+                  0
+                ]
+              ],
+              "step_score": 4,
+              "total_score": 56,
+              "max": 4,
+              "is_legal": true,
+              "illegal_count": 0
+            },
+            {
+              "board": [
+                [
+                  4,
+                  1,
+                  2,
+                  0
+                ],
+                [
+                  1,
+                  0,
+                  0,
+                  0
+                ],
+                [
+                  2,
+                  0,
+                  0,
+                  0
+                ],
+                [
+                  2,
+                  0,
+                  1,
+                  0
+                ]
+              ],
+              "step_score": 0,
+              "total_score": 56,
+              "max": 4,
+              "is_legal": true,
+              "illegal_count": 0
+            },
+            {
+              "board": [
+                [
+                  4,
+                  1,
+                  2,
+                  0
+                ],
+                [
+                  1,
+                  0,
+                  1,
+                  0
+                ],
+                [
+                  3,
+                  0,
+                  0,
+                  0
+                ],
+                [
+                  0,
+                  0,
+                  0,
+                  1
+                ]
+              ],
+              "step_score": 8,
+              "total_score": 64,
+              "max": 4,
+              "is_legal": true,
+              "illegal_count": 0
+            },
+            {
+              "board": [
+                [
+                  4,
+                  1,
+                  2,
+                  0
+                ],
+                [
+                  2,
+                  0,
+                  1,
+                  0
+                ],
+                [
+                  3,
+                  0,
+                  0,
+                  0
+                ],
+                [
+                  1,
+                  0,
+                  0,
+                  0
+                ]
+              ],
+              "step_score": 4,
+              "total_score": 68,
+              "max": 4,
+              "is_legal": true,
+              "illegal_count": 0
+            },
+            {
+              "board": [
+                [
+                  0,
+                  4,
+                  1,
+                  2
+                ],
+                [
+                  0,
+                  0,
+                  2,
+                  1
+                ],
+                [
+                  0,
+                  0,
+                  0,
+                  3
+                ],
+                [
+                  0,
+                  0,
+                  1,
+                  1
+                ]
+              ],
+              "step_score": 0,
+              "total_score": 68,
+              "max": 4,
+              "is_legal": true,
+              "illegal_count": 0
+            },
+            {
+              "board": [
+                [
+                  0,
+                  4,
+                  1,
+                  2
+                ],
+                [
+                  0,
+                  1,
+                  2,
+                  1
+                ],
+                [
+                  0,
+                  0,
+                  0,
+                  3
+                ],
+                [
+                  0,
+                  0,
+                  0,
+                  2
+                ]
+              ],
+              "step_score": 4,
+              "total_score": 72,
+              "max": 4,
+              "is_legal": true,
+              "illegal_count": 0
+            },
+            {
+              "board": [
+                [
+                  0,
+                  4,
+                  1,
+                  2
+                ],
+                [
+                  0,
+                  1,
+                  2,
+                  1
+                ],
+                [
+                  0,
+                  0,
+                  0,
+                  3
+                ],
+                [
+                  0,
+                  0,
+                  0,
+                  2
+                ]
+              ],
+              "step_score": 0,
+              "total_score": 72,
+              "max": 4,
+              "is_legal": false,
+              "illegal_count": 1
+            },
+            {
+              "board": [
+                [
+                  0,
+                  4,
+                  1,
+                  2
+                ],
+                [
+                  0,
+                  1,
+                  2,
+                  1
+                ],
+                [
+                  0,
+                  0,
+                  0,
+                  3
+                ],
+                [
+                  0,
+                  0,
+                  0,
+                  2
+                ]
+              ],
+              "step_score": 0,
+              "total_score": 72,
+              "max": 4,
+              "is_legal": false,
+              "illegal_count": 2
+            },
+            {
+              "board": [
+                [
+                  0,
+                  4,
+                  1,
+                  2
+                ],
+                [
+                  0,
+                  1,
+                  2,
+                  1
+                ],
+                [
+                  0,
+                  0,
+                  0,
+                  3
+                ],
+                [
+                  0,
+                  0,
+                  0,
+                  2
+                ]
+              ],
+              "step_score": 0,
+              "total_score": 72,
+              "max": 4,
+              "is_legal": false,
+              "illegal_count": 3
+            },
+            {
+              "board": [
+                [
+                  0,
+                  4,
+                  1,
+                  2
+                ],
+                [
+                  0,
+                  1,
+                  2,
+                  1
+                ],
+                [
+                  0,
+                  0,
+                  0,
+                  3
+                ],
+                [
+                  0,
+                  0,
+                  0,
+                  2
+                ]
+              ],
+              "step_score": 0,
+              "total_score": 72,
+              "max": 4,
+              "is_legal": false,
+              "illegal_count": 4
+            },
+            {
+              "board": [
+                [
+                  0,
+                  4,
+                  1,
+                  2
+                ],
+                [
+                  0,
+                  1,
+                  2,
+                  1
+                ],
+                [
+                  0,
+                  0,
+                  0,
+                  3
+                ],
+                [
+                  0,
+                  0,
+                  0,
+                  2
+                ]
+              ],
+              "step_score": 0,
+              "total_score": 72,
+              "max": 4,
+              "is_legal": false,
+              "illegal_count": 5
+            },
+            {
+              "board": [
+                [
+                  0,
+                  4,
+                  1,
+                  2
+                ],
+                [
+                  0,
+                  1,
+                  2,
+                  1
+                ],
+                [
+                  0,
+                  0,
+                  0,
+                  3
+                ],
+                [
+                  0,
+                  0,
+                  0,
+                  2
+                ]
+              ],
+              "step_score": 0,
+              "total_score": 72,
+              "max": 4,
+              "is_legal": false,
+              "illegal_count": 6
+            },
+            {
+              "board": [
+                [
+                  0,
+                  4,
+                  1,
+                  2
+                ],
+                [
+                  0,
+                  1,
+                  2,
+                  1
+                ],
+                [
+                  0,
+                  0,
+                  0,
+                  3
+                ],
+                [
+                  0,
+                  0,
+                  0,
+                  2
+                ]
+              ],
+              "step_score": 0,
+              "total_score": 72,
+              "max": 4,
+              "is_legal": false,
+              "illegal_count": 7
+            },
+            {
+              "board": [
+                [
+                  0,
+                  4,
+                  1,
+                  2
+                ],
+                [
+                  0,
+                  1,
+                  2,
+                  1
+                ],
+                [
+                  0,
+                  0,
+                  0,
+                  3
+                ],
+                [
+                  0,
+                  0,
+                  0,
+                  2
+                ]
+              ],
+              "step_score": 0,
+              "total_score": 72,
+              "max": 4,
+              "is_legal": false,
+              "illegal_count": 8
+            },
+            {
+              "board": [
+                [
+                  0,
+                  4,
+                  1,
+                  2
+                ],
+                [
+                  0,
+                  1,
+                  2,
+                  1
+                ],
+                [
+                  0,
+                  0,
+                  0,
+                  3
+                ],
+                [
+                  0,
+                  0,
+                  0,
+                  2
+                ]
+              ],
+              "step_score": 0,
+              "total_score": 72,
+              "max": 4,
+              "is_legal": false,
+              "illegal_count": 9
+            },
+            {
+              "board": [
+                [
+                  0,
+                  4,
+                  1,
+                  2
+                ],
+                [
+                  0,
+                  1,
+                  2,
+                  1
+                ],
+                [
+                  0,
+                  0,
+                  0,
+                  3
+                ],
+                [
+                  0,
+                  0,
+                  0,
+                  2
+                ]
+              ],
+              "step_score": 0,
+              "total_score": 72,
+              "max": 4,
+              "is_legal": false,
+              "illegal_count": 10
+            }
+          ],
+          "step_observations": [
+            {
+              "img_path": "cache/twenty_forty_eight/claude_3_5_sonn/20250522_204929/observations/env_obs_e003_s0002.png",
+              "text_data": null,
+              "symbolic_representation": null
+            },
+            {
+              "img_path": "cache/twenty_forty_eight/claude_3_5_sonn/20250522_204929/observations/env_obs_e003_s0003.png",
+              "text_data": null,
+              "symbolic_representation": null
+            },
+            {
+              "img_path": "cache/twenty_forty_eight/claude_3_5_sonn/20250522_204929/observations/env_obs_e003_s0004.png",
+              "text_data": null,
+              "symbolic_representation": null
+            },
+            {
+              "img_path": "cache/twenty_forty_eight/claude_3_5_sonn/20250522_204929/observations/env_obs_e003_s0005.png",
+              "text_data": null,
+              "symbolic_representation": null
+            },
+            {
+              "img_path": "cache/twenty_forty_eight/claude_3_5_sonn/20250522_204929/observations/env_obs_e003_s0006.png",
+              "text_data": null,
+              "symbolic_representation": null
+            },
+            {
+              "img_path": "cache/twenty_forty_eight/claude_3_5_sonn/20250522_204929/observations/env_obs_e003_s0007.png",
+              "text_data": null,
+              "symbolic_representation": null
+            },
+            {
+              "img_path": "cache/twenty_forty_eight/claude_3_5_sonn/20250522_204929/observations/env_obs_e003_s0008.png",
+              "text_data": null,
+              "symbolic_representation": null
+            },
+            {
+              "img_path": "cache/twenty_forty_eight/claude_3_5_sonn/20250522_204929/observations/env_obs_e003_s0009.png",
+              "text_data": null,
+              "symbolic_representation": null
+            },
+            {
+              "img_path": "cache/twenty_forty_eight/claude_3_5_sonn/20250522_204929/observations/env_obs_e003_s0010.png",
+              "text_data": null,
+              "symbolic_representation": null
+            },
+            {
+              "img_path": "cache/twenty_forty_eight/claude_3_5_sonn/20250522_204929/observations/env_obs_e003_s0011.png",
+              "text_data": null,
+              "symbolic_representation": null
+            },
+            {
+              "img_path": "cache/twenty_forty_eight/claude_3_5_sonn/20250522_204929/observations/env_obs_e003_s0012.png",
+              "text_data": null,
+              "symbolic_representation": null
+            },
+            {
+              "img_path": "cache/twenty_forty_eight/claude_3_5_sonn/20250522_204929/observations/env_obs_e003_s0013.png",
+              "text_data": null,
+              "symbolic_representation": null
+            },
+            {
+              "img_path": "cache/twenty_forty_eight/claude_3_5_sonn/20250522_204929/observations/env_obs_e003_s0014.png",
+              "text_data": null,
+              "symbolic_representation": null
+            },
+            {
+              "img_path": "cache/twenty_forty_eight/claude_3_5_sonn/20250522_204929/observations/env_obs_e003_s0015.png",
+              "text_data": null,
+              "symbolic_representation": null
+            },
+            {
+              "img_path": "cache/twenty_forty_eight/claude_3_5_sonn/20250522_204929/observations/env_obs_e003_s0016.png",
+              "text_data": null,
+              "symbolic_representation": null
+            },
+            {
+              "img_path": "cache/twenty_forty_eight/claude_3_5_sonn/20250522_204929/observations/env_obs_e003_s0017.png",
+              "text_data": null,
+              "symbolic_representation": null
+            },
+            {
+              "img_path": "cache/twenty_forty_eight/claude_3_5_sonn/20250522_204929/observations/env_obs_e003_s0018.png",
+              "text_data": null,
+              "symbolic_representation": null
+            },
+            {
+              "img_path": "cache/twenty_forty_eight/claude_3_5_sonn/20250522_204929/observations/env_obs_e003_s0019.png",
+              "text_data": null,
+              "symbolic_representation": null
+            },
+            {
+              "img_path": "cache/twenty_forty_eight/claude_3_5_sonn/20250522_204929/observations/env_obs_e003_s0020.png",
+              "text_data": null,
+              "symbolic_representation": null
+            },
+            {
+              "img_path": "cache/twenty_forty_eight/claude_3_5_sonn/20250522_204929/observations/env_obs_e003_s0021.png",
+              "text_data": null,
+              "symbolic_representation": null
+            },
+            {
+              "img_path": "cache/twenty_forty_eight/claude_3_5_sonn/20250522_204929/observations/env_obs_e003_s0022.png",
+              "text_data": null,
+              "symbolic_representation": null
+            },
+            {
+              "img_path": "cache/twenty_forty_eight/claude_3_5_sonn/20250522_204929/observations/env_obs_e003_s0023.png",
+              "text_data": null,
+              "symbolic_representation": null
+            },
+            {
+              "img_path": "cache/twenty_forty_eight/claude_3_5_sonn/20250522_204929/observations/env_obs_e003_s0024.png",
+              "text_data": null,
+              "symbolic_representation": null
+            },
+            {
+              "img_path": "cache/twenty_forty_eight/claude_3_5_sonn/20250522_204929/observations/env_obs_e003_s0025.png",
+              "text_data": null,
+              "symbolic_representation": null
+            },
+            {
+              "img_path": "cache/twenty_forty_eight/claude_3_5_sonn/20250522_204929/observations/env_obs_e003_s0026.png",
+              "text_data": null,
+              "symbolic_representation": null
+            },
+            {
+              "img_path": "cache/twenty_forty_eight/claude_3_5_sonn/20250522_204929/observations/env_obs_e003_s0027.png",
+              "text_data": null,
+              "symbolic_representation": null
+            },
+            {
+              "img_path": "cache/twenty_forty_eight/claude_3_5_sonn/20250522_204929/observations/env_obs_e003_s0028.png",
+              "text_data": null,
+              "symbolic_representation": null
+            },
+            {
+              "img_path": "cache/twenty_forty_eight/claude_3_5_sonn/20250522_204929/observations/env_obs_e003_s0029.png",
+              "text_data": null,
+              "symbolic_representation": null
+            }
+          ],
+          "total_time_taken": 101.38890314102173
+        }
+      ]
+    }
+  }
+}

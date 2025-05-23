@@ -50,6 +50,7 @@ def run_game_episode(agent: BaseAgent, game_env: BaseGameEnv, episode_id: int, a
     if args.seed is not None: args.seed += 1
 
     total_reward = 0
+    total_episode_perf_score = 0.0 # Initialize total perf score for the episode
 
     for step_num in range(args.max_steps_per_episode):
         game_env.render_human()
@@ -62,21 +63,23 @@ def run_game_episode(agent: BaseAgent, game_env: BaseGameEnv, episode_id: int, a
         action_str_agent = action_dict.get("action", "None").strip().lower()
         thought_process = action_dict.get("thought", "")
 
-        agent_observation, reward, terminated, truncated, last_info = game_env.step(
+        # Unpack perf_score from the game_env.step() return values
+        agent_observation, reward, terminated, truncated, last_info, current_step_perf_score = game_env.step(
             action_str_agent, thought_process, time_taken_s
         )
             
         total_reward += reward
+        total_episode_perf_score += current_step_perf_score # Accumulate perf_score
 
         if terminated or truncated: break
             
     game_env.close()
 
-    final_score = float(last_info.get('score', 0.0))
+    final_score = float(last_info.get('score', 0.0)) # This usually comes from the game's info dict
 
-    print(f"Episode {episode_id} finished after {step_num+1} steps. Final Score: {final_score}")
+    print(f"Episode {episode_id} finished after {step_num+1} steps. Final Score: {final_score}, Total Reward: {total_reward}, Total Perf Score: {total_episode_perf_score}")
 
-    return final_score, step_num + 1, total_reward
+    return final_score, step_num + 1, total_reward, total_episode_perf_score # Return total_episode_perf_score
 
 def main():
     # 1. Initial parse for config location to load YAML defaults
@@ -178,12 +181,14 @@ def main():
 
     for i in range(args.num_runs):
         run_id = i + 1
-        score, steps, total_reward = run_game_episode(agent, game_env, run_id, args)
+        # Unpack total_episode_perf_score from run_game_episode results
+        score, steps, total_reward, total_episode_perf_score = run_game_episode(agent, game_env, run_id, args)
         all_run_results.append({
             "run_id": run_id,
             "score": score,
             "steps": steps,
-            "total_reward": total_reward
+            "total_reward": total_reward,
+            "total_episode_perf_score": total_episode_perf_score # Store it
         })
         if i < args.num_runs - 1:
             print("Cooldown for 2 seconds before next run...")
@@ -200,11 +205,13 @@ def main():
         scores = [r['score'] for r in all_run_results]
         steps_list = [r['steps'] for r in all_run_results]
         total_rewards_list = [r['total_reward'] for r in all_run_results]
+        total_perf_scores_list = [r['total_episode_perf_score'] for r in all_run_results] # Get list of perf scores
 
         stats_map = {
             "Scores": scores,
             "Steps": steps_list,
-            "Total Rewards": total_rewards_list
+            "Total Rewards": total_rewards_list,
+            "Total Performance Scores": total_perf_scores_list # Add to stats_map
         }
 
         for key, values in stats_map.items():

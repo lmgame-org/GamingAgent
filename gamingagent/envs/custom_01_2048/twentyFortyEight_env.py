@@ -2,66 +2,167 @@ import gymnasium as gym
 import numpy as np
 import os
 from PIL import Image, ImageDraw, ImageFont
-from typing import Any, Dict, Tuple, Callable, Optional
+from typing import Any, Dict, Tuple, Callable, Optional, List
 import json
 import hashlib # Added for hashing image data
+import imageio # Added for video generation
+import tempfile # Added for temporary directory
+import shutil # Added for removing temporary directory
 
 from gamingagent.envs.base_env import BaseGameEnv
 from gamingagent.modules.core_module import Observation
 
 
-def create_board_image_2048(board_powers: np.ndarray, save_path: str, size: int = 400) -> None:
-    """
-    Create a visualization of the 2048 board from board powers.
-    Args:
-        board_powers: Numpy array (4x4) of tile powers (0 for empty).
-        save_path: Path to save the image.
-        size: Image size in pixels.
-    """
+def create_board_image_2048(board_powers: np.ndarray, save_path: str, size: int = 400, perf_score: Optional[float] = None) -> None:
+    """Create a visualization of the 2048 board, incorporating new styling and perf_score display."""
     cell_size = size // 4
     padding = cell_size // 10
-    img = Image.new('RGB', (size, size), (250, 248, 239))  # Beige background
+
+    img = Image.new('RGB', (size, size), (250, 248, 239)) # Overall image background (can be overridden by grid bg)
     draw = ImageDraw.Draw(img)
 
+    # Color mapping for different tile values (extended from user's example)
     colors = {
-        0: (205, 193, 180), 2: (238, 228, 218), 4: (237, 224, 200),
-        8: (242, 177, 121), 16: (245, 149, 99), 32: (246, 124, 95),
-        64: (246, 94, 59), 128: (237, 207, 114), 256: (237, 204, 97),
-        512: (237, 200, 80), 1024: (237, 197, 63), 2048: (237, 194, 46),
+        0: (205, 193, 180),      # Empty cell
+        2: (238, 228, 218),      # 2
+        4: (237, 224, 200),      # 4
+        8: (242, 177, 121),      # 8
+        16: (245, 149, 99),      # 16
+        32: (246, 124, 95),      # 32
+        64: (246, 94, 59),       # 64
+        128: (237, 207, 114),    # 128
+        256: (237, 204, 97),     # 256
+        512: (237, 200, 80),     # 512
+        1024: (237, 197, 63),    # 1024
+        2048: (237, 194, 46),    # 2048
+        4096: (60, 58, 50),      # 4096 (using a default dark for very high values)
+        8192: (60, 58, 50)       # 8192 (using a default dark for very high values)
+        # Add more if needed, or use a function to generate colors for higher values
     }
-    dark_text_color = (119, 110, 101)
-    light_text_color = (249, 246, 242)
+    
+    dark_text_color = (119, 110, 101)  # For small values (2, 4)
+    light_text_color = (249, 246, 242) # For large values (8+)
 
-    try:
+    # Font handling (from user's example, slightly adapted)
+    font = None
+    perf_score_display_font = None
+    base_font_size = cell_size // 3
+    perf_score_font_size = max(15, size // 25) # For the performance score display
+
+    potential_fonts = [
+        "arial.ttf", "Arial.ttf", "DejaVuSans-Bold.ttf", "LiberationSans-Bold.ttf",
+        "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
+        # "/System/Library/Fonts/SFNSDisplay-Bold.otf",  # macOS example
+        # "C:/Windows/Fonts/Arial.ttf",  # Windows example
+        # "C:/Windows/Fonts/ArialBd.ttf" # Windows Bold example
+    ]
+
+    for font_name in potential_fonts:
+        try:
+            if font is None: # Load main font first
+                font = ImageFont.truetype(font_name, base_font_size)
+            if perf_score_display_font is None: # Load perf_score font
+                 perf_score_display_font = ImageFont.truetype(font_name, perf_score_font_size)
+            if font and perf_score_display_font: # Stop if both found
+                break 
+        except (OSError, IOError):
+            continue
+    
+    if font is None: # Fallback for main font
         font = ImageFont.load_default()
-    except IOError:
-        print("[TwentyFortyEightEnvWrapper] Default font not found for 2048 image. Using a basic PIL font.")
-        font = ImageFont.truetype("arial.ttf", 15) if os.path.exists("arial.ttf") else ImageFont.load_default()
+        print("[TwentyFortyEightEnvWrapper] Main font not found from potential_fonts. Using PIL default.")
+    if perf_score_display_font is None: # Fallback for perf_score font
+        perf_score_display_font = ImageFont.load_default(size=perf_score_font_size)
+        print("[TwentyFortyEightEnvWrapper] Perf score font not found from potential_fonts. Using PIL default.")
+
+    # Draw the background grid (user's style)
+    draw.rectangle([0, 0, size, size], fill=(187, 173, 160))
 
     for r_idx in range(4):
         for c_idx in range(4):
             power = int(board_powers[r_idx, c_idx])
-            value = 0 if power == 0 else 2 ** power
-
-            x0, y0 = c_idx * cell_size + padding, r_idx * cell_size + padding
-            x1, y1 = (c_idx + 1) * cell_size - padding, (r_idx + 1) * cell_size - padding
-
-            cell_color = colors.get(value, (60, 58, 50))  # Default dark for very high values
+            value = 0 if power == 0 else 2**power
+            
+            x0 = c_idx * cell_size + padding
+            y0 = r_idx * cell_size + padding
+            x1 = (c_idx + 1) * cell_size - padding
+            y1 = (r_idx + 1) * cell_size - padding
+            
+            cell_color = colors.get(value, (60, 58, 50)) 
             draw.rectangle([x0, y0, x1, y1], fill=cell_color)
+            
+            if value == 0:
+                continue
+            
+            text_content = str(value)
+            current_text_color = light_text_color if value > 4 else dark_text_color
+            
+            # Adjust font size based on number length (user's style)
+            current_font_size = base_font_size
+            if len(text_content) == 3:
+                current_font_size = int(base_font_size * 0.8)
+            elif len(text_content) >= 4:
+                current_font_size = int(base_font_size * 0.65)
+            
+            # Get font with correct size (attempt to reload if size changed)
+            final_font_for_tile = font
+            if current_font_size != base_font_size: # If size needs adjustment
+                temp_font_found = False
+                for font_name in potential_fonts: # Try to load with specific size
+                    try:
+                        final_font_for_tile = ImageFont.truetype(font_name, current_font_size)
+                        temp_font_found = True
+                        break
+                    except (OSError, IOError):
+                        continue
+                if not temp_font_found:
+                    final_font_for_tile = ImageFont.load_default(size=current_font_size) # Fallback to default with size
+            
+            # Get text size (user's style, adapted)
+            text_width, text_height = 0, 0
+            try:
+                if hasattr(final_font_for_tile, 'getbbox'): # Newer PIL
+                    bbox = final_font_for_tile.getbbox(text_content)
+                    text_width = bbox[2] - bbox[0]
+                    text_height = bbox[3] - bbox[1]
+                elif hasattr(final_font_for_tile, 'getsize'): # Older PIL
+                    text_width, text_height = final_font_for_tile.getsize(text_content)
+                else: # Fallback
+                    text_width = len(text_content) * current_font_size // 2
+                    text_height = current_font_size
+            except Exception as e:
+                 print(f"[TwentyFortyEightEnvWrapper] Error getting text size: {e}. Using fallback.")
+                 text_width = len(text_content) * current_font_size // 2
+                 text_height = current_font_size
+            
+            cell_center_x = (x0 + x1) // 2
+            cell_center_y = (y0 + y1) // 2
+            text_x = cell_center_x - text_width // 2
+            text_y = cell_center_y - text_height // 2 - (cell_size // 20) # Minor adjustment to text_y for centering
+            
+            draw.text((text_x, text_y), text_content, fill=current_text_color, font=final_font_for_tile)
+            if value >= 8: # Slight bolding (user's style)
+                draw.text((text_x + 1, text_y), text_content, fill=current_text_color, font=final_font_for_tile)
 
-            if value > 0:
-                text = str(value)
-                text_color = light_text_color if value > 4 else dark_text_color
-                text_bbox = draw.textbbox((0, 0), text, font=font)
-                text_width = text_bbox[2] - text_bbox[0]
-                text_height = text_bbox[3] - text_bbox[1]
-                text_x = x0 + (cell_size - (2 * padding) - text_width) / 2
-                text_y = y0 + (cell_size - (2 * padding) - text_height) / 2
-                draw.text((text_x, text_y), text, fill=text_color, font=font)
+    # Draw performance score if provided (retained from previous version)
+    if perf_score is not None:
+        score_text_content = f"Perf: {perf_score:.2f}"
+        score_display_text_color = (10, 10, 10) # Dark color for score text
+        score_pos_x = padding 
+        score_pos_y = padding // 2 
+        try:
+            draw.text((score_pos_x, score_pos_y), score_text_content, fill=score_display_text_color, font=perf_score_display_font)
+        except Exception as e:
+            print(f"[TwentyFortyEightEnvWrapper] Error drawing perf_score on image: {e}")
+
     try:
+        # Ensure the directory exists (user's style)
+        save_dir = os.path.dirname(save_path)
+        if save_dir: # Only make dirs if dirname is not empty (i.e. not saving to current dir)
+            os.makedirs(save_dir, exist_ok=True)
         img.save(save_path)
     except Exception as e:
-        print(f"[TwentyFortyEightEnvWrapper] Error saving 2048 board image to {save_path}: {e}")
+        print(f"[TwentyFortyEightEnvWrapper] Error saving 2048 board image to {save_path}: {e}") # Retained original more specific error message
 
 
 class TwentyFortyEightEnvWrapper(BaseGameEnv):
@@ -228,3 +329,91 @@ class TwentyFortyEightEnvWrapper(BaseGameEnv):
             return True, current_truncated # Set terminated to True
         
         return current_terminated, current_truncated
+
+    def game_replay(self, trajectory_data: List[Dict[str, Any]], perf_score_list: List[float],
+                    output_video_path: str = "2048_replay.gif", 
+                    frame_duration: float = 0.5) -> None:
+        """
+        Generates a video replay of a game trajectory.
+
+        Args:
+            trajectory_data: A list of dictionaries, where each dictionary represents a step
+                             and is expected to have a "board" key containing the 4x4 
+                             board state (powers of 2).
+            perf_score_list: A list of performance scores, one for each step in trajectory_data.
+            output_video_path: The path (including filename) to save the generated video.
+            frame_duration: The duration (in seconds) each frame should be displayed in the video.
+        """
+        if not trajectory_data:
+            print("[TwentyFortyEightEnvWrapper] No trajectory data provided for replay. Exiting game_replay.")
+            return
+        
+        if len(trajectory_data) != len(perf_score_list):
+            print(f"[TwentyFortyEightEnvWrapper] Warning: Mismatch between trajectory data length ({len(trajectory_data)}) and performance score list length ({len(perf_score_list)}). Scores will not be displayed.")
+            display_scores = False
+        else:
+            display_scores = True
+
+        temp_dir = tempfile.mkdtemp()
+        frame_files = []
+        
+        print(f"[TwentyFortyEightEnvWrapper] Generating frames for replay in {temp_dir}...")
+
+        for idx, step_data in enumerate(trajectory_data):
+            board_raw = step_data.get("board")
+            if board_raw is None:
+                print(f"[TwentyFortyEightEnvWrapper] Warning: 'board' key not found in step {idx} of trajectory data. Skipping frame.")
+                continue
+
+            try:
+                board_powers = np.array(board_raw, dtype=int)
+                if board_powers.shape != (4, 4):
+                    print(f"[TwentyFortyEightEnvWrapper] Warning: Board in step {idx} does not have shape (4,4). Actual shape: {board_powers.shape}. Skipping frame.")
+                    continue
+            except Exception as e:
+                print(f"[TwentyFortyEightEnvWrapper] Warning: Could not convert board in step {idx} to numpy array: {e}. Skipping frame.")
+                continue
+
+            frame_path = os.path.join(temp_dir, f"frame_{idx:04d}.png")
+            current_perf_score = perf_score_list[idx] if display_scores and idx < len(perf_score_list) else None
+            
+            try:
+                create_board_image_2048(board_powers, frame_path, perf_score=current_perf_score)
+                frame_files.append(frame_path)
+            except Exception as e:
+                print(f"[TwentyFortyEightEnvWrapper] Error creating board image for step {idx}: {e}. Skipping frame.")
+
+        if not frame_files:
+            print("[TwentyFortyEightEnvWrapper] No frames were generated. Cannot create video.")
+        else:
+            print(f"[TwentyFortyEightEnvWrapper] Compiling {len(frame_files)} frames into video: {output_video_path}")
+            try:
+                images_data = [imageio.imread(f) for f in frame_files]
+                imageio.mimsave(output_video_path, images_data, duration=frame_duration)
+                print(f"[TwentyFortyEightEnvWrapper] Replay video saved to {output_video_path}")
+            except Exception as e:
+                print(f"[TwentyFortyEightEnvWrapper] Error creating video: {e}")
+                print(f"[TwentyFortyEightEnvWrapper] Frames are available in {temp_dir} if you want to assemble them manually.")
+
+        # Clean up the temporary directory
+        try:
+            shutil.rmtree(temp_dir)
+            print(f"[TwentyFortyEightEnvWrapper] Cleaned up temporary directory: {temp_dir}")
+        except Exception as e:
+            print(f"[TwentyFortyEightEnvWrapper] Error cleaning up temporary directory {temp_dir}: {e}")
+
+
+    def perf_score(self, reward: float, info: Dict[str, Any]) -> float:
+        """
+        Calculates the performance score for a game episode.
+        """
+        return reward
+
+
+# Example usage (assuming you have a TwentyFortyEightEnvWrapper instance 'env' and trajectory_data):
+# trajectory_example = [
+#     {"board": [[0,0,0,0], [0,1,0,0], [0,0,1,0], [0,0,0,0]]}, # Board with 2s
+#     {"board": [[0,0,0,0], [0,1,0,0], [0,0,2,0], [0,0,0,1]]}, # Board with 2s and a 4
+#     # ... more steps
+# ]
+# env.game_replay(trajectory_example, "my_2048_game.gif", frame_duration=0.8)

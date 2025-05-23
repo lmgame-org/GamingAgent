@@ -61,6 +61,26 @@ class Observation:
         """
         return self.symbolic_representation if self.symbolic_representation is not None else ""
 
+    def to_json_string(self) -> str:
+        """
+        Get a JSON string representation of the observation data.
+
+        Returns:
+            str: A JSON string containing all observation attributes.
+        """
+        data = {
+            "img_path": self.img_path,
+            "text_data": self.text_data,
+            "symbolic_representation": self.symbolic_representation
+        }
+        return json.dumps(data)
+
+    def __str__(self) -> str:
+        """
+        Return the JSON string representation of the observation when str() is called or when printed.
+        """
+        return self.to_json_string()
+
 
 class CoreModule(ABC):
     """
