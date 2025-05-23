@@ -1,7 +1,9 @@
 from abc import abstractmethod
 from .core_module import CoreModule
 
-# TODO: 1.module integration 2.COT thinking mode 
+# TODO: 
+# 1.module integration 
+# 2.COT thinking mode 
 
 class ReasoningModule(CoreModule):
     """
@@ -11,13 +13,24 @@ class ReasoningModule(CoreModule):
     the required abstract methods.
     """
     
-    def __init__(self, model_name="claude-3-7-sonnet-latest", cache_dir="cache",
-                 system_prompt="", prompt="", token_limit=100000, reasoning_effort="high"):
+    def __init__(self, 
+                model_name="claude-3-7-sonnet-latest", 
+                observation_mode="vision",
+                cache_dir="cache",
+                system_prompt="", 
+                prompt="", 
+                token_limit=100000, 
+                reasoning_effort="high"
+        ):
         """
         Initialize the reasoning module.
         
         Args:
             model_name (str): The name of the model to use for inference.
+            observation_mode (str): Mode for processing observations:
+                - "vision": Uses image path as input
+                - "text": Uses symbolic representation/textual description as input
+                - "both": Uses both image path and text representation as inputs
             cache_dir (str): Directory for storing logs and cache files.
             system_prompt (str): System prompt for LLM calls.
             prompt (str): Default user prompt for LLM calls.
@@ -35,8 +48,9 @@ class ReasoningModule(CoreModule):
             token_limit=token_limit,
             reasoning_effort=reasoning_effort  # Always use high reasoning effort
         )
-    
-    @abstractmethod
+
+        self.observation_mode = observation_mode
+
     def plan_action(self, perception_data, memory_summary, img_path=None):
         """
         Plan the next action sequence based on current perception and memory.
@@ -51,21 +65,29 @@ class ReasoningModule(CoreModule):
         """
         # Get the image path (prefer the passed parameter if available)
         image_path = img_path or perception_data.get("img_path")
+        textual_representation = perception_data.get("textual_representation", "")
         
-        # Get the symbolic representation from perception data
-        symbolic_representation = perception_data.get("symbolic_representation", "")
+        # Get the description of visual elements from perception module
+        processed_visual_description = perception_data.get("processed_visual_description", "")
         
-        # Extract memory components
-        prev_game_states = memory_summary.get("prev_game_states", "")
-        memory_reflection = memory_summary.get("reflection", "")
+        # Extract game trajectory and reflection memory module
+        game_trajectory = memory_summary.get("game_trajectory", "")
+        reflection = memory_summary.get("reflection", "")
         
-        # Format the memory and perception context for the prompt
-        memory_context = f"Memory History:\n{prev_game_states}\n\n"
-        perception_context = f"Current Perception:\n{symbolic_representation}\n\n"
-        reflection_context = f"Reflection:\n{memory_reflection}" if memory_reflection else ""
-        
-        # Create the full context
-        full_context = memory_context + perception_context + reflection_context
+        # Format the memory and perception context, and create full context
+        #memory_context = f"Memory History:\n{game_trajectory}\n\n"
+        #perception_context = f"Current Perception:\n{textual_representation}\n\n"
+        #reflection_context = f"Reflection:\n{memory_reflection}" if memory_reflection else ""
+        #full_context = memory_context + perception_context + reflection_context
+
+        use_memory = bool(game_trajectory.strip() and reflection.strip())
+        use_perception = bool(processed_visual_description.strip())
+
+        full_context = observation.get_complete_prompt(
+            observation_mode=self.observation_mode,
+            use_memory_module=use_memory,
+            use_perception_module=use_perception,
+        )
         
         # Choose API call based on whether an image is available
         if image_path:
@@ -147,7 +169,6 @@ class ReasoningModule(CoreModule):
         
         return response
    
-    
     def _parse_response(self, response):
         """
         Parse the reasoning response to extract structured action data.
@@ -160,6 +181,5 @@ class ReasoningModule(CoreModule):
         """
         # Default implementation - should be overridden by game-specific subclasses
         return {
-            "action": None,
-            "thought": response.strip()
+            "generation": response.strip()
         }

@@ -1,3 +1,6 @@
+# env
+lmgame-bench/*
+
 # 💾 Cache and Temporary Files
 cache/*
 __pycache__/

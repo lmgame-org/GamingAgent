@@ -19,8 +19,17 @@ class BaseAgent(ABC):
     the required abstract methods.
     """
     
-    def __init__(self, game_name, model_name, config_path=None, harness=True, 
-                 max_memory=10, cache_dir=None, custom_modules=None, observation_mode="vision"):
+    def __init__(self,
+            game_name,
+            model_name,
+            config_path=None,
+            harness=True,
+            max_memory=10,
+            cache_dir=None,
+            custom_modules=None, 
+            observation_mode="vision",    # change the abstraction to with or without image
+            obs_source=None
+        ):
         """
         Initialize the agent with base parameters and modules.
         
@@ -34,12 +43,14 @@ class BaseAgent(ABC):
             cache_dir (str, optional): Custom cache directory path
             custom_modules (dict, optional): Custom module classes to use
             observation_mode (str): Mode for processing observations ("vision", "text", or "both")
+            obs_source (str): Source of observation, possible sources are ["backend", "graphic"].
         """
         self.game_name = game_name
         self.model_name = model_name
         self.harness = harness
         self.max_memory = max_memory
         self.observation_mode = observation_mode
+        self.obs_source = obs_source
         
         # Set up cache directory following the specified pattern
         if cache_dir is None:
@@ -65,7 +76,10 @@ class BaseAgent(ABC):
         print(f"Agent for '{self.game_name}' initialized with model '{self.model_name}'.")
         if self.harness:
             print("  Agent is in HARNESS mode (Perception-Memory-Reasoning pipeline).")
+            
+            # TODO (lanxiang): make expected modules to use configurable
             expected_modules = ["perception_module", "memory_module", "reasoning_module"]
+            
             for module_name in expected_modules:
                 if self.modules.get(module_name) and self.modules[module_name] is not None:
                     print(f"    -> Using {module_name.replace('_', ' ').title()}: {self.modules[module_name].__class__.__name__}")
@@ -139,30 +153,19 @@ class BaseAgent(ABC):
         modules = {}
         
         # Always initialize base module
-        if custom_modules and "base_module" in custom_modules:
-            # Use custom base module class
-            base_cls = custom_modules["base_module"]
-            modules["base_module"] = base_cls(
-                model_name=self.model_name,
-                cache_dir=self.cache_dir,
-                system_prompt=self.config["base_module"]["system_prompt"],
-                prompt=self.config["base_module"]["prompt"],
-                observation_mode=self.observation_mode,
-                token_limit=100000,
-                reasoning_effort="high"
-            )
-        else:
-            # Use default BaseModule
-            modules["base_module"] = BaseModule(
-                model_name=self.model_name,
-                cache_dir=self.cache_dir,
-                system_prompt=self.config["base_module"]["system_prompt"],
-                prompt=self.config["base_module"]["prompt"],
-                observation_mode=self.observation_mode,
-                token_limit=100000,
-                reasoning_effort="high"
-            )
+        # to support without-harness decision-making
         
+        # TODO: make arguments configurable
+        modules["base_module"] = BaseModule(
+            model_name=self.model_name,
+            cache_dir=self.cache_dir,
+            system_prompt=self.config["base_module"]["system_prompt"],
+            prompt=self.config["base_module"]["prompt"],
+            observation_mode=self.observation_mode,
+            token_limit=100000,
+            reasoning_effort="high"
+        )
+
         # Initialize perception, memory, and reasoning modules if using harness
         if self.harness:
             # Perception module
@@ -170,6 +173,7 @@ class BaseAgent(ABC):
                 perception_cls = custom_modules["perception_module"]
                 modules["perception_module"] = perception_cls(
                     model_name=self.model_name,
+                    observation_mode=self.observation_mode,
                     cache_dir=self.cache_dir,
                     system_prompt=self.config["perception_module"]["system_prompt"],
                     prompt=self.config["perception_module"]["prompt"]
@@ -198,6 +202,7 @@ class BaseAgent(ABC):
                     max_memory=self.max_memory
                 )
             
+            # TODO (lanxiang): make reasoning efforts configurable
             # Reasoning module
             if custom_modules and "reasoning_module" in custom_modules:
                 reasoning_cls = custom_modules["reasoning_module"]
@@ -318,6 +323,7 @@ class BaseAgent(ABC):
             # Unharness mode: Use base module directly with the Observation object
             result = self.modules["base_module"].process_observation(observation=observation)
             return result
+        
         else:
             # Harness mode: Perception -> Memory -> Reasoning
             perception_module = self.modules.get("perception_module")

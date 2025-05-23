@@ -13,4 +13,7 @@ google.genai==1.5.0
 stable-retro
 together
 pytest==8.3.5
-
+pyyaml==6.0.2
+gymnasium
+gymnasium_2048
+stable-retro
