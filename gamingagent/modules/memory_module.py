@@ -32,19 +32,23 @@ class MemoryModule(CoreModule):
 
     def _load_trajectory(self) -> None:
         """Reload trajectory entries (as already‑stringified lines) from disk."""
-        assert os.path.exists(self.module_file), "memory can not be reloaded as trajectory entries do not exist"
-            
-        try:
-            with open(self.module_file, "r") as f:
-                entries = json.load(f)
+        
+        if os.path.exists(self.module_file):
+            try:
+                with open(self.module_file, "r") as f:
+                    entries = json.load(f)
 
-            # keep only the last maxlen lines and push them into the deque
-            for e in entries[-self.trajectory.history_length:]:
-                # expect the entry to have been stored as a ready‑to‑print line
-                if isinstance(e, str):
-                    self.trajectory.add(e)
-        except Exception as exc:
-            print(f"[MemoryModule] failed to load trajectory: {exc}")
+                # keep only the last maxlen lines and push them into the deque
+                for e in entries[-self.trajectory.history_length:]:
+                    # expect the entry to have been stored as a ready‑to‑print line
+                    if isinstance(e, str):
+                        self.trajectory.add(e)
+            except Exception as exc:
+                print(f"[MemoryModule] failed to load trajectory: {exc}")
+        else:
+            print("memory can not be reloaded as trajectory entries do not exist.")
+            print("Intializing new game trajectory.")
+            self.trajectory = []
 
     def _append_to_log(self, line: str) -> None:
         """
@@ -73,7 +77,7 @@ class MemoryModule(CoreModule):
         Ask the LLM to write a reflection given the running context string.
         """
         formatted_prompt = self.prompt.format(
-            game_trajectory=prev_context or "None",
+            prev_context=prev_context or "None",
             current_observation=current_state,
             last_action=str(last_action) if last_action else "None",
             last_thought=str(last_thought) if last_thought else "None",
@@ -142,4 +146,33 @@ class MemoryModule(CoreModule):
             "current_state": latest,   # includes obs/action/thought
             "reflection": latest.split("Reflection:", 1)[-1].strip()
                          if "Reflection:" in latest else "",
+        }
+
+    def _parse_response(self, response):
+        """
+        Parse the reflection response from the LLM.
+        
+        Args:
+            response (str): The raw response from the LLM
+            
+        Returns:
+            dict: Parsed reflection data
+        """
+        
+        if not response:
+            return {"reflection": "No reflection generated."}
+        
+        # Try to extract reflection from structured format first
+        reflection_match = re.search(r'(?:^|\n)(?:#\s*)?reflection:(.+?)(?=(?:\n(?:#\s*)?[a-zA-Z]+:)|$)', 
+                                    response, re.DOTALL | re.IGNORECASE)
+        
+        if reflection_match:
+            # Extract the reflection content from the pattern match
+            reflection = reflection_match.group(1).strip()
+        else:
+            # If no structured format found, use the entire response
+            reflection = response.strip()
+            
+        return {
+            "reflection": reflection
         }

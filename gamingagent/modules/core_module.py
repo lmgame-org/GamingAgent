@@ -151,7 +151,7 @@ class Observation:
         """
         return self.textual_representation if self.textual_representation is not None else ""
 
-        def get_complete_prompt(
+    def get_complete_prompt(
         self,
         observation_mode,                 # kept for signature compatibility
         use_memory_module: bool = False,
@@ -186,6 +186,11 @@ class Observation:
 
         # collect values for referenced attributes
         harness_content_map = {module_name: getattr(self, module_name, "") for module_name in var_names}
+
+        # special process on game trajectory
+        # TODO: make this more elegant
+        if "game_trajectory" in harness_content_map.keys():
+            harness_content_map["game_trajectory"] = str(harness_content_map["game_trajectory"].get())
 
         return self.prompt_template.format(**harness_content_map)
 

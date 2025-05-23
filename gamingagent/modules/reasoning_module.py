@@ -1,5 +1,5 @@
 from abc import abstractmethod
-from .core_module import CoreModule
+from .core_module import CoreModule, Observation
 
 # TODO: 
 # 1.module integration 
@@ -83,7 +83,7 @@ class ReasoningModule(CoreModule):
         use_memory = bool(game_trajectory.strip() and reflection.strip())
         use_perception = bool(processed_visual_description.strip())
 
-        full_context = observation.get_complete_prompt(
+        full_context = Observation.get_complete_prompt(
             observation_mode=self.observation_mode,
             use_memory_module=use_memory,
             use_perception_module=use_perception,

@@ -19,7 +19,7 @@ def parse_arguments(defaults_map=None, argv_to_parse=None):
     parser = argparse.ArgumentParser(description="Run GamingAgent for various games.")
     parser.add_argument("--game_name", type=str, default="twenty_forty_eight",
                         help="Name of the game to run (e.g., twenty_forty_eight). This also determines which config.yaml is loaded for defaults.")
-    parser.add_argument("--model_name", type=str, default="claude-3-5-sonnet-20241022",
+    parser.add_argument("--model_name", type=str, default="claude-3-7-sonnet-latest",
                         help="Name of the model for the agent.")
     parser.add_argument("--config_root_dir", type=str, default="configs",
                         help="Root directory for game and agent configurations.")

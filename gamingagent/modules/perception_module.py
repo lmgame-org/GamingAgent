@@ -8,6 +8,8 @@ from .core_module import CoreModule, Observation
 
 import copy
 
+from tools.utils import scale_image_up
+
 class PerceptionModule(CoreModule):
     """
     Perception module that analyzes game state to extract relevant features.
@@ -111,6 +113,9 @@ class PerceptionModule(CoreModule):
             assert self.observation.img_path is not None, "to process from graphic representation, image should have been prepared and path should exist in observation."
             new_img_path = scale_image_up(self.observation.get_img_path())
             
+            print("perception module prompt:")
+            print(self.prompt)
+
             processed_visual_description = self.api_manager.vision_text_completion(
                 model_name=self.model_name,
                 system_prompt=self.system_prompt,
@@ -126,7 +131,7 @@ class PerceptionModule(CoreModule):
 
             return self.processed_observation
         else:
-            raise NotImplementedError(f"observation mode: {observation_mode} not supported.")
+            raise NotImplementedError(f"observation mode: {self.observation_mode} not supported.")
     
     def get_perception_summary(self):
         """

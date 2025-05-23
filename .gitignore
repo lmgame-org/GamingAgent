@@ -1,5 +1,6 @@
-# env
+# virtual env and running logs
 lmgame-bench/*
+logs/*
 
 # 💾 Cache and Temporary Files
 cache/*

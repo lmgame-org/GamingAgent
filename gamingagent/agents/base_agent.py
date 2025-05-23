@@ -321,11 +321,15 @@ class BaseAgent(ABC):
         
         if not self.harness:
             # Unharness mode: Use base module directly with the Observation object
+            print("Invoking WITHOUT HARNESS mode.")
+
             result = self.modules["base_module"].process_observation(observation=observation)
             return result
         
         else:
             # Harness mode: Perception -> Memory -> Reasoning
+            print("Invoking WITH HARNESS mode.")
+
             perception_module = self.modules.get("perception_module")
             memory_module = self.modules.get("memory_module")
             reasoning_module = self.modules.get("reasoning_module")
@@ -336,8 +340,11 @@ class BaseAgent(ABC):
                 raise ValueError("Reasoning module is required for harness mode")
             
             # 1. Process observation with perception module (already an Observation)
-            processed_obs = perception_module.process_observation(observation)
+            _ = perception_module.process_observation(observation)
             perception_data = perception_module.get_perception_summary()
+
+            print("perception data:")
+            print(perception_data)
             
             # 2. Update memory with perception data
             memory_summary = None
@@ -345,10 +352,16 @@ class BaseAgent(ABC):
                 memory_module.update_memory(perception_data)
                 memory_summary = memory_module.get_memory_summary()
             
+            print("memory data:")
+            print(memory_summary)
+            
             # 3. Plan action with reasoning module
             action_plan = reasoning_module.plan_action(
                 perception_data=perception_data,
                 memory_summary=memory_summary
             )
+            
+            print("action plan:")
+            print(action_plan)
             
             return action_plan

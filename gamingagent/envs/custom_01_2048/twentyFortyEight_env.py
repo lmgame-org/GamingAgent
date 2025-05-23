@@ -181,12 +181,12 @@ class TwentyFortyEightEnvWrapper(BaseGameEnv):
             
         return Observation(
             img_path=img_path_for_agent, 
-            symbolic_representation=text_representation_for_agent
+            textual_representation=text_representation_for_agent
         )
 
     def verify_termination(self, observation: Observation, current_terminated: bool, current_truncated: bool) -> Tuple[bool, bool]:
         """Overrides BaseGameEnv.verify_termination to detect stuck states in 2048.
-           If the board state (symbolic observation or image hash) remains unchanged for `_max_unchanged_steps`,
+           If the board state (textual representation or image hash) remains unchanged for `_max_unchanged_steps`,
            the episode is considered terminated.
         """
         print(f"[TwentyFortyEightEnvWrapper] verify_termination called with current_terminated: {current_terminated}, current_truncated: {current_truncated}, _max_unchanged_steps: {self._max_unchanged_steps}, _unchanged_obs_count: {self._unchanged_obs_count}, _last_observation_hash: {self._last_observation_hash}")
@@ -196,8 +196,8 @@ class TwentyFortyEightEnvWrapper(BaseGameEnv):
 
         current_obs_hash: Optional[str] = None
 
-        if observation.symbolic_representation:
-            current_obs_hash = hashlib.md5(observation.symbolic_representation.encode()).hexdigest()
+        if observation.textual_representation:
+            current_obs_hash = hashlib.md5(observation.textual_representation.encode()).hexdigest()
             # print(f"[TwentyFortyEightEnvWrapper] [Debug] Symbolic hash: {current_obs_hash}")
         elif observation.img_path and os.path.exists(observation.img_path):
             try:
@@ -211,8 +211,8 @@ class TwentyFortyEightEnvWrapper(BaseGameEnv):
                 # Cannot determine hash, so cannot determine if stuck based on vision
                 return current_terminated, current_truncated
         else:
-            # No symbolic representation and no valid image path, cannot determine if stuck
-            # print(f"[TwentyFortyEightEnvWrapper] [Debug] No symbolic_representation or valid img_path to hash.")
+            # No textual representation and no valid image path, cannot determine if stuck
+            # print(f"[TwentyFortyEightEnvWrapper] [Debug] No textual_representation or valid img_path to hash.")
             return current_terminated, current_truncated
 
         if self._last_observation_hash == current_obs_hash:

@@ -81,7 +81,7 @@ class BaseModule(CoreModule):
             assert self.observation.img_path is not None, "No vision observation available"
         if self.observation_mode in ["text", "both"]: 
             assert (self.observation.textual_representation is not None) or (self.observation.processed_visual_description is not None), "No textual representation available"
-
+    
         def prepare_text_based_game_state():
             textual_representation = self.observation.get_textual_representation()
             processed_visual_description = self.observation.get_processed_visual_description()
@@ -92,7 +92,7 @@ class BaseModule(CoreModule):
             elif processed_visual_description:
                 text_repr = f"Gmae Visual Elements Description:\n{processed_visual_description}\n\n"
             else:
-                text_repr = "No Text-Based Game State Provided.
+                text_repr = "No Text-Based Game State Provided."
             
             return text_repr
         
