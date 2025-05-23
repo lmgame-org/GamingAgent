@@ -1,0 +1,21 @@
+game_specific_configs:
+  twenty_forty_eight:
+    score_transformation: log2_times_10
+    display_name: "2048"
+  Sokoban:
+    score_transformation: null
+    display_name: "Sokoban"
+  SMB:
+    score_transformation: null
+    display_name: "Super Mario Bros"
+  Tetris:
+    score_transformation: null
+    display_name: "Tetris"
+  "Candy Crash":
+    score_transformation: null
+    display_name: "Candy Crush"
+  "Ace Attorney":
+    score_transformation: null
+    display_name: "Ace Attorney"
+
+default_game_display_name_mapping: {} 

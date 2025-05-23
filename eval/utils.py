@@ -3,16 +3,28 @@ import json
 import glob
 from collections import defaultdict
 import numpy as np
+import math # Added for log2
 
 class GameLogProcessor:
-    def __init__(self, game_name, model_name_prefix_for_search, authoritative_model_name):
+    def __init__(self, game_name, model_name_prefix_for_search, authoritative_model_name, score_transformation_rule: str | None = None):
         self.game_name = game_name
         # Used for finding directories, replace hyphens and then take prefix
         self.model_name_prefix_for_search = model_name_prefix_for_search.replace("-", "_")[:15]
         # Used as the actual key for reporting, taken directly from eval.py model_list
         self.authoritative_model_name = authoritative_model_name 
+        self.score_transformation_rule = score_transformation_rule
         self.raw_data = defaultdict(lambda: defaultdict(list)) # authoritative_model_name -> harness_status -> list of episode_data
         self._collect_data()
+
+    def _apply_score_transformation(self, score: float, rule: str | None) -> float:
+        if rule == "log2_times_10":
+            if score <= 0: # log2 is undefined for 0 or negative numbers
+                return 0.0 # Or handle as an error/warning, returning 0 for now
+            return math.log2(score) * 10
+        # Add other rules here if needed
+        # elif rule == "another_rule":
+        #     return ...
+        return score # Return original score if no rule matches or rule is None
 
     def _convert_numpy_to_python(self, item):
         if isinstance(item, np.ndarray):
@@ -104,7 +116,7 @@ class GameLogProcessor:
                     episode_id_str = os.path.basename(log_file_path).replace("episode_", "").replace("_log.jsonl", "")
                     
                     total_reward_for_episode = 0
-                    total_perf_score_for_episode = 0.0 # Initialize total perf_score
+                    raw_total_episode_perf_score = 0.0 # This will be the raw score
                     num_steps_in_episode = len(episode_steps_data)
                     time_taken_for_episode = None 
                     
@@ -140,8 +152,30 @@ class GameLogProcessor:
                     for step_detail in episode_steps_data:
                         if isinstance(step_detail, dict):
                             total_reward_for_episode += step_detail.get("reward", 0)
-                            total_perf_score_for_episode += step_detail.get("perf_score", 0.0) # Sum perf_score
+                            raw_total_episode_perf_score += step_detail.get("perf_score", 0.0) # Sum perf_score
 
+                    # Apply transformation only if a rule is provided and store it under a different key
+                    if self.score_transformation_rule:
+                        transformed_score = self._apply_score_transformation(
+                            raw_total_episode_perf_score, 
+                            self.score_transformation_rule
+                        )
+                        current_episode_summary = {
+                            "episode_id": episode_id_str,
+                            "steps": num_steps_in_episode,
+                            "total_reward": self._convert_numpy_to_python(total_reward_for_episode),
+                            "total_episode_perf_score": self._convert_numpy_to_python(raw_total_episode_perf_score), # Store raw score here
+                            "final_score_for_ranking": self._convert_numpy_to_python(transformed_score)
+                        }
+                    else:
+                        current_episode_summary = {
+                            "episode_id": episode_id_str,
+                            "steps": num_steps_in_episode,
+                            "total_reward": self._convert_numpy_to_python(total_reward_for_episode),
+                            "total_episode_perf_score": self._convert_numpy_to_python(raw_total_episode_perf_score), # Store raw score here
+                        }
+
+                    # Collect all agent observations for the episode
                     step_infos_for_episode = []
                     for step_detail in episode_steps_data:
                         if isinstance(step_detail, dict) and "info" in step_detail:
@@ -164,14 +198,8 @@ class GameLogProcessor:
                                 step_observations_for_episode.append(self._convert_numpy_to_python(obs_data))
                         # else: Optionally append a placeholder like None if "agent_observation" is missing
 
-                    current_episode_summary = {
-                        "episode_id": episode_id_str,
-                        "steps": num_steps_in_episode,
-                        "total_reward": self._convert_numpy_to_python(total_reward_for_episode),
-                        "total_episode_perf_score": self._convert_numpy_to_python(total_perf_score_for_episode), # Add to summary
-                        "step_infos": step_infos_for_episode,
-                        "step_observations": step_observations_for_episode # Add list of observations
-                    }
+                    current_episode_summary["step_infos"] = step_infos_for_episode
+                    current_episode_summary["step_observations"] = step_observations_for_episode
                     if time_taken_for_episode is not None:
                         current_episode_summary["total_time_taken"] = self._convert_numpy_to_python(time_taken_for_episode)
                     
@@ -190,8 +218,11 @@ class GameLogProcessor:
         for model_name, harness_data in self.raw_data.items():
             for harness_status, episodes in harness_data.items():
                 if episodes:
-                    # Use total_episode_perf_score for ranking
-                    scores = [ep['total_episode_perf_score'] for ep in episodes] 
+                    # Use 'final_score_for_ranking' if available, else 'total_episode_perf_score' (raw)
+                    scores = [
+                        ep.get('final_score_for_ranking', ep['total_episode_perf_score']) 
+                        for ep in episodes
+                    ]
                     if model_name not in update_data:
                         update_data[model_name] = defaultdict(dict)
                     update_data[model_name][harness_status][self.game_name] = scores
@@ -206,18 +237,25 @@ class GameLogProcessor:
                 
                 num_all_episodes = len(episodes)
                 
-                # Collect lists of total rewards and total perf scores for this model/harness
+                # Always use the raw 'total_episode_perf_score' for game_perf.json
                 all_total_rewards = [ep['total_reward'] for ep in episodes]
-                all_total_perf_scores = [ep['total_episode_perf_score'] for ep in episodes]
+                all_raw_total_perf_scores = [ep['total_episode_perf_score'] for ep in episodes]
+
+                # Prepare episodes_data for game_perf.json, ensuring no transformed scores are included
+                episodes_data_for_json = []
+                for ep_original in episodes:
+                    ep_copy = ep_original.copy() # Create a copy to modify
+                    ep_copy.pop('final_score_for_ranking', None) # Remove transformed score if it exists
+                    episodes_data_for_json.append(ep_copy)
 
                 current_harness_perf_data = {
                     "num_episodes_processed": num_all_episodes,
-                    "total_reward_values": all_total_rewards, # Add list of all total rewards
-                    "total_perf_score_values": all_total_perf_scores, # Add list of all total perf scores
-                    "episodes_data": episodes 
+                    "total_reward_values": all_total_rewards,
+                    "total_perf_score_values": all_raw_total_perf_scores, # List of raw scores
+                    "episodes_data": episodes_data_for_json # List of episode dicts with raw scores
                 }
                 
-                if model_name not in game_perf_data: # Should be handled by defaultdict, but good for clarity
+                if model_name not in game_perf_data: 
                     game_perf_data[model_name] = defaultdict(dict)
                 game_perf_data[model_name][harness_status] = current_harness_perf_data
         
@@ -298,6 +336,5 @@ def update_game_perf_data(existing_data, new_data_from_processor, force: bool = 
                 print(f"{update_type} game_perf: Data for {model_name}/{harness_status}")
             else:
                 # If you want to merge or update specific fields if harness_status exists,
-                # you'd need more complex logic here. For now, it skips if entry exists.
                 print(f"Skipped game_perf update for {model_name}/{harness_status}: Data already exists (force=False).")
     return existing_data
