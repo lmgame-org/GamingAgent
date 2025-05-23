@@ -214,7 +214,7 @@ class BaseGameEnv(ABC):
 
             # Verify termination status after extracting observation
             terminated, truncated = self.verify_termination(current_agent_observation, terminated, truncated)
-            
+
             current_step_perf_score = self.perf_score(reward, self.current_info) # Calculate perf_score for skipped step
 
             self._log_and_print_step_data(agent_action_str, thought_process, reward, self.current_info, terminated, truncated, time_taken_s, current_step_perf_score, current_agent_observation) # Pass current_agent_observation

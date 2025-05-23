@@ -24,6 +24,9 @@ from .plot_utils import (
 # Import Replay Utilities
 from .replay_utils import generate_2048_median_score_replay # For the new specific 2048 replay
 
+# Import polynomial model script
+from .polynomial_model import run_polynomial_analysis, DEFAULT_MODEL_ORDER as PM_DEFAULT_MODEL_ORDER
+
 # Default values for run configurations (used if eval_config.yaml is missing/incomplete)
 DEFAULT_GAME_LIST_CONFIG = [
     "twenty_forty_eight"
@@ -38,10 +41,13 @@ DEFAULT_GENERATE_BAR_PLOT = True
 DEFAULT_GENERATE_RADAR_CHART = True
 DEFAULT_GENERATE_REPLAYS = False
 
+# Defaults for Polynomial Model
+DEFAULT_RUN_POLYNOMIAL_MODEL = False
+
 
 # --- Configuration Loading ---
-GAME_SPECIFIC_CONFIG_FILE_PATH = "eval/game_eval_config.yaml" # Renamed
-RUN_CONFIG_FILE_PATH = "eval/eval_config.yaml" # New config for run settings
+GAME_SPECIFIC_CONFIG_FILE_PATH = "eval/configs/game_eval_config.yaml" # Renamed and path updated
+RUN_CONFIG_FILE_PATH = "eval/configs/eval_config.yaml" # New config for run settings and path updated
 
 def load_game_eval_config(config_path: str) -> Dict: # Renamed function
     default_game_config = {
@@ -81,7 +87,8 @@ def load_run_config(config_path: str) -> Dict:
         "force_game_perf": DEFAULT_FORCE_GAME_PERF,
         "generate_bar_plot": DEFAULT_GENERATE_BAR_PLOT,
         "generate_radar_chart": DEFAULT_GENERATE_RADAR_CHART,
-        "generate_replays": DEFAULT_GENERATE_REPLAYS
+        "generate_replays": DEFAULT_GENERATE_REPLAYS,
+        "run_polynomial_model": DEFAULT_RUN_POLYNOMIAL_MODEL,
     }
     if not os.path.exists(config_path):
         print(f"Warning: Run configuration file {config_path} not found. Using default run settings.")
@@ -92,7 +99,8 @@ def load_run_config(config_path: str) -> Dict:
             if run_config is None:
                 print(f"Warning: Run configuration file {config_path} is empty. Using default run settings.")
                 return default_run_settings
-            # Apply defaults for any missing keys
+            
+            # Apply defaults for any missing top-level keys
             for key, value in default_run_settings.items():
                 if key not in run_config:
                     print(f"Warning: '{key}' not found in {config_path}. Using default value: {value}")
@@ -113,6 +121,11 @@ PLOT_OUTPUT_DIR = "eval/perf/plots"
 VIDEO_OUTPUT_BASE_DIR = "eval/perf/video"
 MODEL_COLORS_FILE = "eval/assets/model_colors.json"
 
+# Paths for polynomial model (can be overridden in config if needed, though unlikely)
+OTHER_TASK_RANK_FILE = "eval/perf/other_task_rank.json"
+POLYNOMIAL_MODEL_RESULTS_FILE = "eval/perf/polynomial_model.json"
+
+
 # Main execution logic
 def main():
     # Load run configurations from eval_config.yaml
@@ -125,6 +138,9 @@ def main():
     generate_radar_chart_flag = run_config.get("generate_radar_chart", DEFAULT_GENERATE_RADAR_CHART)
     generate_replays_flag = run_config.get("generate_replays", DEFAULT_GENERATE_REPLAYS)
 
+    # Polynomial model specific configurations
+    run_polynomial_model_flag = run_config.get("run_polynomial_model", DEFAULT_RUN_POLYNOMIAL_MODEL)
+    
     # Load game-specific configurations from game_eval_config.yaml
     game_config_data = load_game_eval_config(GAME_SPECIFIC_CONFIG_FILE_PATH)
     game_specific_configs = game_config_data.get("game_specific_configs", {})
@@ -138,6 +154,8 @@ def main():
     print(f"  Generate Radar Chart: {generate_radar_chart_flag}")
     print(f"  Generate Replays: {generate_replays_flag}")
     print(f"  Using game_specific_configs from {GAME_SPECIFIC_CONFIG_FILE_PATH} (or defaults if file/key is missing).")
+    print(f"  Run Polynomial Model: {run_polynomial_model_flag}")
+
 
     os.makedirs(os.path.dirname(MODEL_PERF_RANK_FILE), exist_ok=True)
     os.makedirs(os.path.dirname(DETAILED_GAME_PERF_FILE), exist_ok=True)
@@ -213,6 +231,18 @@ def main():
     print(f"\nSaving all detailed game performance data to {DETAILED_GAME_PERF_FILE}...")
     save_json_file(all_detailed_game_perf_data, DETAILED_GAME_PERF_FILE)
 
+    # --- Polynomial Model Section ---
+    if run_polynomial_model_flag:
+        print("\n--- Running Polynomial Model Analysis (using internal defaults) ---")
+        try:
+            run_polynomial_analysis(
+            )
+        except Exception as e_poly:
+            print(f"Error during polynomial model execution: {e_poly}")
+            print("Polynomial model analysis may not have completed successfully.")
+    else:
+        print("\nSkipping Polynomial Model Analysis as flag is false.")
+
     # --- Plotting section --- 
     if generate_bar_plot_flag or generate_radar_chart_flag:
         print("\n--- Generating Performance Plots ---")
@@ -263,8 +293,8 @@ def main():
                         display_name = game_specific_configs.get(game_key, {}).get("display_name", game_key)
                         selected_games_display_names_for_plot.append(display_name)
                     
-                    # Highlight models: use all models present in the dataframe for this plot
-                    highlight_models_for_plot = df_plot['Player'].unique().tolist()
+                    # Highlight models: use models specified in the run configuration
+                    highlight_models_for_plot = model_list_to_process
 
                     fig_bar = create_comparison_bar_chart(
                         df=df_plot, 
@@ -294,8 +324,8 @@ def main():
                             selected_games_display_names_for_plot.append(display_name)
 
                     # Highlight models (can reuse from bar chart section if already generated)
-                    if not 'highlight_models_for_plot' in locals() or not highlight_models_for_plot:
-                        highlight_models_for_plot = df_plot['Player'].unique().tolist()
+                    # Re-assign here to ensure it uses the intended list for radar chart as well
+                    highlight_models_for_plot = model_list_to_process
 
                     fig_radar = create_comparison_radar_chart(
                         df=df_plot, 

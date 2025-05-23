@@ -1,5 +1,5 @@
 {
-  "2048": {
+  "twenty_forty_eight": {
     "claude-3-5-sonnet-20241022": {
       "harness_false": {
         "num_episodes_processed": 6,

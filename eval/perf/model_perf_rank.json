@@ -1,17 +1,17 @@
 {
   "claude-3-5-sonnet-20241022": {
     "harness_true": {
-      "Sokoban": [
+      "sokoban": [
         0,
         0,
         0
       ],
-      "SMB": [
+      "super_mario_bros": [
         709,
         1532,
         1562
       ],
-      "Tetris": [
+      "tetris": [
         16,
         14,
         14
@@ -21,27 +21,27 @@
         22.963598863331505,
         21.162401163849914
       ],
-      "Candy Crash": [
+      "candy_crush": [
         92,
         165,
         61
       ],
-      "Ace Attorney": [
+      "ace_attorney": [
         2
       ]
     },
     "harness_false": {
-      "Sokoban": [
+      "sokoban": [
         0,
         0,
         0
       ],
-      "SMB": [
+      "super_mario_bros": [
         1551,
         1515,
         1554
       ],
-      "Tetris": [
+      "tetris": [
         10,
         15,
         12
@@ -51,29 +51,29 @@
         8.643856189774725,
         10.918863237274595
       ],
-      "Candy Crash": [
+      "candy_crush": [
         15,
         36,
         0
       ],
-      "Ace Attorney": [
+      "ace_attorney": [
         1
       ]
     }
   },
   "claude-3-7-sonnet-20250219 (thinking)": {
     "harness_true": {
-      "Sokoban": [
+      "sokoban": [
         2,
         4,
         1
       ],
-      "SMB": [
+      "super_mario_bros": [
         2015,
         709,
         1532
       ],
-      "Tetris": [
+      "tetris": [
         19,
         15,
         15
@@ -83,27 +83,27 @@
         23.309272057055935,
         22.05581199313977
       ],
-      "Candy Crash": [
+      "candy_crush": [
         535,
         428,
         489
       ],
-      "Ace Attorney": [
+      "ace_attorney": [
         7
       ]
     },
     "harness_false": {
-      "Sokoban": [
+      "sokoban": [
         0,
         0,
         0
       ],
-      "SMB": [
+      "super_mario_bros": [
         1532,
         1515,
         1243
       ],
-      "Tetris": [
+      "tetris": [
         13,
         13,
         13
@@ -113,25 +113,25 @@
         24.110564871002378,
         23.109177703355275
       ],
-      "Candy Crash": [
+      "candy_crush": [
         148,
         182,
         49
       ],
-      "Ace Attorney": [
+      "ace_attorney": [
         3
       ]
     }
   },
   "deepseek-r1": {
     "harness_true": {
-      "Sokoban": [
+      "sokoban": [
         2,
         0,
         2
       ],
-      "SMB": [],
-      "Tetris": [
+      "super_mario_bros": [],
+      "tetris": [
         15,
         14,
         14
@@ -141,37 +141,37 @@
         20.552248810548477,
         23.69098010188875
       ],
-      "Candy Crash": [
+      "candy_crush": [
         409,
         436,
         497
       ],
-      "Ace Attorney": [
+      "ace_attorney": [
         0
       ]
     },
     "harness_false": {
-      "Sokoban": [],
-      "SMB": [],
-      "Tetris": [],
+      "sokoban": [],
+      "super_mario_bros": [],
+      "tetris": [],
       "twenty_forty_eight": [],
-      "Candy Crash": [],
-      "Ace Attorney": []
+      "candy_crush": [],
+      "ace_attorney": []
     }
   },
   "gemini-2.5-flash-preview-04-17": {
     "harness_true": {
-      "Sokoban": [
+      "sokoban": [
         3,
         0,
         2
       ],
-      "SMB": [
+      "super_mario_bros": [
         1672,
         1266,
         1247
       ],
-      "Tetris": [
+      "tetris": [
         20,
         14,
         15
@@ -181,27 +181,27 @@
         20.723887547470483,
         22.54292605580875
       ],
-      "Candy Crash": [
+      "candy_crush": [
         259,
         372,
         373
       ],
-      "Ace Attorney": [
+      "ace_attorney": [
         4
       ]
     },
     "harness_false": {
-      "Sokoban": [
+      "sokoban": [
         0,
         0,
         0
       ],
-      "SMB": [
+      "super_mario_bros": [
         1794,
         1270,
         1558
       ],
-      "Tetris": [
+      "tetris": [
         15,
         18,
         24
@@ -211,29 +211,29 @@
         20.951466861932797,
         21.222049594614706
       ],
-      "Candy Crash": [
+      "candy_crush": [
         60,
         101,
         132
       ],
-      "Ace Attorney": [
+      "ace_attorney": [
         1
       ]
     }
   },
   "gemini-2.5-pro-preview-05-06": {
     "harness_true": {
-      "Sokoban": [
+      "sokoban": [
         4,
         4,
         5
       ],
-      "SMB": [
+      "super_mario_bros": [
         1561,
         1271,
         1663
       ],
-      "Tetris": [
+      "tetris": [
         23,
         23,
         24
@@ -243,27 +243,27 @@
         22.457637380991763,
         23.15863187516003
       ],
-      "Candy Crash": [
+      "candy_crush": [
         411,
         414,
         424
       ],
-      "Ace Attorney": [
+      "ace_attorney": [
         7
       ]
     },
     "harness_false": {
-      "Sokoban": [
+      "sokoban": [
         1,
         1,
         1
       ],
-      "SMB": [
+      "super_mario_bros": [
         820,
         1534,
         722
       ],
-      "Tetris": [
+      "tetris": [
         15,
         9,
         13
@@ -273,25 +273,25 @@
         23.582325777110036,
         23.70973676652047
       ],
-      "Candy Crash": [
+      "candy_crush": [
         117,
         169,
         246
       ],
-      "Ace Attorney": [
+      "ace_attorney": [
         8
       ]
     }
   },
   "grok-3-mini-beta (thinking)": {
     "harness_true": {
-      "Sokoban": [
+      "sokoban": [
         5,
         6,
         6
       ],
-      "SMB": [],
-      "Tetris": [
+      "super_mario_bros": [],
+      "tetris": [
         20,
         15,
         29
@@ -301,37 +301,37 @@
         22.566176706048005,
         23.29131686481742
       ],
-      "Candy Crash": [
+      "candy_crush": [
         299,
         332,
         131
       ],
-      "Ace Attorney": [
+      "ace_attorney": [
         0
       ]
     },
     "harness_false": {
-      "Sokoban": [],
-      "SMB": [],
-      "Tetris": [],
+      "sokoban": [],
+      "super_mario_bros": [],
+      "tetris": [],
       "twenty_forty_eight": [],
-      "Candy Crash": [],
-      "Ace Attorney": []
+      "candy_crush": [],
+      "ace_attorney": []
     }
   },
   "llama-4-maverick-17b-128e-instruct-fp8": {
     "harness_true": {
-      "Sokoban": [
+      "sokoban": [
         0,
         0,
         0
       ],
-      "SMB": [
+      "super_mario_bros": [
         898,
         2008,
         1500
       ],
-      "Tetris": [
+      "tetris": [
         9,
         10,
         12
@@ -341,27 +341,27 @@
         20.62576591056871,
         22.050279124557015
       ],
-      "Candy Crash": [
+      "candy_crush": [
         67,
         139,
         180
       ],
-      "Ace Attorney": [
+      "ace_attorney": [
         0
       ]
     },
     "harness_false": {
-      "Sokoban": [
+      "sokoban": [
         0,
         0,
         0
       ],
-      "SMB": [
+      "super_mario_bros": [
         837,
         300,
         1221
       ],
-      "Tetris": [
+      "tetris": [
         13,
         11,
         11
@@ -371,29 +371,29 @@
         11.614709844115207,
         7.169925001442312
       ],
-      "Candy Crash": [
+      "candy_crush": [
         18,
         79,
         0
       ],
-      "Ace Attorney": [
+      "ace_attorney": [
         0
       ]
     }
   },
   "gpt-4.1-2025-04-14": {
     "harness_true": {
-      "Sokoban": [
+      "sokoban": [
         0,
         0,
         0
       ],
-      "SMB": [
+      "super_mario_bros": [
         1531,
         722,
         4126
       ],
-      "Tetris": [
+      "tetris": [
         13,
         14,
         14
@@ -403,27 +403,27 @@
         22.758756734142523,
         20.329813853351375
       ],
-      "Candy Crash": [
+      "candy_crush": [
         163,
         215,
         168
       ],
-      "Ace Attorney": [
+      "ace_attorney": [
         2
       ]
     },
     "harness_false": {
-      "Sokoban": [
+      "sokoban": [
         0,
         0,
         0
       ],
-      "SMB": [
+      "super_mario_bros": [
         1563,
         1257,
         3154
       ],
-      "Tetris": [
+      "tetris": [
         11,
         14,
         14
@@ -433,29 +433,29 @@
         17.931568569324174,
         22.661833756229235
       ],
-      "Candy Crash": [
+      "candy_crush": [
         13,
         238,
         52
       ],
-      "Ace Attorney": [
+      "ace_attorney": [
         0
       ]
     }
   },
   "gpt-4o-2024-11-20": {
     "harness_true": {
-      "Sokoban": [
+      "sokoban": [
         0,
         0,
         0
       ],
-      "SMB": [
+      "super_mario_bros": [
         2017,
         2590,
         1535
       ],
-      "Tetris": [
+      "tetris": [
         18,
         11,
         13
@@ -465,27 +465,27 @@
         20.652858974244605,
         22.04473562605691
       ],
-      "Candy Crash": [
+      "candy_crush": [
         131,
         104,
         207
       ],
-      "Ace Attorney": [
+      "ace_attorney": [
         0
       ]
     },
     "harness_false": {
-      "Sokoban": [
+      "sokoban": [
         0,
         0,
         0
       ],
-      "SMB": [
+      "super_mario_bros": [
         1565,
         297,
         1223
       ],
-      "Tetris": [
+      "tetris": [
         14,
         17,
         13
@@ -495,69 +495,69 @@
         15.229419688230417,
         10.643856189774725
       ],
-      "Candy Crash": [
+      "candy_crush": [
         29,
         122,
         26
       ],
-      "Ace Attorney": [
+      "ace_attorney": [
         0
       ]
     }
   },
   "o1-2024-12-17": {
     "harness_true": {
-      "Sokoban": [
+      "sokoban": [
         2,
         2,
         3
       ],
-      "SMB": [
+      "super_mario_bros": [
         855
       ],
-      "Tetris": [
+      "tetris": [
         35
       ],
       "twenty_forty_eight": [
         25.775964266116908
       ],
-      "Candy Crash": [
+      "candy_crush": [
         159
       ],
-      "Ace Attorney": [
+      "ace_attorney": [
         16
       ]
     },
     "harness_false": {
-      "Sokoban": [
+      "sokoban": [
         0
       ],
-      "SMB": [
+      "super_mario_bros": [
         1434
       ],
-      "Tetris": [
+      "tetris": [
         13
       ],
       "twenty_forty_eight": [
         25.61792834983852
       ],
-      "Candy Crash": [
+      "candy_crush": [
         90
       ],
-      "Ace Attorney": [
+      "ace_attorney": [
         3
       ]
     }
   },
   "o1-mini-2024-09-12": {
     "harness_true": {
-      "Sokoban": [
+      "sokoban": [
         1,
         2,
         1
       ],
-      "SMB": [],
-      "Tetris": [
+      "super_mario_bros": [],
+      "tetris": [
         11,
         11,
         13
@@ -567,80 +567,80 @@
         21.937333586390416,
         23.229419688230415
       ],
-      "Candy Crash": [
+      "candy_crush": [
         21,
         86,
         37
       ],
-      "Ace Attorney": [
+      "ace_attorney": [
         0
       ]
     },
     "harness_false": {
-      "Sokoban": [],
-      "SMB": [],
-      "Tetris": [],
+      "sokoban": [],
+      "super_mario_bros": [],
+      "tetris": [],
       "twenty_forty_eight": [],
-      "Candy Crash": [],
-      "Ace Attorney": []
+      "candy_crush": [],
+      "ace_attorney": []
     }
   },
   "o3-2025-04-16": {
     "harness_true": {
-      "Sokoban": [
+      "sokoban": [
         10,
         6
       ],
-      "SMB": [
+      "super_mario_bros": [
         3445
       ],
-      "Tetris": [
+      "tetris": [
         42
       ],
       "twenty_forty_eight": [
         25.59532305170752
       ],
-      "Candy Crash": [
+      "candy_crush": [
         647
       ],
-      "Ace Attorney": [
+      "ace_attorney": [
         16
       ]
     },
     "harness_false": {
-      "Sokoban": [
+      "sokoban": [
         2
       ],
-      "SMB": [
+      "super_mario_bros": [
         1955
       ],
-      "Tetris": [
+      "tetris": [
         31
       ],
       "twenty_forty_eight": [
         25.635566243549068
       ],
-      "Candy Crash": [
+      "candy_crush": [
         106
       ],
-      "Ace Attorney": [
+      "ace_attorney": [
         8
       ]
     }
   },
   "o4-mini-2025-04-16": {
     "harness_true": {
-      "Sokoban": [
+      "sokoban": [
         4,
         6,
         6
       ],
-      "SMB": [
+      "super_mario_bros": [
         1525,
         1263,
         1556
       ],
-      "Tetris": [
+      "tetris": [
         22,
         35,
         19
@@ -650,27 +650,27 @@
         24.827255858048346,
         23.015589280397393
       ],
-      "Candy Crash": [
+      "candy_crush": [
         259,
         591,
         612
       ],
-      "Ace Attorney": [
+      "ace_attorney": [
         4
       ]
     },
     "harness_false": {
-      "Sokoban": [
+      "sokoban": [
         1,
         2,
         1
       ],
-      "SMB": [
+      "super_mario_bros": [
         1554,
         1245,
         1246
       ],
-      "Tetris": [
+      "tetris": [
         14,
         12,
         19
@@ -680,12 +680,12 @@
         12.784634845557521,
         22.643856189774723
       ],
-      "Candy Crash": [
+      "candy_crush": [
         82,
         82,
         168
       ],
-      "Ace Attorney": [
+      "ace_attorney": [
         2
       ]
     }

@@ -273,6 +273,8 @@ def generate_2048_median_score_replay(
 
         harness_short = "hT" if "true" in harness_status_key else "hF"
         safe_model_name = "".join(c if c.isalnum() or c in ['-', '_'] else '_' for c in model_name_prefix)
+        safe_model_name = safe_model_name[:15]
+
         
         video_name = f"{game_display_name.replace('_', '')}_{safe_model_name}_{harness_short}_median_ep{episode_id_str}_score{actual_median_score:.0f}.mp4" # Changed to .mp4
         
@@ -329,3 +331,4 @@ def generate_2048_median_score_replay(
         if 'temp_dir' in locals() and os.path.exists(temp_dir) and os.path.isdir(temp_dir): # Ensure it's a directory
             shutil.rmtree(temp_dir)
             print(f"Cleaned up temporary directory due to error: {temp_dir}")
+ 

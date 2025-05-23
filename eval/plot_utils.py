@@ -10,7 +10,7 @@ from PIL import Image, ImageDraw, ImageFont
 # For now, let's define a placeholder. This should ideally match the games in your rank data.
 # You might want to extract this dynamically from the rank_data or have a more robust way to define it.
 GAME_ORDER = [
-    "Sokoban", "SMB", "Tetris", "twenty_forty_eight", "Candy Crash", "Ace Attorney" 
+    "sokoban", "super_mario_bros", "tetris", "twenty_forty_eight", "candy_crush", "ace_attorney" 
 ] # Default/example order
 
 def hex_to_rgba(hex_color, alpha=0.2):
@@ -165,26 +165,32 @@ def create_comparison_radar_chart(
         r_values = [val if pd.notna(val) else 0 for val in r_values_raw]
 
         is_highlighted = highlight_models and player in highlight_models
+        
         model_color_hex = model_colors.get(player)
         if not model_color_hex or not isinstance(model_color_hex, str) or not model_color_hex.startswith('#'):
-            model_color_hex = '#808080' 
+            model_color_hex = '#808080' # Default to grey
 
-        color = 'red' if is_highlighted else model_color_hex
-        try:
-            fillcolor_rgba = 'rgba(255, 0, 0, 0.4)' if is_highlighted else hex_to_rgba(model_color_hex, 0.2)
-        except: 
-            fillcolor_rgba = 'rgba(128,128,128,0.2)'
+        if is_highlighted:
+            line_props = dict(color='red', width=3)
+            marker_props = dict(color='red', size=8, line=dict(color='darkred', width=2))
+            current_fill_color_rgba = 'rgba(255, 0, 0, 0.4)'
+            current_opacity = 0.9
+        else:
+            line_props = dict(color=model_color_hex, width=1.5)
+            marker_props = dict(color=model_color_hex, size=4, line=dict(color='#B0B0B0', width=1))
+            current_fill_color_rgba = hex_to_rgba(model_color_hex, 0.2)
+            current_opacity = 0.7
 
         fig.add_trace(go.Scatterpolar(
             r=r_values + [r_values[0]],  
             theta=categories + [categories[0]], 
             mode='lines+markers',
             name=player,
-            line=dict(color=color, width=3 if is_highlighted else 1.5),
-            marker=dict(color=color, size=6 if is_highlighted else 4),
+            line=line_props,
+            marker=marker_props,
             fill='toself',
-            fillcolor=fillcolor_rgba,
-            opacity=0.9 if is_highlighted else 0.7,
+            fillcolor=current_fill_color_rgba,
+            opacity=current_opacity,
             hovertemplate=(
                 f'<b>{player}</b><br>'
                 f'Game: %{{theta}}<br>'
