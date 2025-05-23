@@ -46,9 +46,7 @@ class MemoryModule(CoreModule):
             except Exception as exc:
                 print(f"[MemoryModule] failed to load trajectory: {exc}")
         else:
-            print("memory can not be reloaded as trajectory entries do not exist.")
-            print("Intializing new game trajectory.")
-            self.trajectory = []
+            print("memory isn't reloaded as trajectory entries do not exist.")
 
     def _append_to_log(self, line: str) -> None:
         """

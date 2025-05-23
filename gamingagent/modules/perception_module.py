@@ -136,7 +136,7 @@ class PerceptionModule(CoreModule):
     def get_perception_summary(self):
         """
         Get a summary of the current perception.
-        Uses Observation.get_parsed_representation() to parse the symbolic representation.
+        Uses Observation.get_textual_representation() to retrieve the symbolic representation.
         
         Returns:
             dict: A dictionary containing 
@@ -146,8 +146,8 @@ class PerceptionModule(CoreModule):
         """
         result = {
             "img_path": self.processed_observation.img_path,
-            "textual_representation": self.processed_observation.get_parsed_representation(),
-            "processed_visual_description": self.process_observation.processed_visual_description
+            "textual_representation": self.processed_observation.get_textual_representation(),
+            "processed_visual_description": self.processed_observation.processed_visual_description
         }
         return result
     

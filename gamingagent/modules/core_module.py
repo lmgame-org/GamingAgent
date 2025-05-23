@@ -179,6 +179,9 @@ class Observation:
         if use_memory_module:
             allowed_vars |= self.MEMORY_ATTR
 
+        print("allowed variables:")
+        print(allowed_vars)
+
         # Ensure only allowed attributes present in the prompt template
         for name in var_names:
             if name not in allowed_vars:
