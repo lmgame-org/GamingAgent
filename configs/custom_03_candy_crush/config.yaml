@@ -11,7 +11,7 @@ agent:
   harness: true # Set to true to use Perception/Memory/Reasoning modules
   token_limit: 100000
   reasoning_effort: "high"
-  observation_mode: "both" 
+  observation_mode: "text" 
 modules:
     base_module:
 

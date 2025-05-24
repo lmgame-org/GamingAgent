@@ -12,7 +12,7 @@ from gamingagent.modules import PerceptionModule, ReasoningModule # Observation 
 # Directly import the specific environment we are using
 from gamingagent.envs.custom_01_2048.twentyFortyEightEnv import TwentyFortyEightEnv
 from gamingagent.envs.custom_02_sokoban.sokobanEnv import SokobanEnv
-from gamingagent.envs.custom_03_candy_crush.candy_crush_env import CandyCrushEnvWrapper
+from gamingagent.envs.custom_03_candy_crush.candyCrushEnv import CandyCrushEnvWrapper
 
 game_config_mapping = {"twenty_forty_eight": "custom_01_2048",
                        "sokoban": "custom_02_sokoban",
