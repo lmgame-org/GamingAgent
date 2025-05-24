@@ -12,7 +12,6 @@ from gamingagent.modules.core_module import Observation
 # Retro is required to emulate the original NES "1942" ROM
 import retro
 
-
 class NineteenFortyTwoEnvWrapper:
     """Environment wrapper for Capcom's classic shooter **1942 (NES)**.
 
@@ -63,7 +62,7 @@ class NineteenFortyTwoEnvWrapper:
         log_root_dir: str = "runs_output",
         config_path: Optional[str] = None,
     ):
-        # ─── Public bookkeeping ────────────────────────────────────────────────
+        # Public bookkeeping
         self.game_name = game_name
         self.observation_mode = observation_mode.lower()
         self.env_type = env_type.lower()
@@ -113,7 +112,7 @@ class NineteenFortyTwoEnvWrapper:
         self._unchanged_frame_count: int = 0
 
     # ────────────────────────────────────────────────────────────────────────────
-    # ❶  CONFIG & ENV INITIALISATION
+    #  SET CONFIG
     # ────────────────────────────────────────────────────────────────────────────
 
     def _load_json_config(self, path: str) -> None:

@@ -188,7 +188,7 @@ def run_game_episode(agent: BaseAgent, game_env: Any, episode_id: int, args: arg
     else:
         print("Warning: game_env.adapter not found. Cannot record episode result for summary.")
 
-    return # No need to return individual run results from here, adapter handles them
+    return
 
 def main():
     prelim_parser = argparse.ArgumentParser(add_help=False)
@@ -250,7 +250,8 @@ def main():
         model_name=args.model_name,
         config_path=agent_prompts_config_path,
         harness=args.harness,
-        max_memory=args.max_memory, custom_modules=custom_modules_for_agent,
+        max_memory=args.max_memory, 
+        custom_modules=custom_modules_for_agent,
         observation_mode=args.observation_mode
     )
     
@@ -262,7 +263,7 @@ def main():
     game_env = create_environment(
         game_name_arg=args.game_name,
         obs_mode_arg=args.observation_mode,
-        config_dir_name_for_env_cfg=config_dir_name, # Pass the mapped dir name
+        config_dir_name_for_env_cfg=config_dir_name,
         cache_dir_for_adapter=runner_log_dir
     )
 
@@ -285,7 +286,7 @@ def main():
     else:
         print("Warning: game_env.adapter not found. Cannot finalize and save summary.")
     
-    game_env.close() # Close environment after all runs
+    game_env.close() # Close environment
 
     print("\n" + "="*30 + " Overall Summary " + "="*30)
     print(f"Game: {args.game_name}, Model: {args.model_name}, Mode: {'Harness' if args.harness else 'BaseOnly'}, ObsMode: {args.observation_mode}")

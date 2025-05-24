@@ -22,7 +22,7 @@ from .plot_utils import (
 )
 
 # Import Replay Utilities
-from .replay_utils import generate_2048_median_score_replay, generate_sokoban_median_score_replay # Added sokoban replay
+from .replay_utils import generate_2048_median_score_replay, generate_sokoban_median_score_replay
 
 # Import polynomial model script
 from .polynomial_model import run_polynomial_analysis, DEFAULT_MODEL_ORDER as PM_DEFAULT_MODEL_ORDER

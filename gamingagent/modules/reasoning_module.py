@@ -66,6 +66,9 @@ class ReasoningModule(CoreModule):
         Returns:
             dict: A dictionary containing action and thought
         """
+        # TODO: CLEAN UP — remove perception_data, memory_summary
+        # THEY SHOULD HAVE BEEN PRESENT IN observation
+
         # Get the image path (prefer the passed parameter if available)
         image_path = img_path or perception_data.get("img_path")
         textual_representation = perception_data.get("textual_representation", "")
@@ -83,9 +86,8 @@ class ReasoningModule(CoreModule):
         #reflection_context = f"Reflection:\n{memory_reflection}" if memory_reflection else ""
         #full_context = memory_context + perception_context + reflection_context
 
-    
-        use_memory = bool(game_trajectory.strip() and reflection.strip()) if isinstance(game_trajectory, str) and isinstance(reflection, str) else bool(game_trajectory and reflection)
-        use_perception = bool(processed_visual_description.strip()) if isinstance(processed_visual_description, str) else bool(processed_visual_description)
+        use_memory = bool(game_trajectory and reflection)
+        use_perception = bool(processed_visual_description)
 
         full_context = observation.get_complete_prompt(
             observation_mode=self.observation_mode,
@@ -128,8 +130,11 @@ class ReasoningModule(CoreModule):
         # Create user prompt with context
         user_prompt = self.prompt.replace("{context}", context) if "{context}" in self.prompt else context
 
-        # print(f"#########################\n####################################{user_prompt}####################################\n#########################")
-        print(f"------------------------ VISION API - FINAL USER PROMPT ------------------------\n{user_prompt}\n------------------------ END VISION API PROMPT ------------------------")
+        print(f"""
+------------------------ VISION API — FINAL USER PROMPT ------------------------
+{user_prompt}
+------------------------ END FINAL USER PROMPT ------------------------
+""")
         
         # Call the vision-text API
         response = self.api_manager.vision_text_completion(
@@ -165,7 +170,11 @@ class ReasoningModule(CoreModule):
             # If no placeholder, append the context
             user_prompt = context + "\n\n" + user_prompt
         
-        print(f"------------------------ TEXT API - FINAL USER PROMPT ------------------------\n{user_prompt}\n------------------------ END TEXT API PROMPT ------------------------")
+        print(f"""
+------------------------ TEXT API - FINAL USER PROMPT ------------------------
+{user_prompt}
+------------------------ END TEXT API PROMPT ------------------------
+""")
         # Call the API
         response = self.api_manager.text_only_completion(
             model_name=self.model_name,
