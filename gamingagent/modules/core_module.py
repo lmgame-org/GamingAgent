@@ -198,6 +198,7 @@ class Observation:
                 harness_content_map[name] = attr if attr is not None else "N/A"
         
         # Determine allowed variables
+        # TODO: make the code segment debug-use only
         allowed_vars = set()
         if observation_mode in ["text", "both"]:
             allowed_vars |= self.BASE_ATTR

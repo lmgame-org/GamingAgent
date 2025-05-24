@@ -1,21 +1,21 @@
 game_env:
-  name: "twenty_forty_eight"
-  description: "2048 game environment"
+  name: "nineteen_forty_two"
+  description: "1942 flight shooting game environment"
   env_type: "custom"
   render_mode: "human"
-  max_steps: 1000
+  max_steps: 5000
   seed: 42
-  num_runs: 2
+  num_runs: 3
 
 agent:
   # Global agent settings
-  name: "2048_agent"
-  model_name: "gemini-2.0-flash"
-  cache_dir: "cache/twenty_forty_eight"
+  name: "1942_nes_agent"
+  model_name: "claude-3-7-sonnet-latest"
+  cache_dir: "cache/nineteen_forty_two"
   reasoning_effort: "high"
   token_limit: 100000
-  harness: true # Whether to use the perception-memory-reasoning pipeline
-  observation_mode: "vision"
+  harness: false  # Whether to use the perception-memory-reasoning pipeline
+  
   # Module-specific settings
   modules:
     base_module:
