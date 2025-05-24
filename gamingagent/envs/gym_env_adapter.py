@@ -344,11 +344,13 @@ class GymEnvAdapter:
             scores = [r['score'] for r in self.all_episode_results]
             steps_list = [r['steps'] for r in self.all_episode_results]
             total_rewards_list = [r['total_reward_for_episode'] for r in self.all_episode_results]
+            total_perf_scores_list = [r['total_perf_score_for_episode'] for r in self.all_episode_results]
 
             stats_map = {
                 "Final Env Scores": scores,
                 "Steps Taken": steps_list,
                 "Total Rewards": total_rewards_list,
+                "Total Performance Scores": total_perf_scores_list
             }
 
             for key, values in stats_map.items():

@@ -84,6 +84,121 @@ def create_environment(game_name_arg: str,
             max_stuck_steps_for_adapter=env_init_params.get('max_stuck_steps_for_adapter')
         )
         return env
+    if game_name_arg == "twenty_forty_eight":
+        # Load params specific to 2048
+        if os.path.exists(env_specific_config_path):
+            with open(env_specific_config_path, 'r') as f:
+                env_specific_config = json.load(f)
+                env_init_params['size'] = env_specific_config.get('env_init_kwargs', {}).get('size', 4)
+                env_init_params['max_pow'] = env_specific_config.get('env_init_kwargs', {}).get('max_pow', 16)
+                env_init_params['render_mode'] = env_specific_config.get('render_mode_gym_make', 'human')
+                env_init_params['max_stuck_steps_for_adapter'] = env_specific_config.get('max_unchanged_steps_for_termination', 10)
+        else:
+            print(f"Warning: {env_specific_config_path} for {game_name_arg} not found. Using default env parameters.")
+            env_init_params['size'] = 4
+            env_init_params['max_pow'] = 16
+            env_init_params['render_mode'] = 'human'
+            env_init_params['max_stuck_steps_for_adapter'] = 10
+
+        print(f"Initializing environment: {game_name_arg} with params: {env_init_params}")
+        env = TwentyFortyEightEnv(
+            render_mode=env_init_params.get('render_mode'),
+            size=env_init_params.get('size'),
+            max_pow=env_init_params.get('max_pow'),
+            game_name_for_adapter=game_name_arg,
+            observation_mode_for_adapter=obs_mode_arg, 
+            agent_cache_dir_for_adapter=cache_dir_for_adapter, 
+            game_specific_config_path_for_adapter=env_specific_config_path, # This is path to its own config
+            max_stuck_steps_for_adapter=env_init_params.get('max_stuck_steps_for_adapter')
+        )
+        return env
+    elif game_name_arg == "sokoban":
+        # Load params specific to Sokoban
+        if os.path.exists(env_specific_config_path):
+            with open(env_specific_config_path, 'r') as f:
+                env_specific_config = json.load(f)
+                env_init_kwargs = env_specific_config.get('env_init_kwargs', {})
+                env_init_params['dim_room'] = env_init_kwargs.get('dim_room', (10,10))
+                env_init_params['max_steps_episode'] = env_init_kwargs.get('max_steps_episode', 200)
+                env_init_params['num_boxes'] = env_init_kwargs.get('num_boxes', 3)
+                env_init_params['num_gen_steps'] = env_init_kwargs.get('num_gen_steps') # Can be None
+                env_init_params['level_to_load'] = env_specific_config.get('level_to_load') # Can be None
+                env_init_params['render_mode'] = env_specific_config.get('render_mode', 'human')
+                env_init_params['tile_size_for_render'] = env_specific_config.get('tile_size_for_render', 32)
+                env_init_params['max_stuck_steps_for_adapter'] = env_specific_config.get('max_unchanged_steps_for_termination', 20)
+        else:
+            print(f"Warning: {env_specific_config_path} for {game_name_arg} not found. Using default env parameters for Sokoban.")
+            env_init_params['dim_room'] = (10,10)
+            env_init_params['max_steps_episode'] = 200
+            env_init_params['num_boxes'] = 3
+            env_init_params['num_gen_steps'] = None
+            env_init_params['level_to_load'] = None
+            env_init_params['render_mode'] = 'human'
+            env_init_params['tile_size_for_render'] = 32
+            env_init_params['max_stuck_steps_for_adapter'] = 20
+
+        
+        print(f"Initializing environment: {game_name_arg} with params: {env_init_params}")
+        env = SokobanEnv(
+            render_mode=env_init_params.get('render_mode'),
+            dim_room=tuple(env_init_params.get('dim_room')), # Ensure it's a tuple
+            max_steps_episode=env_init_params.get('max_steps_episode'),
+            num_boxes=env_init_params.get('num_boxes'),
+            num_gen_steps=env_init_params.get('num_gen_steps'),
+            level_to_load=env_init_params.get('level_to_load'),
+            tile_size_for_render=env_init_params.get('tile_size_for_render'),
+            game_name_for_adapter=game_name_arg, 
+            observation_mode_for_adapter=obs_mode_arg, 
+            agent_cache_dir_for_adapter=cache_dir_for_adapter, 
+            game_specific_config_path_for_adapter=env_specific_config_path, 
+            max_stuck_steps_for_adapter=env_init_params.get('max_stuck_steps_for_adapter')
+        )
+        return env
+    elif game_name_arg == "candy_crush":
+        # Load params specific to Candy Crush
+        # The config_dir_name_for_env_cfg for candy_crush will be "custom_03_candy_crush"
+        if os.path.exists(env_specific_config_path):
+            with open(env_specific_config_path, 'r') as f:
+                env_specific_config = json.load(f)
+                env_init_kwargs = env_specific_config.get('env_init_kwargs', {})
+                # Parameters for CandyCrushEnvWrapper's internal TileMatchEnv
+                env_init_params['num_rows'] = env_init_kwargs.get('num_rows', 8)
+                env_init_params['num_cols'] = env_init_kwargs.get('num_cols', 8)
+                env_init_params['num_colours'] = env_init_kwargs.get('num_colours', 4)
+                env_init_params['num_moves'] = env_init_kwargs.get('num_moves', 50)
+                # render_mode is for the wrapper's internal renderer if used, not GymEnvAdapter
+                env_init_params['render_mode_for_make'] = env_specific_config.get('render_mode_for_make', 'string') 
+                env_init_params['tile_size_for_render'] = env_specific_config.get('tile_size_for_render', 32)
+                # max_stuck_steps_for_adapter for GymEnvAdapter instance
+                env_init_params['max_stuck_steps_for_adapter'] = env_specific_config.get('max_unchanged_steps_for_termination', 20) # Default from Sokoban
+        else:
+            print(f"Warning: {env_specific_config_path} for {game_name_arg} not found. Using default env parameters for Candy Crush.")
+            env_init_params['num_rows'] = 8
+            env_init_params['num_cols'] = 8
+            env_init_params['num_colours'] = 4
+            env_init_params['num_moves'] = 50
+            env_init_params['render_mode_for_make'] = 'string'
+            env_init_params['tile_size_for_render'] = 32
+            env_init_params['max_stuck_steps_for_adapter'] = 20
+
+        print(f"Initializing environment: {game_name_arg} with params: {env_init_params}")
+        env = CandyCrushEnvWrapper(
+            # Parameters for CandyCrushEnvWrapper -> TileMatchEnv core
+            num_rows_override=env_init_params.get('num_rows'),
+            num_cols_override=env_init_params.get('num_cols'),
+            num_colours_override=env_init_params.get('num_colours'),
+            num_moves_override=env_init_params.get('num_moves'),
+            # Parameters for GymEnvAdapter instance within CandyCrushEnvWrapper
+            game_name_for_adapter=game_name_arg, 
+            observation_mode_for_adapter=obs_mode_arg, 
+            agent_cache_dir_for_adapter=cache_dir_for_adapter, 
+            # This is the path the env itself will use to load its own full config (including env_init_kwargs)
+            game_specific_config_path_for_adapter=env_specific_config_path, 
+            max_stuck_steps_for_adapter=env_init_params.get('max_stuck_steps_for_adapter'),
+            # Other params potentially needed by CandyCrushEnvWrapper if not covered by game_specific_config_path_for_adapter
+            # config_root_dir is already an arg to runner, CandyCrushEnvWrapper doesn't need it directly if path is absolute
+        )
+        return env
     elif game_name_arg == "tetris":
         from gamingagent.envs.custom_04_tetris.tetrisEnv import TetrisEnv # Import TetrisEnv
         if os.path.exists(env_specific_config_path):
