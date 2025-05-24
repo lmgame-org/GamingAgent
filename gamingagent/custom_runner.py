@@ -12,7 +12,8 @@ from gamingagent.modules import PerceptionModule, ReasoningModule # Observation 
 # Directly import the specific environment we are using
 from gamingagent.envs.custom_01_2048.twentyFortyEightEnv import TwentyFortyEightEnv
 from gamingagent.envs.custom_02_sokoban.sokobanEnv import SokobanEnv
-from gamingagent.envs.custom_03_candy_crush.candyCrushEnv import CandyCrushEnvWrapper
+from gamingagent.envs.custom_03_candy_crush.candyCrushEnv import CandyCrushEnv
+from gamingagent.envs.custom_04_tetris.tetrisEnv import TetrisEnv 
 
 game_config_mapping = {"twenty_forty_eight": "custom_01_2048",
                        "sokoban": "custom_02_sokoban",
@@ -24,14 +25,15 @@ game_config_mapping = {"twenty_forty_eight": "custom_01_2048",
 def parse_arguments(defaults_map=None, argv_to_parse=None):
     parser = argparse.ArgumentParser(description="Run GamingAgent for the 2048 Gym Environment.")
     # Game name is fixed for this runner, but kept for config loading structure
-    parser.add_argument("--game_name", type=str, default="twenty_forty_eight", 
-                        help="Name of the game (fixed to twenty_forty_eight for this runner).")
+    parser.add_argument("--game_name", type=str, default=None,
+                        help="Name of the game.")
     parser.add_argument("--model_name", type=str, default="claude-3-haiku-20240307",
                         help="Name of the model for the agent.")
     parser.add_argument("--config_root_dir", type=str, default="configs",
                         help="Root directory for agent configurations.")
-    parser.add_argument("--harness", action="store_true",
-                        help="Use perception-memory-reasoning pipeline (harness mode). Default is False.")
+    parser.add_argument("--harness", type=str, nargs='?', const='true', default='false',
+                        choices=['true', 'false'],
+                        help="Use perception-memory-reasoning pipeline. Accepts 'true' or 'false'. Default: false.")
     parser.add_argument("--num_runs", type=int, default=1, help="Number of game episodes.")
     parser.add_argument("--observation_mode", type=str, default="vision",
                         choices=["vision", "text", "both"], help="Agent's observation mode.")
@@ -56,34 +58,6 @@ def create_environment(game_name_arg: str,
     env_specific_config_path = os.path.join("gamingagent/envs", config_dir_name_for_env_cfg, "game_env_config.json")
     env_init_params = {} # Will be populated based on the specific game
 
-    if game_name_arg == "twenty_forty_eight":
-        # Load params specific to 2048
-        if os.path.exists(env_specific_config_path):
-            with open(env_specific_config_path, 'r') as f:
-                env_specific_config = json.load(f)
-                env_init_params['size'] = env_specific_config.get('env_init_kwargs', {}).get('size', 4)
-                env_init_params['max_pow'] = env_specific_config.get('env_init_kwargs', {}).get('max_pow', 16)
-                env_init_params['render_mode'] = env_specific_config.get('render_mode_gym_make', 'human')
-                env_init_params['max_stuck_steps_for_adapter'] = env_specific_config.get('max_unchanged_steps_for_termination', 10)
-        else:
-            print(f"Warning: {env_specific_config_path} for {game_name_arg} not found. Using default env parameters.")
-            env_init_params['size'] = 4
-            env_init_params['max_pow'] = 16
-            env_init_params['render_mode'] = 'human'
-            env_init_params['max_stuck_steps_for_adapter'] = 10
-
-        print(f"Initializing environment: {game_name_arg} with params: {env_init_params}")
-        env = TwentyFortyEightEnv(
-            render_mode=env_init_params.get('render_mode'),
-            size=env_init_params.get('size'),
-            max_pow=env_init_params.get('max_pow'),
-            game_name_for_adapter=game_name_arg,
-            observation_mode_for_adapter=obs_mode_arg, 
-            agent_cache_dir_for_adapter=cache_dir_for_adapter, 
-            game_specific_config_path_for_adapter=env_specific_config_path, # This is path to its own config
-            max_stuck_steps_for_adapter=env_init_params.get('max_stuck_steps_for_adapter')
-        )
-        return env
     if game_name_arg == "twenty_forty_eight":
         # Load params specific to 2048
         if os.path.exists(env_specific_config_path):
@@ -161,7 +135,7 @@ def create_environment(game_name_arg: str,
             with open(env_specific_config_path, 'r') as f:
                 env_specific_config = json.load(f)
                 env_init_kwargs = env_specific_config.get('env_init_kwargs', {})
-                # Parameters for CandyCrushEnvWrapper's internal TileMatchEnv
+                # Parameters for CandyCrushEnv's internal TileMatchEnv
                 env_init_params['num_rows'] = env_init_kwargs.get('num_rows', 8)
                 env_init_params['num_cols'] = env_init_kwargs.get('num_cols', 8)
                 env_init_params['num_colours'] = env_init_kwargs.get('num_colours', 4)
@@ -182,25 +156,24 @@ def create_environment(game_name_arg: str,
             env_init_params['max_stuck_steps_for_adapter'] = 20
 
         print(f"Initializing environment: {game_name_arg} with params: {env_init_params}")
-        env = CandyCrushEnvWrapper(
-            # Parameters for CandyCrushEnvWrapper -> TileMatchEnv core
+        env = CandyCrushEnv(
+            # Parameters for CandyCrushEnv -> TileMatchEnv core
             num_rows_override=env_init_params.get('num_rows'),
             num_cols_override=env_init_params.get('num_cols'),
             num_colours_override=env_init_params.get('num_colours'),
             num_moves_override=env_init_params.get('num_moves'),
-            # Parameters for GymEnvAdapter instance within CandyCrushEnvWrapper
+            # Parameters for GymEnvAdapter instance within CandyCrushEnv
             game_name_for_adapter=game_name_arg, 
             observation_mode_for_adapter=obs_mode_arg, 
             agent_cache_dir_for_adapter=cache_dir_for_adapter, 
             # This is the path the env itself will use to load its own full config (including env_init_kwargs)
             game_specific_config_path_for_adapter=env_specific_config_path, 
             max_stuck_steps_for_adapter=env_init_params.get('max_stuck_steps_for_adapter'),
-            # Other params potentially needed by CandyCrushEnvWrapper if not covered by game_specific_config_path_for_adapter
-            # config_root_dir is already an arg to runner, CandyCrushEnvWrapper doesn't need it directly if path is absolute
+            # Other params potentially needed by CandyCrushEnv if not covered by game_specific_config_path_for_adapter
+            # config_root_dir is already an arg to runner, CandyCrushEnv doesn't need it directly if path is absolute
         )
         return env
     elif game_name_arg == "tetris":
-        from gamingagent.envs.custom_04_tetris.tetrisEnv import TetrisEnv # Import TetrisEnv
         if os.path.exists(env_specific_config_path):
             with open(env_specific_config_path, 'r') as f:
                 env_specific_config = json.load(f)
@@ -219,7 +192,6 @@ def create_environment(game_name_arg: str,
             env_init_params['tile_size_for_render'] = 32
             env_init_params['max_stuck_steps_for_adapter'] = 20
 
-        from gamingagent.envs.custom_02_sokoban.sokobanEnv import SokobanEnv
         print(f"Initializing environment: {game_name_arg} with params: {env_init_params}")
         env = TetrisEnv(
             render_mode=env_init_params.get('render_mode'),
@@ -317,6 +289,9 @@ def main():
         config_dir_name = pre_args.game_name
 
     defaults_from_yaml = {}
+    if pre_args.game_name:
+        defaults_from_yaml['game_name'] = pre_args.game_name
+
     config_file_path = os.path.join(pre_args.config_root_dir, config_dir_name, "config.yaml")
 
     if os.path.exists(config_file_path):
@@ -347,6 +322,12 @@ def main():
         print(f"Info: Main config file {config_file_path} not found. Using command-line args and hardcoded defaults.")
 
     args = parse_arguments(defaults_map=defaults_from_yaml, argv_to_parse=remaining_argv)
+
+    # Convert harness string to boolean after parsing
+    if isinstance(args.harness, str):
+        args.harness = args.harness.lower() in ('yes', 'true', 't', 'y', '1')
+    # If harness was already a boolean (e.g. from yaml load as boolean, though str is expected from CLI here),
+    # it remains a boolean. This primarily handles the string from CLI.
 
     agent_prompts_config_path = os.path.join(args.config_root_dir, config_dir_name, "module_prompts.json")
     if not os.path.isfile(agent_prompts_config_path):

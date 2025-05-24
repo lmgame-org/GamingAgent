@@ -148,7 +148,7 @@ def create_board_image_candy_crush(board_state: np.ndarray, save_path: str, tile
         if save_dir: os.makedirs(save_dir, exist_ok=True)
         img.save(save_path)
 
-class CandyCrushEnvWrapper(gym.Env):
+class CandyCrushEnv(gym.Env):
     metadata = {"render_modes": ["string", "human", "rgb_array"], "render_fps": 2}
 
     def __init__(self, 
@@ -272,7 +272,7 @@ class CandyCrushEnvWrapper(gym.Env):
         self.current_episode_cumulative_perf_score: float = 0.0
         self.last_action_str_for_render: Optional[str] = None # For rendering on image
 
-        print(f"[CandyCrushEnvWrapper] Initialized. Adapter obs mode: {self.adapter.observation_mode}")
+        print(f"[CandyCrushEnv] Initialized. Adapter obs mode: {self.adapter.observation_mode}")
 
     def _load_candy_crush_config(self, game_specific_config_path: str):
         """Loads game_env_config.json to get env_init_kwargs and other settings."""
@@ -282,12 +282,12 @@ class CandyCrushEnvWrapper(gym.Env):
             try:
                 with open(config_file_to_load, 'r') as f:
                     self._game_env_config = json.load(f)
-                print(f"[CandyCrushEnvWrapper] Loaded game_env_config from: {config_file_to_load}")
+                print(f"[CandyCrushEnv] Loaded game_env_config from: {config_file_to_load}")
             except json.JSONDecodeError as e:
-                print(f"[CandyCrushEnvWrapper] ERROR decoding JSON from {config_file_to_load}: {e}. Using defaults.")
+                print(f"[CandyCrushEnv] ERROR decoding JSON from {config_file_to_load}: {e}. Using defaults.")
                 self._game_env_config = {} # Ensure it's a dict
         else:
-            print(f"[CandyCrushEnvWrapper] WARNING: Config {config_file_to_load} not found. Using default env_init_kwargs.")
+            print(f"[CandyCrushEnv] WARNING: Config {config_file_to_load} not found. Using default env_init_kwargs.")
         
         # Ensure env_init_kwargs exists
         if "env_init_kwargs" not in self._game_env_config:
@@ -525,7 +525,7 @@ class CandyCrushEnvWrapper(gym.Env):
             info_dict['executed_action_int_for_replay'] = action_int
         else:
             # Invalid action from agent: treat as a "null" move
-            print(f"[CandyCrushEnvWrapper] Warning: Invalid action '{parsed_action_str_for_log}' (original: '{agent_action_str}'). Null move.")
+            print(f"[CandyCrushEnv] Warning: Invalid action '{parsed_action_str_for_log}' (original: '{agent_action_str}'). Null move.")
             self.timer = (self.timer if self.timer is not None else -1) + 1 
             reward = 0.0 # No points for invalid action
             terminated = self.timer >= self.num_moves if self.timer is not None else False
@@ -615,7 +615,7 @@ class CandyCrushEnvWrapper(gym.Env):
             self.renderer = None
         self.adapter.close_log_file() # Close current episode log
         # Note: finalize_and_save_summary is typically called by the runner, not here.
-        print("[CandyCrushEnvWrapper] Closed.")
+        print("[CandyCrushEnv] Closed.")
 
 
     def get_board_state(self, raw_observation: Any, info: Dict[str, Any]) -> Optional[np.ndarray]:
@@ -633,7 +633,7 @@ class CandyCrushEnvWrapper(gym.Env):
         elif isinstance(board_array_3d, np.ndarray) and board_array_3d.ndim == 2: # If it's already 2D
             return board_array_3d
         
-        print(f"[CandyCrushEnvWrapper] Warning: Could not extract 2D color board from raw_observation: {type(raw_observation)}")
+        print(f"[CandyCrushEnv] Warning: Could not extract 2D color board from raw_observation: {type(raw_observation)}")
         return None
 
     def map_env_action_to_agent_action(self, env_action_idx: int) -> str:
@@ -651,7 +651,7 @@ class CandyCrushEnvWrapper(gym.Env):
 
         if render_mode_to_use == "string":
             if not (hasattr(self, 'board') and self.board and self.board.board is not None):
-                print("[CandyCrushEnvWrapper] Board not available for rendering.")
+                print("[CandyCrushEnv] Board not available for rendering.")
                 return None
             # Ensure colour_map is initialized for string rendering
             if not hasattr(self, 'colour_map') or self.colour_map is None:

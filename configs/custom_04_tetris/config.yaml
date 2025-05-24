@@ -13,8 +13,8 @@ agent:
   cache_dir: "cache/tetris" # Base cache directory for this agent/game
   reasoning_effort: "high" # Example, if your agent uses this
   token_limit: 8000        # Example token limit
-  harness: True         # Default to non-harness mode, set to true to use perception/reasoning modules
-  observation_mode: "both" 
+  harness: false         # Default to non-harness mode, set to true to use perception/reasoning modules
+  observation_mode: "vision" 
   
   modules:
     base_module:
