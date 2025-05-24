@@ -10,7 +10,7 @@ game_env:
 agent:
   # Global agent settings
   name: "sokoban_agent"
-  model_name: "gemini-2.0-flash"
+  model_name: "claude-3-5-sonnet-latest"
   cache_dir: "cache/sokoban"
   reasoning_effort: "high"
   token_limit: 64000
