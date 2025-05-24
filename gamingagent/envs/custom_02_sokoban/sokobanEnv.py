@@ -218,6 +218,10 @@ class SokobanEnv(gym.Env):
             max_steps_for_stuck=max_stuck_steps_for_adapter
         )
 
+        # Sokoban-specific performance score tracking
+        self.previous_boxes_on_target_for_perf: int = 0
+        self.current_episode_cumulative_perf_score: float = 0.0
+
         self.room_fixed: Optional[np.ndarray] = None
         self.room_state: Optional[np.ndarray] = None
         self.player_position: Optional[np.ndarray] = None
@@ -366,6 +370,10 @@ class SokobanEnv(gym.Env):
         self.num_env_steps = 0
         self.current_reward_last_step = 0.0
         
+        # Reset Sokoban-specific performance score trackers
+        self.previous_boxes_on_target_for_perf = 0
+        self.current_episode_cumulative_perf_score = 0.0
+
         level_loaded_ok = False
         if self.level_to_load and self.level_to_load in self.predefined_levels:
             level_data_str = self.predefined_levels[self.level_to_load]
@@ -381,10 +389,8 @@ class SokobanEnv(gym.Env):
         raw_board_obs = self._get_raw_board_obs()
         info_dict = self._get_info()
         
-        img_path_for_adapter = None
-        text_representation_for_adapter = None
-        # Calculate initial perf score (can be 0 or based on initial state)
-        initial_perf_score = self.adapter.calculate_perf_score(0, info_dict) 
+        # Calculate initial perf score using the overridden method
+        initial_perf_score = self.calculate_perf_score(0, info_dict) 
 
         if self.adapter.observation_mode in ["vision", "both"]:
             img_path_for_adapter = self.adapter._create_agent_observation_path(self.adapter.current_episode_id, self.adapter.current_step_num)
@@ -527,7 +533,7 @@ class SokobanEnv(gym.Env):
 
         raw_board_obs = self._get_raw_board_obs()
         info_dict = self._get_info() # Get latest info
-        current_perf_score = self.adapter.calculate_perf_score(reward, info_dict)
+        current_perf_score = self.calculate_perf_score(reward, info_dict)
         
         img_path_for_adapter = None
         text_representation_for_adapter = None
@@ -613,3 +619,31 @@ class SokobanEnv(gym.Env):
             self.clock = None
         self.adapter.close_log_file()
         print("[SokobanEnv] Closed.")
+
+    def calculate_perf_score(self, reward: float, info: Dict[str, Any]) -> float:
+        """
+        Calculates a performance score for the current step for Sokoban.
+        This is based on the cumulative count of newly placed boxes on targets 
+        within the current episode.
+
+        Args:
+            reward (float): The reward received for the step (not directly used here).
+            info (Dict[str, Any]): Additional information from the environment, expected
+                                   to contain "boxes_on_target".
+
+        Returns:
+            float: The cumulative performance score for the episode up to this step.
+        """
+        current_boxes_on_target = info.get("boxes_on_target", 0)
+        
+        delta_boxes = 0
+        if current_boxes_on_target > self.previous_boxes_on_target_for_perf:
+            delta_boxes = current_boxes_on_target - self.previous_boxes_on_target_for_perf
+        
+        # Only add positive delta to the cumulative score
+        if delta_boxes > 0:
+            self.current_episode_cumulative_perf_score += float(delta_boxes)
+            
+        self.previous_boxes_on_target_for_perf = current_boxes_on_target
+        
+        return self.current_episode_cumulative_perf_score
