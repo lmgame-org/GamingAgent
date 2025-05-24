@@ -20,7 +20,8 @@ class BaseAgent(ABC):
     """
     
     def __init__(self, game_name, model_name, config_path=None, harness=True, 
-                 max_memory=10, cache_dir=None, custom_modules=None, observation_mode="vision"):
+                 max_memory=10, cache_dir=None, custom_modules=None, observation_mode="vision",
+                 token_limit: int = 100000, reasoning_effort: str = "high"):
         """
         Initialize the agent with base parameters and modules.
         
@@ -34,12 +35,16 @@ class BaseAgent(ABC):
             cache_dir (str, optional): Custom cache directory path
             custom_modules (dict, optional): Custom module classes to use
             observation_mode (str): Mode for processing observations ("vision", "text", or "both")
+            token_limit (int): Token limit for the model.
+            reasoning_effort (str): Reasoning effort for the model (e.g., "low", "medium", "high").
         """
         self.game_name = game_name
         self.model_name = model_name
         self.harness = harness
         self.max_memory = max_memory
         self.observation_mode = observation_mode
+        self.token_limit = token_limit
+        self.reasoning_effort = reasoning_effort
         
         # Set up cache directory following the specified pattern
         if cache_dir is None:
@@ -148,8 +153,8 @@ class BaseAgent(ABC):
                 system_prompt=self.config["base_module"]["system_prompt"],
                 prompt=self.config["base_module"]["prompt"],
                 observation_mode=self.observation_mode,
-                token_limit=100000,
-                reasoning_effort="high"
+                token_limit=self.token_limit,
+                reasoning_effort=self.reasoning_effort
             )
         else:
             # Use default BaseModule
@@ -159,8 +164,8 @@ class BaseAgent(ABC):
                 system_prompt=self.config["base_module"]["system_prompt"],
                 prompt=self.config["base_module"]["prompt"],
                 observation_mode=self.observation_mode,
-                token_limit=100000,
-                reasoning_effort="high"
+                token_limit=self.token_limit,
+                reasoning_effort=self.reasoning_effort
             )
         
         # Initialize perception, memory, and reasoning modules if using harness
@@ -225,6 +230,8 @@ class BaseAgent(ABC):
             "harness": self.harness,
             "max_memory": self.max_memory,
             "cache_dir": self.cache_dir,
+            "token_limit": self.token_limit,
+            "reasoning_effort": self.reasoning_effort,
             "modules": {
                 module: module_instance.__class__.__name__ 
                 for module, module_instance in self.modules.items() 

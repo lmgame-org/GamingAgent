@@ -33,6 +33,15 @@ def parse_arguments(defaults_map=None, argv_to_parse=None):
     parser.add_argument("--seed", type=int, default=None, help="Random seed for environment.")
     parser.add_argument("--env_type", type=str, default="custom", choices=["custom", "retro"],
                         help="Type of game environment framework to use ('custom' for envs in gamingagent/envs, 'retro' for gym-retro).")
+    # New arguments for token_limit and reasoning_effort
+    parser.add_argument("--token_limit", type=int, default=8000, help="Token limit for the agent's model.")
+    parser.add_argument("--reasoning_effort", type=str, default="medium",
+                        choices=["low", "medium", "high"], help="Reasoning effort for the agent's model.")
+    parser.add_argument("--replay_mode", type=str, default="none", 
+                        choices=["none", "frame_by_frame", "seed_and_actions", "both"],
+                        help="Generate replay video(s) after each episode. 'none' for no replay, 'frame_by_frame' for visual log, 'seed_and_actions' for re-simulation, 'both' for both.")
+    parser.add_argument("--replay_frame_duration", type=float, default=0.5, 
+                        help="Duration of each frame in the replay GIF.")
     
     # Set defaults from YAML if provided
     # These will be overridden by command-line arguments if specified
@@ -46,11 +55,20 @@ def parse_arguments(defaults_map=None, argv_to_parse=None):
 def run_game_episode(agent: BaseAgent, game_env: BaseGameEnv, episode_id: int, args: argparse.Namespace):
     print(f"Starting Episode {episode_id} for {args.game_name} with seed {args.seed if args.seed is not None else 'default'}...")
 
+    # Store initial seed for this episode for replay purposes
+    initial_seed_for_episode = args.seed
+
     agent_observation, last_info = game_env.reset(seed=args.seed, episode_id=episode_id)
-    if args.seed is not None: args.seed += 1
+    if args.seed is not None: args.seed += 1 # Increment for next episode if running multiple
 
     total_reward = 0
-    total_episode_perf_score = 0.0 # Initialize total perf score for the episode
+    total_episode_perf_score = 0.0
+
+    # Lists to store data for replay logging
+    episode_raw_observations_for_replay = []
+    episode_agent_actions_str_for_replay = []
+    episode_infos_for_replay = []
+    episode_executed_action_ints_for_replay = []
 
     for step_num in range(args.max_steps_per_episode):
         game_env.render_human()
@@ -60,7 +78,9 @@ def run_game_episode(agent: BaseAgent, game_env: BaseGameEnv, episode_id: int, a
         end_time = time.time()
         time_taken_s = end_time - start_time
 
-        action_str_agent = action_dict.get("action", "None").strip().lower()
+        # Ensure action_str_agent is always a string, defaulting to "None" if action is not found or is None
+        agent_action_value = action_dict.get("action")
+        action_str_agent = str(agent_action_value).strip().lower() if agent_action_value is not None else "none"
         thought_process = action_dict.get("thought", "")
 
         # Unpack perf_score from the game_env.step() return values
@@ -69,7 +89,14 @@ def run_game_episode(agent: BaseAgent, game_env: BaseGameEnv, episode_id: int, a
         )
             
         total_reward += reward
-        total_episode_perf_score += current_step_perf_score # Accumulate perf_score
+        total_episode_perf_score += current_step_perf_score
+
+        # Log data for replay
+        if last_info:
+            episode_raw_observations_for_replay.append(last_info.get('raw_env_observation_for_replay'))
+            episode_agent_actions_str_for_replay.append(action_str_agent)
+            episode_infos_for_replay.append(last_info.copy()) # Store a copy
+            episode_executed_action_ints_for_replay.append(last_info.get('executed_action_int_for_replay'))
 
         if terminated or truncated: break
             
@@ -79,7 +106,75 @@ def run_game_episode(agent: BaseAgent, game_env: BaseGameEnv, episode_id: int, a
 
     print(f"Episode {episode_id} finished after {step_num+1} steps. Final Score: {final_score}, Total Reward: {total_reward}, Total Perf Score: {total_episode_perf_score}")
 
-    return final_score, step_num + 1, total_reward, total_episode_perf_score # Return total_episode_perf_score
+    # Save replay log for the episode
+    episode_replay_data = {
+        "initial_seed": initial_seed_for_episode,
+        "raw_observations": episode_raw_observations_for_replay,
+        "agent_actions_str": episode_agent_actions_str_for_replay,
+        "infos": episode_infos_for_replay,
+        "executed_action_ints": episode_executed_action_ints_for_replay,
+        "final_score": final_score,
+        "total_reward": total_reward,
+        "steps_taken": step_num + 1
+    }
+    
+    runner_log_dir = agent.cache_dir # Defined later, but needed here
+    replay_log_filename = os.path.join(runner_log_dir, f"episode_{episode_id:03d}_replay_log.json")
+    try:
+        with open(replay_log_filename, 'w') as f:
+            # Custom encoder for numpy types if they sneak in (e.g. in raw_obs board)
+            class NumpyEncoder(json.JSONEncoder):
+                def default(self, obj):
+                    if isinstance(obj, np.integer):
+                        return int(obj)
+                    if isinstance(obj, np.floating):
+                        return float(obj)
+                    if isinstance(obj, np.ndarray):
+                        return obj.tolist()
+                    return super(NumpyEncoder, self).default(obj)
+            json.dump(episode_replay_data, f, indent=2, cls=NumpyEncoder)
+        print(f"Saved episode replay log to {replay_log_filename}")
+    except Exception as e:
+        print(f"Error saving episode replay log: {e}")
+
+    # Trigger replays if requested
+    if args.replay_mode in ["frame_by_frame", "both"]:
+        print(f"Generating frame-by-frame replay for episode {episode_id}...")
+        # Ensure game_env is available (it was closed, might need re-init or a specific replay instance)
+        # For now, assuming game_env methods are callable or we have a new instance for replay.
+        # This might require passing the runner_log_dir to game_env.game_replay for output path construction.
+        try:
+            replay_video_path = os.path.join(runner_log_dir, f"episode_{episode_id:03d}_frame_replay.gif")
+            game_env.game_replay(
+                replay_data=episode_replay_data, 
+                output_video_path=replay_video_path, 
+                frame_duration=args.replay_frame_duration
+            )
+        except Exception as e:
+            print(f"Error generating frame-by-frame replay: {e}")
+
+    if args.replay_mode in ["seed_and_actions", "both"]:
+        if hasattr(game_env, 'replay_from_seed_and_actions'):
+            print(f"Generating seed-and-actions replay for episode {episode_id}...")
+            try:
+                replay_video_path = os.path.join(runner_log_dir, f"episode_{episode_id:03d}_seed_action_replay.gif")
+                # Ensure the tile_size parameter for rendering in this replay is available or sensible.
+                # For now, assuming a default or that it can be fetched from game_env config.
+                tile_size = game_env._game_env_config.get("tile_size_for_render", 32) if hasattr(game_env, '_game_env_config') else 32
+
+                game_env.replay_from_seed_and_actions(
+                    initial_seed=initial_seed_for_episode,
+                    executed_action_ints=episode_executed_action_ints_for_replay,
+                    output_video_path=replay_video_path,
+                    frame_duration=args.replay_frame_duration,
+                    tile_size_for_replay_render=tile_size
+                )
+            except Exception as e:
+                print(f"Error generating seed-and-actions replay: {e}")
+        else:
+            print("Warning: game_env does not have 'replay_from_seed_and_actions' method.")
+
+    return final_score, step_num + 1, total_reward, total_episode_perf_score
 
 def main():
     # 1. Initial parse for config location to load YAML defaults
@@ -110,6 +205,8 @@ def main():
                         agent_config = loaded_yaml['agent']
                         defaults_from_yaml['model_name'] = agent_config.get('model_name')
                         defaults_from_yaml['harness'] = agent_config.get('harness')
+                        defaults_from_yaml['token_limit'] = agent_config.get('token_limit') # Load token_limit
+                        defaults_from_yaml['reasoning_effort'] = agent_config.get('reasoning_effort') # Load reasoning_effort
                         if agent_config.get('modules'):
                             if agent_config['modules'].get('base_module'):
                                 defaults_from_yaml['observation_mode'] = agent_config['modules']['base_module'].get('observation_mode')
@@ -149,7 +246,9 @@ def main():
         game_name=args.game_name, model_name=args.model_name,
         config_path=agent_prompts_config_path, harness=args.harness,
         max_memory=args.max_memory, custom_modules=custom_modules_for_agent,
-        observation_mode=args.observation_mode
+        observation_mode=args.observation_mode,
+        token_limit=args.token_limit, # Pass token_limit
+        reasoning_effort=args.reasoning_effort # Pass reasoning_effort
         # cache_dir for agent is handled internally by BaseAgent
     )
 

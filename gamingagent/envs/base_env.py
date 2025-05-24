@@ -25,7 +25,8 @@ class BaseGameEnv(ABC):
                  agent_observations_base_dir: str,
                  env_type: str = "custom",
                  config_root_dir: str = "configs",
-                 log_root_dir: str = "runs_output"):
+                 log_root_dir: str = "runs_output",
+                 skip_env_init: bool = False):
         self.game_name = game_name
         self.observation_mode = observation_mode
         self.env_type = env_type.lower()
@@ -46,6 +47,12 @@ class BaseGameEnv(ABC):
         self._load_config()
 
         self.env: Optional[gym.Env] = None
+        self.skip_env_init = skip_env_init # Store skip_env_init
+
+        if self.skip_env_init:
+            self.env = self # type: ignore 
+            print(f"[BaseGameEnv] skip_env_init is True. self.env is set to self ({self.__class__.__name__}).")
+        
         self.current_raw_observation: Any = None
         self.current_info: Dict[str, Any] = {}
         
@@ -114,14 +121,26 @@ class BaseGameEnv(ABC):
 
     def reset(self, seed: Optional[int] = None, episode_id: int = 1) -> Tuple[Observation, Dict[str, Any]]:
         """Resets the environment and returns the initial observation for the agent."""
-        if not self.env:
+        if not self.skip_env_init and not self.env: # Check skip_env_init
             self._initialize_env()
             if not self.env: # Double check after initialization attempt
-                 raise ConnectionError("[BaseGameEnv] Environment could not be initialized.")
+                 raise ConnectionError("[BaseGameEnv] Environment could not be initialized via _initialize_env().")
 
-        self.current_raw_observation, self.current_info = self.env.reset(seed=seed)
         self.current_episode_id = episode_id
         self.current_step_num = 0 # Reset step number for the new episode
+
+        if self.skip_env_init:
+            # Call the environment-specific reset method
+            # Ensure _perform_environment_reset is implemented by the subclass
+            if not hasattr(self, "_perform_environment_reset"):
+                raise NotImplementedError(f"{self.__class__.__name__} must implement _perform_environment_reset when skip_env_init is True.")
+            self.current_raw_observation, self.current_info = self._perform_environment_reset(seed=seed, episode_id=episode_id)
+            print(f"[BaseGameEnv] Called _perform_environment_reset for {self.__class__.__name__}")
+        else:
+            if not self.env: # Should not happen if logic is correct, but good safeguard
+                raise ConnectionError("[BaseGameEnv] self.env is None before calling self.env.reset(). This should not happen.")
+            self.current_raw_observation, self.current_info = self.env.reset(seed=seed)
+            print(f"[BaseGameEnv] Called self.env.reset() for {self.env_id}")
 
         # Close and reopen log file for the new episode
         if self.episode_log_file_handle is not None:
@@ -186,8 +205,8 @@ class BaseGameEnv(ABC):
         and returning a neutral outcome (0 reward, no termination).
         Returns observation, reward, terminated, truncated, info, and perf_score.
         """
-        if not self.env:
-            raise ConnectionError("[BaseGameEnv] Environment not initialized. Call reset() first.")
+        if not self.env: # This check is now more about whether self.env is set (either to gym.Env or self)
+            raise ConnectionError("[BaseGameEnv] Environment not initialized (self.env is None). Call reset() first.")
 
         self.current_step_num += 1
         
@@ -221,7 +240,22 @@ class BaseGameEnv(ABC):
             return current_agent_observation, reward, terminated, truncated, self.current_info, current_step_perf_score # Return signature changed
         else:
             # This is a valid, non-skip action; env_action_idx must be valid here
-            self.current_raw_observation, reward, terminated, truncated, self.current_info = self.env.step(env_action_idx)
+            if self.skip_env_init:
+                # Call the environment-specific step method
+                if not hasattr(self, "_perform_environment_step"):
+                    raise NotImplementedError(f"{self.__class__.__name__} must implement _perform_environment_step when skip_env_init is True.")
+                if env_action_idx is None: # Should not happen if action_is_valid_move is true
+                    raise ValueError("[BaseGameEnv] env_action_idx is None in skip_env_init step logic, this indicates an issue.")
+                self.current_raw_observation, reward, terminated, truncated, self.current_info = self._perform_environment_step(action=env_action_idx)
+                print(f"[BaseGameEnv] Called _perform_environment_step for {self.__class__.__name__}")
+            else:
+                if not self.env or not hasattr(self.env, 'step'): # self.env should be a gym.Env here
+                     raise ConnectionError("[BaseGameEnv] self.env is not a valid gym environment for step().")
+                if env_action_idx is None: # Should not happen
+                    raise ValueError("[BaseGameEnv] env_action_idx is None before calling self.env.step(), this indicates an issue.")
+                self.current_raw_observation, reward, terminated, truncated, self.current_info = self.env.step(env_action_idx)
+                print(f"[BaseGameEnv] Called self.env.step() for {self.env_id}")
+
             new_agent_observation = self.extract_observation(self.current_raw_observation, self.current_info)
 
             # Verify termination status after extracting observation
@@ -301,9 +335,26 @@ class BaseGameEnv(ABC):
         """
         pass
 
-
     def perf_score(self, reward: float, info: Dict[str, Any]) -> float:
         """
         Calculates the performance score for a game episode.
         """
         return reward
+
+    @abstractmethod
+    def _perform_environment_reset(self, seed: Optional[int] = None, episode_id: int = 1) -> Tuple[Any, Dict[str, Any]]:
+        """
+        Performs the environment-specific reset logic when skip_env_init is True.
+        This method must be implemented by subclasses that set skip_env_init=True.
+        It should return the raw observation and info dictionary.
+        """
+        pass
+
+    @abstractmethod
+    def _perform_environment_step(self, action: Any) -> Tuple[Any, float, bool, bool, Dict[str, Any]]:
+        """
+        Performs the environment-specific step logic when skip_env_init is True.
+        This method must be implemented by subclasses that set skip_env_init=True.
+        It should return the raw observation, reward, terminated flag, truncated flag, and info dictionary.
+        """
+        pass

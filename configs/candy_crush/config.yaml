@@ -1,0 +1,30 @@
+game_env:
+  name: "candy_crush"
+  env_type: "custom" # Since CandyCrushEnvWrapper is a custom wrapper
+  num_runs: 1
+  render_mode: "human"
+  max_steps: 50 # Max steps per episode for Candy Crush
+  seed: 42 # Or a specific seed
+  # Other env-specific params could be here if CandyCrushEnvWrapper loaded them from here
+
+agent:
+  model_name: "claude-3-5-sonnet-latest" # Or your preferred model
+  harness: false # Set to true to use Perception/Memory/Reasoning modules
+  token_limit: 8000
+  reasoning_effort: "medium"
+  # Custom module specification for BaseAgent
+  # These paths are relative to the gamingagent directory usually, or must be absolute
+  # BaseAgent will try to import them.
+modules:
+    base_module:
+      observation_mode: "vision" # CandyCrushBaseModule expects an image
+      # Prompts are defined in module_prompts.json or hardcoded in CandyCrushBaseModule
+    perception_module:
+      # Config for CandyCrushPerceptionModule (if any, most logic is internal)
+      pass
+    memory_module:
+      max_memory: 20 
+      # Prompts for reflection are in module_prompts.json or hardcoded
+    reasoning_module:
+      # Prompts are in module_prompts.json or hardcoded
+      pass 

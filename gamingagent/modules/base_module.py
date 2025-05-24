@@ -4,6 +4,7 @@ from .core_module import CoreModule, Observation
 from tools.utils import scale_image_up
 import re
 import os
+import json
 
 # TODO: 1. with visual state (vision only) 2. without visual state (text only) 3 with visual state + text state (both)
 
@@ -164,49 +165,67 @@ class BaseModule(CoreModule):
     def _parse_response(self, response):
         """
         Parse the response to extract thought and action.
-        
-        Args:
-            response (str): The raw response from the LLM
-            
-        Returns:
-            dict: A dictionary containing action and thought
+        Prioritizes parsing the entire response as JSON if possible (for structured outputs like Candy Crush).
+        Falls back to regex search for 'thought:' and 'action:' tags for other games.
         """
         if not response:
             return {"action": None, "thought": "No response received"}
         
-        # Initialize result with defaults
-        result = {
-            "action": None,
-            "thought": ""
-        }
-        
-        # Use regex to find thought and action sections
-        # Match patterns like "thought:", "# thought:", "Thought:", etc.
+        result = {"action": None, "thought": ""}
+
+        try:
+            # Attempt to parse the entire response as JSON first
+            # This is useful for models that directly output JSON as requested by some prompts (e.g., Candy Crush)
+            json_match = re.search(r'\s*(\{.*?\})\s*$', response, re.DOTALL)
+            if json_match:
+                json_str = json_match.group(1)
+                data = json.loads(json_str)
+                result["thought"] = data.get("thought", "")
+                move_data = data.get("move")
+
+                if isinstance(move_data, list) and len(move_data) == 2 and \
+                   all(isinstance(coord, (list, tuple)) and len(coord) == 2 and \
+                       all(isinstance(val, int) for val in coord) for coord in move_data):
+                    # Convert to tuple of tuples for canonical representation
+                    coord1 = tuple(move_data[0])
+                    coord2 = tuple(move_data[1])
+                    # Ensure consistent order for the string key: (min_coord, max_coord)
+                    # This matches the format in CandyCrushEnvWrapper's dynamic action mapping
+                    result["action"] = f"({min(coord1, coord2)},{max(coord1, coord2)})"
+                    return result # Successfully parsed JSON with valid move
+                elif move_data is not None: # Move data present but not in expected format
+                    result["thought"] = result.get("thought", "") + f" (Note: LLM move data '{move_data}' was not in the expected list-of-lists-of-ints format)"
+                    result["action"] = None # Action is invalid
+                    # Still return here as JSON was found, even if move part was malformed
+                    return result 
+            # If JSON parsing of the whole response failed or didn't yield a move, fall through to regex (original method)
+
+        except json.JSONDecodeError:
+            # Not a valid JSON object as the whole response, proceed to regex parsing
+            pass 
+        except Exception as e:
+            # Other unexpected error during JSON parsing attempt
+            print(f"[BaseModule] Unexpected error during JSON parsing attempt in _parse_response: {e}. Falling back to regex.")
+            result["thought"] = f"Error during JSON parsing attempt: {e}. Response: {response[:100]}..." # Log error in thought
+            # Fall through to regex parsing for safety
+
+        # Regex parsing (original method as fallback)
         thought_pattern = r'(?:^|\n)(?:#\s*)?thought:(.+?)(?=(?:\n(?:#\s*)?(?:action|move):)|$)'
         action_pattern = r'(?:^|\n)(?:#\s*)?(?:action|move):(.+?)(?=(?:\n(?:#\s*)?thought:)|$)'
         
-        # Find thought section using regex (case insensitive)
         thought_match = re.search(thought_pattern, response, re.DOTALL | re.IGNORECASE)
         if thought_match:
             result["thought"] = thought_match.group(1).strip()
         
-        # Find action section using regex (case insensitive)
         action_match = re.search(action_pattern, response, re.DOTALL | re.IGNORECASE)
         if action_match:
             result["action"] = action_match.group(1).strip()
         
-        # If no structured format was found, treat the whole response as thought
         if not result["thought"] and not result["action"]:
             result["thought"] = response.strip()
-        elif not result["thought"]:  # If only action was found
-            # Look for any text before the action as thought
-            pre_action = re.split(r'(?:^|\n)(?:#\s*)?(?:action|move):', response, flags=re.IGNORECASE)[0]
-            if pre_action and pre_action.strip():
-                result["thought"] = pre_action.strip()
-        
-        # Normalize action format if needed
-        if result["action"]:
-            # Handle specific action formats if needed
-            pass
+        elif not result["thought"] and result["action"]:
+            pre_action_match = re.match(r'(.*?)(?:^|\n)(?:#\s*)?(?:action|move):', response, re.DOTALL | re.IGNORECASE)
+            if pre_action_match and pre_action_match.group(1):
+                 result["thought"] = pre_action_match.group(1).strip()
         
         return result

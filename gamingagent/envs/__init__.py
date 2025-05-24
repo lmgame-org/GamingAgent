@@ -1,8 +1,12 @@
 from .base_env import BaseGameEnv
 from .custom_01_2048.twentyFortyEight_env import TwentyFortyEightEnvWrapper
+from .custom_02_sokoban.sokoban_env import SokobanEnv
+from .custom_03_candy_crush.candy_crush_env import CandyCrushEnvWrapper
 
 GAME_ENV_WRAPPERS = {
     "twenty_forty_eight": TwentyFortyEightEnvWrapper,
+    "sokoban": SokobanEnv,
+    "candy_crush": CandyCrushEnvWrapper,
     # Add other game wrappers here as they are created
     # "sokoban": SokobanEnvWrapper,
 }
