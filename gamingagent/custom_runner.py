@@ -11,11 +11,13 @@ from gamingagent.agents.base_agent import BaseAgent
 from gamingagent.modules import PerceptionModule, ReasoningModule # Observation is imported by Env
 # Directly import the specific environment we are using
 from gamingagent.envs.custom_01_2048.twentyFortyEightEnv import TwentyFortyEightEnv
+from gamingagent.envs.custom_02_sokoban.sokobanEnv import SokobanEnv
+from gamingagent.envs.custom_03_candy_crush.candy_crush_env import CandyCrushEnvWrapper
 
 game_config_mapping = {"twenty_forty_eight": "custom_01_2048",
                        "sokoban": "custom_02_sokoban",
-                       "tetris": "custom_03_tetris",
-                       "candy_crush": "custom_04_candy_crush",
+                       "candy_crush": "custom_03_candy_crush",
+                       "tetris": "custom_04_tetris",
                        "super_mario_bros":"retro_01_super_mario_bros",
                        "ace_attorney":"retro_02_ace_attorney"}
 
@@ -107,7 +109,7 @@ def create_environment(game_name_arg: str,
             env_init_params['tile_size_for_render'] = 32
             env_init_params['max_stuck_steps_for_adapter'] = 20
 
-        from gamingagent.envs.custom_02_sokoban.sokobanEnv import SokobanEnv
+        
         print(f"Initializing environment: {game_name_arg} with params: {env_init_params}")
         env = SokobanEnv(
             render_mode=env_init_params.get('render_mode'),
@@ -122,6 +124,51 @@ def create_environment(game_name_arg: str,
             agent_cache_dir_for_adapter=cache_dir_for_adapter, 
             game_specific_config_path_for_adapter=env_specific_config_path, 
             max_stuck_steps_for_adapter=env_init_params.get('max_stuck_steps_for_adapter')
+        )
+        return env
+    elif game_name_arg == "candy_crush":
+        # Load params specific to Candy Crush
+        # The config_dir_name_for_env_cfg for candy_crush will be "custom_03_candy_crush"
+        if os.path.exists(env_specific_config_path):
+            with open(env_specific_config_path, 'r') as f:
+                env_specific_config = json.load(f)
+                env_init_kwargs = env_specific_config.get('env_init_kwargs', {})
+                # Parameters for CandyCrushEnvWrapper's internal TileMatchEnv
+                env_init_params['num_rows'] = env_init_kwargs.get('num_rows', 8)
+                env_init_params['num_cols'] = env_init_kwargs.get('num_cols', 8)
+                env_init_params['num_colours'] = env_init_kwargs.get('num_colours', 4)
+                env_init_params['num_moves'] = env_init_kwargs.get('num_moves', 50)
+                # render_mode is for the wrapper's internal renderer if used, not GymEnvAdapter
+                env_init_params['render_mode_for_make'] = env_specific_config.get('render_mode_for_make', 'string') 
+                env_init_params['tile_size_for_render'] = env_specific_config.get('tile_size_for_render', 32)
+                # max_stuck_steps_for_adapter for GymEnvAdapter instance
+                env_init_params['max_stuck_steps_for_adapter'] = env_specific_config.get('max_unchanged_steps_for_termination', 20) # Default from Sokoban
+        else:
+            print(f"Warning: {env_specific_config_path} for {game_name_arg} not found. Using default env parameters for Candy Crush.")
+            env_init_params['num_rows'] = 8
+            env_init_params['num_cols'] = 8
+            env_init_params['num_colours'] = 4
+            env_init_params['num_moves'] = 50
+            env_init_params['render_mode_for_make'] = 'string'
+            env_init_params['tile_size_for_render'] = 32
+            env_init_params['max_stuck_steps_for_adapter'] = 20
+
+        print(f"Initializing environment: {game_name_arg} with params: {env_init_params}")
+        env = CandyCrushEnvWrapper(
+            # Parameters for CandyCrushEnvWrapper -> TileMatchEnv core
+            num_rows_override=env_init_params.get('num_rows'),
+            num_cols_override=env_init_params.get('num_cols'),
+            num_colours_override=env_init_params.get('num_colours'),
+            num_moves_override=env_init_params.get('num_moves'),
+            # Parameters for GymEnvAdapter instance within CandyCrushEnvWrapper
+            game_name_for_adapter=game_name_arg, 
+            observation_mode_for_adapter=obs_mode_arg, 
+            agent_cache_dir_for_adapter=cache_dir_for_adapter, 
+            # This is the path the env itself will use to load its own full config (including env_init_kwargs)
+            game_specific_config_path_for_adapter=env_specific_config_path, 
+            max_stuck_steps_for_adapter=env_init_params.get('max_stuck_steps_for_adapter'),
+            # Other params potentially needed by CandyCrushEnvWrapper if not covered by game_specific_config_path_for_adapter
+            # config_root_dir is already an arg to runner, CandyCrushEnvWrapper doesn't need it directly if path is absolute
         )
         return env
     else:
