@@ -9,7 +9,9 @@ from typing import Optional, Any
 from collections import deque
 
 import string
-
+########################################################################################
+#TODO: Add grid_size to observation for perception module to draw the grid on the image#
+########################################################################################
 @dataclass
 class GameTrajectory:
     def __init__(self, max_length: int = 10):
@@ -23,6 +25,7 @@ class GameTrajectory:
         if not self.trajectory:
             return None
         return f"Past {self.history_length} turn game trajectory\n" + "\n".join(self.trajectory)
+
 
 @dataclass
 class Observation:

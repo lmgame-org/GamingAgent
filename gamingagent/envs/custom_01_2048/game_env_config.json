@@ -1,5 +1,4 @@
 {
-    "env_id": "gymnasium_2048:gymnasium_2048/TwentyFortyEight-v0",
     "env_init_kwargs": {
         "size": 4,
         "max_pow": 16

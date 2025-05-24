@@ -5,7 +5,11 @@ import datetime
 import time
 import numpy as np
 import yaml
+<<<<<<< HEAD
 import gym
+=======
+from typing import Any
+>>>>>>> b158698d8eaa190f6a1d005214ea28ee605502d1
 
 from gamingagent.agents.base_agent import BaseAgent
 from gamingagent.modules import PerceptionModule, ReasoningModule # Observation is imported by Env
@@ -82,6 +86,7 @@ def create_environment(game_name_arg: str,
             max_stuck_steps_for_adapter=env_init_params.get('max_stuck_steps_for_adapter')
         )
         return env
+<<<<<<< HEAD
     elif game_name_arg == "tetris":
         from gamingagent.envs.custom_04_tetris.tetrisEnv import TetrisEnv # Import TetrisEnv
         if os.path.exists(env_specific_config_path):
@@ -134,11 +139,59 @@ def create_environment(game_name_arg: str,
     #         game_specific_config_path_for_adapter=env_specific_config_path 
     #     )
     #     return env
+=======
+    elif game_name_arg == "sokoban":
+        # Load params specific to Sokoban
+        if os.path.exists(env_specific_config_path):
+            with open(env_specific_config_path, 'r') as f:
+                env_specific_config = json.load(f)
+                env_init_kwargs = env_specific_config.get('env_init_kwargs', {})
+                env_init_params['dim_room'] = env_init_kwargs.get('dim_room', (10,10))
+                env_init_params['max_steps_episode'] = env_init_kwargs.get('max_steps_episode', 200)
+                env_init_params['num_boxes'] = env_init_kwargs.get('num_boxes', 3)
+                env_init_params['num_gen_steps'] = env_init_kwargs.get('num_gen_steps') # Can be None
+                env_init_params['level_to_load'] = env_specific_config.get('level_to_load') # Can be None
+                env_init_params['render_mode'] = env_specific_config.get('render_mode', 'human')
+                env_init_params['tile_size_for_render'] = env_specific_config.get('tile_size_for_render', 32)
+                env_init_params['max_stuck_steps_for_adapter'] = env_specific_config.get('max_unchanged_steps_for_termination', 20)
+        else:
+            print(f"Warning: {env_specific_config_path} for {game_name_arg} not found. Using default env parameters for Sokoban.")
+            env_init_params['dim_room'] = (10,10)
+            env_init_params['max_steps_episode'] = 200
+            env_init_params['num_boxes'] = 3
+            env_init_params['num_gen_steps'] = None
+            env_init_params['level_to_load'] = None
+            env_init_params['render_mode'] = 'human'
+            env_init_params['tile_size_for_render'] = 32
+            env_init_params['max_stuck_steps_for_adapter'] = 20
+
+        from gamingagent.envs.custom_02_sokoban.sokobanEnv import SokobanEnv
+        print(f"Initializing environment: {game_name_arg} with params: {env_init_params}")
+        env = SokobanEnv(
+            render_mode=env_init_params.get('render_mode'),
+            dim_room=tuple(env_init_params.get('dim_room')), # Ensure it's a tuple
+            max_steps_episode=env_init_params.get('max_steps_episode'),
+            num_boxes=env_init_params.get('num_boxes'),
+            num_gen_steps=env_init_params.get('num_gen_steps'),
+            level_to_load=env_init_params.get('level_to_load'),
+            tile_size_for_render=env_init_params.get('tile_size_for_render'),
+            game_name_for_adapter=game_name_arg, 
+            observation_mode_for_adapter=obs_mode_arg, 
+            agent_cache_dir_for_adapter=cache_dir_for_adapter, 
+            game_specific_config_path_for_adapter=env_specific_config_path, 
+            max_stuck_steps_for_adapter=env_init_params.get('max_stuck_steps_for_adapter')
+        )
+        return env
+>>>>>>> b158698d8eaa190f6a1d005214ea28ee605502d1
     else:
         print(f"ERROR: Game '{game_name_arg}' is not defined or implemented in custom_runner.py's create_environment function.")
         return None
 
+<<<<<<< HEAD
 def run_game_episode(agent: BaseAgent, game_env: gym.Env, episode_id: int, args: argparse.Namespace):
+=======
+def run_game_episode(agent: BaseAgent, game_env: Any, episode_id: int, args: argparse.Namespace):
+>>>>>>> b158698d8eaa190f6a1d005214ea28ee605502d1
     print(f"Starting Episode {episode_id} for {args.game_name} with seed {args.seed if args.seed is not None else 'default'}...")
 
     # Pass episode_id to env.reset
@@ -159,6 +212,7 @@ def run_game_episode(agent: BaseAgent, game_env: gym.Env, episode_id: int, args:
         end_time = time.time()
         time_taken_s = end_time - start_time
 
+<<<<<<< HEAD
         # Ensure action_dict is not None and action is handled if None
         raw_action_from_agent = None
         if action_dict and action_dict.get("action") is not None:
@@ -169,6 +223,15 @@ def run_game_episode(agent: BaseAgent, game_env: gym.Env, episode_id: int, args:
             action_str_agent = str(raw_action_from_agent).strip().lower()
         
         thought_process = action_dict.get("thought", "") if action_dict else "No thought process due to API failure."
+=======
+        action_from_agent = action_dict.get("action")
+        if action_from_agent is None:
+            action_str_agent = "skip" # Default to no_op if action is None
+        else:
+            action_str_agent = str(action_from_agent).strip().lower()
+            
+        thought_process = action_dict.get("thought", "")
+>>>>>>> b158698d8eaa190f6a1d005214ea28ee605502d1
 
         # Step the environment using the new signature, including agent action details
         agent_observation, reward, terminated, truncated, last_info, current_step_perf_score = game_env.step(
@@ -301,7 +364,7 @@ def main():
         overall_stat_summary = game_env.adapter.finalize_and_save_summary(vars(args))
     else:
         print("Warning: game_env.adapter not found. Cannot finalize and save summary.")
-
+    
     game_env.close() # Close environment after all runs
 
     print("\n" + "="*30 + " Overall Summary " + "="*30)

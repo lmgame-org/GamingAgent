@@ -1,0 +1,23 @@
+{
+    "env_init_kwargs": {
+        "dim_room": [10, 10],
+        "max_steps_episode": 200, 
+        "num_boxes": 3,
+        "num_gen_steps": null
+    },
+    "level_to_load": 1, 
+    "action_mapping": {
+        "no_op": 0,
+        "push up": 1,
+        "push down": 2,
+        "push left": 3,
+        "push right": 4,
+        "up": 5,
+        "down": 6,
+        "left": 7,
+        "right": 8
+    },
+    "render_mode": "human", 
+    "tile_size_for_render": 32,
+    "max_unchanged_steps_for_termination": 5
+} 

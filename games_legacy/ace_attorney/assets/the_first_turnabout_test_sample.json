@@ -1,0 +1,53 @@
+{
+    "The_First_Turnabout": {
+        "Case_Transcript": [
+            "SANWIT: I was going door-to-door, selling subscriptions when I saw a man fleeing an apartment.",
+            "Sanwit: I was going door-to-door, selling subscriptions when I saw a man fleeing an apartment.",
+            "Sahwit: I was going door-to-door, selling subscriptions when I saw a man fleeing an apartment.",
+            "Sahwit: I thought he must be in a hurry because he left the door half-open behind him.",
+            "Sahwit: Thinking it strange, I looked inside the apartment.",
+            "Sahwit: Then I saw her lying there... A woman... not moving... dead!",
+            "Witness: Then I saw her lying there... A woman... not moving... dead!",
+            "Sanwit: Then I saw her lying there... A woman... not moving... dead!",
+            "Phoenix: This evidence clearly reveals the contradiction in that statement, Your Ho",
+            "Judge: How exactly are that evidence and the statement just now related...?",
+            "Phoenix: They aren't, are they...",
+            "Judge: Not at all.",
+            "Judge: Mr. Wright, please think the facts over before making accusations.",
+            "Phoenix: (I don't think that won me any points with the judge...)",
+            "Sahwit: I quailed in fright and found myself unable to go inside.",
+            "Phoenix: So, you didn't touch ANYTHING in the apartment?",
+            "Sahwit: Um, yes. I mean no! Nothing.",
+            "Phoenix: Okay. What happened next?",
+            "Sahwit: I thought to call the police immediately!",
+            "Sahwit: However, the phone in her apartment wasn't working.",
+            "(No character name visible): However, the phone in her apartment wasn't working.",
+            "Phoenix: The phone in her apartment wasn't working?",
+            "Sahwit: Yes. I mean, no. No, it wasn't. Right.",
+            "Phoenix: But you said you didn't go into the apartment... or did you!?",
+            "Sahwit: Oh, oh, that? I can explain that!",
+            "Sahwit: There was a cordless phone on a shelf in the entranceway.",
+            "Sahwit: I reached inside and tried using that to call...",
+            "Payne: And that phone wasn't working, correct?",
+            "Payne: What happened next?",
+            "Sahwit: I went to a nearby park and found a public phone.",
+            "Sahwit: I remember the time exactly: It was 1:00 PM."
+        ],
+        "evidences": [
+            "ATTORNEY'S BADGE: No one would believe I was a defense attorney if I didn't carry this.",
+            "CINDY'S AUTOPSY REPORT: Time of death: 7/31, 4PM - 5PM. Cause of death: loss of blood due to blunt trauma.",
+            "STATUE: A statue in the shape of \"The Thinker.\" It's rather heavy.",
+            "PASSPORT: The victim apparently arrived home from Paris on 7/30, the day before the murder.",
+            "BLACKOUT RECORD: Electricity to Ms. Stone's building was out from noon to 6PM on the day of the crime."
+        ],
+        "prev_responses": [
+            "game_state: Conversation\nmove: z\nthought: Payne just interrupted the Judge. I need to advance the dialogue to hear what he has to say.",
+            "game_state: Conversation\nmove: z\nthought: Payne just claimed I have no evidence to support my claim that Sahwit is the killer. I need to advance the dialogue to see how the court responds to this.",
+            "game_state: Conversation\nmove: z\nthought: Payne just objected, saying I have no proof for my accusation against Sahwit. The Judge is now addressing me, likely asking for that proof. I need to advance the dialogue to see what the Judge says.",
+            "game_state: Conversation\nmove: z\nthought: The Judge just asked me a question after Payne objected. I need to advance the dialogue to hear the full question or the next line.",
+            "game_state: Conversation\nmove: z\nthought: The Judge is asking me to confirm my claim about the clock's sound. I need to advance the dialogue to see the full question and continue the scene.",
+            "game_state: Conversation\nmove: z\nthought: The Judge is asking for evidence to back up my claim about the clock making the sound. I need to advance the dialogue to respond or see what happens next.",
+            "game_state: Conversation\nmove: z\nthought: The Judge asked me for evidence to support my theory about the clock making a sound when Sahwit used it as a weapon. I need to advance the dialogue to continue this critical part of the trial."
+        ]
+    }
+}
