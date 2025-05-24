@@ -1,6 +1,6 @@
 import gymnasium as gym
 import numpy as np
-import os
+
 import copy
 from dataclasses import dataclass
 from typing import Optional, Dict, Any, Tuple, SupportsFloat, List
@@ -10,14 +10,7 @@ import cv2 # For rendering 'human' mode
 
 from gamingagent.envs.gym_env_adapter import GymEnvAdapter
 from gamingagent.modules.core_module import Observation
-from gamingagent.envs.env_utils import create_board_image_tetris, POTENTIAL_FONTS
-from PIL import ImageFont # Import for create_board_image_tetris if it uses _get_font
-
-# Define default colors locally for this env's render(), or could import them if they become general utils
-DEFAULT_PIECE_COLOR_ENV = (200, 200, 200)  # Light grey for pieces in env.render()
-DEFAULT_EMPTY_COLOR_ENV = (0, 0, 0)      # Black for empty space in env.render()
-DEFAULT_BORDER_COLOR_ENV = (128,128,128) # For bedrock/border
-DEFAULT_TEXT_COLOR_ENV = (220, 220, 220)
+from gamingagent.envs.env_utils import create_board_image_tetris
 
 # --- Core Tetris Components with Color ---
 @dataclass
@@ -193,9 +186,7 @@ class TetrisEnv(gym.Env):
     def _spawn_tetromino(self) -> bool:
         tetromino_original_idx = self._pop_from_piece_queue() 
         self.active_tetromino = copy.deepcopy(self.tetrominoes[tetromino_original_idx])
-        # --- DEBUG PRINT ---
-        print(f"[DEBUG TetrisEnv._spawn_tetromino] Popped index: {tetromino_original_idx}, Spawned piece ID: {self.active_tetromino.id}, Color: {self.active_tetromino.color_rgb}, Next queue indices: {self.piece_queue}")
-        # --- END DEBUG PRINT ---
+        
         self.x = self.width_padded // 2 - self.active_tetromino.matrix.shape[1] // 2
         self.y = 0
         if self._collision(self.active_tetromino, self.x, self.y):
@@ -291,10 +282,6 @@ class TetrisEnv(gym.Env):
         while len(q_ids) < self.observation_space["queue_piece_ids"].shape[0]: 
             q_ids.append(self.base_pixels[0].value)
         
-        # --- DEBUG PRINT ---
-        # print(f"[DEBUG TetrisEnv._get_obs] Raw queue indices: {q_indices}, Resulting q_ids for obs: {q_ids[:self.observation_space[\"queue_piece_ids\"].shape[0]]}")
-        # --- END DEBUG PRINT ---
-
         self.current_raw_obs_dict = {
             "board": board_with_active.astype(np.uint8),
             "active_tetromino_mask": active_mask.astype(np.uint8),
@@ -304,8 +291,6 @@ class TetrisEnv(gym.Env):
 
     def _get_info(self) -> Dict[str, Any]:
         next_actual_ids = [self.tetrominoes[orig_idx].id for orig_idx in self.piece_queue]
-        # Ensure this debug print is active
-        print(f"[DEBUG TetrisEnv._get_info] Raw queue original_indices: {self.piece_queue}, Processed next_actual_ids for info: {next_actual_ids}")
         
         return {
             "score": self.current_score, 
@@ -335,9 +320,7 @@ class TetrisEnv(gym.Env):
         self.current_info_dict = self._get_info() 
         
         initial_step_perf_score = self.adapter.calculate_perf_score(0.0, self.current_info_dict) # Perf score for the reset state (usually 0)
-        # Although initial_step_perf_score is calculated, it might not be added to total_perf_score_episode here
-        # as it's typically for the first *step*. Let's ensure it starts at 0 and accumulates from actual steps.
-
+        
         img_path, txt_rep = None, None
         if self.adapter.observation_mode in ["vision", "both"]:
             img_path = self.adapter._create_agent_observation_path(self.adapter.current_episode_id, self.adapter.current_step_num)
