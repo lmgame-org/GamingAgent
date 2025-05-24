@@ -1,0 +1,734 @@
+{
+  "claude-3-5-sonnet-20241022": {
+    "harness_true": {
+      "sokoban": [
+        0,
+        0,
+        0
+      ],
+      "super_mario_bros": [
+        709,
+        1532,
+        1562
+      ],
+      "tetris": [
+        16,
+        14,
+        14
+      ],
+      "twenty_forty_eight": [
+        20.801758872564367,
+        22.963598863331505,
+        21.162401163849914
+      ],
+      "candy_crush": [
+        92,
+        165,
+        61
+      ],
+      "ace_attorney": [
+        2
+      ]
+    },
+    "harness_false": {
+      "sokoban": [
+        0,
+        0,
+        0
+      ],
+      "super_mario_bros": [
+        1551,
+        1515,
+        1554
+      ],
+      "tetris": [
+        10,
+        15,
+        12
+      ],
+      "twenty_forty_eight": [
+        15.109177703355275,
+        8.643856189774725,
+        10.918863237274595
+      ],
+      "candy_crush": [
+        15,
+        36,
+        0
+      ],
+      "ace_attorney": [
+        1
+      ]
+    }
+  },
+  "claude-3-7-sonnet-20250219 (thinking)": {
+    "harness_true": {
+      "sokoban": [
+        2,
+        4,
+        1
+      ],
+      "super_mario_bros": [
+        2015,
+        709,
+        1532
+      ],
+      "tetris": [
+        19,
+        15,
+        15
+      ],
+      "twenty_forty_eight": [
+        22.643856189774723,
+        23.309272057055935,
+        22.05581199313977
+      ],
+      "candy_crush": [
+        535,
+        428,
+        489
+      ],
+      "ace_attorney": [
+        7
+      ]
+    },
+    "harness_false": {
+      "sokoban": [
+        0,
+        0,
+        0
+      ],
+      "super_mario_bros": [
+        1532,
+        1515,
+        1243
+      ],
+      "tetris": [
+        13,
+        13,
+        13
+      ],
+      "twenty_forty_eight": [
+        21.28048987244469,
+        24.110564871002378,
+        23.109177703355275
+      ],
+      "candy_crush": [
+        148,
+        182,
+        49
+      ],
+      "ace_attorney": [
+        3
+      ]
+    }
+  },
+  "deepseek-r1": {
+    "harness_true": {
+      "sokoban": [
+        2,
+        0,
+        2
+      ],
+      "super_mario_bros": [],
+      "tetris": [
+        15,
+        14,
+        14
+      ],
+      "twenty_forty_eight": [
+        18.902422223664658,
+        20.552248810548477,
+        23.69098010188875
+      ],
+      "candy_crush": [
+        409,
+        436,
+        497
+      ],
+      "ace_attorney": [
+        0
+      ]
+    },
+    "harness_false": {
+      "sokoban": [],
+      "super_mario_bros": [],
+      "tetris": [],
+      "twenty_forty_eight": [],
+      "candy_crush": [],
+      "ace_attorney": []
+    }
+  },
+  "gemini-2.5-flash-preview-04-17": {
+    "harness_true": {
+      "sokoban": [
+        3,
+        0,
+        2
+      ],
+      "super_mario_bros": [
+        1672,
+        1266,
+        1247
+      ],
+      "tetris": [
+        20,
+        14,
+        15
+      ],
+      "twenty_forty_eight": [
+        20.697456308462154,
+        20.723887547470483,
+        22.54292605580875
+      ],
+      "candy_crush": [
+        259,
+        372,
+        373
+      ],
+      "ace_attorney": [
+        4
+      ]
+    },
+    "harness_false": {
+      "sokoban": [
+        0,
+        0,
+        0
+      ],
+      "super_mario_bros": [
+        1794,
+        1270,
+        1558
+      ],
+      "tetris": [
+        15,
+        18,
+        24
+      ],
+      "twenty_forty_eight": [
+        22.243067034680063,
+        20.951466861932797,
+        21.222049594614706
+      ],
+      "candy_crush": [
+        60,
+        101,
+        132
+      ],
+      "ace_attorney": [
+        1
+      ]
+    }
+  },
+  "gemini-2.5-pro-preview-05-06": {
+    "harness_true": {
+      "sokoban": [
+        4,
+        4,
+        5
+      ],
+      "super_mario_bros": [
+        1561,
+        1271,
+        1663
+      ],
+      "tetris": [
+        23,
+        23,
+        24
+      ],
+      "twenty_forty_eight": [
+        24.743553288675848,
+        22.457637380991763,
+        23.15863187516003
+      ],
+      "candy_crush": [
+        411,
+        414,
+        424
+      ],
+      "ace_attorney": [
+        7
+      ]
+    },
+    "harness_false": {
+      "sokoban": [
+        1,
+        1,
+        1
+      ],
+      "super_mario_bros": [
+        820,
+        1534,
+        722
+      ],
+      "tetris": [
+        15,
+        9,
+        13
+      ],
+      "twenty_forty_eight": [
+        24.995703673902234,
+        23.582325777110036,
+        23.70973676652047
+      ],
+      "candy_crush": [
+        117,
+        169,
+        246
+      ],
+      "ace_attorney": [
+        8
+      ]
+    }
+  },
+  "grok-3-mini-beta (thinking)": {
+    "harness_true": {
+      "sokoban": [
+        5,
+        6,
+        6
+      ],
+      "super_mario_bros": [],
+      "tetris": [
+        20,
+        15,
+        29
+      ],
+      "twenty_forty_eight": [
+        25.293117420309095,
+        22.566176706048005,
+        23.29131686481742
+      ],
+      "candy_crush": [
+        299,
+        332,
+        131
+      ],
+      "ace_attorney": [
+        0
+      ]
+    },
+    "harness_false": {
+      "sokoban": [],
+      "super_mario_bros": [],
+      "tetris": [],
+      "twenty_forty_eight": [],
+      "candy_crush": [],
+      "ace_attorney": []
+    }
+  },
+  "llama-4-maverick-17b-128e-instruct-fp8": {
+    "harness_true": {
+      "sokoban": [
+        0,
+        0,
+        0
+      ],
+      "super_mario_bros": [
+        898,
+        2008,
+        1500
+      ],
+      "tetris": [
+        9,
+        10,
+        12
+      ],
+      "twenty_forty_eight": [
+        20.91065444060912,
+        20.62576591056871,
+        22.050279124557015
+      ],
+      "candy_crush": [
+        67,
+        139,
+        180
+      ],
+      "ace_attorney": [
+        0
+      ]
+    },
+    "harness_false": {
+      "sokoban": [
+        0,
+        0,
+        0
+      ],
+      "super_mario_bros": [
+        837,
+        300,
+        1221
+      ],
+      "tetris": [
+        13,
+        11,
+        11
+      ],
+      "twenty_forty_eight": [
+        8.0,
+        11.614709844115207,
+        7.169925001442312
+      ],
+      "candy_crush": [
+        18,
+        79,
+        0
+      ],
+      "ace_attorney": [
+        0
+      ]
+    }
+  },
+  "gpt-4.1-2025-04-14": {
+    "harness_true": {
+      "sokoban": [
+        0,
+        0,
+        0
+      ],
+      "super_mario_bros": [
+        1531,
+        722,
+        4126
+      ],
+      "tetris": [
+        13,
+        14,
+        14
+      ],
+      "twenty_forty_eight": [
+        20.349851365001356,
+        22.758756734142523,
+        20.329813853351375
+      ],
+      "candy_crush": [
+        163,
+        215,
+        168
+      ],
+      "ace_attorney": [
+        2
+      ]
+    },
+    "harness_false": {
+      "sokoban": [
+        0,
+        0,
+        0
+      ],
+      "super_mario_bros": [
+        1563,
+        1257,
+        3154
+      ],
+      "tetris": [
+        11,
+        14,
+        14
+      ],
+      "twenty_forty_eight": [
+        16.08878823871691,
+        17.931568569324174,
+        22.661833756229235
+      ],
+      "candy_crush": [
+        13,
+        238,
+        52
+      ],
+      "ace_attorney": [
+        0
+      ]
+    }
+  },
+  "gpt-4o-2024-11-20": {
+    "harness_true": {
+      "sokoban": [
+        0,
+        0,
+        0
+      ],
+      "super_mario_bros": [
+        2017,
+        2590,
+        1535
+      ],
+      "tetris": [
+        18,
+        11,
+        13
+      ],
+      "twenty_forty_eight": [
+        21.29491685290984,
+        20.652858974244605,
+        22.04473562605691
+      ],
+      "candy_crush": [
+        131,
+        104,
+        207
+      ],
+      "ace_attorney": [
+        0
+      ]
+    },
+    "harness_false": {
+      "sokoban": [
+        0,
+        0,
+        0
+      ],
+      "super_mario_bros": [
+        1565,
+        297,
+        1223
+      ],
+      "tetris": [
+        14,
+        17,
+        13
+      ],
+      "twenty_forty_eight": [
+        16.379649117760035,
+        15.229419688230417,
+        10.643856189774725
+      ],
+      "candy_crush": [
+        29,
+        122,
+        26
+      ],
+      "ace_attorney": [
+        0
+      ]
+    }
+  },
+  "o1-2024-12-17": {
+    "harness_true": {
+      "sokoban": [
+        2,
+        2,
+        3
+      ],
+      "super_mario_bros": [
+        855
+      ],
+      "tetris": [
+        35
+      ],
+      "twenty_forty_eight": [
+        25.775964266116908
+      ],
+      "candy_crush": [
+        159
+      ],
+      "ace_attorney": [
+        16
+      ]
+    },
+    "harness_false": {
+      "sokoban": [
+        0
+      ],
+      "super_mario_bros": [
+        1434
+      ],
+      "tetris": [
+        13
+      ],
+      "twenty_forty_eight": [
+        25.61792834983852
+      ],
+      "candy_crush": [
+        90
+      ],
+      "ace_attorney": [
+        3
+      ]
+    }
+  },
+  "o1-mini-2024-09-12": {
+    "harness_true": {
+      "sokoban": [
+        1,
+        2,
+        1
+      ],
+      "super_mario_bros": [],
+      "tetris": [
+        11,
+        11,
+        13
+      ],
+      "twenty_forty_eight": [
+        23.225736994582082,
+        21.937333586390416,
+        23.229419688230415
+      ],
+      "candy_crush": [
+        21,
+        86,
+        37
+      ],
+      "ace_attorney": [
+        0
+      ]
+    },
+    "harness_false": {
+      "sokoban": [],
+      "super_mario_bros": [],
+      "tetris": [],
+      "twenty_forty_eight": [],
+      "candy_crush": [],
+      "ace_attorney": []
+    }
+  },
+  "o3-2025-04-16": {
+    "harness_true": {
+      "sokoban": [
+        10,
+        6
+      ],
+      "super_mario_bros": [
+        3445
+      ],
+      "tetris": [
+        42
+      ],
+      "twenty_forty_eight": [
+        25.59532305170752
+      ],
+      "candy_crush": [
+        647
+      ],
+      "ace_attorney": [
+        16
+      ]
+    },
+    "harness_false": {
+      "sokoban": [
+        2
+      ],
+      "super_mario_bros": [
+        1955
+      ],
+      "tetris": [
+        31
+      ],
+      "twenty_forty_eight": [
+        25.635566243549068
+      ],
+      "candy_crush": [
+        106
+      ],
+      "ace_attorney": [
+        8
+      ]
+    }
+  },
+  "o4-mini-2025-04-16": {
+    "harness_true": {
+      "sokoban": [
+        4,
+        6,
+        6
+      ],
+      "super_mario_bros": [
+        1525,
+        1263,
+        1556
+      ],
+      "tetris": [
+        22,
+        35,
+        19
+      ],
+      "twenty_forty_eight": [
+        24.533573081389804,
+        24.827255858048346,
+        23.015589280397393
+      ],
+      "candy_crush": [
+        259,
+        591,
+        612
+      ],
+      "ace_attorney": [
+        4
+      ]
+    },
+    "harness_false": {
+      "sokoban": [
+        1,
+        2,
+        1
+      ],
+      "super_mario_bros": [
+        1554,
+        1245,
+        1246
+      ],
+      "tetris": [
+        14,
+        12,
+        19
+      ],
+      "twenty_forty_eight": [
+        23.105338195028544,
+        12.784634845557521,
+        22.643856189774723
+      ],
+      "candy_crush": [
+        82,
+        82,
+        168
+      ],
+      "ace_attorney": [
+        2
+      ]
+    }
+  },
+  "claude-3-haiku-20240307": {
+    "harness_false": {
+      "twenty_forty_eight": [
+        0.0,
+        20.0,
+        43.219280948873624,
+        0.0,
+        75.23561956057013
+      ]
+    },
+    "harness_true": {
+      "twenty_forty_eight": [
+        0.0,
+        0.0,
+        0.0,
+        30.0,
+        0.0
+      ]
+    }
+  },
+  "gemini-2.0-flash": {
+    "harness_false": {
+      "twenty_forty_eight": [
+        0.0,
+        20.0
+      ]
+    },
+    "harness_true": {
+      "twenty_forty_eight": [
+        55.84962500721156,
+        20.0
+      ],
+      "sokoban": [
+        -0.7,
+        -0.2,
+        -0.30000000000000004,
+        -1.0999999999999999,
+        -1.5000000000000002
+      ]
+    }
+  }
+}

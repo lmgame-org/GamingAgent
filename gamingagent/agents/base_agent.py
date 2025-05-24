@@ -293,28 +293,42 @@ class BaseAgent(ABC):
         """
         # Ensure observation is an Observation object
         if not isinstance(observation, Observation):
-            # Convert to Observation based on observation type and mode
+            img_path_for_observation = None
+            symbolic_representation_for_observation = None
+
             if isinstance(observation, str) and os.path.exists(observation):
                 # It's an image path
-                observation = Observation(img_path=observation)
+                img_path_for_observation = observation
             elif isinstance(observation, np.ndarray):
                 # It's a numpy array, save it as an image
-                img_path = self.save_obs(observation)
-                if img_path:
-                    observation = Observation(img_path=img_path)
-                else:
-                    return {"action": None, "thought": "Failed to process image observation"}
+                saved_img_path = self.save_obs(observation)
+                if saved_img_path:
+                    img_path_for_observation = saved_img_path
+                elif self.observation_mode == "vision" or self.observation_mode == "both":
+                    # Critical: In vision/both mode, if image saving fails, we cannot proceed without an image.
+                    # Log this critical failure
+                    print("CRITICAL: Failed to save numpy array as image in vision/both mode.")
+                    # Return a failure/error or raise an exception
+                    raise ValueError("Failed to process visual observation: Cannot save image.")
             else:
-                # It's likely symbolic data based on observation_mode
-                if self.observation_mode == "vision":
-                    # Unexpected input for vision mode, but try our best
-                    observation = Observation(symbolic_representation=str(observation))
-                elif self.observation_mode == "text":
-                    # Text mode expects symbolic representation
-                    observation = Observation(symbolic_representation=str(observation))
-                elif self.observation_mode == "both":
-                    # Both mode, try to interpret as symbolic if not an image
-                    observation = Observation(symbolic_representation=str(observation))
+                # Input is not an image path and not a numpy array.
+                # It's likely symbolic data.
+                symbolic_representation_for_observation = str(observation)
+            
+            # Now, create the Observation object based on what we've gathered and the mode
+            if self.observation_mode == "vision":
+                if img_path_for_observation:
+                    observation = Observation(img_path=img_path_for_observation)
+                else:
+                    # Critical: In vision mode, but no image path was derived from input.
+                    print(f"CRITICAL: Vision mode selected, but input '{observation}' could not be resolved to an image.")
+                    raise ValueError("Vision mode requires a valid image path or image data.")
+            elif self.observation_mode == "text":
+                observation = Observation(symbolic_representation=symbolic_representation_for_observation)
+            elif self.observation_mode == "both":
+                observation = Observation(img_path=img_path_for_observation, symbolic_representation=symbolic_representation_for_observation)
+            else: # Should not happen if modes are validated
+                raise ValueError(f"Unsupported observation_mode: {self.observation_mode}")
         
         if not self.harness:
             # Unharness mode: Use base module directly with the Observation object

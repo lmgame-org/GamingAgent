@@ -1,0 +1,1118 @@
+{
+  "twenty_forty_eight": {
+    "Comb1_KnowPuzVisMathCode": {
+      "config": {
+        "poly_degree": 2,
+        "learning_rate": 0.005,
+        "epochs_multiplier": 1,
+        "model_order_used": [
+          "claude-3-5-sonnet-20241022",
+          "claude-3-7-sonnet-20250219 (thinking)",
+          "gemini-2.5-pro-preview-05-06",
+          "llama-4-maverick-17b-128e-instruct-fp8",
+          "gpt-4o-2024-11-20",
+          "o1-2024-12-17",
+          "o3-2025-04-16",
+          "o4-mini-2025-04-16"
+        ],
+        "R_categories_used": [
+          "knowledge",
+          "puzzle",
+          "visual",
+          "math",
+          "coding"
+        ],
+        "target_harness_status": "harness_true"
+      },
+      "evaluation": {
+        "avg_residual_error": 0.578658505935039
+      },
+      "feature_weights": {
+        "1": 0.8675741026932662,
+        "knowledge": 0.0,
+        "puzzle": 4.703364586075899,
+        "visual": 0.0,
+        "math": 0.0,
+        "coding": 0.0,
+        "knowledge^2": 0.0,
+        "knowledge puzzle": 0.0,
+        "knowledge visual": 0.0,
+        "knowledge math": 0.0,
+        "knowledge coding": 0.0,
+        "puzzle^2": 0.0,
+        "puzzle visual": 1.3745682326020547,
+        "puzzle math": 0.0,
+        "puzzle coding": 1.2356464000474374,
+        "visual^2": 0.0017745626158528593,
+        "visual math": 0.0,
+        "visual coding": 0.0014624461738295003,
+        "math^2": 0.0,
+        "math coding": 0.0,
+        "coding^2": 0.0017900957987827724
+      }
+    },
+    "Comb2_KnowVisMathCode": {
+      "config": {
+        "poly_degree": 2,
+        "learning_rate": 0.005,
+        "epochs_multiplier": 1,
+        "model_order_used": [
+          "claude-3-5-sonnet-20241022",
+          "claude-3-7-sonnet-20250219 (thinking)",
+          "gemini-2.5-pro-preview-05-06",
+          "llama-4-maverick-17b-128e-instruct-fp8",
+          "gpt-4o-2024-11-20",
+          "o1-2024-12-17",
+          "o3-2025-04-16",
+          "o4-mini-2025-04-16"
+        ],
+        "R_categories_used": [
+          "knowledge",
+          "visual",
+          "math",
+          "coding"
+        ],
+        "target_harness_status": "harness_true"
+      },
+      "evaluation": {
+        "avg_residual_error": 0.9489335324053956
+      },
+      "feature_weights": {
+        "1": 2.2057512999242586,
+        "knowledge": 0.15808085208858016,
+        "visual": 0.0,
+        "math": 0.008954451067293983,
+        "coding": 0.0,
+        "knowledge^2": 0.035745867371113835,
+        "knowledge visual": 0.17593233352969206,
+        "knowledge math": 0.023100538010811737,
+        "knowledge coding": 0.14530558065271476,
+        "visual^2": 1.384709710360967,
+        "visual math": 1.3553838452328613,
+        "visual coding": 0.4950454579994514,
+        "math^2": 1.080457889124557,
+        "math coding": 0.004402722011992677,
+        "coding^2": 0.9903349996547306
+      }
+    },
+    "Comb3_LangPhyVisMathCode": {
+      "config": {
+        "poly_degree": 2,
+        "learning_rate": 0.005,
+        "epochs_multiplier": 1,
+        "model_order_used": [
+          "claude-3-5-sonnet-20241022",
+          "claude-3-7-sonnet-20250219 (thinking)",
+          "gemini-2.5-pro-preview-05-06",
+          "llama-4-maverick-17b-128e-instruct-fp8",
+          "gpt-4o-2024-11-20",
+          "o1-2024-12-17",
+          "o3-2025-04-16",
+          "o4-mini-2025-04-16"
+        ],
+        "R_categories_used": [
+          "language",
+          "physics",
+          "visual",
+          "math",
+          "coding"
+        ],
+        "target_harness_status": "harness_true"
+      },
+      "evaluation": {
+        "avg_residual_error": 0.9272980849521288
+      },
+      "feature_weights": {
+        "1": 2.211292219327788,
+        "language": 0.029402543339286137,
+        "physics": 0.0,
+        "visual": 0.0,
+        "math": 0.0,
+        "coding": 0.0,
+        "language^2": 0.0270903250482951,
+        "language physics": 0.302004272727579,
+        "language visual": 0.4827951889306058,
+        "language math": 0.25947033056277896,
+        "language coding": 1.07883862117531,
+        "physics^2": 0.00018085726713070957,
+        "physics visual": 0.2544714314296398,
+        "physics math": 0.024318526135670735,
+        "physics coding": 0.0,
+        "visual^2": 1.2606225923691392,
+        "visual math": 1.0908547590299638,
+        "visual coding": 0.25878322322906344,
+        "math^2": 0.7606201560733158,
+        "math coding": 0.0,
+        "coding^2": 0.20738709181704007
+      }
+    },
+    "Comb4_KnowMathCode": {
+      "config": {
+        "poly_degree": 2,
+        "learning_rate": 0.005,
+        "epochs_multiplier": 1,
+        "model_order_used": [
+          "claude-3-5-sonnet-20241022",
+          "claude-3-7-sonnet-20250219 (thinking)",
+          "gemini-2.5-pro-preview-05-06",
+          "llama-4-maverick-17b-128e-instruct-fp8",
+          "gpt-4o-2024-11-20",
+          "o1-2024-12-17",
+          "o3-2025-04-16",
+          "o4-mini-2025-04-16"
+        ],
+        "R_categories_used": [
+          "knowledge",
+          "math",
+          "coding"
+        ],
+        "target_harness_status": "harness_true"
+      },
+      "evaluation": {
+        "avg_residual_error": 0.9699435798947569
+      },
+      "feature_weights": {
+        "1": 1.9924373422104409,
+        "knowledge": 0.6700090850824182,
+        "math": 0.353938029539807,
+        "coding": 0.16113421647007875,
+        "knowledge^2": 0.5734353303457531,
+        "knowledge math": 0.8403221778582467,
+        "knowledge coding": 0.6829934444387027,
+        "math^2": 1.1522333032323733,
+        "math coding": 0.7350234942857033,
+        "coding^2": 0.7566687154867444
+      }
+    }
+  },
+  "sokoban": {
+    "Comb1_KnowPuzVisMathCode": {
+      "config": {
+        "poly_degree": 2,
+        "learning_rate": 0.005,
+        "epochs_multiplier": 1,
+        "model_order_used": [
+          "claude-3-5-sonnet-20241022",
+          "claude-3-7-sonnet-20250219 (thinking)",
+          "gemini-2.5-pro-preview-05-06",
+          "llama-4-maverick-17b-128e-instruct-fp8",
+          "gpt-4o-2024-11-20",
+          "o1-2024-12-17",
+          "o3-2025-04-16",
+          "o4-mini-2025-04-16"
+        ],
+        "R_categories_used": [
+          "knowledge",
+          "puzzle",
+          "visual",
+          "math",
+          "coding"
+        ],
+        "target_harness_status": "harness_true"
+      },
+      "evaluation": {
+        "avg_residual_error": 0.2280051150466059
+      },
+      "feature_weights": {
+        "1": 0.00788604728531017,
+        "knowledge": 1.2582390786622117,
+        "puzzle": 2.946234205789839,
+        "visual": 0.37416333738313934,
+        "math": 0.5359859726153257,
+        "coding": 1.3280257821530765,
+        "knowledge^2": 0.008802832432197191,
+        "knowledge puzzle": 0.00577713377024066,
+        "knowledge visual": 0.01071737206533449,
+        "knowledge math": 0.007367114860251454,
+        "knowledge coding": 0.008372436376496876,
+        "puzzle^2": 0.0037591596334689732,
+        "puzzle visual": 0.0071315029388553395,
+        "puzzle math": 0.004004753732527777,
+        "puzzle coding": 0.0045760550876313665,
+        "visual^2": 0.011660448752608384,
+        "visual math": 0.35723478251341106,
+        "visual coding": 0.010155109378124952,
+        "math^2": 1.2953123558977024,
+        "math coding": 0.005948997335079798,
+        "coding^2": 0.20024782230344895
+      }
+    },
+    "Comb2_KnowVisMathCode": {
+      "config": {
+        "poly_degree": 2,
+        "learning_rate": 0.005,
+        "epochs_multiplier": 1,
+        "model_order_used": [
+          "claude-3-5-sonnet-20241022",
+          "claude-3-7-sonnet-20250219 (thinking)",
+          "gemini-2.5-pro-preview-05-06",
+          "llama-4-maverick-17b-128e-instruct-fp8",
+          "gpt-4o-2024-11-20",
+          "o1-2024-12-17",
+          "o3-2025-04-16",
+          "o4-mini-2025-04-16"
+        ],
+        "R_categories_used": [
+          "knowledge",
+          "visual",
+          "math",
+          "coding"
+        ],
+        "target_harness_status": "harness_true"
+      },
+      "evaluation": {
+        "avg_residual_error": 0.4076749962038037
+      },
+      "feature_weights": {
+        "1": 0.21145481754125718,
+        "knowledge": 1.3098942837524626,
+        "visual": 0.3341081782196686,
+        "math": 0.7391619988939982,
+        "coding": 1.332808970168827,
+        "knowledge^2": 0.006852648870001245,
+        "knowledge visual": 0.007329810858539441,
+        "knowledge math": 0.006015110647275467,
+        "knowledge coding": 0.0068080985659837235,
+        "visual^2": 0.36994757662640515,
+        "visual math": 0.00723459865777967,
+        "visual coding": 0.3694445462596049,
+        "math^2": 1.349303964290265,
+        "math coding": 0.005833185328739914,
+        "coding^2": 0.2546593652939318
+      }
+    },
+    "Comb3_LangPhyVisMathCode": {
+      "config": {
+        "poly_degree": 2,
+        "learning_rate": 0.005,
+        "epochs_multiplier": 1,
+        "model_order_used": [
+          "claude-3-5-sonnet-20241022",
+          "claude-3-7-sonnet-20250219 (thinking)",
+          "gemini-2.5-pro-preview-05-06",
+          "llama-4-maverick-17b-128e-instruct-fp8",
+          "gpt-4o-2024-11-20",
+          "o1-2024-12-17",
+          "o3-2025-04-16",
+          "o4-mini-2025-04-16"
+        ],
+        "R_categories_used": [
+          "language",
+          "physics",
+          "visual",
+          "math",
+          "coding"
+        ],
+        "target_harness_status": "harness_true"
+      },
+      "evaluation": {
+        "avg_residual_error": 0.22120023533469262
+      },
+      "feature_weights": {
+        "1": 0.3139318472551368,
+        "language": 1.3498783451792915,
+        "physics": 0.0035435654186523343,
+        "visual": 0.3778897478757164,
+        "math": 0.528385234781806,
+        "coding": 1.3574354626134657,
+        "language^2": 0.0050721270390734155,
+        "language physics": 0.00403974354674357,
+        "language visual": 0.008034543613465431,
+        "language math": 0.007239084536789963,
+        "language coding": 0.00454347898764365,
+        "physics^2": 0.00354378989643674,
+        "physics visual": 0.0038976436743567897,
+        "physics math": 0.0035346789876436743,
+        "physics coding": 0.0038976436743567897,
+        "visual^2": 0.011064023984812061,
+        "visual math": 0.3551567890864531,
+        "visual coding": 0.009338507898764367,
+        "math^2": 1.2868899831245706,
+        "math coding": 0.005616843478987644,
+        "coding^2": 0.19990223454389766
+      }
+    },
+    "Comb4_KnowMathCode": {
+      "config": {
+        "poly_degree": 2,
+        "learning_rate": 0.005,
+        "epochs_multiplier": 1,
+        "model_order_used": [
+          "claude-3-5-sonnet-20241022",
+          "claude-3-7-sonnet-20250219 (thinking)",
+          "gemini-2.5-pro-preview-05-06",
+          "llama-4-maverick-17b-128e-instruct-fp8",
+          "gpt-4o-2024-11-20",
+          "o1-2024-12-17",
+          "o3-2025-04-16",
+          "o4-mini-2025-04-16"
+        ],
+        "R_categories_used": [
+          "knowledge",
+          "math",
+          "coding"
+        ],
+        "target_harness_status": "harness_true"
+      },
+      "evaluation": {
+        "avg_residual_error": 0.4145604509318579
+      },
+      "feature_weights": {
+        "1": 0.05195386136518403,
+        "knowledge": 1.3157774138017414,
+        "math": 0.729464679169602,
+        "coding": 1.3293997380465162,
+        "knowledge^2": 0.007065051291454021,
+        "knowledge math": 0.005867091942240868,
+        "knowledge coding": 0.006815873237342311,
+        "math^2": 1.350807778988514,
+        "math coding": 0.005845600536323002,
+        "coding^2": 0.2566114079385683
+      }
+    }
+  },
+  "super_mario_bros": {
+    "Comb1_KnowPuzVisMathCode": {
+      "config": {
+        "poly_degree": 2,
+        "learning_rate": 0.005,
+        "epochs_multiplier": 1,
+        "model_order_used": [
+          "claude-3-5-sonnet-20241022",
+          "claude-3-7-sonnet-20250219 (thinking)",
+          "gemini-2.5-pro-preview-05-06",
+          "llama-4-maverick-17b-128e-instruct-fp8",
+          "gpt-4o-2024-11-20",
+          "o1-2024-12-17",
+          "o3-2025-04-16",
+          "o4-mini-2025-04-16"
+        ],
+        "R_categories_used": [
+          "knowledge",
+          "puzzle",
+          "visual",
+          "math",
+          "coding"
+        ],
+        "target_harness_status": "harness_true"
+      },
+      "evaluation": {
+        "avg_residual_error": 1.3382222726153398
+      },
+      "feature_weights": {
+        "1": 0.00029986975626357987,
+        "knowledge": 0.20000000000000018,
+        "puzzle": 0.0000000000000004440892098500626,
+        "visual": 0.7000000000000002,
+        "math": 0.0,
+        "coding": 0.0,
+        "knowledge^2": 0.20000000000000018,
+        "knowledge puzzle": 0.20000000000000018,
+        "knowledge visual": 0.5000000000000002,
+        "knowledge math": 0.0,
+        "knowledge coding": 0.0,
+        "puzzle^2": 0.0000000000000004440892098500626,
+        "puzzle visual": 0.20000000000000018,
+        "puzzle math": 0.0000000000000004440892098500626,
+        "puzzle coding": 0.0000000000000004440892098500626,
+        "visual^2": 0.20000000000000018,
+        "visual math": 0.0,
+        "visual coding": 0.0,
+        "math^2": 0.0,
+        "math coding": 0.0,
+        "coding^2": 0.0
+      }
+    },
+    "Comb2_KnowVisMathCode": {
+      "config": {
+        "poly_degree": 2,
+        "learning_rate": 0.005,
+        "epochs_multiplier": 1,
+        "model_order_used": [
+          "claude-3-5-sonnet-20241022",
+          "claude-3-7-sonnet-20250219 (thinking)",
+          "gemini-2.5-pro-preview-05-06",
+          "llama-4-maverick-17b-128e-instruct-fp8",
+          "gpt-4o-2024-11-20",
+          "o1-2024-12-17",
+          "o3-2025-04-16",
+          "o4-mini-2025-04-16"
+        ],
+        "R_categories_used": [
+          "knowledge",
+          "visual",
+          "math",
+          "coding"
+        ],
+        "target_harness_status": "harness_true"
+      },
+      "evaluation": {
+        "avg_residual_error": 1.3382222726153398
+      },
+      "feature_weights": {
+        "1": 0.00029986975626357987,
+        "knowledge": 0.20000000000000018,
+        "visual": 0.7000000000000002,
+        "math": 0.0,
+        "coding": 0.0,
+        "knowledge^2": 0.20000000000000018,
+        "knowledge visual": 0.5000000000000002,
+        "knowledge math": 0.0,
+        "knowledge coding": 0.0,
+        "visual^2": 0.20000000000000018,
+        "visual math": 0.0,
+        "visual coding": 0.0,
+        "math^2": 0.0,
+        "math coding": 0.0,
+        "coding^2": 0.0
+      }
+    },
+    "Comb3_LangPhyVisMathCode": {
+      "config": {
+        "poly_degree": 2,
+        "learning_rate": 0.005,
+        "epochs_multiplier": 1,
+        "model_order_used": [
+          "claude-3-5-sonnet-20241022",
+          "claude-3-7-sonnet-20250219 (thinking)",
+          "gemini-2.5-pro-preview-05-06",
+          "llama-4-maverick-17b-128e-instruct-fp8",
+          "gpt-4o-2024-11-20",
+          "o1-2024-12-17",
+          "o3-2025-04-16",
+          "o4-mini-2025-04-16"
+        ],
+        "R_categories_used": [
+          "language",
+          "physics",
+          "visual",
+          "math",
+          "coding"
+        ],
+        "target_harness_status": "harness_true"
+      },
+      "evaluation": {
+        "avg_residual_error": 1.3382222726153398
+      },
+      "feature_weights": {
+        "1": 0.00029986975626357987,
+        "language": 0.20000000000000018,
+        "physics": 0.0000000000000004440892098500626,
+        "visual": 0.7000000000000002,
+        "math": 0.0,
+        "coding": 0.0,
+        "language^2": 0.20000000000000018,
+        "language physics": 0.20000000000000018,
+        "language visual": 0.5000000000000002,
+        "language math": 0.0,
+        "language coding": 0.0,
+        "physics^2": 0.0000000000000004440892098500626,
+        "physics visual": 0.20000000000000018,
+        "physics math": 0.0000000000000004440892098500626,
+        "physics coding": 0.0000000000000004440892098500626,
+        "visual^2": 0.20000000000000018,
+        "visual math": 0.0,
+        "visual coding": 0.0,
+        "math^2": 0.0,
+        "math coding": 0.0,
+        "coding^2": 0.0
+      }
+    },
+    "Comb4_KnowMathCode": {
+      "config": {
+        "poly_degree": 2,
+        "learning_rate": 0.005,
+        "epochs_multiplier": 1,
+        "model_order_used": [
+          "claude-3-5-sonnet-20241022",
+          "claude-3-7-sonnet-20250219 (thinking)",
+          "gemini-2.5-pro-preview-05-06",
+          "llama-4-maverick-17b-128e-instruct-fp8",
+          "gpt-4o-2024-11-20",
+          "o1-2024-12-17",
+          "o3-2025-04-16",
+          "o4-mini-2025-04-16"
+        ],
+        "R_categories_used": [
+          "knowledge",
+          "math",
+          "coding"
+        ],
+        "target_harness_status": "harness_true"
+      },
+      "evaluation": {
+        "avg_residual_error": 1.3382222726153398
+      },
+      "feature_weights": {
+        "1": 0.00029986975626357987,
+        "knowledge": 0.7000000000000002,
+        "math": 0.0,
+        "coding": 0.0,
+        "knowledge^2": 0.20000000000000018,
+        "knowledge math": 0.0,
+        "knowledge coding": 0.0,
+        "math^2": 0.0,
+        "math coding": 0.0,
+        "coding^2": 0.0
+      }
+    }
+  },
+  "tetris": {
+    "Comb1_KnowPuzVisMathCode": {
+      "config": {
+        "poly_degree": 2,
+        "learning_rate": 0.005,
+        "epochs_multiplier": 1,
+        "model_order_used": [
+          "claude-3-5-sonnet-20241022",
+          "claude-3-7-sonnet-20250219 (thinking)",
+          "gemini-2.5-pro-preview-05-06",
+          "llama-4-maverick-17b-128e-instruct-fp8",
+          "gpt-4o-2024-11-20",
+          "o1-2024-12-17",
+          "o3-2025-04-16",
+          "o4-mini-2025-04-16"
+        ],
+        "R_categories_used": [
+          "knowledge",
+          "puzzle",
+          "visual",
+          "math",
+          "coding"
+        ],
+        "target_harness_status": "harness_true"
+      },
+      "evaluation": {
+        "avg_residual_error": 0.8686494132737077
+      },
+      "feature_weights": {
+        "1": 0.0007982458155707911,
+        "knowledge": 0.0,
+        "puzzle": 0.0000000000000004440892098500626,
+        "visual": 1.3000000000000007,
+        "math": 0.0,
+        "coding": 0.0,
+        "knowledge^2": 0.0,
+        "knowledge puzzle": 0.0,
+        "knowledge visual": 0.0,
+        "knowledge math": 0.0,
+        "knowledge coding": 0.0,
+        "puzzle^2": 0.0000000000000004440892098500626,
+        "puzzle visual": 0.20000000000000018,
+        "puzzle math": 0.0000000000000004440892098500626,
+        "puzzle coding": 0.0000000000000004440892098500626,
+        "visual^2": 0.0,
+        "visual math": 0.0,
+        "visual coding": 0.0,
+        "math^2": 0.0,
+        "math coding": 0.0,
+        "coding^2": 0.0
+      }
+    },
+    "Comb2_KnowVisMathCode": {
+      "config": {
+        "poly_degree": 2,
+        "learning_rate": 0.005,
+        "epochs_multiplier": 1,
+        "model_order_used": [
+          "claude-3-5-sonnet-20241022",
+          "claude-3-7-sonnet-20250219 (thinking)",
+          "gemini-2.5-pro-preview-05-06",
+          "llama-4-maverick-17b-128e-instruct-fp8",
+          "gpt-4o-2024-11-20",
+          "o1-2024-12-17",
+          "o3-2025-04-16",
+          "o4-mini-2025-04-16"
+        ],
+        "R_categories_used": [
+          "knowledge",
+          "visual",
+          "math",
+          "coding"
+        ],
+        "target_harness_status": "harness_true"
+      },
+      "evaluation": {
+        "avg_residual_error": 0.8686494132737077
+      },
+      "feature_weights": {
+        "1": 0.0007982458155707911,
+        "knowledge": 0.0,
+        "visual": 1.3000000000000007,
+        "math": 0.0,
+        "coding": 0.0,
+        "knowledge^2": 0.0,
+        "knowledge visual": 0.0,
+        "knowledge math": 0.0,
+        "knowledge coding": 0.0,
+        "visual^2": 0.0,
+        "visual math": 0.0,
+        "visual coding": 0.0,
+        "math^2": 0.0,
+        "math coding": 0.0,
+        "coding^2": 0.0
+      }
+    },
+    "Comb3_LangPhyVisMathCode": {
+      "config": {
+        "poly_degree": 2,
+        "learning_rate": 0.005,
+        "epochs_multiplier": 1,
+        "model_order_used": [
+          "claude-3-5-sonnet-20241022",
+          "claude-3-7-sonnet-20250219 (thinking)",
+          "gemini-2.5-pro-preview-05-06",
+          "llama-4-maverick-17b-128e-instruct-fp8",
+          "gpt-4o-2024-11-20",
+          "o1-2024-12-17",
+          "o3-2025-04-16",
+          "o4-mini-2025-04-16"
+        ],
+        "R_categories_used": [
+          "language",
+          "physics",
+          "visual",
+          "math",
+          "coding"
+        ],
+        "target_harness_status": "harness_true"
+      },
+      "evaluation": {
+        "avg_residual_error": 0.8686494132737077
+      },
+      "feature_weights": {
+        "1": 0.0007982458155707911,
+        "language": 0.0,
+        "physics": 0.0000000000000004440892098500626,
+        "visual": 1.3000000000000007,
+        "math": 0.0,
+        "coding": 0.0,
+        "language^2": 0.0,
+        "language physics": 0.0,
+        "language visual": 0.0,
+        "language math": 0.0,
+        "language coding": 0.0,
+        "physics^2": 0.0000000000000004440892098500626,
+        "physics visual": 0.20000000000000018,
+        "physics math": 0.0000000000000004440892098500626,
+        "physics coding": 0.0000000000000004440892098500626,
+        "visual^2": 0.0,
+        "visual math": 0.0,
+        "visual coding": 0.0,
+        "math^2": 0.0,
+        "math coding": 0.0,
+        "coding^2": 0.0
+      }
+    },
+    "Comb4_KnowMathCode": {
+      "config": {
+        "poly_degree": 2,
+        "learning_rate": 0.005,
+        "epochs_multiplier": 1,
+        "model_order_used": [
+          "claude-3-5-sonnet-20241022",
+          "claude-3-7-sonnet-20250219 (thinking)",
+          "gemini-2.5-pro-preview-05-06",
+          "llama-4-maverick-17b-128e-instruct-fp8",
+          "gpt-4o-2024-11-20",
+          "o1-2024-12-17",
+          "o3-2025-04-16",
+          "o4-mini-2025-04-16"
+        ],
+        "R_categories_used": [
+          "knowledge",
+          "math",
+          "coding"
+        ],
+        "target_harness_status": "harness_true"
+      },
+      "evaluation": {
+        "avg_residual_error": 1.0627607812443635
+      },
+      "feature_weights": {
+        "1": 0.0000000000000004440892098500626,
+        "knowledge": 0.5,
+        "math": 0.0,
+        "coding": 0.0,
+        "knowledge^2": 0.0,
+        "knowledge math": 0.0,
+        "knowledge coding": 0.0,
+        "math^2": 0.0,
+        "math coding": 0.0,
+        "coding^2": 0.0
+      }
+    }
+  },
+  "candy_crush": {
+    "Comb1_KnowPuzVisMathCode": {
+      "config": {
+        "poly_degree": 2,
+        "learning_rate": 0.005,
+        "epochs_multiplier": 1,
+        "model_order_used": [
+          "claude-3-5-sonnet-20241022",
+          "claude-3-7-sonnet-20250219 (thinking)",
+          "gemini-2.5-pro-preview-05-06",
+          "llama-4-maverick-17b-128e-instruct-fp8",
+          "gpt-4o-2024-11-20",
+          "o1-2024-12-17",
+          "o3-2025-04-16",
+          "o4-mini-2025-04-16"
+        ],
+        "R_categories_used": [
+          "knowledge",
+          "puzzle",
+          "visual",
+          "math",
+          "coding"
+        ],
+        "target_harness_status": "harness_true"
+      },
+      "evaluation": {
+        "avg_residual_error": 1.4077686830766998
+      },
+      "feature_weights": {
+        "1": 0.0,
+        "knowledge": 0.0,
+        "puzzle": 0.0000000000000004440892098500626,
+        "visual": 0.0,
+        "math": 0.0,
+        "coding": 1.3000000000000007,
+        "knowledge^2": 0.0,
+        "knowledge puzzle": 0.0,
+        "knowledge visual": 0.0,
+        "knowledge math": 0.0,
+        "knowledge coding": 0.0,
+        "puzzle^2": 0.20000000000000018,
+        "puzzle visual": 0.0,
+        "puzzle math": 0.0000000000000004440892098500626,
+        "puzzle coding": 0.0,
+        "visual^2": 0.0,
+        "visual math": 0.0,
+        "visual coding": 0.0,
+        "math^2": 0.0,
+        "math coding": 0.0,
+        "coding^2": 0.0
+      }
+    },
+    "Comb2_KnowVisMathCode": {
+      "config": {
+        "poly_degree": 2,
+        "learning_rate": 0.005,
+        "epochs_multiplier": 1,
+        "model_order_used": [
+          "claude-3-5-sonnet-20241022",
+          "claude-3-7-sonnet-20250219 (thinking)",
+          "gemini-2.5-pro-preview-05-06",
+          "llama-4-maverick-17b-128e-instruct-fp8",
+          "gpt-4o-2024-11-20",
+          "o1-2024-12-17",
+          "o3-2025-04-16",
+          "o4-mini-2025-04-16"
+        ],
+        "R_categories_used": [
+          "knowledge",
+          "visual",
+          "math",
+          "coding"
+        ],
+        "target_harness_status": "harness_true"
+      },
+      "evaluation": {
+        "avg_residual_error": 1.4077686830766998
+      },
+      "feature_weights": {
+        "1": 0.0,
+        "knowledge": 0.0,
+        "visual": 0.0,
+        "math": 0.0,
+        "coding": 1.3000000000000007,
+        "knowledge^2": 0.0,
+        "knowledge visual": 0.0,
+        "knowledge math": 0.0,
+        "knowledge coding": 0.0,
+        "visual^2": 0.0,
+        "visual math": 0.0,
+        "visual coding": 0.0,
+        "math^2": 0.0,
+        "math coding": 0.0,
+        "coding^2": 0.0
+      }
+    },
+    "Comb3_LangPhyVisMathCode": {
+      "config": {
+        "poly_degree": 2,
+        "learning_rate": 0.005,
+        "epochs_multiplier": 1,
+        "model_order_used": [
+          "claude-3-5-sonnet-20241022",
+          "claude-3-7-sonnet-20250219 (thinking)",
+          "gemini-2.5-pro-preview-05-06",
+          "llama-4-maverick-17b-128e-instruct-fp8",
+          "gpt-4o-2024-11-20",
+          "o1-2024-12-17",
+          "o3-2025-04-16",
+          "o4-mini-2025-04-16"
+        ],
+        "R_categories_used": [
+          "language",
+          "physics",
+          "visual",
+          "math",
+          "coding"
+        ],
+        "target_harness_status": "harness_true"
+      },
+      "evaluation": {
+        "avg_residual_error": 1.4077686830766998
+      },
+      "feature_weights": {
+        "1": 0.0,
+        "language": 0.0,
+        "physics": 0.0000000000000004440892098500626,
+        "visual": 0.0,
+        "math": 0.0,
+        "coding": 1.3000000000000007,
+        "language^2": 0.0,
+        "language physics": 0.0,
+        "language visual": 0.0,
+        "language math": 0.0,
+        "language coding": 0.0,
+        "physics^2": 0.0000000000000004440892098500626,
+        "physics visual": 0.0,
+        "physics math": 0.0000000000000004440892098500626,
+        "physics coding": 0.20000000000000018,
+        "visual^2": 0.0,
+        "visual math": 0.0,
+        "visual coding": 0.0,
+        "math^2": 0.0,
+        "math coding": 0.0,
+        "coding^2": 0.0
+      }
+    },
+    "Comb4_KnowMathCode": {
+      "config": {
+        "poly_degree": 2,
+        "learning_rate": 0.005,
+        "epochs_multiplier": 1,
+        "model_order_used": [
+          "claude-3-5-sonnet-20241022",
+          "claude-3-7-sonnet-20250219 (thinking)",
+          "gemini-2.5-pro-preview-05-06",
+          "llama-4-maverick-17b-128e-instruct-fp8",
+          "gpt-4o-2024-11-20",
+          "o1-2024-12-17",
+          "o3-2025-04-16",
+          "o4-mini-2025-04-16"
+        ],
+        "R_categories_used": [
+          "knowledge",
+          "math",
+          "coding"
+        ],
+        "target_harness_status": "harness_true"
+      },
+      "evaluation": {
+        "avg_residual_error": 1.4077686830766998
+      },
+      "feature_weights": {
+        "1": 0.0,
+        "knowledge": 0.0,
+        "math": 0.0,
+        "coding": 1.3000000000000007,
+        "knowledge^2": 0.0,
+        "knowledge math": 0.0,
+        "knowledge coding": 0.0,
+        "math^2": 0.0,
+        "math coding": 0.0,
+        "coding^2": 0.0
+      }
+    }
+  },
+  "ace_attorney": {
+    "Comb1_KnowPuzVisMathCode": {
+      "config": {
+        "poly_degree": 2,
+        "learning_rate": 0.005,
+        "epochs_multiplier": 1,
+        "model_order_used": [
+          "claude-3-5-sonnet-20241022",
+          "claude-3-7-sonnet-20250219 (thinking)",
+          "gemini-2.5-pro-preview-05-06",
+          "llama-4-maverick-17b-128e-instruct-fp8",
+          "gpt-4o-2024-11-20",
+          "o1-2024-12-17",
+          "o3-2025-04-16",
+          "o4-mini-2025-04-16"
+        ],
+        "R_categories_used": [
+          "knowledge",
+          "puzzle",
+          "visual",
+          "math",
+          "coding"
+        ],
+        "target_harness_status": "harness_true"
+      },
+      "evaluation": {
+        "avg_residual_error": 0.5847614997470191
+      },
+      "feature_weights": {
+        "1": 0.0010089588268627474,
+        "knowledge": 0.0000000000000004440892098500626,
+        "puzzle": 0.20000000000000018,
+        "visual": 0.0,
+        "math": 0.0,
+        "coding": 0.0,
+        "knowledge^2": 0.20000000000000018,
+        "knowledge puzzle": 0.20000000000000018,
+        "knowledge visual": 0.5000000000000002,
+        "knowledge math": 0.0,
+        "knowledge coding": 0.0,
+        "puzzle^2": 0.0000000000000004440892098500626,
+        "puzzle visual": 0.20000000000000018,
+        "puzzle math": 0.0000000000000004440892098500626,
+        "puzzle coding": 0.0000000000000004440892098500626,
+        "visual^2": 0.0,
+        "visual math": 0.0,
+        "visual coding": 0.0,
+        "math^2": 0.0,
+        "math coding": 0.0,
+        "coding^2": 0.0
+      }
+    },
+    "Comb2_KnowVisMathCode": {
+      "config": {
+        "poly_degree": 2,
+        "learning_rate": 0.005,
+        "epochs_multiplier": 1,
+        "model_order_used": [
+          "claude-3-5-sonnet-20241022",
+          "claude-3-7-sonnet-20250219 (thinking)",
+          "gemini-2.5-pro-preview-05-06",
+          "llama-4-maverick-17b-128e-instruct-fp8",
+          "gpt-4o-2024-11-20",
+          "o1-2024-12-17",
+          "o3-2025-04-16",
+          "o4-mini-2025-04-16"
+        ],
+        "R_categories_used": [
+          "knowledge",
+          "visual",
+          "math",
+          "coding"
+        ],
+        "target_harness_status": "harness_true"
+      },
+      "evaluation": {
+        "avg_residual_error": 0.6715498641329366
+      },
+      "feature_weights": {
+        "1": 0.0,
+        "knowledge": 0.0000000000000004440892098500626,
+        "visual": 0.0,
+        "math": 0.0,
+        "coding": 0.0,
+        "knowledge^2": 0.0000000000000004440892098500626,
+        "knowledge visual": 0.0,
+        "knowledge math": 0.0,
+        "knowledge coding": 0.0,
+        "visual^2": 0.0,
+        "visual math": 0.0,
+        "visual coding": 0.0,
+        "math^2": 0.0,
+        "math coding": 0.0,
+        "coding^2": 0.0
+      }
+    },
+    "Comb3_LangPhyVisMathCode": {
+      "config": {
+        "poly_degree": 2,
+        "learning_rate": 0.005,
+        "epochs_multiplier": 1,
+        "model_order_used": [
+          "claude-3-5-sonnet-20241022",
+          "claude-3-7-sonnet-20250219 (thinking)",
+          "gemini-2.5-pro-preview-05-06",
+          "llama-4-maverick-17b-128e-instruct-fp8",
+          "gpt-4o-2024-11-20",
+          "o1-2024-12-17",
+          "o3-2025-04-16",
+          "o4-mini-2025-04-16"
+        ],
+        "R_categories_used": [
+          "language",
+          "physics",
+          "visual",
+          "math",
+          "coding"
+        ],
+        "target_harness_status": "harness_true"
+      },
+      "evaluation": {
+        "avg_residual_error": 0.5847614997470191
+      },
+      "feature_weights": {
+        "1": 0.0010089588268627474,
+        "language": 0.0000000000000004440892098500626,
+        "physics": 0.0000000000000004440892098500626,
+        "visual": 0.0,
+        "math": 0.0,
+        "coding": 0.0,
+        "language^2": 0.20000000000000018,
+        "language physics": 0.20000000000000018,
+        "language visual": 0.5000000000000002,
+        "language math": 0.0,
+        "language coding": 0.0,
+        "physics^2": 0.20000000000000018,
+        "physics visual": 0.0,
+        "physics math": 0.0,
+        "physics coding": 0.0,
+        "visual^2": 0.0,
+        "visual math": 0.0,
+        "visual coding": 0.0,
+        "math^2": 0.0,
+        "math coding": 0.0,
+        "coding^2": 0.0
+      }
+    },
+    "Comb4_KnowMathCode": {
+      "config": {
+        "poly_degree": 2,
+        "learning_rate": 0.005,
+        "epochs_multiplier": 1,
+        "model_order_used": [
+          "claude-3-5-sonnet-20241022",
+          "claude-3-7-sonnet-20250219 (thinking)",
+          "gemini-2.5-pro-preview-05-06",
+          "llama-4-maverick-17b-128e-instruct-fp8",
+          "gpt-4o-2024-11-20",
+          "o1-2024-12-17",
+          "o3-2025-04-16",
+          "o4-mini-2025-04-16"
+        ],
+        "R_categories_used": [
+          "knowledge",
+          "math",
+          "coding"
+        ],
+        "target_harness_status": "harness_true"
+      },
+      "evaluation": {
+        "avg_residual_error": 0.6715498641329366
+      },
+      "feature_weights": {
+        "1": 0.0,
+        "knowledge": 0.0000000000000004440892098500626,
+        "math": 0.0,
+        "coding": 0.0,
+        "knowledge^2": 0.0000000000000004440892098500626,
+        "knowledge math": 0.0,
+        "knowledge coding": 0.0,
+        "math^2": 0.0,
+        "math coding": 0.0,
+        "coding^2": 0.0
+      }
+    }
+  }
+}

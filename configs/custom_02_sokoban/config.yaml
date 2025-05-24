@@ -1,0 +1,28 @@
+game_env:
+  name: "sokoban"
+  description: "Sokoban game environment"
+  env_type: "custom"
+  render_mode: "human"
+  max_steps: 1000
+  seed: 42
+  num_runs: 2
+
+agent:
+  # Global agent settings
+  name: "sokoban_agent"
+  model_name: "gemini-2.0-flash"
+  cache_dir: "cache/sokoban"
+  reasoning_effort: "high"
+  token_limit: 64000
+  harness: true  # Whether to use the perception-memory-reasoning pipeline
+  observation_mode: "both"  # Options: "vision", "text", "both"
+  # Module-specific settings
+  modules:
+    base_module:
+    
+    perception_module:
+
+    memory_module:
+      max_memory: 10  # Maximum number of memory entries to store
+    
+    reasoning_module:
