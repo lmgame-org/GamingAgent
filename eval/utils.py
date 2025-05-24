@@ -148,58 +148,65 @@ class GameLogProcessor:
                         if valid_step_times_found:
                             time_taken_for_episode = sum_step_times
 
-                    # Calculate total reward and total perf_score from all steps
-                    for step_detail in episode_steps_data:
-                        if isinstance(step_detail, dict):
-                            total_reward_for_episode += step_detail.get("reward", 0)
-                            raw_total_episode_perf_score += step_detail.get("perf_score", 0.0) # Sum perf_score
+                    # Calculate total reward and total raw perf_score from all steps
+                    for step_detail_sum_score in episode_steps_data:
+                        if isinstance(step_detail_sum_score, dict):
+                            total_reward_for_episode += step_detail_sum_score.get("reward", 0)
+                            # raw_total_episode_perf_score is the sum of per-step perf_scores
+                            raw_total_episode_perf_score += step_detail_sum_score.get("perf_score", 0.0)
 
-                    # Apply transformation only if a rule is provided and store it under a different key
+                    # Prepare data for current_episode_summary
+                    current_episode_summary = {
+                        "episode_id": episode_id_str,
+                        "steps": num_steps_in_episode,
+                        "total_reward": self._convert_numpy_to_python(total_reward_for_episode),
+                        # Store the sum of per-step perf_scores as total_episode_perf_score
+                        "total_episode_perf_score": self._convert_numpy_to_python(raw_total_episode_perf_score),
+                    }
                     if self.score_transformation_rule:
-                        transformed_score = self._apply_score_transformation(
-                            raw_total_episode_perf_score, 
+                        transformed_final_score = self._apply_score_transformation(
+                            raw_total_episode_perf_score, # Transform the sum of per-step scores
                             self.score_transformation_rule
                         )
-                        current_episode_summary = {
-                            "episode_id": episode_id_str,
-                            "steps": num_steps_in_episode,
-                            "total_reward": self._convert_numpy_to_python(total_reward_for_episode),
-                            "total_episode_perf_score": self._convert_numpy_to_python(raw_total_episode_perf_score), # Store raw score here
-                            "final_score_for_ranking": self._convert_numpy_to_python(transformed_score)
-                        }
-                    else:
-                        current_episode_summary = {
-                            "episode_id": episode_id_str,
-                            "steps": num_steps_in_episode,
-                            "total_reward": self._convert_numpy_to_python(total_reward_for_episode),
-                            "total_episode_perf_score": self._convert_numpy_to_python(raw_total_episode_perf_score), # Store raw score here
-                        }
+                        current_episode_summary["final_score_for_ranking"] = self._convert_numpy_to_python(transformed_final_score)
 
-                    # Collect all agent observations for the episode
+                    # Collect step_infos (raw environment info)
                     step_infos_for_episode = []
-                    for step_detail in episode_steps_data:
-                        if isinstance(step_detail, dict) and "info" in step_detail:
-                            step_infos_for_episode.append(self._convert_numpy_to_python(step_detail["info"]))
-
-                    # Collect all agent observations for the episode
-                    step_observations_for_episode = []
-                    for step_detail in episode_steps_data:
-                        if isinstance(step_detail, dict) and "agent_observation" in step_detail:
-                            obs_data = step_detail.get("agent_observation")
-                            if isinstance(obs_data, str): # It should be a JSON string
-                                try:
-                                    parsed_obs = json.loads(obs_data)
-                                    step_observations_for_episode.append(self._convert_numpy_to_python(parsed_obs))
-                                except json.JSONDecodeError:
-                                    print(f"Warning: Could not decode agent_observation JSON string in {log_file_path} for step. Storing as raw string.")
-                                    step_observations_for_episode.append(obs_data) # Fallback to raw string
-                            else:
-                                # If it's not a string, store it as is (after numpy conversion)
-                                step_observations_for_episode.append(self._convert_numpy_to_python(obs_data))
-                        # else: Optionally append a placeholder like None if "agent_observation" is missing
-
+                    for step_detail_info in episode_steps_data:
+                        if isinstance(step_detail_info, dict) and "info" in step_detail_info:
+                            step_infos_for_episode.append(self._convert_numpy_to_python(step_detail_info["info"]))
                     current_episode_summary["step_infos"] = step_infos_for_episode
-                    current_episode_summary["step_observations"] = step_observations_for_episode
+                    
+                    # Create replayable_steps list
+                    replayable_steps_list = []
+                    for step_detail_replay in episode_steps_data:
+                        if isinstance(step_detail_replay, dict):
+                            agent_action = step_detail_replay.get("agent_action")
+                            perf_score_at_step = step_detail_replay.get("perf_score") # This is the score for this step (cumulative from adapter)
+                            
+                            text_repr_for_step = None
+                            img_path_for_step = None
+                            agent_obs_str = step_detail_replay.get("agent_observation")
+                            if isinstance(agent_obs_str, str):
+                                try:
+                                    parsed_obs = json.loads(agent_obs_str)
+                                    text_repr_for_step = parsed_obs.get("textual_representation")
+                                    img_path_for_step = parsed_obs.get("img_path")
+                                except json.JSONDecodeError:
+                                    print(f"Warning: Could not decode agent_observation JSON string in {log_file_path} for replayable_steps.")
+                            elif isinstance(agent_obs_str, dict): # Should ideally be a string from raw logs
+                                text_repr_for_step = agent_obs_str.get("textual_representation")
+                                img_path_for_step = agent_obs_str.get("img_path")
+
+                            replayable_steps_list.append({
+                                "agent_action": agent_action,
+                                "textual_representation": text_repr_for_step,
+                                "img_path": img_path_for_step,
+                                "perf_score": self._convert_numpy_to_python(perf_score_at_step)
+                            })
+                    current_episode_summary["replayable_steps"] = replayable_steps_list
+
+                    # Time taken
                     if time_taken_for_episode is not None:
                         current_episode_summary["total_time_taken"] = self._convert_numpy_to_python(time_taken_for_episode)
                     

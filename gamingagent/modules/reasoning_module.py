@@ -127,6 +127,9 @@ class ReasoningModule(CoreModule):
         """
         # Create user prompt with context
         user_prompt = self.prompt.replace("{context}", context) if "{context}" in self.prompt else context
+
+        # print(f"#########################\n####################################{user_prompt}####################################\n#########################")
+        print(f"--- VISION API - FINAL USER PROMPT ---\n{user_prompt}\n--- END VISION API PROMPT ---")
         
         # Call the vision-text API
         response = self.api_manager.vision_text_completion(
@@ -162,6 +165,7 @@ class ReasoningModule(CoreModule):
             # If no placeholder, append the context
             user_prompt = context + "\n\n" + user_prompt
         
+        print(f"--- TEXT API - FINAL USER PROMPT ---\n{user_prompt}\n--- END TEXT API PROMPT ---")
         # Call the API
         response = self.api_manager.text_only_completion(
             model_name=self.model_name,
