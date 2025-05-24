@@ -52,6 +52,10 @@ class BaseModule(CoreModule):
             token_limit=token_limit,
             reasoning_effort=reasoning_effort
         )
+        # --- DEBUG PRINT --- 
+        print(f"DEBUG (BaseModule.__init__): Received system_prompt: '{system_prompt[:100]}...'")
+        print(f"DEBUG (BaseModule.__init__): Received prompt: '{prompt[:100]}...'")
+        # --- END DEBUG PRINT ---
         self.observation_mode = observation_mode
         self.observation = Observation()  # Observation data class
             
@@ -86,11 +90,11 @@ class BaseModule(CoreModule):
             textual_representation = self.observation.get_textual_representation()
             processed_visual_description = self.observation.get_processed_visual_description()
             if textual_representation and processed_visual_description:
-                text_repr = f"Game Textual Representation:\n{textual_representation}\n\nGmae Visual Elements Description:\n{processed_visual_description}\n\n"
+                text_repr = f"Game Textual Representation:\n{textual_representation}\n\nGame Visual Elements Description:\n{processed_visual_description}\n\n"
             elif textual_representation:
                 text_repr = f"Game Textual Representation:\n{textual_representation}\n\n"
             elif processed_visual_description:
-                text_repr = f"Gmae Visual Elements Description:\n{processed_visual_description}\n\n"
+                text_repr = f"Game Visual Elements Description:\n{processed_visual_description}\n\n"
             else:
                 text_repr = "No Text-Based Game State Provided."
             
@@ -101,6 +105,11 @@ class BaseModule(CoreModule):
             # Vision-based processing: observation is the image path
             # Scale up image if needed
             new_img_path = scale_image_up(self.observation.get_img_path())
+            
+            # --- DEBUG PRINT ---
+            print(f"DEBUG (BaseModule.plan_action for VISION): self.system_prompt: '{self.system_prompt[:100]}...'")
+            print(f"DEBUG (BaseModule.plan_action for VISION): self.prompt: '{self.prompt[:100]}...'")
+            # --- END DEBUG PRINT ---
             
             # Call the vision API
             response = self.api_manager.vision_text_completion(
@@ -118,6 +127,11 @@ class BaseModule(CoreModule):
             # TODO (lanxiang): replace with Observation.get_complete_prompt
             text_repr = prepare_text_based_game_state()
             full_prompt = f"{self.prompt}\n\n{text_repr}"
+            
+            # --- DEBUG PRINT ---
+            print(f"DEBUG (BaseModule.plan_action for TEXT): self.system_prompt: '{self.system_prompt[:100]}...'")
+            print(f"DEBUG (BaseModule.plan_action for TEXT): full_prompt: '{full_prompt[:100]}...'") # Check combined prompt
+            # --- END DEBUG PRINT ---
             
             # Call the text API with the textual representation in the prompt
             response = self.api_manager.text_only_completion(
@@ -138,6 +152,11 @@ class BaseModule(CoreModule):
             # TODO (lanxiang): replace with Observation.get_complete_prompt
             text_repr = prepare_text_based_game_state()
             full_prompt = f"{self.prompt}\n\n{text_repr}"
+            
+            # --- DEBUG PRINT ---
+            print(f"DEBUG (BaseModule.plan_action for BOTH): self.system_prompt: '{self.system_prompt[:100]}...'")
+            print(f"DEBUG (BaseModule.plan_action for BOTH): full_prompt: '{full_prompt[:100]}...'") # Check combined prompt
+            # --- END DEBUG PRINT ---
             
             # Call the vision API with both the image and textual representation
             response = self.api_manager.vision_text_completion(

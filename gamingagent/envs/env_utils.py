@@ -1,7 +1,7 @@
 import numpy as np
 import os
 from PIL import Image, ImageDraw, ImageFont
-from typing import Optional
+from typing import Optional, Dict, List, Any
 
 # Color mapping for different tile values (extended from user's example)
 COLORS = {
@@ -159,3 +159,165 @@ def create_board_image_2048(board_powers: np.ndarray, save_path: str, size: int 
         img.save(save_path)
     except Exception as e:
         print(f"[create_board_image_2048] Error saving 2048 board image to {save_path}: {e}") 
+
+
+# TETRIS_COLORS dictionary is REMOVED
+# TETRIS_TEXT_COLOR is REMOVED (or set to a default if still used by create_board_image_tetris)
+# DEFAULT_PIECE_COLOR = (200, 200, 200)  # A light grey for pieces
+# DEFAULT_EMPTY_COLOR = (0, 0, 0)      # Black for empty space
+# DEFAULT_TEXT_COLOR_TETRIS = (220, 220, 220) # Default text color if needed
+
+# Define a default text color here if not passed or found in mapping for info panel text
+DEFAULT_INFO_TEXT_COLOR = (220, 220, 220) 
+FALLBACK_PIECE_COLOR_UTIL = (255, 0, 255) # Magenta, if a piece ID is not in the map
+FALLBACK_EMPTY_COLOR_UTIL = (0,0,0) # Black for empty, if 0 not in map
+
+def create_board_image_tetris(
+    board: np.ndarray, 
+    save_path: str, 
+    pixel_color_mapping: Dict[int, List[int]],
+    all_tetromino_objects: Optional[List[Any]] = None, # New parameter
+    score: int = 0, 
+    lines: int = 0, 
+    level: int = 0,
+    next_pieces_ids: Optional[List[int]] = None,
+    held_piece_id: Optional[int] = None,
+    perf_score: Optional[float] = None,
+    img_width: int = 300, 
+    info_panel_width: int = 150 
+) -> None:
+    """Create a visualization of the Tetris board and game info, using provided color mapping."""
+    if not isinstance(board, np.ndarray):
+        print(f"[create_board_image_tetris] Warning: board is not a numpy array. Got {type(board)}. Cannot create image.")
+        return
+
+    board_height_cells, board_width_cells = board.shape
+    if board_height_cells == 0 or board_width_cells == 0:
+        print(f"[create_board_image_tetris] Error: Board has zero dimension: {board.shape}. Cannot create image.")
+        return
+    
+    if not pixel_color_mapping:
+        print(f"[create_board_image_tetris] Error: pixel_color_mapping is empty or None. Cannot determine piece colors.")
+        return
+    
+    empty_color_val_id = 0 # Assuming 0 is the ID for empty space, used for comparison
+    # empty_color_rgb = pixel_color_mapping.get(empty_color_val_id, FALLBACK_EMPTY_COLOR_UTIL) 
+
+    cell_size = img_width // board_width_cells
+    img_height = cell_size * board_height_cells
+    total_width = img_width + info_panel_width
+
+    img = Image.new('RGB', (total_width, img_height), (50, 50, 50))
+    draw = ImageDraw.Draw(img)
+
+    # Fonts (same as before)
+    try:
+        font_size_main = max(15, cell_size // 2)
+        font_main = _get_font(POTENTIAL_FONTS, font_size_main, ImageFont.load_default)
+        font_size_info = max(12, info_panel_width // 10)
+        font_info = _get_font(POTENTIAL_FONTS, font_size_info, ImageFont.load_default)
+    except Exception as e:
+        print(f"[create_board_image_tetris] Font loading error: {e}. Using default font.")
+        font_main = ImageFont.load_default()
+        font_info = ImageFont.load_default()
+
+    # Draw Tetris Board (same as before)
+    for r_idx in range(board_height_cells):
+        for c_idx in range(board_width_cells):
+            cell_id_on_board = int(board[r_idx, c_idx])
+            color_tuple = tuple(pixel_color_mapping.get(cell_id_on_board, FALLBACK_PIECE_COLOR_UTIL))
+            x0 = c_idx * cell_size
+            y0 = r_idx * cell_size
+            x1 = x0 + cell_size
+            y1 = y0 + cell_size
+            draw.rectangle([x0, y0, x1, y1], fill=color_tuple, outline=(80, 80, 80), width=1)
+    
+    draw.rectangle([img_width, 0, total_width, img_height], fill=(70, 70, 70))
+    info_text_color_tuple = tuple(DEFAULT_INFO_TEXT_COLOR)
+    info_text_x = img_width + 10
+    current_y = 10
+    draw.text((info_text_x, current_y), f"Score: {score}", fill=info_text_color_tuple, font=font_info)
+    current_y += font_info.getbbox("A")[3] + 5 
+    draw.text((info_text_x, current_y), f"Lines: {lines}", fill=info_text_color_tuple, font=font_info)
+    current_y += font_info.getbbox("A")[3] + 5
+    draw.text((info_text_x, current_y), f"Level: {level}", fill=info_text_color_tuple, font=font_info)
+    current_y += font_info.getbbox("A")[3] + 15
+
+    # --- Draw Held Piece Shape ---
+    draw.text((info_text_x, current_y), "Held:", fill=info_text_color_tuple, font=font_info)
+    current_y += font_info.getbbox("A")[3] + 2
+    mini_shape_cell_size_pil = 3 # Small cell size for PIL drawing
+    shape_area_start_x_pil = info_text_x + 5
+    
+    if held_piece_id is not None and held_piece_id != empty_color_val_id and all_tetromino_objects:
+        held_tetromino_obj = next((t for t in all_tetromino_objects if t.id == held_piece_id), None)
+        if held_tetromino_obj:
+            color_rgb = held_tetromino_obj.color_rgb
+            matrix = held_tetromino_obj.matrix
+            shape_matrix = (matrix > 0).astype(np.uint8)
+            for r_idx, row in enumerate(shape_matrix):
+                for c_idx, cell in enumerate(row):
+                    if cell == 1:
+                        x0_shape = shape_area_start_x_pil + c_idx * mini_shape_cell_size_pil
+                        y0_shape = current_y + r_idx * mini_shape_cell_size_pil
+                        draw.rectangle(
+                            [x0_shape, y0_shape, x0_shape + mini_shape_cell_size_pil, y0_shape + mini_shape_cell_size_pil],
+                            fill=tuple(color_rgb), outline=(90,90,90) # Slightly lighter outline for shapes
+                        )
+            current_y += (shape_matrix.shape[0] * mini_shape_cell_size_pil) + 10 # Adjust Y based on actual shape height
+        else:
+            draw.text((shape_area_start_x_pil, current_y), "?", fill=info_text_color_tuple, font=font_info)
+            current_y += font_info.getbbox("A")[3] + 5
+    else:
+        draw.text((shape_area_start_x_pil, current_y), "-", fill=info_text_color_tuple, font=font_info)
+        current_y += font_info.getbbox("A")[3] + 5
+    current_y += 5 # Extra spacing before "Next:"
+
+    # --- Draw Next Pieces Shapes ---
+    draw.text((info_text_x, current_y), "Next:", fill=info_text_color_tuple, font=font_info)
+    current_y += font_info.getbbox("A")[3] + 2
+    if next_pieces_ids and all_tetromino_objects:
+        for i, piece_id_val in enumerate(next_pieces_ids[:3]): 
+            if piece_id_val != empty_color_val_id:
+                next_tetromino_obj = next((t for t in all_tetromino_objects if t.id == piece_id_val), None)
+                if next_tetromino_obj:
+                    color_rgb = next_tetromino_obj.color_rgb
+                    matrix = next_tetromino_obj.matrix
+                    shape_matrix = (matrix > 0).astype(np.uint8)
+                    for r_idx, row in enumerate(shape_matrix):
+                        for c_idx, cell in enumerate(row):
+                            if cell == 1:
+                                x0_shape = shape_area_start_x_pil + c_idx * mini_shape_cell_size_pil
+                                y0_shape = current_y + r_idx * mini_shape_cell_size_pil
+                                draw.rectangle(
+                                    [x0_shape, y0_shape, x0_shape + mini_shape_cell_size_pil, y0_shape + mini_shape_cell_size_pil],
+                                    fill=tuple(color_rgb), outline=(90,90,90)
+                                )
+                    current_y += (shape_matrix.shape[0] * mini_shape_cell_size_pil) + 7 # Y advance for this piece + small gap
+                else:
+                    draw.text((shape_area_start_x_pil, current_y), "?", fill=info_text_color_tuple, font=font_info)
+                    current_y += font_info.getbbox("A")[3] + 5 
+            else:
+                draw.text((shape_area_start_x_pil, current_y), "-", fill=info_text_color_tuple, font=font_info)
+                current_y += font_info.getbbox("A")[3] + 5
+    else:
+        draw.text((shape_area_start_x_pil, current_y), "-", fill=info_text_color_tuple, font=font_info)
+        current_y += font_info.getbbox("A")[3] + 5
+
+    # Perf score (same as before)
+    if perf_score is not None:
+        score_text_content = f"Perf: {perf_score:.2f}"
+        text_bbox_score = draw.textbbox((0,0), score_text_content, font=font_info)
+        score_text_width = text_bbox_score[2] - text_bbox_score[0]
+        score_text_height = text_bbox_score[3] - text_bbox_score[1]
+        perf_score_y = img_height - score_text_height - 10
+        perf_score_x = img_width + (info_panel_width - score_text_width) // 2 
+        draw.text((perf_score_x, perf_score_y), score_text_content, fill=info_text_color_tuple, font=font_info)
+
+    try:
+        save_dir = os.path.dirname(save_path)
+        if save_dir:
+            os.makedirs(save_dir, exist_ok=True)
+        img.save(save_path)
+    except Exception as e:
+        print(f"[create_board_image_tetris] Error saving Tetris board image to {save_path}: {e}") 

@@ -5,6 +5,7 @@ import datetime
 import time
 import numpy as np
 import yaml
+import gym
 
 from gamingagent.agents.base_agent import BaseAgent
 from gamingagent.modules import PerceptionModule, ReasoningModule # Observation is imported by Env
@@ -13,8 +14,8 @@ from gamingagent.envs.custom_01_2048.twentyFortyEightEnv import TwentyFortyEight
 
 game_config_mapping = {"twenty_forty_eight": "custom_01_2048",
                        "sokoban": "custom_02_sokoban",
-                       "tetris": "custom_03_tetris",
-                       "candy_crush": "custom_04_candy_crush",
+                       "tetris": "custom_04_tetris",
+                       "candy_crush": "custom_03_candy_crush",
                        "super_mario_bros":"retro_01_super_mario_bros",
                        "ace_attorney":"retro_02_ace_attorney"}
 
@@ -81,6 +82,34 @@ def create_environment(game_name_arg: str,
             max_stuck_steps_for_adapter=env_init_params.get('max_stuck_steps_for_adapter')
         )
         return env
+    elif game_name_arg == "tetris":
+        from gamingagent.envs.custom_04_tetris.tetrisEnv import TetrisEnv # Import TetrisEnv
+        if os.path.exists(env_specific_config_path):
+            with open(env_specific_config_path, 'r') as f:
+                env_specific_config = json.load(f)
+                env_init_params['board_width'] = env_specific_config.get('env_init_kwargs', {}).get('board_width', 10)
+                env_init_params['board_height'] = env_specific_config.get('env_init_kwargs', {}).get('board_height', 20)
+                env_init_params['render_mode'] = env_specific_config.get('render_mode_gym_make', 'rgb_array') # Default to rgb_array for image capture
+                env_init_params['max_stuck_steps_for_adapter'] = env_specific_config.get('max_unchanged_steps_for_termination', 30)
+        else:
+            print(f"Warning: {env_specific_config_path} for {game_name_arg} not found. Using default env parameters.")
+            env_init_params['board_width'] = 10
+            env_init_params['board_height'] = 20
+            env_init_params['render_mode'] = 'rgb_array'
+            env_init_params['max_stuck_steps_for_adapter'] = 30
+
+        print(f"Initializing environment: {game_name_arg} with params: {env_init_params}")
+        env = TetrisEnv(
+            render_mode=env_init_params.get('render_mode'),
+            board_width=env_init_params.get('board_width'),
+            board_height=env_init_params.get('board_height'),
+            game_name_for_adapter=game_name_arg,
+            observation_mode_for_adapter=obs_mode_arg,
+            agent_cache_dir_for_adapter=cache_dir_for_adapter,
+            game_specific_config_path_for_adapter=env_specific_config_path,
+            max_stuck_steps_for_adapter=env_init_params.get('max_stuck_steps_for_adapter')
+        )
+        return env
     # Example for adding another game:
     # elif game_name_arg == "sokoban":
     #     # Load params specific to Sokoban (example, adjust as needed)
@@ -109,7 +138,7 @@ def create_environment(game_name_arg: str,
         print(f"ERROR: Game '{game_name_arg}' is not defined or implemented in custom_runner.py's create_environment function.")
         return None
 
-def run_game_episode(agent: BaseAgent, game_env: TwentyFortyEightEnv, episode_id: int, args: argparse.Namespace):
+def run_game_episode(agent: BaseAgent, game_env: gym.Env, episode_id: int, args: argparse.Namespace):
     print(f"Starting Episode {episode_id} for {args.game_name} with seed {args.seed if args.seed is not None else 'default'}...")
 
     # Pass episode_id to env.reset
@@ -130,8 +159,16 @@ def run_game_episode(agent: BaseAgent, game_env: TwentyFortyEightEnv, episode_id
         end_time = time.time()
         time_taken_s = end_time - start_time
 
-        action_str_agent = action_dict.get("action", "None").strip().lower()
-        thought_process = action_dict.get("thought", "")
+        # Ensure action_dict is not None and action is handled if None
+        raw_action_from_agent = None
+        if action_dict and action_dict.get("action") is not None:
+            raw_action_from_agent = action_dict.get("action")
+        
+        action_str_agent = "None" # Default to "None" string if no valid action
+        if raw_action_from_agent:
+            action_str_agent = str(raw_action_from_agent).strip().lower()
+        
+        thought_process = action_dict.get("thought", "") if action_dict else "No thought process due to API failure."
 
         # Step the environment using the new signature, including agent action details
         agent_observation, reward, terminated, truncated, last_info, current_step_perf_score = game_env.step(
@@ -142,6 +179,10 @@ def run_game_episode(agent: BaseAgent, game_env: TwentyFortyEightEnv, episode_id
             
         total_reward_for_episode += reward
         total_perf_score_for_episode += current_step_perf_score
+
+        # --- DEBUG PRINT for reward ---
+        print(f"E{episode_id} S{final_step_num}: Action='{action_str_agent}', StepR={reward:.2f}, TotalR={total_reward_for_episode:.2f}, Perf={current_step_perf_score:.2f}, Term={terminated}, Trunc={truncated}")
+        # --- END DEBUG PRINT for reward ---
 
         if terminated or truncated:
             break
