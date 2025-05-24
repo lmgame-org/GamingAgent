@@ -12,6 +12,7 @@ from gymnasium.core import ActType, ObsType, RenderFrame, SupportsFloat
 # Import the adapter and Observation dataclass
 from gamingagent.envs.gym_env_adapter import GymEnvAdapter
 from gamingagent.modules.core_module import Observation
+from gamingagent.envs.env_utils import create_board_image_2048 # Ensure this is imported
 
 WINDOW_WIDTH = 400
 WINDOW_HEIGHT = 400
@@ -143,10 +144,29 @@ class TwentyFortyEightEnv(gym.Env):
         self.current_raw_board = self._get_raw_board_obs()
         self.current_info_dict = self._get_info()
 
-        # Adapter creates the agent-facing Observation object
-        # The perf_score for the initial state image can be 0 or current total score
-        initial_perf_score = self.adapter.calculate_perf_score(0, self.current_info_dict)
-        agent_observation = self.adapter.create_agent_observation(self.current_raw_board, perf_score_for_image=initial_perf_score)
+        # Prepare observation components for the adapter
+        img_path_for_adapter = None
+        text_representation_for_adapter = None
+        initial_perf_score = self.adapter.calculate_perf_score(0, self.current_info_dict) # Score for initial image
+
+        if self.adapter.observation_mode in ["vision", "both"]:
+            img_path_for_adapter = self.adapter._create_agent_observation_path(
+                self.adapter.current_episode_id, self.adapter.current_step_num
+            )
+            create_board_image_2048(self.current_raw_board, img_path_for_adapter, perf_score=initial_perf_score)
+        
+        if self.adapter.observation_mode in ["text", "both"]:
+            if isinstance(self.current_raw_board, list):
+                text_representation_for_adapter = str(self.current_raw_board)
+            elif hasattr(self.current_raw_board, 'tolist'): # For numpy arrays
+                text_representation_for_adapter = str(self.current_raw_board.tolist())
+            else:
+                text_representation_for_adapter = str(self.current_raw_board)
+
+        agent_observation = self.adapter.create_agent_observation(
+            img_path=img_path_for_adapter,
+            text_representation=text_representation_for_adapter
+        )
 
         if self.render_mode == "human":
             self._render_frame()
@@ -279,7 +299,29 @@ class TwentyFortyEightEnv(gym.Env):
         self.current_info_dict = self._get_info()
         
         current_perf_score = self.adapter.calculate_perf_score(reward, self.current_info_dict)
-        agent_observation = self.adapter.create_agent_observation(self.current_raw_board, perf_score_for_image=current_perf_score)
+
+        # Prepare observation components for the adapter
+        img_path_for_adapter = None
+        text_representation_for_adapter = None
+
+        if self.adapter.observation_mode in ["vision", "both"]:
+            img_path_for_adapter = self.adapter._create_agent_observation_path(
+                self.adapter.current_episode_id, self.adapter.current_step_num
+            )
+            create_board_image_2048(self.current_raw_board, img_path_for_adapter, perf_score=current_perf_score)
+
+        if self.adapter.observation_mode in ["text", "both"]:
+            if isinstance(self.current_raw_board, list):
+                text_representation_for_adapter = str(self.current_raw_board)
+            elif hasattr(self.current_raw_board, 'tolist'): # For numpy arrays
+                text_representation_for_adapter = str(self.current_raw_board.tolist())
+            else:
+                text_representation_for_adapter = str(self.current_raw_board)
+        
+        agent_observation = self.adapter.create_agent_observation(
+            img_path=img_path_for_adapter,
+            text_representation=text_representation_for_adapter
+        )
         
         # Use adapter for final termination check (e.g., stuck detection)
         final_terminated, final_truncated = self.adapter.verify_termination(agent_observation, terminated, truncated)

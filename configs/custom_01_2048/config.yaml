@@ -10,19 +10,17 @@ game_env:
 agent:
   # Global agent settings
   name: "2048_agent"
-  model_name: "claude-3-haiku-20240307"
+  model_name: "gemini-2.0-flash"
   cache_dir: "cache/twenty_forty_eight"
   reasoning_effort: "high"
   token_limit: 100000
-  harness: false  # Whether to use the perception-memory-reasoning pipeline
-  
+  harness: true # Whether to use the perception-memory-reasoning pipeline
+  observation_mode: "text"
   # Module-specific settings
   modules:
     base_module:
-      observation_mode: "vision"  # Options: "vision", "text", "both"
     
     perception_module:
-      obs_source: "backend"
 
     memory_module:
       max_memory: 10  # Maximum number of memory entries to store

@@ -83,8 +83,9 @@ class ReasoningModule(CoreModule):
         #reflection_context = f"Reflection:\n{memory_reflection}" if memory_reflection else ""
         #full_context = memory_context + perception_context + reflection_context
 
-        use_memory = bool(game_trajectory.strip() and reflection.strip())
-        use_perception = bool(processed_visual_description.strip())
+    
+        use_memory = bool(game_trajectory.strip() and reflection.strip()) if isinstance(game_trajectory, str) and isinstance(reflection, str) else bool(game_trajectory and reflection)
+        use_perception = bool(processed_visual_description.strip()) if isinstance(processed_visual_description, str) else bool(processed_visual_description)
 
         full_context = observation.get_complete_prompt(
             observation_mode=self.observation_mode,

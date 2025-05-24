@@ -6,7 +6,6 @@ from typing import Optional, Dict, Any, Tuple, List
 import numpy as np
 
 from gamingagent.modules.core_module import Observation
-from gamingagent.envs.env_utils import create_board_image_2048 # Import the image creation function
 from tools.utils import convert_numpy_to_python
 
 SKIP_ACTION_IDX = -1 # Consistent with BaseGameEnv
@@ -136,39 +135,25 @@ class GymEnvAdapter:
             print(f"[GymEnvAdapter] ERROR: Could not open episode log file {self.episode_log_file_path}: {e}")
             self.episode_log_file_handle = None
 
-    def create_agent_observation(self, board_powers: Any, perf_score_for_image: Optional[float] = None) -> Observation:
+    def create_agent_observation(self, img_path: Optional[str] = None, text_representation: Optional[str] = None) -> Observation:
         """
-        Creates an agent-facing Observation object from the raw environment state.
-        Depending on `self.observation_mode`, this may involve rendering an image
-        and/or generating a textual representation.
+        Creates an agent-facing Observation object from pre-defined image path and text representation.
+        The environment is responsible for generating these components based on its state and
+        the adapter's observation_mode.
 
         Args:
-            board_powers (Any): The raw state from the underlying Gymnasium environment
-                                (e.g., a NumPy array representing the 2048 board powers).
-            perf_score_for_image (Optional[float]): Performance score to overlay on the generated image.
+            img_path (Optional[str]): Path to the observation image file.
+            text_representation (Optional[str]): Textual representation of the observation.
 
         Returns:
             Observation: An Observation object suitable for the agent.
         """
-        img_path_for_agent = None
-        text_representation_for_agent = None
-
-        if self.observation_mode in ["vision", "both"]:
-            img_path_for_agent = self._create_agent_observation_path(self.current_episode_id, self.current_step_num)
-            create_board_image_2048(board_powers, img_path_for_agent, perf_score=perf_score_for_image)
-        
-        if self.observation_mode in ["text", "both"]:
-            if isinstance(board_powers, list):
-                 text_representation_for_agent = str(board_powers)
-            elif hasattr(board_powers, 'tolist'): # For numpy arrays
-                 text_representation_for_agent = str(board_powers.tolist())
-            else:
-                 text_representation_for_agent = str(board_powers)
-            
-        return Observation(
-            img_path=img_path_for_agent, 
-            textual_representation=text_representation_for_agent
+        agent_observation = Observation()
+        agent_observation.set_perception_observation(
+            img_path=img_path,
+            textual_representation=text_representation
         )
+        return agent_observation
 
     def _create_agent_observation_path(self, episode_id: int, step_num: int) -> str:
         """Generates a unique file path for an observation image."""

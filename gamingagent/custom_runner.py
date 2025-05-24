@@ -195,9 +195,10 @@ def main():
                         agent_config_yaml = loaded_yaml['agent']
                         defaults_from_yaml['model_name'] = agent_config_yaml.get('model_name')
                         defaults_from_yaml['harness'] = agent_config_yaml.get('harness')
+                        defaults_from_yaml['observation_mode'] = agent_config_yaml.get('observation_mode')
+                        
+                        # Still load max_memory from its specific module config if present
                         if agent_config_yaml.get('modules'):
-                            if agent_config_yaml['modules'].get('base_module'):
-                                defaults_from_yaml['observation_mode'] = agent_config_yaml['modules']['base_module'].get('observation_mode')
                             if agent_config_yaml['modules'].get('memory_module'):
                                 defaults_from_yaml['max_memory'] = agent_config_yaml['modules']['memory_module'].get('max_memory')
                     defaults_from_yaml = {k: v for k, v in defaults_from_yaml.items() if v is not None}
