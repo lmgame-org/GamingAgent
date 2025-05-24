@@ -1,0 +1,23 @@
+game_env:
+  name: "candy_crush"
+  env_type: "custom" # Since CandyCrushEnvWrapper is a custom wrapper
+  num_runs: 2
+  render_mode: "human"
+  max_steps: 50 # Max steps per episode for Candy Crush
+  seed: 42 # Or a specific seed
+
+agent:
+  model_name: "claude-3-5-sonnet-latest" # Or your preferred model
+  harness: true # Set to true to use Perception/Memory/Reasoning modules
+  token_limit: 100000
+  reasoning_effort: "high"
+  observation_mode: "text" 
+modules:
+    base_module:
+
+    perception_module:
+
+    memory_module:
+      max_memory: 10 
+
+    reasoning_module:

@@ -9,6 +9,11 @@ import statistics # For median calculation
 import subprocess # For calling ffmpeg
 from typing import Optional, Dict, List, Tuple, Union # Added Dict, List, Tuple, Union
 import ast # Added import
+import re # Added for Candy Crush textual parsing
+
+# Import for Candy Crush image creation
+# from gamingagent.envs.custom_03_candy_crush.candy_crush_env import create_board_image_candy_crush, COLOR_MAP as CANDY_CRUSH_ENV_COLOR_MAP
+
 
 # Default seconds per frame for videos (1 FPS)
 DEFAULT_SECONDS_PER_FRAME = 1.0
@@ -23,6 +28,20 @@ SOKOBAN_ROOM_STATE_TO_CHAR = {
 # Mapping from characters in textual_representation to numerical room_state values
 SOKOBAN_CHAR_TO_ROOM_STATE = {v: k for k, v in SOKOBAN_ROOM_STATE_TO_CHAR.items()}
 # The explicit SOKOBAN_CHAR_TO_ROOM_STATE['?'] = 2 is no longer needed due to the change above
+
+
+# --- Candy Crush Specific Constants & Utilities (Copied and adapted) ---
+CANDY_CRUSH_REPLAY_COLOR_MAP = { # Renamed from COLOR_MAP
+    0: " ",  # Empty or background
+    1: "G",  # Green
+    2: "C",  # Cyan
+    3: "P",  # Purple
+    4: "R",  # Red
+    5: "Y",  # Yellow 
+    6: "B",  # Blue 
+}
+# Update CANDY_CRUSH_CHAR_TO_IDX to use the new local map
+CANDY_CRUSH_CHAR_TO_IDX = {v: k for k, v in CANDY_CRUSH_REPLAY_COLOR_MAP.items() if v.strip()}
 
 
 # --- Font Loading Utilities (can be shared or adapted) ---
@@ -41,7 +60,10 @@ def _load_font(font_name_list: List[str], size: int, default_message: Optional[s
         except (OSError, IOError):
             continue
     if font is None:
-        font = ImageFont.load_default(size=size)
+        try:
+            font = ImageFont.load_default(size=size)
+        except TypeError: 
+             font = ImageFont.load_default() # type: ignore
         if default_message:
             print(f"[ReplayUtils] {default_message}")
     return font
@@ -122,9 +144,8 @@ def create_board_image_sokoban_for_replay(
     perf_score: Optional[float] = None,
     action_taken_str: Optional[str] = None
 ):
-    """Creates a visualization of the Sokoban board for replay frames."""
+    """Creates a visualization of the Sokoban board for replay frames, including score and action text."""
     if board_state_numerical is None:
-        # Create a small error image if board state is None
         img = Image.new('RGB', (tile_size * 5, tile_size * 5), (128, 128, 128))
         draw = ImageDraw.Draw(img)
         error_font = _load_font(POTENTIAL_FONTS, tile_size // 2, "Error font not found, using default.")
@@ -135,56 +156,95 @@ def create_board_image_sokoban_for_replay(
         return
 
     rows, cols = board_state_numerical.shape
+    
+    # Determine font size for info text
+    info_font_size = max(10, tile_size // 3) # Adjusted for potentially smaller tiles
+    info_font = _load_font(POTENTIAL_FONTS, info_font_size, "Info font for Sokoban replay not found.")
+    text_color = (0, 0, 0) # Black text
+    text_padding = 5 # Padding from edges
+
+    # Calculate potential additional height needed for the text strip at the top
+    # This is a rough estimate; more precise calculation would involve font metrics
+    num_info_lines = 0
+    if perf_score is not None: num_info_lines +=1
+    if action_taken_str is not None: num_info_lines +=1
+    
+    # Estimate line height based on font size. Add a small buffer.
+    estimated_line_height = info_font_size + 4 
+    info_strip_height = 0
+    if num_info_lines > 0:
+        info_strip_height = (num_info_lines * estimated_line_height) + (text_padding * 2)
+
     img_width = cols * tile_size
-    img_height = rows * tile_size
-    img = Image.new('RGB', (img_width, img_height), (200, 200, 200)) # Background
+    img_height_board = rows * tile_size
+    total_img_height = img_height_board + info_strip_height
+
+    img = Image.new('RGB', (img_width, total_img_height), (200, 200, 200)) # Background
     draw = ImageDraw.Draw(img)
 
-    asset_files = { # Relative to SOKOBAN_ASSET_DIR
-        "wall": "wall.png",
-        "floor": "floor.png",
-        "box": "box.png",
-        "box_on_target": "box_docked.png",
-        "player": "worker.png",
-        "player_on_target": "worker_dock.png", # Player on target
-        "target": "dock.png", # Empty target
+    # Draw the info text first (if any) in the top strip
+    current_y_text = text_padding
+    if info_strip_height > 0:
+        draw.rectangle([0, 0, img_width, info_strip_height], fill=(180, 180, 180)) # Light gray for text bg
+        if perf_score is not None:
+            score_text = f"Perf: {perf_score:.2f}"
+            draw.text((text_padding, current_y_text), score_text, fill=text_color, font=info_font)
+            current_y_text += estimated_line_height
+        if action_taken_str is not None:
+            action_text = f"Action: {action_taken_str}"
+            # Truncate action_text if too long to fit (simple truncation)
+            max_action_len = (img_width - 2 * text_padding) // (info_font_size // 2) # Rough estimate
+            if len(action_text) > max_action_len and max_action_len > 3:
+                action_text = action_text[:max_action_len-3] + "..."
+            draw.text((text_padding, current_y_text), action_text, fill=text_color, font=info_font)
+
+    # Asset loading (remains the same)
+    asset_files = { 
+        "wall": "wall.png", "floor": "floor.png", "box": "box.png",
+        "box_on_target": "box_docked.png", "player": "worker.png",
+        "player_on_target": "worker_dock.png", "target": "dock.png",
     }
     assets = {k: load_sokoban_asset_image_for_replay(p, (tile_size, tile_size)) for k, p in asset_files.items()}
 
+    # Draw the board, offset by info_strip_height
+    board_offset_y = info_strip_height
     for r in range(rows):
         for c in range(cols):
-            x0, y0 = c * tile_size, r * tile_size
+            x0, y0 = c * tile_size, r * tile_size + board_offset_y # Apply offset here
             tile_val = board_state_numerical[r, c]
 
-            # Draw floor first as a base for most tiles
             if assets["floor"]:
                 img.paste(assets["floor"], (x0, y0), assets["floor"] if assets["floor"].mode == 'RGBA' else None)
             
             asset_to_draw = None
-            # Determine primary asset based on numerical state
-            # 0: Wall, 1: Floor (already drawn), 2: Target, 3: Box on Target, 4: Box, 5: Player, 6: Player on Target
             if tile_val == 0: asset_to_draw = assets["wall"]
             elif tile_val == 2: asset_to_draw = assets["target"]
-            elif tile_val == 3: # Box on Target
-                if assets["target"]: # Draw target tile underneath
-                    img.paste(assets["target"], (x0, y0), assets["target"] if assets["target"].mode == 'RGBA' else None)
+            elif tile_val == 3:
+                if assets["target"]: img.paste(assets["target"], (x0, y0), assets["target"] if assets["target"].mode == 'RGBA' else None)
                 asset_to_draw = assets["box_on_target"]
             elif tile_val == 4: asset_to_draw = assets["box"]
             elif tile_val == 5: asset_to_draw = assets["player"]
-            elif tile_val == 6: # Player on Target
-                if assets["target"]: # Draw target tile underneath
-                    img.paste(assets["target"], (x0, y0), assets["target"] if assets["target"].mode == 'RGBA' else None)
+            elif tile_val == 6:
+                if assets["target"]: img.paste(assets["target"], (x0, y0), assets["target"] if assets["target"].mode == 'RGBA' else None)
                 asset_to_draw = assets["player_on_target"]
             
             if asset_to_draw:
                 img.paste(asset_to_draw, (x0, y0), asset_to_draw if asset_to_draw.mode == 'RGBA' else None)
-            elif tile_val == 1: # Floor, already drawn
-                pass
-            else: # Fallback for unknown tile values
+            elif tile_val == 1: pass # Floor already drawn
+            else: 
                 draw.rectangle([x0, y0, x0 + tile_size, y0 + tile_size], fill=(100, 100, 100))
                 char_for_val = SOKOBAN_ROOM_STATE_TO_CHAR.get(tile_val, "?")
                 fallback_font = _load_font(POTENTIAL_FONTS, tile_size // 2, "Fallback font for unknown tile not found.")
-                draw.text((x0 + 5, y0 + 5), char_for_val, fill=(255,255,255), font=fallback_font)
+                # Simple text centering for fallback char
+                text_w_fb, text_h_fb = tile_size // 4, tile_size // 2 # Rough estimate
+                if hasattr(fallback_font, 'getbbox'):
+                    bbox = fallback_font.getbbox(char_for_val)
+                    text_w_fb = bbox[2] - bbox[0]
+                    text_h_fb = bbox[3] - bbox[1]
+                elif hasattr(fallback_font, 'getsize'):
+                     text_w_fb, text_h_fb = fallback_font.getsize(char_for_val)
+
+                draw.text((x0 + (tile_size - text_w_fb) // 2, y0 + (tile_size - text_h_fb) // 2), char_for_val, fill=(255,255,255), font=fallback_font)
 
     if save_path:
         save_dir = os.path.dirname(save_path)
@@ -193,6 +253,81 @@ def create_board_image_sokoban_for_replay(
             img.save(save_path)
         except Exception as e:
             print(f"[ReplayUtils] Error saving Sokoban board image to {save_path}: {e}")
+
+# --- Candy Crush Textual Board Parser ---
+def parse_candy_crush_textual_board(text_board_str: str, char_to_idx_map: Dict[str, int]) -> Tuple[Optional[np.ndarray], Optional[int], Optional[int]]:
+    """
+    Parses a textual representation of the Candy Crush board (and score/moves) 
+    into a numerical numpy array for the board, and extracts score and moves left.
+    Example textual_representation format:
+    Board:
+    0| R C G C P P C R
+    1| P C R R C G P P
+    ...
+    Score: 120
+    Moves Left: 35
+    Last Action: ((1,2),(1,3))
+    """
+    if not text_board_str:
+        return None, None, None
+
+    board_lines = []
+    current_score = None
+    moves_left = None
+    
+    in_board_section = False
+    for line in text_board_str.split('\\\\n'): # Using escaped newline
+        line_strip = line.strip()
+        if line_strip.startswith("Board:"):
+            in_board_section = True
+            continue
+        
+        if in_board_section:
+            if re.match(r"^\d+\|", line_strip): # Line like "0| R C G..."
+                board_content = line_strip.split("|", 1)[-1].strip()
+                board_lines.append(board_content)
+            else: # End of board section (e.g., encountering "Score:")
+                in_board_section = False
+        
+        # Check for Score and Moves Left even if not in board section anymore
+        if line_strip.startswith("Score:"):
+            try:
+                current_score = int(line_strip.split(":", 1)[-1].strip())
+            except ValueError:
+                print(f"[ReplayUtils] Warning: Could not parse score from line: {line_strip}")
+        elif line_strip.startswith("Moves Left:"):
+            try:
+                moves_left = int(line_strip.split(":", 1)[-1].strip())
+            except ValueError:
+                print(f"[ReplayUtils] Warning: Could not parse moves left from line: {line_strip}")
+
+    if not board_lines:
+        print("[ReplayUtils] Warning: No board lines found in Candy Crush textual representation.")
+        return None, current_score, moves_left
+
+    try:
+        rows = len(board_lines)
+        # Assume all board lines have space-separated characters
+        cols = len(board_lines[0].split()) 
+        
+        board_numerical = np.zeros((rows, cols), dtype=np.int32) # Default to 0 (empty or background)
+
+        for r, line_content in enumerate(board_lines):
+            chars = line_content.split()
+            if len(chars) != cols:
+                print(f"[ReplayUtils] Warning: Inconsistent column count in Candy Crush textual board at row {r}. Expected {cols}, got {len(chars)}. Line: '{line_content}'")
+                return None, current_score, moves_left # Or handle more gracefully
+            for c, char_val in enumerate(chars):
+                idx_val = char_to_idx_map.get(char_val)
+                if idx_val is not None:
+                    board_numerical[r, c] = idx_val
+                else:
+                    board_numerical[r, c] = 0 # Default for unknown char
+                    print(f"[ReplayUtils] Warning: Unknown character '{char_val}' in Candy Crush textual board at ({r},{c}). Treating as empty.")
+        return board_numerical, current_score, moves_left
+    except Exception as e:
+        print(f"[ReplayUtils] Error parsing Candy Crush board_lines: {e}. Lines: {board_lines}")
+        return None, current_score, moves_left
 
 def overlay_text_on_image(
     source_image_path: str,
@@ -209,7 +344,7 @@ def overlay_text_on_image(
         img = Image.new('RGB', (error_img_width, error_img_height), (50, 50, 50))
         draw = ImageDraw.Draw(img)
         error_font = _load_font(POTENTIAL_FONTS, reference_size_for_font // 2, "Error font for overlay fallback.")
-        draw.text((10,10), f"Source Missing:\n{os.path.basename(source_image_path)}", fill=(255,0,0), font=error_font)
+        draw.text((10,10), f"Source Missing:\\n{os.path.basename(source_image_path)}", fill=(255,0,0), font=error_font)
         if output_save_path:
             os.makedirs(os.path.dirname(output_save_path), exist_ok=True)
             img.save(output_save_path)
@@ -727,6 +862,135 @@ def generate_sokoban_median_score_replay(
         if 'temp_dir' in locals() and os.path.exists(temp_dir) and os.path.isdir(temp_dir):
             shutil.rmtree(temp_dir)
             print(f"Cleaned up temporary directory due to error: {temp_dir}")
+
+def generate_candy_crush_median_score_replay(
+    game_perf_json_path: str,
+    model_name_prefix: str,
+    game_display_name: str, 
+    harness_status_key: str, 
+    video_output_base_dir: str,
+    seconds_per_frame: float = DEFAULT_SECONDS_PER_FRAME,
+    default_tile_size: int = 32 
+):
+    print(f"Attempting to generate median score MP4 replay for {model_name_prefix} in game '{game_display_name}' ({harness_status_key}) for Candy Crush.")
+
+    try:
+        subprocess.run(["ffmpeg", "-version"], capture_output=True, check=True)
+    except (subprocess.CalledProcessError, FileNotFoundError):
+        print("[ReplayUtils] Error: ffmpeg is not installed or not found in PATH. Video generation aborted.")
+        return
+
+    try:
+        with open(game_perf_json_path, 'r') as f: all_game_perf_data = json.load(f)
+    except FileNotFoundError: print(f"Error: game_perf.json not found at {game_perf_json_path}"); return
+    except json.JSONDecodeError: print(f"Error: Could not decode JSON from {game_perf_json_path}"); return
+
+    try:
+        model_data = all_game_perf_data.get(game_display_name, {}).get(model_name_prefix, {}).get(harness_status_key, {})
+        if not model_data or "episodes_data" not in model_data:
+            print(f"No data for {model_name_prefix} - game '{game_display_name}' - {harness_status_key}"); return
+        episodes_data = model_data["episodes_data"]
+        if not episodes_data: print(f"No episodes for {model_name_prefix} - game '{game_display_name}' - {harness_status_key}."); return
+
+        scores = [ep.get("total_episode_perf_score", 0) for ep in episodes_data]
+        if not scores: print("No scores for Candy Crush median."); return
+            
+        median_score_value = statistics.median(scores)
+        median_episodes = [ep for ep in episodes_data if ep.get("total_episode_perf_score", 0) == median_score_value]
+        
+        if not median_episodes:
+            episodes_data.sort(key=lambda ep: ep.get("total_episode_perf_score", 0))
+            median_episode_idx = (len(episodes_data) - 1) // 2 
+            if not episodes_data: print(f"No episodes to select for CC median replay for {model_name_prefix}, {harness_status_key}."); return
+            median_episode = episodes_data[median_episode_idx]
+            print(f"Exact median score not found for CC. Using ep score: {median_episode.get('total_episode_perf_score', 'N/A')}")
+        else:
+            median_episode = median_episodes[0]
+            print(f"Selected CC median episode score: {median_episode.get('total_episode_perf_score', 'N/A')}")
+
+        episode_id_str = median_episode.get("episode_id", "unknown_ep")
+        actual_median_score = median_episode.get("total_episode_perf_score", 0.0)
+        replayable_step_data = median_episode.get("replayable_steps")
+        
+        if not replayable_step_data: print(f"No 'replayable_steps' for CC median ep {episode_id_str} of {model_name_prefix}."); return
+
+        temp_dir = tempfile.mkdtemp()
+        frame_files = []
+        print(f"Generating CC frames in temp dir: {temp_dir}")
+
+        for idx, step_data in enumerate(replayable_step_data):
+            textual_rep = step_data.get("textual_representation")
+            action_taken = step_data.get("agent_action", "N/A")
+            img_path_from_log = step_data.get("img_path")
+            raw_env_info_for_step = step_data.get("raw_env_info", {})
+            score_to_display_on_frame = raw_env_info_for_step.get("total_score") 
+            moves_left_for_display = raw_env_info_for_step.get("num_moves_left")
+            frame_path = os.path.join(temp_dir, f"frame_{idx:04d}.png")
+
+            if img_path_from_log and os.path.exists(img_path_from_log):
+                # print(f"  Frame {idx}: Using logged image: {img_path_from_log}") # Removed
+                shutil.copy(img_path_from_log, frame_path)
+                frame_files.append(frame_path)
+            elif textual_rep:
+                # print(f"  Frame {idx}: Reconstructing from textual representation.") # Removed
+                board_numerical, score_from_text, moves_from_text = parse_candy_crush_textual_board(textual_rep, CANDY_CRUSH_CHAR_TO_IDX) 
+                
+                final_score_for_render = score_to_display_on_frame if score_to_display_on_frame is not None else score_from_text
+                final_moves_for_render = moves_left_for_display if moves_left_for_display is not None else moves_from_text
+
+                if board_numerical is not None:
+                    _create_board_image_candy_crush_for_replay( 
+                        board_numerical,
+                        frame_path,
+                        tile_size=default_tile_size,
+                        perf_score=final_score_for_render, 
+                        action_taken_str=action_taken, 
+                        moves_left=final_moves_for_render
+                    )
+                    frame_files.append(frame_path)
+                else:
+                    # print(f"  Warning: Failed to parse textual board for Candy Crush step {idx}. Creating error frame.") # Optional: keep for debugging
+                    error_img = Image.new('RGB', (default_tile_size * 8, default_tile_size * 6), (70, 20, 20))
+                    draw = ImageDraw.Draw(error_img); err_font = _load_font(POTENTIAL_FONTS, default_tile_size // 2)
+                    draw.text((10,10), f"Frame {idx}: Text Parse Fail", fill=(255,100,100), font=err_font)
+                    error_img.save(frame_path); frame_files.append(frame_path)
+            else: 
+                # print(f"  Warning: Both img_path and textual_representation missing for Candy Crush step {idx}. Creating error frame.") # Optional
+                error_img = Image.new('RGB', (default_tile_size * 8, default_tile_size * 6), (20, 20, 70))
+                draw = ImageDraw.Draw(error_img); err_font = _load_font(POTENTIAL_FONTS, default_tile_size // 2)
+                draw.text((10,10), f"Frame {idx}: No Data", fill=(100,100,255), font=err_font)
+                error_img.save(frame_path); frame_files.append(frame_path)
+
+        if not frame_files: print(f"No CC frames for median ep {episode_id_str} of {model_name_prefix}."); shutil.rmtree(temp_dir); return
+
+        harness_short = "hT" if "true" in harness_status_key.lower() else "hF"
+        safe_model_name = "".join(c if c.isalnum() or c in ['-', '_'] else '_' for c in model_name_prefix)[:15]
+        video_name = f"candycrush_{safe_model_name}_{harness_short}_median_ep{episode_id_str}_score{actual_median_score:.0f}.mp4"
+        
+        model_video_dir = os.path.join(video_output_base_dir, safe_model_name)
+        os.makedirs(model_video_dir, exist_ok=True)
+        output_video_path = os.path.join(model_video_dir, video_name)
+
+        print(f"Compiling {len(frame_files)} CC frames to {output_video_path} ({1/seconds_per_frame:.2f} FPS).")
+        framerate = 1.0 / seconds_per_frame
+        ffmpeg_cmd = ["ffmpeg", "-framerate", str(framerate), "-i", os.path.join(temp_dir, "frame_%04d.png"),
+                      "-c:v", "libx264", "-pix_fmt", "yuv420p", "-y", output_video_path]
+        try:
+            process = subprocess.run(ffmpeg_cmd, capture_output=True, text=True, check=True)
+            # Optionally print stdout/stderr if needed for debugging ffmpeg
+            # if process.stdout: print(f"[ReplayUtils] ffmpeg stdout (CC):\n{process.stdout}")
+            # if process.stderr: print(f"[ReplayUtils] ffmpeg stderr (CC):\n{process.stderr}")
+            print(f"CC median score replay MP4 saved to {output_video_path}")
+        except subprocess.CalledProcessError as e:
+            print(f"[ReplayUtils] Error creating CC MP4 with ffmpeg:\nCmd: {' '.join(e.cmd)}\nReturn: {e.returncode}\nstdout:\n{e.stdout}\nstderr:\n{e.stderr}")
+            print(f"CC frames are in {temp_dir}")
+            return 
+        finally:
+            if os.path.exists(temp_dir) and os.path.isdir(temp_dir): shutil.rmtree(temp_dir)
+    
+    except Exception as e:
+        print(f"Unexpected error in generate_candy_crush_median_score_replay for {model_name_prefix}, {harness_status_key}: {e}")
+        if 'temp_dir' in locals() and os.path.exists(temp_dir) and os.path.isdir(temp_dir): shutil.rmtree(temp_dir)
 
 # Ensure the script can be called, e.g. if __name__ == "__main__": block
 # For now, just defining the functions.

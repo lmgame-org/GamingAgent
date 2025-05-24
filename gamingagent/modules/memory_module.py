@@ -3,7 +3,7 @@ import json
 import time
 import datetime
 import re
-from .core_module import CoreModule, GameTrajectory
+from .core_module import CoreModule, GameTrajectory, Observation
 
 class MemoryModule(CoreModule):
     """
@@ -99,12 +99,19 @@ class MemoryModule(CoreModule):
         return (m.group(1).strip() if m else raw.strip()) or "No valid reflection produced."
 
     def update_memory(self,
+                      observation: Observation,
                       game_state: str,
                       action: str | None = None,
                       thought: str | None = None) -> str:
         """
         Main entry point called by the agent each turn.
         Generates reflection and pushes a compact line into the trajectory.
+
+        Args:
+            observation: The new game observation
+            
+        Returns:
+            processed_observation: An updated observation with processed data
         """
         prev_context = self.trajectory.get() or ""
         reflection = self._reflect(
@@ -128,7 +135,10 @@ class MemoryModule(CoreModule):
         # disk persistence
         self._append_to_log(line)
 
-        return reflection
+        observation.game_trajectory = self.trajectory
+        observation.reflection = reflection
+
+        return observation
 
     def get_memory_summary(self) -> dict[str, str]:
         """
@@ -137,13 +147,13 @@ class MemoryModule(CoreModule):
           • no extra metadata dance
         """
         past = self.trajectory.get() or "No previous game states available."
-        latest = self.trajectory.trajectory[-1] if self.trajectory.trajectory else ""
+        latest = self.trajectory.trajectory[-1] if self.trajectory.trajectory else "N/A"
 
         return {
             "game_trajectory": past,
-            "current_state": latest,   # includes obs/action/thought
+            "current_state": latest,   # includes (obs, action, thought)
             "reflection": latest.split("Reflection:", 1)[-1].strip()
-                         if "Reflection:" in latest else "",
+                         if "Reflection:" in latest else "N/A",
         }
 
     def _parse_response(self, response):

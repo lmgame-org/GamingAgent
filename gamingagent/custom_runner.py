@@ -11,11 +11,13 @@ from gamingagent.agents.base_agent import BaseAgent
 from gamingagent.modules import PerceptionModule, ReasoningModule # Observation is imported by Env
 # Directly import the specific environment we are using
 from gamingagent.envs.custom_01_2048.twentyFortyEightEnv import TwentyFortyEightEnv
+from gamingagent.envs.custom_02_sokoban.sokobanEnv import SokobanEnv
+from gamingagent.envs.custom_03_candy_crush.candyCrushEnv import CandyCrushEnvWrapper
 
 game_config_mapping = {"twenty_forty_eight": "custom_01_2048",
                        "sokoban": "custom_02_sokoban",
-                       "tetris": "custom_04_tetris",
                        "candy_crush": "custom_03_candy_crush",
+                       "tetris": "custom_04_tetris",
                        "super_mario_bros":"retro_01_super_mario_bros",
                        "ace_attorney":"retro_02_ace_attorney"}
 
@@ -92,12 +94,17 @@ def create_environment(game_name_arg: str,
                 env_init_params['render_mode'] = env_specific_config.get('render_mode_gym_make', 'rgb_array') # Default to rgb_array for image capture
                 env_init_params['max_stuck_steps_for_adapter'] = env_specific_config.get('max_unchanged_steps_for_termination', 30)
         else:
-            print(f"Warning: {env_specific_config_path} for {game_name_arg} not found. Using default env parameters.")
-            env_init_params['board_width'] = 10
-            env_init_params['board_height'] = 20
-            env_init_params['render_mode'] = 'rgb_array'
-            env_init_params['max_stuck_steps_for_adapter'] = 30
+            print(f"Warning: {env_specific_config_path} for {game_name_arg} not found. Using default env parameters for Sokoban.")
+            env_init_params['dim_room'] = (10,10)
+            env_init_params['max_steps_episode'] = 200
+            env_init_params['num_boxes'] = 3
+            env_init_params['num_gen_steps'] = None
+            env_init_params['level_to_load'] = None
+            env_init_params['render_mode'] = 'human'
+            env_init_params['tile_size_for_render'] = 32
+            env_init_params['max_stuck_steps_for_adapter'] = 20
 
+        from gamingagent.envs.custom_02_sokoban.sokobanEnv import SokobanEnv
         print(f"Initializing environment: {game_name_arg} with params: {env_init_params}")
         env = TetrisEnv(
             render_mode=env_init_params.get('render_mode'),
@@ -110,30 +117,6 @@ def create_environment(game_name_arg: str,
             max_stuck_steps_for_adapter=env_init_params.get('max_stuck_steps_for_adapter')
         )
         return env
-    # Example for adding another game:
-    # elif game_name_arg == "sokoban":
-    #     # Load params specific to Sokoban (example, adjust as needed)
-    #     if os.path.exists(env_specific_config_path):
-    #         with open(env_specific_config_path, 'r') as f:
-    #             env_specific_config = json.load(f)
-    #             env_init_params['dim_room'] = env_specific_config.get('env_init_kwargs', {}).get('dim_room', (10,10))
-    #             env_init_params['num_boxes'] = env_specific_config.get('env_init_kwargs', {}).get('num_boxes', 3)
-    #             # ... other sokoban params
-    #     else:
-    #         print(f"Warning: {env_specific_config_path} for {game_name_arg} not found. Using default env parameters.")
-    #         # ... set sokoban defaults ...
-    #     from gamingagent.envs.custom_02_sokoban.sokobanEnv import SokobanEnv # Assuming this exists
-    #     print(f"Initializing environment: {game_name_arg} with params: {env_init_params}")
-    #     env = SokobanEnv(
-    #         # ... pass sokoban specific params ...
-    #         dim_room=env_init_params.get('dim_room'),
-    #         num_boxes=env_init_params.get('num_boxes'),
-    #         game_name_for_adapter=game_name_arg, 
-    #         observation_mode_for_adapter=obs_mode_arg, 
-    #         agent_cache_dir_for_adapter=cache_dir_for_adapter, 
-    #         game_specific_config_path_for_adapter=env_specific_config_path 
-    #     )
-    #     return env
     else:
         print(f"ERROR: Game '{game_name_arg}' is not defined or implemented in custom_runner.py's create_environment function.")
         return None
@@ -205,7 +188,7 @@ def run_game_episode(agent: BaseAgent, game_env: gym.Env, episode_id: int, args:
     else:
         print("Warning: game_env.adapter not found. Cannot record episode result for summary.")
 
-    return # No need to return individual run results from here, adapter handles them
+    return
 
 def main():
     prelim_parser = argparse.ArgumentParser(add_help=False)
@@ -267,7 +250,8 @@ def main():
         model_name=args.model_name,
         config_path=agent_prompts_config_path,
         harness=args.harness,
-        max_memory=args.max_memory, custom_modules=custom_modules_for_agent,
+        max_memory=args.max_memory, 
+        custom_modules=custom_modules_for_agent,
         observation_mode=args.observation_mode
     )
     
@@ -279,7 +263,7 @@ def main():
     game_env = create_environment(
         game_name_arg=args.game_name,
         obs_mode_arg=args.observation_mode,
-        config_dir_name_for_env_cfg=config_dir_name, # Pass the mapped dir name
+        config_dir_name_for_env_cfg=config_dir_name,
         cache_dir_for_adapter=runner_log_dir
     )
 
@@ -301,7 +285,7 @@ def main():
         overall_stat_summary = game_env.adapter.finalize_and_save_summary(vars(args))
     else:
         print("Warning: game_env.adapter not found. Cannot finalize and save summary.")
-
+    
     game_env.close() # Close environment after all runs
 
     print("\n" + "="*30 + " Overall Summary " + "="*30)

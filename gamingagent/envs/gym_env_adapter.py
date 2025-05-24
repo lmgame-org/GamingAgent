@@ -72,10 +72,6 @@ class GymEnvAdapter:
         
         self.all_episode_results: List[Dict] = [] # To store results of each episode
 
-        # For new perf score calculation
-        self.previous_boxes_on_target: int = 0
-        self.current_episode_cumulative_perf_score: float = 0.0
-
     def _load_game_specific_config(self, config_path: str):
         """Loads game-specific settings like action mapping and stuck detection params from JSON."""
         print(f"[GymEnvAdapter] Loading game-specific config from: {config_path}")
@@ -119,10 +115,7 @@ class GymEnvAdapter:
         self.current_step_num = 0
         self._last_observation_hash = None
         self._unchanged_obs_count = 0
-        
-        # Reset for new performance score logic
-        self.previous_boxes_on_target = 0
-        self.current_episode_cumulative_perf_score = 0.0
+
         
         # Clear results from previous set of runs if adapter is reused.
         if self.current_episode_id == 1 or not self.all_episode_results: # A simple check, or clear if episode_id resets to 1
@@ -258,30 +251,19 @@ class GymEnvAdapter:
 
     def calculate_perf_score(self, reward: float, info: Dict[str, Any]) -> float:
         """
-        Calculates a performance score for the current step based on the cumulative
-        count of newly placed boxes on targets within the current episode.
+        Calculates a performance score for the current step.
+        This base implementation simply returns the reward.
+        Game-specific environments can override this method for custom logic.
 
         Args:
-            reward (float): The reward received from the environment for the step (not directly used here).
-            info (Dict[str, Any]): Additional information from the environment, expected
-                                   to contain "boxes_on_target".
+            reward (float): The reward received from the environment for the step.
+            info (Dict[str, Any]): Additional information from the environment.
 
         Returns:
-            float: The cumulative performance score for the episode up to this step.
+            float: The performance score for this step.
         """
-        current_boxes_on_target = info.get("boxes_on_target", 0)
-        
-        delta_boxes = 0
-        if current_boxes_on_target > self.previous_boxes_on_target:
-            delta_boxes = current_boxes_on_target - self.previous_boxes_on_target
-        
-        # Only add positive delta to the cumulative score
-        if delta_boxes > 0:
-            self.current_episode_cumulative_perf_score += float(delta_boxes)
-            
-        self.previous_boxes_on_target = current_boxes_on_target
-        
-        return self.current_episode_cumulative_perf_score
+
+        return reward # Now returns reward directly
 
     def map_agent_action_to_env_action(self, agent_action_str: Optional[str]) -> Optional[int]:
         """

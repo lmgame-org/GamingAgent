@@ -112,9 +112,6 @@ class PerceptionModule(CoreModule):
         elif self.observation_mode in ["vision", "both"]:
             assert self.observation.img_path is not None, "to process from graphic representation, image should have been prepared and path should exist in observation."
             new_img_path = scale_image_up(self.observation.get_img_path())
-            
-            print("perception module prompt:")
-            print(self.prompt)
 
             processed_visual_description = self.api_manager.vision_text_completion(
                 model_name=self.model_name,

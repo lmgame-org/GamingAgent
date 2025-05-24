@@ -10,7 +10,7 @@ game_env:
 agent:
   # Global agent settings
   name: "2048_agent"
-  model_name: "gemini-2.0-flash"
+  model_name: "claude-3-5-sonnet-latest"
   cache_dir: "cache/twenty_forty_eight"
   reasoning_effort: "high"
   token_limit: 100000

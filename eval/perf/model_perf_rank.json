@@ -730,5 +730,20 @@
         -1.5000000000000002
       ]
     }
+  },
+  "claude-3-5-sonnet-latest": {
+    "harness_true": {
+      "twenty_forty_eight": [
+        0.0
+      ],
+      "sokoban": [
+        0.0,
+        0.0
+      ],
+      "candy_crush": [
+        82.0,
+        7.0
+      ]
+    }
   }
 }

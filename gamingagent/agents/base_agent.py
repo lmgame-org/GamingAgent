@@ -360,7 +360,7 @@ class BaseAgent(ABC):
             # 2. Update memory with perception data
             memory_summary = None
             if memory_module:
-                memory_module.update_memory(perception_data)
+                processed_observation = memory_module.update_memory(processed_observation, perception_data)
                 memory_summary = memory_module.get_memory_summary()
             
             print("memory data:")
