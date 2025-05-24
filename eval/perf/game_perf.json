@@ -2506,6 +2506,147 @@
           }
         ]
       }
+    },
+    "claude-3-5-sonnet-latest": {
+      "harness_true": {
+        "num_episodes_processed": 1,
+        "total_reward_values": [
+          12.0
+        ],
+        "total_perf_score_values": [
+          0.0
+        ],
+        "episodes_data": [
+          {
+            "episode_id": "001",
+            "steps": 3,
+            "total_reward": 12.0,
+            "total_episode_perf_score": 0.0,
+            "step_infos": [
+              {
+                "board": [
+                  [
+                    1,
+                    0,
+                    2,
+                    0
+                  ],
+                  [
+                    0,
+                    0,
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0,
+                    0,
+                    0
+                  ],
+                  [
+                    1,
+                    0,
+                    0,
+                    0
+                  ]
+                ],
+                "step_score": 0,
+                "total_score": 0,
+                "max_tile_power": 2,
+                "is_legal_move": true,
+                "illegal_move_count": 0
+              },
+              {
+                "board": [
+                  [
+                    2,
+                    0,
+                    2,
+                    0
+                  ],
+                  [
+                    0,
+                    0,
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0,
+                    0,
+                    1
+                  ],
+                  [
+                    0,
+                    0,
+                    0,
+                    0
+                  ]
+                ],
+                "step_score": 4,
+                "total_score": 4,
+                "max_tile_power": 2,
+                "is_legal_move": true,
+                "illegal_move_count": 0
+              },
+              {
+                "board": [
+                  [
+                    3,
+                    0,
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0,
+                    0,
+                    0
+                  ],
+                  [
+                    1,
+                    0,
+                    0,
+                    0
+                  ],
+                  [
+                    1,
+                    0,
+                    0,
+                    0
+                  ]
+                ],
+                "step_score": 8,
+                "total_score": 12,
+                "max_tile_power": 3,
+                "is_legal_move": true,
+                "illegal_move_count": 0
+              }
+            ],
+            "replayable_steps": [
+              {
+                "agent_action": "left",
+                "textual_representation": null,
+                "img_path": "cache/twenty_forty_eight/claude_3_5_sonn/20250524_103859/observations/env_obs_e001_s0001.png",
+                "perf_score": 0.0
+              },
+              {
+                "agent_action": "up",
+                "textual_representation": null,
+                "img_path": "cache/twenty_forty_eight/claude_3_5_sonn/20250524_103859/observations/env_obs_e001_s0002.png",
+                "perf_score": 0.0
+              },
+              {
+                "agent_action": "left",
+                "textual_representation": null,
+                "img_path": "cache/twenty_forty_eight/claude_3_5_sonn/20250524_103859/observations/env_obs_e001_s0003.png",
+                "perf_score": 0.0
+              }
+            ],
+            "total_time_taken": 35.49062895774841
+          }
+        ]
+      }
     }
   },
   "sokoban": {
@@ -2746,6 +2887,553 @@
               }
             ],
             "total_time_taken": 71.05917739868164
+          }
+        ]
+      }
+    },
+    "claude-3-5-sonnet-latest": {
+      "harness_true": {
+        "num_episodes_processed": 2,
+        "total_reward_values": [
+          -2.3000000000000007,
+          -0.7
+        ],
+        "total_perf_score_values": [
+          0.0,
+          0.0
+        ],
+        "episodes_data": [
+          {
+            "episode_id": "002",
+            "steps": 23,
+            "total_reward": -2.3000000000000007,
+            "total_episode_perf_score": 0.0,
+            "step_infos": [
+              {
+                "num_env_steps": 1,
+                "player_position": [
+                  1,
+                  1
+                ],
+                "boxes_on_target": 0,
+                "num_boxes": 2,
+                "all_boxes_on_target": false,
+                "reward_last_step": -0.1
+              },
+              {
+                "num_env_steps": 2,
+                "player_position": [
+                  1,
+                  2
+                ],
+                "boxes_on_target": 0,
+                "num_boxes": 2,
+                "all_boxes_on_target": false,
+                "reward_last_step": -0.1
+              },
+              {
+                "num_env_steps": 3,
+                "player_position": [
+                  1,
+                  1
+                ],
+                "boxes_on_target": 0,
+                "num_boxes": 2,
+                "all_boxes_on_target": false,
+                "reward_last_step": -0.1
+              },
+              {
+                "num_env_steps": 4,
+                "player_position": [
+                  1,
+                  2
+                ],
+                "boxes_on_target": 0,
+                "num_boxes": 2,
+                "all_boxes_on_target": false,
+                "reward_last_step": -0.1
+              },
+              {
+                "num_env_steps": 5,
+                "player_position": [
+                  1,
+                  1
+                ],
+                "boxes_on_target": 0,
+                "num_boxes": 2,
+                "all_boxes_on_target": false,
+                "reward_last_step": -0.1
+              },
+              {
+                "num_env_steps": 6,
+                "player_position": [
+                  1,
+                  2
+                ],
+                "boxes_on_target": 0,
+                "num_boxes": 2,
+                "all_boxes_on_target": false,
+                "reward_last_step": -0.1
+              },
+              {
+                "num_env_steps": 7,
+                "player_position": [
+                  1,
+                  1
+                ],
+                "boxes_on_target": 0,
+                "num_boxes": 2,
+                "all_boxes_on_target": false,
+                "reward_last_step": -0.1
+              },
+              {
+                "num_env_steps": 8,
+                "player_position": [
+                  1,
+                  2
+                ],
+                "boxes_on_target": 0,
+                "num_boxes": 2,
+                "all_boxes_on_target": false,
+                "reward_last_step": -0.1
+              },
+              {
+                "num_env_steps": 9,
+                "player_position": [
+                  1,
+                  1
+                ],
+                "boxes_on_target": 0,
+                "num_boxes": 2,
+                "all_boxes_on_target": false,
+                "reward_last_step": -0.1
+              },
+              {
+                "num_env_steps": 10,
+                "player_position": [
+                  1,
+                  2
+                ],
+                "boxes_on_target": 0,
+                "num_boxes": 2,
+                "all_boxes_on_target": false,
+                "reward_last_step": -0.1
+              },
+              {
+                "num_env_steps": 11,
+                "player_position": [
+                  1,
+                  1
+                ],
+                "boxes_on_target": 0,
+                "num_boxes": 2,
+                "all_boxes_on_target": false,
+                "reward_last_step": -0.1
+              },
+              {
+                "num_env_steps": 12,
+                "player_position": [
+                  1,
+                  1
+                ],
+                "boxes_on_target": 0,
+                "num_boxes": 2,
+                "all_boxes_on_target": false,
+                "reward_last_step": -0.1
+              },
+              {
+                "num_env_steps": 13,
+                "player_position": [
+                  1,
+                  2
+                ],
+                "boxes_on_target": 0,
+                "num_boxes": 2,
+                "all_boxes_on_target": false,
+                "reward_last_step": -0.1
+              },
+              {
+                "num_env_steps": 14,
+                "player_position": [
+                  1,
+                  1
+                ],
+                "boxes_on_target": 0,
+                "num_boxes": 2,
+                "all_boxes_on_target": false,
+                "reward_last_step": -0.1
+              },
+              {
+                "num_env_steps": 15,
+                "player_position": [
+                  1,
+                  2
+                ],
+                "boxes_on_target": 0,
+                "num_boxes": 2,
+                "all_boxes_on_target": false,
+                "reward_last_step": -0.1
+              },
+              {
+                "num_env_steps": 16,
+                "player_position": [
+                  1,
+                  1
+                ],
+                "boxes_on_target": 0,
+                "num_boxes": 2,
+                "all_boxes_on_target": false,
+                "reward_last_step": -0.1
+              },
+              {
+                "num_env_steps": 17,
+                "player_position": [
+                  1,
+                  2
+                ],
+                "boxes_on_target": 0,
+                "num_boxes": 2,
+                "all_boxes_on_target": false,
+                "reward_last_step": -0.1
+              },
+              {
+                "num_env_steps": 18,
+                "player_position": [
+                  1,
+                  1
+                ],
+                "boxes_on_target": 0,
+                "num_boxes": 2,
+                "all_boxes_on_target": false,
+                "reward_last_step": -0.1
+              },
+              {
+                "num_env_steps": 19,
+                "player_position": [
+                  1,
+                  1
+                ],
+                "boxes_on_target": 0,
+                "num_boxes": 2,
+                "all_boxes_on_target": false,
+                "reward_last_step": -0.1
+              },
+              {
+                "num_env_steps": 20,
+                "player_position": [
+                  1,
+                  1
+                ],
+                "boxes_on_target": 0,
+                "num_boxes": 2,
+                "all_boxes_on_target": false,
+                "reward_last_step": -0.1
+              },
+              {
+                "num_env_steps": 21,
+                "player_position": [
+                  1,
+                  1
+                ],
+                "boxes_on_target": 0,
+                "num_boxes": 2,
+                "all_boxes_on_target": false,
+                "reward_last_step": -0.1
+              },
+              {
+                "num_env_steps": 22,
+                "player_position": [
+                  1,
+                  1
+                ],
+                "boxes_on_target": 0,
+                "num_boxes": 2,
+                "all_boxes_on_target": false,
+                "reward_last_step": -0.1
+              },
+              {
+                "num_env_steps": 23,
+                "player_position": [
+                  1,
+                  1
+                ],
+                "boxes_on_target": 0,
+                "num_boxes": 2,
+                "all_boxes_on_target": false,
+                "reward_last_step": -0.1
+              }
+            ],
+            "replayable_steps": [
+              {
+                "agent_action": "left",
+                "textual_representation": "[['#', '#', '#', '#', '#', '#', '#'], ['#', '+', ' ', ' ', '#', ' ', '#'], ['#', '$', ' ', ' ', ' ', ' ', '#'], ['#', ' ', '#', ' ', '$', ' ', '#'], ['#', ' ', '?', ' ', ' ', ' ', '#'], ['#', ' ', ' ', ' ', ' ', ' ', '#'], ['#', '#', '#', '#', '#', '#', '#']]",
+                "img_path": "cache/sokoban/claude_3_5_sonn/20250524_103952/observations/env_obs_e002_s0001.png",
+                "perf_score": 0.0
+              },
+              {
+                "agent_action": "right",
+                "textual_representation": "[['#', '#', '#', '#', '#', '#', '#'], ['#', '?', '@', ' ', '#', ' ', '#'], ['#', '$', ' ', ' ', ' ', ' ', '#'], ['#', ' ', '#', ' ', '$', ' ', '#'], ['#', ' ', '?', ' ', ' ', ' ', '#'], ['#', ' ', ' ', ' ', ' ', ' ', '#'], ['#', '#', '#', '#', '#', '#', '#']]",
+                "img_path": "cache/sokoban/claude_3_5_sonn/20250524_103952/observations/env_obs_e002_s0002.png",
+                "perf_score": 0.0
+              },
+              {
+                "agent_action": "left",
+                "textual_representation": "[['#', '#', '#', '#', '#', '#', '#'], ['#', '+', ' ', ' ', '#', ' ', '#'], ['#', '$', ' ', ' ', ' ', ' ', '#'], ['#', ' ', '#', ' ', '$', ' ', '#'], ['#', ' ', '?', ' ', ' ', ' ', '#'], ['#', ' ', ' ', ' ', ' ', ' ', '#'], ['#', '#', '#', '#', '#', '#', '#']]",
+                "img_path": "cache/sokoban/claude_3_5_sonn/20250524_103952/observations/env_obs_e002_s0003.png",
+                "perf_score": 0.0
+              },
+              {
+                "agent_action": "right",
+                "textual_representation": "[['#', '#', '#', '#', '#', '#', '#'], ['#', '?', '@', ' ', '#', ' ', '#'], ['#', '$', ' ', ' ', ' ', ' ', '#'], ['#', ' ', '#', ' ', '$', ' ', '#'], ['#', ' ', '?', ' ', ' ', ' ', '#'], ['#', ' ', ' ', ' ', ' ', ' ', '#'], ['#', '#', '#', '#', '#', '#', '#']]",
+                "img_path": "cache/sokoban/claude_3_5_sonn/20250524_103952/observations/env_obs_e002_s0004.png",
+                "perf_score": 0.0
+              },
+              {
+                "agent_action": "left",
+                "textual_representation": "[['#', '#', '#', '#', '#', '#', '#'], ['#', '+', ' ', ' ', '#', ' ', '#'], ['#', '$', ' ', ' ', ' ', ' ', '#'], ['#', ' ', '#', ' ', '$', ' ', '#'], ['#', ' ', '?', ' ', ' ', ' ', '#'], ['#', ' ', ' ', ' ', ' ', ' ', '#'], ['#', '#', '#', '#', '#', '#', '#']]",
+                "img_path": "cache/sokoban/claude_3_5_sonn/20250524_103952/observations/env_obs_e002_s0005.png",
+                "perf_score": 0.0
+              },
+              {
+                "agent_action": "right",
+                "textual_representation": "[['#', '#', '#', '#', '#', '#', '#'], ['#', '?', '@', ' ', '#', ' ', '#'], ['#', '$', ' ', ' ', ' ', ' ', '#'], ['#', ' ', '#', ' ', '$', ' ', '#'], ['#', ' ', '?', ' ', ' ', ' ', '#'], ['#', ' ', ' ', ' ', ' ', ' ', '#'], ['#', '#', '#', '#', '#', '#', '#']]",
+                "img_path": "cache/sokoban/claude_3_5_sonn/20250524_103952/observations/env_obs_e002_s0006.png",
+                "perf_score": 0.0
+              },
+              {
+                "agent_action": "left",
+                "textual_representation": "[['#', '#', '#', '#', '#', '#', '#'], ['#', '+', ' ', ' ', '#', ' ', '#'], ['#', '$', ' ', ' ', ' ', ' ', '#'], ['#', ' ', '#', ' ', '$', ' ', '#'], ['#', ' ', '?', ' ', ' ', ' ', '#'], ['#', ' ', ' ', ' ', ' ', ' ', '#'], ['#', '#', '#', '#', '#', '#', '#']]",
+                "img_path": "cache/sokoban/claude_3_5_sonn/20250524_103952/observations/env_obs_e002_s0007.png",
+                "perf_score": 0.0
+              },
+              {
+                "agent_action": "right",
+                "textual_representation": "[['#', '#', '#', '#', '#', '#', '#'], ['#', '?', '@', ' ', '#', ' ', '#'], ['#', '$', ' ', ' ', ' ', ' ', '#'], ['#', ' ', '#', ' ', '$', ' ', '#'], ['#', ' ', '?', ' ', ' ', ' ', '#'], ['#', ' ', ' ', ' ', ' ', ' ', '#'], ['#', '#', '#', '#', '#', '#', '#']]",
+                "img_path": "cache/sokoban/claude_3_5_sonn/20250524_103952/observations/env_obs_e002_s0008.png",
+                "perf_score": 0.0
+              },
+              {
+                "agent_action": "left",
+                "textual_representation": "[['#', '#', '#', '#', '#', '#', '#'], ['#', '+', ' ', ' ', '#', ' ', '#'], ['#', '$', ' ', ' ', ' ', ' ', '#'], ['#', ' ', '#', ' ', '$', ' ', '#'], ['#', ' ', '?', ' ', ' ', ' ', '#'], ['#', ' ', ' ', ' ', ' ', ' ', '#'], ['#', '#', '#', '#', '#', '#', '#']]",
+                "img_path": "cache/sokoban/claude_3_5_sonn/20250524_103952/observations/env_obs_e002_s0009.png",
+                "perf_score": 0.0
+              },
+              {
+                "agent_action": "right",
+                "textual_representation": "[['#', '#', '#', '#', '#', '#', '#'], ['#', '?', '@', ' ', '#', ' ', '#'], ['#', '$', ' ', ' ', ' ', ' ', '#'], ['#', ' ', '#', ' ', '$', ' ', '#'], ['#', ' ', '?', ' ', ' ', ' ', '#'], ['#', ' ', ' ', ' ', ' ', ' ', '#'], ['#', '#', '#', '#', '#', '#', '#']]",
+                "img_path": "cache/sokoban/claude_3_5_sonn/20250524_103952/observations/env_obs_e002_s0010.png",
+                "perf_score": 0.0
+              },
+              {
+                "agent_action": "left",
+                "textual_representation": "[['#', '#', '#', '#', '#', '#', '#'], ['#', '+', ' ', ' ', '#', ' ', '#'], ['#', '$', ' ', ' ', ' ', ' ', '#'], ['#', ' ', '#', ' ', '$', ' ', '#'], ['#', ' ', '?', ' ', ' ', ' ', '#'], ['#', ' ', ' ', ' ', ' ', ' ', '#'], ['#', '#', '#', '#', '#', '#', '#']]",
+                "img_path": "cache/sokoban/claude_3_5_sonn/20250524_103952/observations/env_obs_e002_s0011.png",
+                "perf_score": 0.0
+              },
+              {
+                "agent_action": "left",
+                "textual_representation": "[['#', '#', '#', '#', '#', '#', '#'], ['#', '+', ' ', ' ', '#', ' ', '#'], ['#', '$', ' ', ' ', ' ', ' ', '#'], ['#', ' ', '#', ' ', '$', ' ', '#'], ['#', ' ', '?', ' ', ' ', ' ', '#'], ['#', ' ', ' ', ' ', ' ', ' ', '#'], ['#', '#', '#', '#', '#', '#', '#']]",
+                "img_path": "cache/sokoban/claude_3_5_sonn/20250524_103952/observations/env_obs_e002_s0012.png",
+                "perf_score": 0.0
+              },
+              {
+                "agent_action": "right",
+                "textual_representation": "[['#', '#', '#', '#', '#', '#', '#'], ['#', '?', '@', ' ', '#', ' ', '#'], ['#', '$', ' ', ' ', ' ', ' ', '#'], ['#', ' ', '#', ' ', '$', ' ', '#'], ['#', ' ', '?', ' ', ' ', ' ', '#'], ['#', ' ', ' ', ' ', ' ', ' ', '#'], ['#', '#', '#', '#', '#', '#', '#']]",
+                "img_path": "cache/sokoban/claude_3_5_sonn/20250524_103952/observations/env_obs_e002_s0013.png",
+                "perf_score": 0.0
+              },
+              {
+                "agent_action": "left",
+                "textual_representation": "[['#', '#', '#', '#', '#', '#', '#'], ['#', '+', ' ', ' ', '#', ' ', '#'], ['#', '$', ' ', ' ', ' ', ' ', '#'], ['#', ' ', '#', ' ', '$', ' ', '#'], ['#', ' ', '?', ' ', ' ', ' ', '#'], ['#', ' ', ' ', ' ', ' ', ' ', '#'], ['#', '#', '#', '#', '#', '#', '#']]",
+                "img_path": "cache/sokoban/claude_3_5_sonn/20250524_103952/observations/env_obs_e002_s0014.png",
+                "perf_score": 0.0
+              },
+              {
+                "agent_action": "right",
+                "textual_representation": "[['#', '#', '#', '#', '#', '#', '#'], ['#', '?', '@', ' ', '#', ' ', '#'], ['#', '$', ' ', ' ', ' ', ' ', '#'], ['#', ' ', '#', ' ', '$', ' ', '#'], ['#', ' ', '?', ' ', ' ', ' ', '#'], ['#', ' ', ' ', ' ', ' ', ' ', '#'], ['#', '#', '#', '#', '#', '#', '#']]",
+                "img_path": "cache/sokoban/claude_3_5_sonn/20250524_103952/observations/env_obs_e002_s0015.png",
+                "perf_score": 0.0
+              },
+              {
+                "agent_action": "left",
+                "textual_representation": "[['#', '#', '#', '#', '#', '#', '#'], ['#', '+', ' ', ' ', '#', ' ', '#'], ['#', '$', ' ', ' ', ' ', ' ', '#'], ['#', ' ', '#', ' ', '$', ' ', '#'], ['#', ' ', '?', ' ', ' ', ' ', '#'], ['#', ' ', ' ', ' ', ' ', ' ', '#'], ['#', '#', '#', '#', '#', '#', '#']]",
+                "img_path": "cache/sokoban/claude_3_5_sonn/20250524_103952/observations/env_obs_e002_s0016.png",
+                "perf_score": 0.0
+              },
+              {
+                "agent_action": "right",
+                "textual_representation": "[['#', '#', '#', '#', '#', '#', '#'], ['#', '?', '@', ' ', '#', ' ', '#'], ['#', '$', ' ', ' ', ' ', ' ', '#'], ['#', ' ', '#', ' ', '$', ' ', '#'], ['#', ' ', '?', ' ', ' ', ' ', '#'], ['#', ' ', ' ', ' ', ' ', ' ', '#'], ['#', '#', '#', '#', '#', '#', '#']]",
+                "img_path": "cache/sokoban/claude_3_5_sonn/20250524_103952/observations/env_obs_e002_s0017.png",
+                "perf_score": 0.0
+              },
+              {
+                "agent_action": "left",
+                "textual_representation": "[['#', '#', '#', '#', '#', '#', '#'], ['#', '+', ' ', ' ', '#', ' ', '#'], ['#', '$', ' ', ' ', ' ', ' ', '#'], ['#', ' ', '#', ' ', '$', ' ', '#'], ['#', ' ', '?', ' ', ' ', ' ', '#'], ['#', ' ', ' ', ' ', ' ', ' ', '#'], ['#', '#', '#', '#', '#', '#', '#']]",
+                "img_path": "cache/sokoban/claude_3_5_sonn/20250524_103952/observations/env_obs_e002_s0018.png",
+                "perf_score": 0.0
+              },
+              {
+                "agent_action": "down",
+                "textual_representation": "[['#', '#', '#', '#', '#', '#', '#'], ['#', '+', ' ', ' ', '#', ' ', '#'], ['#', '$', ' ', ' ', ' ', ' ', '#'], ['#', ' ', '#', ' ', '$', ' ', '#'], ['#', ' ', '?', ' ', ' ', ' ', '#'], ['#', ' ', ' ', ' ', ' ', ' ', '#'], ['#', '#', '#', '#', '#', '#', '#']]",
+                "img_path": "cache/sokoban/claude_3_5_sonn/20250524_103952/observations/env_obs_e002_s0019.png",
+                "perf_score": 0.0
+              },
+              {
+                "agent_action": "down",
+                "textual_representation": "[['#', '#', '#', '#', '#', '#', '#'], ['#', '+', ' ', ' ', '#', ' ', '#'], ['#', '$', ' ', ' ', ' ', ' ', '#'], ['#', ' ', '#', ' ', '$', ' ', '#'], ['#', ' ', '?', ' ', ' ', ' ', '#'], ['#', ' ', ' ', ' ', ' ', ' ', '#'], ['#', '#', '#', '#', '#', '#', '#']]",
+                "img_path": "cache/sokoban/claude_3_5_sonn/20250524_103952/observations/env_obs_e002_s0020.png",
+                "perf_score": 0.0
+              },
+              {
+                "agent_action": "left",
+                "textual_representation": "[['#', '#', '#', '#', '#', '#', '#'], ['#', '+', ' ', ' ', '#', ' ', '#'], ['#', '$', ' ', ' ', ' ', ' ', '#'], ['#', ' ', '#', ' ', '$', ' ', '#'], ['#', ' ', '?', ' ', ' ', ' ', '#'], ['#', ' ', ' ', ' ', ' ', ' ', '#'], ['#', '#', '#', '#', '#', '#', '#']]",
+                "img_path": "cache/sokoban/claude_3_5_sonn/20250524_103952/observations/env_obs_e002_s0021.png",
+                "perf_score": 0.0
+              },
+              {
+                "agent_action": "left",
+                "textual_representation": "[['#', '#', '#', '#', '#', '#', '#'], ['#', '+', ' ', ' ', '#', ' ', '#'], ['#', '$', ' ', ' ', ' ', ' ', '#'], ['#', ' ', '#', ' ', '$', ' ', '#'], ['#', ' ', '?', ' ', ' ', ' ', '#'], ['#', ' ', ' ', ' ', ' ', ' ', '#'], ['#', '#', '#', '#', '#', '#', '#']]",
+                "img_path": "cache/sokoban/claude_3_5_sonn/20250524_103952/observations/env_obs_e002_s0022.png",
+                "perf_score": 0.0
+              },
+              {
+                "agent_action": "left",
+                "textual_representation": "[['#', '#', '#', '#', '#', '#', '#'], ['#', '+', ' ', ' ', '#', ' ', '#'], ['#', '$', ' ', ' ', ' ', ' ', '#'], ['#', ' ', '#', ' ', '$', ' ', '#'], ['#', ' ', '?', ' ', ' ', ' ', '#'], ['#', ' ', ' ', ' ', ' ', ' ', '#'], ['#', '#', '#', '#', '#', '#', '#']]",
+                "img_path": "cache/sokoban/claude_3_5_sonn/20250524_103952/observations/env_obs_e002_s0023.png",
+                "perf_score": 0.0
+              }
+            ],
+            "total_time_taken": 372.67266297340393
+          },
+          {
+            "episode_id": "001",
+            "steps": 7,
+            "total_reward": -0.7,
+            "total_episode_perf_score": 0.0,
+            "step_infos": [
+              {
+                "num_env_steps": 1,
+                "player_position": [
+                  1,
+                  2
+                ],
+                "boxes_on_target": 0,
+                "num_boxes": 2,
+                "all_boxes_on_target": false,
+                "reward_last_step": -0.1
+              },
+              {
+                "num_env_steps": 2,
+                "player_position": [
+                  2,
+                  2
+                ],
+                "boxes_on_target": 0,
+                "num_boxes": 2,
+                "all_boxes_on_target": false,
+                "reward_last_step": -0.1
+              },
+              {
+                "num_env_steps": 3,
+                "player_position": [
+                  2,
+                  2
+                ],
+                "boxes_on_target": 0,
+                "num_boxes": 2,
+                "all_boxes_on_target": false,
+                "reward_last_step": -0.1
+              },
+              {
+                "num_env_steps": 4,
+                "player_position": [
+                  2,
+                  2
+                ],
+                "boxes_on_target": 0,
+                "num_boxes": 2,
+                "all_boxes_on_target": false,
+                "reward_last_step": -0.1
+              },
+              {
+                "num_env_steps": 5,
+                "player_position": [
+                  2,
+                  2
+                ],
+                "boxes_on_target": 0,
+                "num_boxes": 2,
+                "all_boxes_on_target": false,
+                "reward_last_step": -0.1
+              },
+              {
+                "num_env_steps": 6,
+                "player_position": [
+                  2,
+                  2
+                ],
+                "boxes_on_target": 0,
+                "num_boxes": 2,
+                "all_boxes_on_target": false,
+                "reward_last_step": -0.1
+              },
+              {
+                "num_env_steps": 7,
+                "player_position": [
+                  2,
+                  2
+                ],
+                "boxes_on_target": 0,
+                "num_boxes": 2,
+                "all_boxes_on_target": false,
+                "reward_last_step": -0.1
+              }
+            ],
+            "replayable_steps": [
+              {
+                "agent_action": "push up",
+                "textual_representation": "[['#', '#', '#', '#', '#', '#', '#'], ['#', '?', '@', ' ', '#', ' ', '#'], ['#', '$', ' ', ' ', ' ', ' ', '#'], ['#', ' ', '#', ' ', '$', ' ', '#'], ['#', ' ', '?', ' ', ' ', ' ', '#'], ['#', ' ', ' ', ' ', ' ', ' ', '#'], ['#', '#', '#', '#', '#', '#', '#']]",
+                "img_path": "cache/sokoban/claude_3_5_sonn/20250524_103952/observations/env_obs_e001_s0001.png",
+                "perf_score": 0.0
+              },
+              {
+                "agent_action": "down",
+                "textual_representation": "[['#', '#', '#', '#', '#', '#', '#'], ['#', '?', ' ', ' ', '#', ' ', '#'], ['#', '$', '@', ' ', ' ', ' ', '#'], ['#', ' ', '#', ' ', '$', ' ', '#'], ['#', ' ', '?', ' ', ' ', ' ', '#'], ['#', ' ', ' ', ' ', ' ', ' ', '#'], ['#', '#', '#', '#', '#', '#', '#']]",
+                "img_path": "cache/sokoban/claude_3_5_sonn/20250524_103952/observations/env_obs_e001_s0002.png",
+                "perf_score": 0.0
+              },
+              {
+                "agent_action": "push up",
+                "textual_representation": "[['#', '#', '#', '#', '#', '#', '#'], ['#', '?', ' ', ' ', '#', ' ', '#'], ['#', '$', '@', ' ', ' ', ' ', '#'], ['#', ' ', '#', ' ', '$', ' ', '#'], ['#', ' ', '?', ' ', ' ', ' ', '#'], ['#', ' ', ' ', ' ', ' ', ' ', '#'], ['#', '#', '#', '#', '#', '#', '#']]",
+                "img_path": "cache/sokoban/claude_3_5_sonn/20250524_103952/observations/env_obs_e001_s0003.png",
+                "perf_score": 0.0
+              },
+              {
+                "agent_action": "push up",
+                "textual_representation": "[['#', '#', '#', '#', '#', '#', '#'], ['#', '?', ' ', ' ', '#', ' ', '#'], ['#', '$', '@', ' ', ' ', ' ', '#'], ['#', ' ', '#', ' ', '$', ' ', '#'], ['#', ' ', '?', ' ', ' ', ' ', '#'], ['#', ' ', ' ', ' ', ' ', ' ', '#'], ['#', '#', '#', '#', '#', '#', '#']]",
+                "img_path": "cache/sokoban/claude_3_5_sonn/20250524_103952/observations/env_obs_e001_s0004.png",
+                "perf_score": 0.0
+              },
+              {
+                "agent_action": "push up",
+                "textual_representation": "[['#', '#', '#', '#', '#', '#', '#'], ['#', '?', ' ', ' ', '#', ' ', '#'], ['#', '$', '@', ' ', ' ', ' ', '#'], ['#', ' ', '#', ' ', '$', ' ', '#'], ['#', ' ', '?', ' ', ' ', ' ', '#'], ['#', ' ', ' ', ' ', ' ', ' ', '#'], ['#', '#', '#', '#', '#', '#', '#']]",
+                "img_path": "cache/sokoban/claude_3_5_sonn/20250524_103952/observations/env_obs_e001_s0005.png",
+                "perf_score": 0.0
+              },
+              {
+                "agent_action": "push up",
+                "textual_representation": "[['#', '#', '#', '#', '#', '#', '#'], ['#', '?', ' ', ' ', '#', ' ', '#'], ['#', '$', '@', ' ', ' ', ' ', '#'], ['#', ' ', '#', ' ', '$', ' ', '#'], ['#', ' ', '?', ' ', ' ', ' ', '#'], ['#', ' ', ' ', ' ', ' ', ' ', '#'], ['#', '#', '#', '#', '#', '#', '#']]",
+                "img_path": "cache/sokoban/claude_3_5_sonn/20250524_103952/observations/env_obs_e001_s0006.png",
+                "perf_score": 0.0
+              },
+              {
+                "agent_action": "push up",
+                "textual_representation": "[['#', '#', '#', '#', '#', '#', '#'], ['#', '?', ' ', ' ', '#', ' ', '#'], ['#', '$', '@', ' ', ' ', ' ', '#'], ['#', ' ', '#', ' ', '$', ' ', '#'], ['#', ' ', '?', ' ', ' ', ' ', '#'], ['#', ' ', ' ', ' ', ' ', ' ', '#'], ['#', '#', '#', '#', '#', '#', '#']]",
+                "img_path": "cache/sokoban/claude_3_5_sonn/20250524_103952/observations/env_obs_e001_s0007.png",
+                "perf_score": 0.0
+              }
+            ],
+            "total_time_taken": 113.7520797252655
           }
         ]
       }

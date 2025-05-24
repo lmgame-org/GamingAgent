@@ -13,7 +13,7 @@ agent:
   model_name: "claude-3-5-sonnet-latest"
   cache_dir: "cache/sokoban"
   reasoning_effort: "high"
-  token_limit: 64000
+  token_limit: 100000
   harness: true  # Whether to use the perception-memory-reasoning pipeline
   observation_mode: "both"  # Options: "vision", "text", "both"
   # Module-specific settings
