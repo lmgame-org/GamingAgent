@@ -1,10 +1,12 @@
 from .base_env import BaseGameEnv
 from .custom_01_2048.twentyFortyEight_env import TwentyFortyEightEnvWrapper
+from .custom_07_1942.NineteenFortyTwo_env import NineteenFortyTwoEnvWrapper
 
 GAME_ENV_WRAPPERS = {
     "twenty_forty_eight": TwentyFortyEightEnvWrapper,
     # Add other game wrappers here as they are created
     # "sokoban": SokobanEnvWrapper,
+    "nineteen_forty_two": NineteenFortyTwoEnvWrapper,
 }
 
 def get_game_env_wrapper(game_name: str, *args, **kwargs) -> BaseGameEnv:

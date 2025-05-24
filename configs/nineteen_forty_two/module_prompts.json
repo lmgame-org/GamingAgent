@@ -1,0 +1,18 @@
+{
+    "memory_module": {
+        "prompt": "memory_module prompt",
+        "system_prompt": "memory_module system prompt"
+    },
+    "perception_module": {
+        "prompt": "perception_module prompt",
+        "system_prompt": "perception_module system prompt"
+    },
+    "reasoning_module": {
+        "prompt": "reasoning_module prompt",
+        "system_prompt": "reasoning_module system prompt"
+    },
+    "base_module": {
+        "prompt": "base_module prompt",
+        "system_prompt": "base_module system prompt"
+    }
+}
