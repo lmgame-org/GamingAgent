@@ -50,8 +50,38 @@ def create_board_image_candy_crush(board_state: np.ndarray, save_path: str, tile
 
     rows, cols = board_state.shape
     img_width = cols * tile_size
-    img_height = rows * tile_size
-    img = Image.new('RGB', (img_width, img_height + (tile_size if moves_left is not None or perf_score is not None or action_taken_str is not None else 0)), (200, 200, 200))
+    img_height = rows * tile_size # Height of the board itself
+
+    # Determine font size for info text (used for both calculation and drawing)
+    font_size_info = max(12, tile_size // 2)
+
+    # Determine number of lines for info text and calculate required height
+    num_info_lines = 0
+    if moves_left is not None: num_info_lines += 1
+    if perf_score is not None: num_info_lines += 1
+
+    info_strip_alloc_height = 0
+    top_text_padding = 3 # Desired padding above the text block (reduced from implied 5)
+    
+    if num_info_lines > 0:
+        # Estimate character pixel height based on font point size
+        # Multiplying by 1.25 as a heuristic for typical font height vs. point size
+        estimated_char_pixel_height = int(font_size_info * 1.25) 
+        bottom_text_padding = 3 # Desired padding below the text block
+        inter_line_padding = 2 # Pixels between lines of text, based on current_y update logic
+
+        # Calculate the height needed for the text block itself
+        text_block_actual_height = (num_info_lines * estimated_char_pixel_height) + \
+                                   max(0, num_info_lines - 1) * inter_line_padding
+        
+        # Total height for the info strip including padding
+        calculated_total_info_strip_height = top_text_padding + text_block_actual_height + bottom_text_padding
+        
+        # Ensure info strip is at least tile_size (original behavior if that's larger) or calculated height
+        info_strip_alloc_height = int(max(tile_size, calculated_total_info_strip_height))
+    
+    # Create image: board part + info strip part
+    img = Image.new('RGB', (img_width, img_height + info_strip_alloc_height), (200, 200, 200))
     draw = ImageDraw.Draw(img)
 
     # Define some basic colors for tiles - extend as needed
@@ -88,13 +118,17 @@ def create_board_image_candy_crush(board_state: np.ndarray, save_path: str, tile
                 text_w, text_h = draw.textsize(text, font=font) # type: ignore
             draw.text((x0 + (tile_size - text_w) // 2, y0 + (tile_size - text_h) // 2), text, fill=(0,0,0), font=font)
 
-    # Display moves_left, perf_score, action_taken_str at the bottom if provided
-    info_y_start = img_height + 5
-    font_size_info = max(12, tile_size // 2)
+    # Display moves_left, perf_score at the bottom if provided
+    # info_y_start is the y-coordinate for the *top* of the first line of text,
+    # relative to the image top (0). It starts after the board area.
+    info_y_start = img_height + top_text_padding 
+    
+    # font_size_info was already calculated above
     try: font_info = ImageFont.truetype("arial.ttf", font_size_info)
     except IOError: 
-        try: font_info = ImageFont.load_default(size=font_size_info)
-        except AttributeError: font_info = ImageFont.load_default()
+        try: font_info = ImageFont.load_default(size=font_size_info) # For Pillow >= 9.3.0
+        except AttributeError: # Fallback for older Pillow versions
+            font_info = ImageFont.load_default()
 
     current_y = info_y_start
     if moves_left is not None:
@@ -108,10 +142,6 @@ def create_board_image_candy_crush(board_state: np.ndarray, save_path: str, tile
         draw.text((5, current_y), text_content, fill=(0,0,0), font=font_info)
         if hasattr(font_info, 'getbbox'): current_y += font_info.getbbox(text_content)[3] - font_info.getbbox(text_content)[1] + 2
         else: current_y += draw.textsize(text_content, font=font_info)[1] + 2 # type: ignore
-
-    if action_taken_str is not None:
-        text_content = f"Action: {action_taken_str}"
-        draw.text((5, current_y), text_content, fill=(0,0,0), font=font_info)
 
     if save_path:
         save_dir = os.path.dirname(save_path)
@@ -162,6 +192,7 @@ class CandyCrushEnvWrapper(gym.Env):
         self.renderer: Optional[Renderer] = None
         # Use render_mode from game_env_config, default to "string" (no pygame) if not specified
         self.internal_render_mode = self._game_env_config.get("render_mode_for_make", "string") 
+        self.render_mode = self.internal_render_mode # Expose for runner
         if self.internal_render_mode in ["human", "rgb_array"]:
             self.renderer = Renderer(self.num_rows, self.num_cols, self.num_colours, self.num_moves, render_fps=self.metadata["render_fps"], render_mode=self.internal_render_mode)
         elif self.internal_render_mode == "string":
@@ -323,6 +354,7 @@ class CandyCrushEnvWrapper(gym.Env):
             'effective_actions': self._get_effective_actions(),
             'score': self.current_score, # This is step score, which is 0 at reset
             'cumulative_raw_score': self.current_score, # Cumulative raw score (eliminations)
+            'total_score': self.current_score, # Add for consistent runner access
             'num_moves_left': raw_observation["num_moves_left"]
         }
         
@@ -350,6 +382,7 @@ class CandyCrushEnvWrapper(gym.Env):
         info = {
             "score": reward, # Step reward
             "cumulative_raw_score": self.current_score, # Total eliminations so far
+            "total_score": self.current_score, # Add for consistent runner access
             "is_combination_match": is_combination_match,
             "num_new_specials": num_new_specials,
             "num_specials_activated": num_specials_activated,
@@ -460,7 +493,7 @@ class CandyCrushEnvWrapper(gym.Env):
         elif isinstance(action_str_agent, int): # If agent directly passes an int
              if 0 <= action_str_agent < self.num_actions:
                  action_int = action_str_agent
-                 processed_action_str = self.env_action_idx_to_move.get(action_int, str(action_int))
+                 processed_action_str = self.env_action_idx_to_move.get(action_int, str(action_str_agent))
                  return action_int, processed_action_str
         
         return None, str(action_str_agent) # Action could not be parsed/mapped
@@ -500,6 +533,7 @@ class CandyCrushEnvWrapper(gym.Env):
             info_dict = {
                 "score": 0.0, # Step reward
                 "cumulative_raw_score": self.current_score,
+                "total_score": self.current_score, # Add for consistent runner access
                 "is_combination_match": False, "num_new_specials": 0,
                 "num_specials_activated": 0, "shuffled": False,
                 "effective_actions": self._get_effective_actions(), 

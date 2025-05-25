@@ -102,6 +102,17 @@ class BaseModule(CoreModule):
             # Scale up image if needed
             new_img_path = scale_image_up(self.observation.get_img_path())
             
+            print(f"""
+------------------------ BASE MODULE VISION API — SYSTEM PROMPT ------------------------
+{self.system_prompt}
+------------------------ END SYSTEM PROMPT ------------------------
+""")
+            print(f"""
+------------------------ BASE MODULE VISION API — USER PROMPT ------------------------
+{self.prompt}
+------------------------ END USER PROMPT ------------------------
+""")
+
             # Call the vision API
             response = self.api_manager.vision_text_completion(
                 model_name=self.model_name,

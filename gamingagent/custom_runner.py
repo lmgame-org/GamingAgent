@@ -11,11 +11,14 @@ from gamingagent.agents.base_agent import BaseAgent
 from gamingagent.modules import PerceptionModule, ReasoningModule # Observation is imported by Env
 # Directly import the specific environment we are using
 from gamingagent.envs.custom_01_2048.twentyFortyEightEnv import TwentyFortyEightEnv
+from gamingagent.envs.custom_02_sokoban.sokobanEnv import SokobanEnv
+from gamingagent.envs.custom_03_candy_crush.candyCrushEnv import CandyCrushEnvWrapper
+from gamingagent.envs.retro_01_super_mario_bros.superMarioBrosEnv import SuperMarioBrosEnvWrapper
 
 game_config_mapping = {"twenty_forty_eight": "custom_01_2048",
                        "sokoban": "custom_02_sokoban",
-                       "tetris": "custom_03_tetris",
-                       "candy_crush": "custom_04_candy_crush",
+                       "candy_crush": "custom_03_candy_crush",
+                       "tetris": "custom_04_tetris",
                        "super_mario_bros":"retro_01_super_mario_bros",
                        "ace_attorney":"retro_02_ace_attorney"}
 
@@ -46,6 +49,7 @@ def parse_arguments(defaults_map=None, argv_to_parse=None):
     return parser.parse_args()
 
 def create_environment(game_name_arg: str, 
+                       model_name_arg: str,
                        obs_mode_arg: str, 
                        config_dir_name_for_env_cfg: str, # For loading game_env_config.json
                        cache_dir_for_adapter: str):
@@ -107,7 +111,7 @@ def create_environment(game_name_arg: str,
             env_init_params['tile_size_for_render'] = 32
             env_init_params['max_stuck_steps_for_adapter'] = 20
 
-        from gamingagent.envs.custom_02_sokoban.sokobanEnv import SokobanEnv
+        
         print(f"Initializing environment: {game_name_arg} with params: {env_init_params}")
         env = SokobanEnv(
             render_mode=env_init_params.get('render_mode'),
@@ -122,6 +126,70 @@ def create_environment(game_name_arg: str,
             agent_cache_dir_for_adapter=cache_dir_for_adapter, 
             game_specific_config_path_for_adapter=env_specific_config_path, 
             max_stuck_steps_for_adapter=env_init_params.get('max_stuck_steps_for_adapter')
+        )
+        return env
+    elif game_name_arg == "candy_crush":
+        # Load params specific to Candy Crush
+        # The config_dir_name_for_env_cfg for candy_crush will be "custom_03_candy_crush"
+        if os.path.exists(env_specific_config_path):
+            with open(env_specific_config_path, 'r') as f:
+                env_specific_config = json.load(f)
+                env_init_kwargs = env_specific_config.get('env_init_kwargs', {})
+                # Parameters for CandyCrushEnvWrapper's internal TileMatchEnv
+                env_init_params['num_rows'] = env_init_kwargs.get('num_rows', 8)
+                env_init_params['num_cols'] = env_init_kwargs.get('num_cols', 8)
+                env_init_params['num_colours'] = env_init_kwargs.get('num_colours', 4)
+                env_init_params['num_moves'] = env_init_kwargs.get('num_moves', 50)
+                # render_mode is for the wrapper's internal renderer if used, not GymEnvAdapter
+                env_init_params['render_mode_for_make'] = env_specific_config.get('render_mode_for_make', 'string') 
+                env_init_params['tile_size_for_render'] = env_specific_config.get('tile_size_for_render', 32)
+                # max_stuck_steps_for_adapter for GymEnvAdapter instance
+                env_init_params['max_stuck_steps_for_adapter'] = env_specific_config.get('max_unchanged_steps_for_termination', 20) # Default from Sokoban
+        else:
+            print(f"Warning: {env_specific_config_path} for {game_name_arg} not found. Using default env parameters for Candy Crush.")
+            env_init_params['num_rows'] = 8
+            env_init_params['num_cols'] = 8
+            env_init_params['num_colours'] = 4
+            env_init_params['num_moves'] = 50
+            env_init_params['render_mode_for_make'] = 'string'
+            env_init_params['tile_size_for_render'] = 32
+            env_init_params['max_stuck_steps_for_adapter'] = 20
+
+        print(f"Initializing environment: {game_name_arg} with params: {env_init_params}")
+        env = CandyCrushEnvWrapper(
+            # Parameters for CandyCrushEnvWrapper -> TileMatchEnv core
+            num_rows_override=env_init_params.get('num_rows'),
+            num_cols_override=env_init_params.get('num_cols'),
+            num_colours_override=env_init_params.get('num_colours'),
+            num_moves_override=env_init_params.get('num_moves'),
+            # Parameters for GymEnvAdapter instance within CandyCrushEnvWrapper
+            game_name_for_adapter=game_name_arg, 
+            observation_mode_for_adapter=obs_mode_arg, 
+            agent_cache_dir_for_adapter=cache_dir_for_adapter, 
+            # This is the path the env itself will use to load its own full config (including env_init_kwargs)
+            game_specific_config_path_for_adapter=env_specific_config_path, 
+            max_stuck_steps_for_adapter=env_init_params.get('max_stuck_steps_for_adapter'),
+            # Other params potentially needed by CandyCrushEnvWrapper if not covered by game_specific_config_path_for_adapter
+            # config_root_dir is already an arg to runner, CandyCrushEnvWrapper doesn't need it directly if path is absolute
+        )
+        return env
+    elif game_name_arg == "super_mario_bros":
+        # SuperMarioBrosEnvWrapper loads its specific configs internally.
+        # The runner primarily needs to provide paths and agent/run-level settings.
+        env_wrapper_config_dir = os.path.join("gamingagent/envs", config_dir_name_for_env_cfg)
+        
+        print(f"Initializing environment: {game_name_arg} using SuperMarioBrosEnvWrapper")
+        print(f"  Wrapper config dir: {env_wrapper_config_dir}")
+        print(f"  Model name for adapter: {model_name_arg}")
+        print(f"  Observation mode for adapter: {obs_mode_arg}")
+        print(f"  Base log dir for adapter: {cache_dir_for_adapter}")
+
+        env = SuperMarioBrosEnvWrapper(
+            game_name=game_name_arg,
+            model_name=model_name_arg,
+            config_dir_path=env_wrapper_config_dir, # e.g., "gamingagent/envs/retro_01_super_mario_bros"
+            observation_mode=obs_mode_arg,
+            base_log_dir=cache_dir_for_adapter # This will be like "cache/super_mario_bros/model_name_agent_cache"
         )
         return env
     else:
@@ -141,8 +209,8 @@ def run_game_episode(agent: BaseAgent, game_env: Any, episode_id: int, args: arg
 
     for step_num in range(args.max_steps_per_episode):
         final_step_num = step_num + 1
-        if game_env.render_mode == 'human':
-            game_env.render() # Call env's render method directly
+        # if game_env.render_mode == 'human':
+        game_env.render() # Call env's render method directly
 
         start_time = time.time()
         action_dict, processed_agent_observation = agent.get_action(agent_observation)
@@ -233,12 +301,19 @@ def main():
     else:
         print(f"Info: Main config file {config_file_path} not found. Using command-line args and hardcoded defaults.")
 
+    # DEBUG PRINT 2: Remaining argv and defaults_map
+    # print(f"DEBUG: remaining_argv before parse_arguments: {remaining_argv}")
+    # print(f"DEBUG: defaults_from_yaml before parse_arguments: {defaults_from_yaml}")
+
     args = parse_arguments(defaults_map=defaults_from_yaml, argv_to_parse=remaining_argv)
 
     agent_prompts_config_path = os.path.join(args.config_root_dir, config_dir_name, "module_prompts.json")
     if not os.path.isfile(agent_prompts_config_path):
         print(f"Warning: Agent prompts file {agent_prompts_config_path} not found. Agent will use default prompts.")
         agent_prompts_config_path = None
+
+    # DEBUG PRINT
+    # print(f"DEBUG: Value of args.harness before check: {args.harness} (type: {type(args.harness)})")
 
     custom_modules_for_agent = None
     if args.harness:
@@ -264,6 +339,7 @@ def main():
     # Env params are now loaded inside create_environment
     game_env = create_environment(
         game_name_arg=args.game_name,
+        model_name_arg=args.model_name,
         obs_mode_arg=args.observation_mode,
         config_dir_name_for_env_cfg=config_dir_name,
         cache_dir_for_adapter=runner_log_dir

@@ -35,7 +35,7 @@ class GymEnvAdapter:
         observation_mode (str): How the agent observes the environment. 
                                 Options: "vision", "text", "both".
         agent_cache_dir (str): Directory to store episode logs and generated observation images.
-        game_specific_config_path (str): Path to the game's JSON configuration file 
+        game_specific_config_path (Optional[str]): Path to the game's JSON configuration file 
                                          (e.g., `game_env_config.json`) which contains action
                                          mappings and other game-specific settings for the adapter.
         max_steps_for_stuck (Optional[int]): Number of consecutive unchanged observations before
@@ -46,7 +46,7 @@ class GymEnvAdapter:
                  game_name: str,
                  observation_mode: str, # "vision", "text", "both"
                  agent_cache_dir: str, # Used for logs and observations
-                 game_specific_config_path: str, # Path to game_env_config.json
+                 game_specific_config_path: Optional[str] = None, # Path to game_env_config.json, now optional
                  max_steps_for_stuck: Optional[int] = None):
         self.game_name = game_name
         self.observation_mode = observation_mode
@@ -68,16 +68,14 @@ class GymEnvAdapter:
         self.action_mapping_config: Dict[str, int] = {}
         self.move_to_action_idx: Dict[str, int] = {}
         self.action_idx_to_move: Dict[int, str] = {}
-        self._load_game_specific_config(game_specific_config_path)
+        if game_specific_config_path: # This check will now work as intended
+            self._load_game_specific_config(game_specific_config_path)
         
         self.all_episode_results: List[Dict] = [] # To store results of each episode
 
-        # For new perf score calculation
-        self.previous_boxes_on_target: int = 0
-        self.current_episode_cumulative_perf_score: float = 0.0
-
     def _load_game_specific_config(self, config_path: str):
         """Loads game-specific settings like action mapping and stuck detection params from JSON."""
+        print(f"[GymEnvAdapter DEBUG _load_game_specific_config] Called with config_path: {config_path}")
         print(f"[GymEnvAdapter] Loading game-specific config from: {config_path}")
         if os.path.exists(config_path):
             try:
@@ -119,10 +117,7 @@ class GymEnvAdapter:
         self.current_step_num = 0
         self._last_observation_hash = None
         self._unchanged_obs_count = 0
-        
-        # Reset for new performance score logic
-        self.previous_boxes_on_target = 0
-        self.current_episode_cumulative_perf_score = 0.0
+
         
         # Clear results from previous set of runs if adapter is reused.
         if self.current_episode_id == 1 or not self.all_episode_results: # A simple check, or clear if episode_id resets to 1
@@ -258,30 +253,19 @@ class GymEnvAdapter:
 
     def calculate_perf_score(self, reward: float, info: Dict[str, Any]) -> float:
         """
-        Calculates a performance score for the current step based on the cumulative
-        count of newly placed boxes on targets within the current episode.
+        Calculates a performance score for the current step.
+        This base implementation simply returns the reward.
+        Game-specific environments can override this method for custom logic.
 
         Args:
-            reward (float): The reward received from the environment for the step (not directly used here).
-            info (Dict[str, Any]): Additional information from the environment, expected
-                                   to contain "boxes_on_target".
+            reward (float): The reward received from the environment for the step.
+            info (Dict[str, Any]): Additional information from the environment.
 
         Returns:
-            float: The cumulative performance score for the episode up to this step.
+            float: The performance score for this step.
         """
-        current_boxes_on_target = info.get("boxes_on_target", 0)
-        
-        delta_boxes = 0
-        if current_boxes_on_target > self.previous_boxes_on_target:
-            delta_boxes = current_boxes_on_target - self.previous_boxes_on_target
-        
-        # Only add positive delta to the cumulative score
-        if delta_boxes > 0:
-            self.current_episode_cumulative_perf_score += float(delta_boxes)
-            
-        self.previous_boxes_on_target = current_boxes_on_target
-        
-        return self.current_episode_cumulative_perf_score
+
+        return reward # Now returns reward directly
 
     def map_agent_action_to_env_action(self, agent_action_str: Optional[str]) -> Optional[int]:
         """

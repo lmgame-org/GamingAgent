@@ -20,6 +20,28 @@ def hex_to_rgba(hex_color, alpha=0.2):
     b = int(hex_color[4:6], 16)
     return f'rgba({r}, {g}, {b}, {alpha})'
 
+def _normalize_scores(scores_series: pd.Series) -> pd.Series:
+    """Normalizes a series of game scores to a 0-9 scale."""
+    if scores_series.notna().sum() == 0: # All NaN, no scores to normalize
+        return scores_series 
+
+    # Drop NaNs for min/max calculation, but apply to original series with NaNs
+    valid_scores = scores_series.dropna()
+    if valid_scores.empty:
+        return scores_series # Should be caught by above, but as safeguard
+
+    min_score = valid_scores.min()
+    max_score = valid_scores.max()
+
+    if max_score == min_score:
+        # All valid scores are the same, map them to 0 on the 0-9 scale
+        # NaNs will remain NaN due to .apply behavior with pd.notna
+        return scores_series.apply(lambda x: 0.0 if pd.notna(x) else np.nan)
+    else:
+        return scores_series.apply(
+            lambda x: ((x - min_score) / (max_score - min_score)) * 9 if pd.notna(x) else np.nan
+        )
+
 def prepare_dataframe_for_plots(
     rank_data_path: str, 
     selected_games: List[str], 
@@ -27,9 +49,7 @@ def prepare_dataframe_for_plots(
     harness_status_to_use: str = "harness_true"
 ) -> pd.DataFrame:
     """
-    Loads model_perf_rank.json, calculates average scores for selected games and harness status.
-    Scores are assumed to be already transformed by GameLogProcessor.
-
+    Loads model_perf_rank.json, calculates average scores, and normalizes them to a 1-10 scale.
     Args:
         rank_data_path (str): Path to model_perf_rank.json.
         selected_games (List[str]): A list of game names to include.
@@ -37,8 +57,8 @@ def prepare_dataframe_for_plots(
         harness_status_to_use (str): "harness_true" or "harness_false".
 
     Returns:
-        pd.DataFrame: DataFrame with 'Player' (model name) and 'Game X Score' columns.
-                      Scores are averages. Returns empty DataFrame on error.
+        pd.DataFrame: DataFrame with 'Player' (model name) and normalized 'Game X Score' columns (1-10 scale).
+                      Returns empty DataFrame on error.
     """
     try:
         with open(rank_data_path, 'r') as f:
@@ -60,27 +80,20 @@ def prepare_dataframe_for_plots(
         player_scores = {'Player': model_name}
         has_any_score_for_selected_games = False
 
-        for game_name in selected_games: # game_name is the internal key
+        for game_name in selected_games: 
             game_scores_list = harness_entry.get(game_name, [])
             display_game_name = game_specific_configs.get(game_name, {}).get("display_name", game_name)
             score_col_name = f"{display_game_name} Score" 
             
-            # Score transformation logic is removed from here.
-            # Scores in game_scores_list are assumed to be final (already transformed).
-
             if game_scores_list and isinstance(game_scores_list, list):
-                # Filter for numeric scores and convert to float, just in case
                 numeric_scores = [float(s) for s in game_scores_list if isinstance(s, (int, float))]
-                
                 if numeric_scores:
                     avg_score = np.mean(numeric_scores)
                     player_scores[score_col_name] = avg_score
                     has_any_score_for_selected_games = True
                 else:
-                    # No numeric scores found for this game for this model
                     player_scores[score_col_name] = np.nan 
             else:
-                # game_scores_list is empty or not a list (e.g., game not found for this model)
                 player_scores[score_col_name] = np.nan 
 
         if has_any_score_for_selected_games:
@@ -92,19 +105,23 @@ def prepare_dataframe_for_plots(
             
     df = pd.DataFrame(plot_data_list)
     
-    # Ensure all selected game score columns (using display names) exist, fill with NaN if missing
+    # Apply Normalization using the helper function, then shift to 1-10 scale
     for game_name_internal in selected_games:
         display_game_name = game_specific_configs.get(game_name_internal, {}).get("display_name", game_name_internal)
-        score_col_to_check = f"{display_game_name} Score"
-        if score_col_to_check not in df.columns:
-            df[score_col_to_check] = np.nan
-            
-    # Reorder columns: Player first, then game scores in the order of selected_games (using display names)
+        score_col_to_normalize = f"{display_game_name} Score"
+
+        if score_col_to_normalize in df.columns:
+            # Normalize to 0-9 scale
+            df[score_col_to_normalize] = _normalize_scores(df[score_col_to_normalize])
+            # Shift to 1-10 scale (NaNs remain NaN after addition if not handled by _normalize_scores)
+            df[score_col_to_normalize] = df[score_col_to_normalize].apply(lambda x: x + 1 if pd.notna(x) else np.nan)
+        else: 
+             df[score_col_to_normalize] = np.nan 
+
     ordered_display_score_cols = [
         f"{game_specific_configs.get(g, {}).get('display_name', g)} Score"
-        for g in selected_games # selected_games are internal keys
+        for g in selected_games 
     ]
-    # Filter out columns that might not exist if a game had no data across all models
     final_ordered_column_names = ['Player'] + [col for col in ordered_display_score_cols if col in df.columns]
     df = df[final_ordered_column_names]
     
@@ -120,7 +137,7 @@ def create_comparison_radar_chart(
     highlight_models: Optional[List[str]] = None
 ) -> go.Figure:
     """
-    Creates a radar chart comparing models across selected games using their transformed scores.
+    Creates a radar chart comparing models across selected games using their normalized scores (1-10 scale).
     """
     df_plot = df.copy()
     if df_plot.empty:
@@ -135,26 +152,13 @@ def create_comparison_radar_chart(
 
     categories = [col.replace(" Score", "") for col in game_score_cols]
     
-    # Directly use the scores; fillna for safety before plotting
     for col in game_score_cols:
-         df_plot[col] = df_plot[col].fillna(0)
+         df_plot[col] = df_plot[col].fillna(1) # Fill NaN with 1 (bottom of 1-10 scale)
     data_cols_for_radar = game_score_cols
-    y_axis_title = "Average Transformed Score"
+    y_axis_title = "Average Normalized Score (1-10)"
 
-    # Determine radial axis range dynamically from the actual data
-    all_scores_for_radar = []
-    for col in data_cols_for_radar:
-        all_scores_for_radar.extend(df_plot[col].dropna().tolist())
-    
-    min_val_all_games = 0
-    max_val_all_games = 1 # Default if no scores
-    if all_scores_for_radar:
-        min_val_all_games = min(0, min(all_scores_for_radar)) # Ensure range includes 0 if scores can be negative or very low
-        max_val_all_games = max(all_scores_for_radar)
-        if min_val_all_games == max_val_all_games: # Handle case where all scores are same
-            max_val_all_games = min_val_all_games + 1 # Add a small delta to avoid zero range
-    
-    radial_axis_range = [min_val_all_games, max_val_all_games]
+    # Set radial axis range for 1-10 scale
+    radial_axis_range = [1, 10]
 
     fig = go.Figure()
     sorted_players = sorted(df_plot['Player'].unique())
@@ -162,13 +166,13 @@ def create_comparison_radar_chart(
     for player in sorted_players:
         player_row = df_plot[df_plot['Player'] == player].iloc[0]
         r_values_raw = [player_row.get(data_col) for data_col in data_cols_for_radar]
-        r_values = [val if pd.notna(val) else 0 for val in r_values_raw]
+        r_values = [val if pd.notna(val) else 1 for val in r_values_raw] # Ensure NaNs become 1
 
         is_highlighted = highlight_models and player in highlight_models
         
         model_color_hex = model_colors.get(player)
         if not model_color_hex or not isinstance(model_color_hex, str) or not model_color_hex.startswith('#'):
-            model_color_hex = '#808080' # Default to grey
+            model_color_hex = '#808080' 
 
         if is_highlighted:
             line_props = dict(color='red', width=3)
@@ -194,20 +198,21 @@ def create_comparison_radar_chart(
             hovertemplate=(
                 f'<b>{player}</b><br>'
                 f'Game: %{{theta}}<br>'
-                f'{y_axis_title}: %{{r:.2f}}'
+                f'{y_axis_title}: %{{r:.2f}} '
                 '<extra></extra>'
             )
         ))
 
     fig.update_layout(
-        title_text=f'Model Performance Radar ({harness_status}) - Transformed Scores',
+        title_text=f'Model Performance Radar ({harness_status}) - Normalized Scores (1-10 Scale)',
         title_x=0.5,
         polar=dict(
             radialaxis=dict(
                 visible=True, 
                 range=radial_axis_range,
                 gridcolor='lightgray',
-                tickformat=".2f" 
+                tickvals=list(range(1, 11)), # Explicitly set ticks from 1 to 10
+                tickformat=".0f" # Format as integer for ticks 1-10
             ),
             angularaxis=dict(
                 tickfont=dict(size=10),
@@ -235,20 +240,20 @@ def create_comparison_bar_chart(
     highlight_models: Optional[List[str]] = None
 ) -> go.Figure:
     """
-    Creates a grouped bar chart comparing models for each selected game using transformed scores.
+    Creates a grouped bar chart comparing models for each selected game using normalized scores (1-10 scale).
     """
     df_plot = df.copy()
     if df_plot.empty:
         return go.Figure().update_layout(title_text=f"No data for Bar Chart ({harness_status})")
 
-    y_axis_title = "Average Transformed Score"
+    y_axis_title = "Average Normalized Score (1-10)"
     score_cols_to_use_in_plot = []
     x_axis_categories = [] 
 
     for display_name in selected_games_display_names:
         data_col = f"{display_name} Score"
         if data_col in df_plot.columns:
-            df_plot[data_col] = df_plot[data_col].fillna(0) # Ensure NaNs are filled for plotting
+            df_plot[data_col] = df_plot[data_col].fillna(1) # Fill NaN with 1 (bottom of 1-10 scale)
             score_cols_to_use_in_plot.append(data_col)
             x_axis_categories.append(display_name)
     
@@ -261,7 +266,7 @@ def create_comparison_bar_chart(
     for player_name in sorted_players:
         player_row = df_plot[df_plot['Player'] == player_name].iloc[0]
         y_values_raw = [player_row.get(col) for col in score_cols_to_use_in_plot]
-        y_values = [val if pd.notna(val) else 0 for val in y_values_raw]
+        y_values = [val if pd.notna(val) else 1 for val in y_values_raw] # Ensure NaNs become 1
         
         model_color_hex = model_colors.get(player_name, '#808080') 
         if not model_color_hex or not isinstance(model_color_hex, str) or not model_color_hex.startswith('#'):
@@ -282,14 +287,14 @@ def create_comparison_bar_chart(
             hovertemplate=(
                 f'<b>{player_name}</b><br>'
                 f'Game: %{{x}}<br>'
-                f'{y_axis_title}: %{{y:.2f}}'
+                f'{y_axis_title}: %{{y:.2f}} '
                 '<extra></extra>'
             )
         ))
 
     fig.update_layout(
         barmode='group',
-        title_text=f'Model Performance Comparison ({harness_status}) - Transformed Scores',
+        title_text=f'Model Performance Comparison ({harness_status}) - Normalized Scores (1-10 Scale)',
         title_x=0.5,
         xaxis_title="Game",
         yaxis_title=y_axis_title,
@@ -299,6 +304,8 @@ def create_comparison_bar_chart(
         height=600,
         margin=dict(l=50, r=200, t=100, b=50) 
     )
+    # Set y-axis range for bar chart to 0-10 to give some space at the bottom if some scores are 1.
+    fig.update_yaxes(range=[0, 10.5])
     return fig 
 
 def create_board_image_2048(board_powers: np.ndarray, save_path: str, size: int = 400, perf_score: Optional[float] = None) -> None:
