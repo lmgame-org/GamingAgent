@@ -14,6 +14,7 @@ from gamingagent.envs.custom_01_2048.twentyFortyEightEnv import TwentyFortyEight
 from gamingagent.envs.custom_02_sokoban.sokobanEnv import SokobanEnv
 from gamingagent.envs.custom_03_candy_crush.candyCrushEnv import CandyCrushEnvWrapper
 from gamingagent.envs.retro_01_super_mario_bros.superMarioBrosEnv import SuperMarioBrosEnvWrapper
+from gamingagent.envs.custom_04_tetris.tetrisEnv import TetrisEnv
 
 game_config_mapping = {"twenty_forty_eight": "custom_01_2048",
                        "sokoban": "custom_02_sokoban",
@@ -171,6 +172,46 @@ def create_environment(game_name_arg: str,
             max_stuck_steps_for_adapter=env_init_params.get('max_stuck_steps_for_adapter'),
             # Other params potentially needed by CandyCrushEnvWrapper if not covered by game_specific_config_path_for_adapter
             # config_root_dir is already an arg to runner, CandyCrushEnvWrapper doesn't need it directly if path is absolute
+        )
+        return env
+    elif game_name_arg == "tetris":
+        # Load params specific to Tetris
+        if os.path.exists(env_specific_config_path):
+            with open(env_specific_config_path, 'r') as f:
+                env_specific_config = json.load(f)
+                env_init_kwargs = env_specific_config.get('env_init_kwargs', {})
+                env_init_params['board_width'] = env_init_kwargs.get('board_width', 10)
+                env_init_params['board_height'] = env_init_kwargs.get('board_height', 20)
+                env_init_params['gravity'] = env_init_kwargs.get('gravity', True)
+                env_init_params['render_upscale'] = env_init_kwargs.get('render_upscale', 25)
+                env_init_params['queue_size'] = env_init_kwargs.get('queue_size', 4)
+                env_init_params['render_mode_for_make'] = env_specific_config.get('render_mode_for_make', 'human') # Corresponds to TetrisEnv render_mode
+                env_init_params['max_stuck_steps_for_adapter'] = env_specific_config.get('max_unchanged_steps_for_termination', 30)
+        else:
+            print(f"Warning: {env_specific_config_path} for {game_name_arg} not found. Using default env parameters for Tetris.")
+            env_init_params['board_width'] = 10
+            env_init_params['board_height'] = 20
+            env_init_params['gravity'] = True
+            env_init_params['render_upscale'] = 25
+            env_init_params['queue_size'] = 4
+            env_init_params['render_mode_for_make'] = 'human'
+            env_init_params['max_stuck_steps_for_adapter'] = 30
+
+        print(f"Initializing environment: {game_name_arg} with params: {env_init_params}")
+        env = TetrisEnv(
+            render_mode=env_init_params.get('render_mode_for_make'),
+            board_width=env_init_params.get('board_width'),
+            board_height=env_init_params.get('board_height'),
+            gravity=env_init_params.get('gravity'),
+            render_upscale=env_init_params.get('render_upscale'),
+            queue_size=env_init_params.get('queue_size'),
+            # Adapter related params
+            game_name_for_adapter=game_name_arg,
+            observation_mode_for_adapter=obs_mode_arg,
+            agent_cache_dir_for_adapter=cache_dir_for_adapter,
+            game_specific_config_path_for_adapter=env_specific_config_path,
+            max_stuck_steps_for_adapter=env_init_params.get('max_stuck_steps_for_adapter')
+            # seed will be passed during reset, not __init__ for TetrisEnv as per its definition
         )
         return env
     elif game_name_arg == "super_mario_bros":

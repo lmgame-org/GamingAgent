@@ -2,7 +2,7 @@
 
 # List of game names to process
 # Example: ["twenty_forty_eight", "sokoban"]
-game_list: ["twenty_forty_eight", "sokoban", "candy_crush", "super_mario_bros"]
+game_list: ["twenty_forty_eight", "sokoban", "candy_crush", "super_mario_bros", "tetris"]
 
 # List of model names/prefixes to process
 # Example: ["claude-3-5-sonnet-20241022", "gpt-4o"]

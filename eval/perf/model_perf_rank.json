@@ -743,11 +743,23 @@
       "candy_crush": [
         82.0,
         7.0
+      ],
+      "super_mario_bros": [
+        17.0
+      ],
+      "tetris": [
+        0.0,
+        0.0,
+        0.0,
+        0.0
       ]
     },
     "harness_false": {
       "super_mario_bros": [
         1496.0
+      ],
+      "tetris": [
+        0.0
       ]
     }
   }

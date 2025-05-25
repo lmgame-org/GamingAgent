@@ -22,7 +22,7 @@ from .plot_utils import (
 )
 
 # Import Replay Utilities
-from .replay_utils import generate_2048_median_score_replay, generate_sokoban_median_score_replay, generate_candy_crush_median_score_replay, generate_super_mario_bros_median_replay
+from .replay_utils import generate_2048_median_score_replay, generate_sokoban_median_score_replay, generate_candy_crush_median_score_replay, generate_super_mario_bros_median_replay, generate_tetris_median_score_replay
 
 # Import polynomial model script
 from .polynomial_model import run_polynomial_analysis, DEFAULT_MODEL_ORDER as PM_DEFAULT_MODEL_ORDER
@@ -382,6 +382,23 @@ def generate_game_replays(game_list: List[str], model_list: List[str],
                         )
                     except Exception as e_smb_replay:
                         print(f"      Error calling generate_super_mario_bros_median_replay for {model_name}, {harness_key}: {e_smb_replay}")
+        elif game_name_for_replay == "tetris":
+            print(f"  Preparing to generate Tetris median replays for game: {game_name_for_replay} (using display name: {game_display_name_for_replay_lookup} for JSON key)")
+            for model_name in model_list:
+                print(f"    Processing model: {model_name} for Tetris median replay")
+                for harness_key in ["harness_true", "harness_false"]:
+                    print(f"      Generating for harness: {harness_key}")
+                    try:
+                        generate_tetris_median_score_replay(
+                            game_perf_json_path=DETAILED_GAME_PERF_FILE,
+                            model_name_prefix=model_name,
+                            game_display_name=game_display_name_for_replay_lookup,
+                            harness_status_key=harness_key,
+                            video_output_base_dir=VIDEO_OUTPUT_BASE_DIR
+                            # Add other Tetris-specific parameters if needed, e.g., default_cell_size
+                        )
+                    except Exception as e_tetris_replay:
+                        print(f"      Error calling generate_tetris_median_score_replay for {model_name}, {harness_key}: {e_tetris_replay}")
         else:
             print(f"  Replay generation is not currently supported for game: '{game_name_for_replay}'. Skipping replay for this game.")
 

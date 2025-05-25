@@ -1171,6 +1171,290 @@ def generate_super_mario_bros_median_replay(
         import traceback
         traceback.print_exc()
 
+# --- Tetris Specific Constants & Utilities ---
+DEFAULT_TETRIS_CELL_SIZE = 20
+TEXT_INFO_BAR_HEIGHT_TETRIS = 60 # Estimated height for the info bar
+
+TETRIS_REPLAY_PIXEL_ID_TO_COLOR_MAP = {
+    0: (20, 20, 20),      # Empty (Darker Grey for replay)
+    1: (100, 100, 100),   # Bedrock/Border (Lighter Grey for replay)
+    2: (0, 240, 240),     # I-piece (Cyan)
+    3: (240, 240, 0),     # O-piece (Yellow)
+    4: (160, 0, 240),     # T-piece (Purple)
+    5: (0, 240, 0),       # S-piece (Green)
+    6: (240, 0, 0),       # Z-piece (Red)
+    7: (0, 0, 240),       # J-piece (Blue)
+    8: (240, 160, 0)      # L-piece (Orange)
+}
+FALLBACK_TETRIS_PIECE_COLOR = (255, 255, 255) # White for unknown piece IDs
+
+def _parse_tetris_textual_representation(text_rep_str: str) -> Tuple[Optional[np.ndarray], Optional[List[int]], Optional[float], Optional[int], Optional[int]]:
+    """
+    Parses Tetris textual representation string into board, next_pieces, score, lines, level.
+    Example format: 
+    [[0,0,...],[0,1,...]]\nN:[3, 4, 5] S:100.0 L:5 V:1
+    """
+    board_str_part = None
+    next_pieces_ids = None
+    score, lines, level = None, None, None
+
+    if not text_rep_str or '\n' not in text_rep_str:
+        print(f"[ReplayUtils] Warning: Tetris textual representation is empty or malformed (no newline). Input: {text_rep_str[:100]}")
+        return None, None, None, None, None
+
+    parts = text_rep_str.split('\n', 1)
+    board_str_part = parts[0]
+    
+    if len(parts) > 1:
+        info_str_part = parts[1]
+        # Regex to find N:[...], S:..., L:..., V:...
+        next_match = re.search(r"N:(\[[0-9, ]*\])", info_str_part)
+        score_match = re.search(r"S:([\-0-9.]+)", info_str_part)
+        lines_match = re.search(r"L:([0-9]+)", info_str_part)
+        level_match = re.search(r"V:([0-9]+)", info_str_part)
+
+        if next_match:
+            try:
+                next_pieces_ids = ast.literal_eval(next_match.group(1))
+                if not isinstance(next_pieces_ids, list):
+                    next_pieces_ids = None # Invalid format
+            except (ValueError, SyntaxError):
+                next_pieces_ids = None
+        if score_match: score = float(score_match.group(1))
+        if lines_match: lines = int(lines_match.group(1))
+        if level_match: level = int(level_match.group(1))
+
+    # Parse board_str_part
+    parsed_board_array = None
+    try:
+        # Replace numpy specific things if they sneak in, like 'array([...])'
+        board_str_cleaned = re.sub(r"array\(", "", board_str_part)
+        board_str_cleaned = re.sub(r"\)$", "", board_str_cleaned) # Remove trailing parenthesis if any
+        # Ensure it's a valid list of lists string
+        if not board_str_cleaned.startswith("[[") or not board_str_cleaned.endswith("]]"):
+            raise ValueError("Board string does not look like a list of lists.")
+
+        board_list_of_lists = ast.literal_eval(board_str_cleaned)
+        if board_list_of_lists and isinstance(board_list_of_lists, list) and isinstance(board_list_of_lists[0], list):
+            parsed_board_array = np.array(board_list_of_lists, dtype=int)
+        else:
+            print(f"[ReplayUtils] Warning: Tetris board from textual rep did not parse into list of lists. Board part: {board_str_part[:100]}")
+            parsed_board_array = None
+            
+    except (ValueError, SyntaxError, TypeError) as e:
+        print(f"[ReplayUtils] Warning: Could not parse Tetris board from textual_representation: {e}. Board part: {board_str_part[:150]}")
+        parsed_board_array = None
+        
+    return parsed_board_array, next_pieces_ids, score, lines, level
+
+def _create_board_image_tetris_for_replay(
+    board_numerical: np.ndarray, 
+    save_path: str, 
+    cell_size: int = DEFAULT_TETRIS_CELL_SIZE,
+    next_piece_ids_to_display: Optional[List[int]] = None,
+    score_val: Optional[float] = None,
+    lines_val: Optional[int] = None,
+    level_val: Optional[int] = None,
+    action_taken_str: Optional[str] = None,
+    current_perf_score: Optional[float] = None,
+    grid_line_color: Tuple[int,int,int] = (60,60,60)
+):
+    """Creates a visualization of the Tetris board for replay frames."""
+    if board_numerical is None:
+        img = Image.new('RGB', (cell_size * 10, cell_size * 20 + TEXT_INFO_BAR_HEIGHT_TETRIS), (30,30,30))
+        draw = ImageDraw.Draw(img)
+        err_font = _load_font(POTENTIAL_FONTS, cell_size // 2, "Error font for Tetris replay fallback.")
+        draw.text((10,10), "Error: No board data for frame", fill=(255,50,50), font=err_font)
+        if save_path: os.makedirs(os.path.dirname(save_path), exist_ok=True); img.save(save_path)
+        return
+
+    rows, cols = board_numerical.shape
+    board_img_width = cols * cell_size
+    board_img_height = rows * cell_size
+    total_img_height = board_img_height + TEXT_INFO_BAR_HEIGHT_TETRIS
+
+    img = Image.new('RGB', (board_img_width, total_img_height), (10,10,10)) # Dark background
+    draw = ImageDraw.Draw(img)
+
+    # --- Draw Info Bar --- 
+    info_font_size = TEXT_INFO_BAR_HEIGHT_TETRIS // 4
+    info_font = _load_font(POTENTIAL_FONTS, info_font_size, "Info font for Tetris replay not found.")
+    text_color = (220, 220, 220)
+    padding_info = 5
+    line_spacing_info = info_font_size + 3
+
+    current_y_info = padding_info
+    if score_val is not None:
+        draw.text((padding_info, current_y_info), f"Score: {score_val:.0f}", fill=text_color, font=info_font)
+    if lines_val is not None:
+        draw.text((board_img_width // 3, current_y_info), f"Lines: {lines_val}", fill=text_color, font=info_font)
+    if level_val is not None:
+        draw.text((board_img_width * 2 // 3, current_y_info), f"Level: {level_val}", fill=text_color, font=info_font)
+    current_y_info += line_spacing_info
+
+    if action_taken_str:
+        action_display = f"Act: {action_taken_str[:25]}" # Truncate long actions
+        draw.text((padding_info, current_y_info), action_display, fill=text_color, font=info_font)
+    if current_perf_score is not None:
+        perf_display = f"Perf: {current_perf_score:.1f}"
+        draw.text((board_img_width * 2 // 3, current_y_info), perf_display, fill=text_color, font=info_font)
+    current_y_info += line_spacing_info
+
+    # Display Next Pieces (simplified: colored squares with ID)
+    if next_piece_ids_to_display:
+        next_text_x = padding_info
+        draw.text((next_text_x, current_y_info), "Next: ", fill=text_color, font=info_font)
+        next_text_x += info_font.getlength("Next: ") if hasattr(info_font, "getlength") else 4 * info_font_size
+        
+        mini_piece_size = info_font_size
+        for i, piece_id in enumerate(next_piece_ids_to_display[:3]): # Show up to 3
+            px_start = next_text_x + i * (mini_piece_size + padding_info // 2)
+            piece_color = TETRIS_REPLAY_PIXEL_ID_TO_COLOR_MAP.get(piece_id, FALLBACK_TETRIS_PIECE_COLOR)
+            draw.rectangle([px_start, current_y_info, px_start + mini_piece_size, current_y_info + mini_piece_size], fill=piece_color)
+
+    # --- Draw Board --- (Offset by info bar height)
+    board_render_offset_y = TEXT_INFO_BAR_HEIGHT_TETRIS
+    for r in range(rows):
+        for c in range(cols):
+            piece_id = board_numerical[r, c]
+            color = TETRIS_REPLAY_PIXEL_ID_TO_COLOR_MAP.get(piece_id, FALLBACK_TETRIS_PIECE_COLOR)
+            
+            x0, y0 = c * cell_size, r * cell_size + board_render_offset_y
+            x1, y1 = x0 + cell_size, y0 + cell_size
+            
+            if piece_id != 0: # Don't draw empty cells, let background show
+                draw.rectangle([x0, y0, x1, y1], fill=color, outline=grid_line_color if piece_id != 1 else None)
+            elif grid_line_color: # Draw grid for empty cells if color specified
+                draw.rectangle([x0, y0, x1, y1], outline=grid_line_color)
+    
+    if save_path:
+        save_dir = os.path.dirname(save_path)
+        if save_dir: os.makedirs(save_dir, exist_ok=True)
+        try: img.save(save_path)
+        except Exception as e: print(f"[ReplayUtils] Error saving Tetris frame to {save_path}: {e}")
+
+def generate_tetris_median_score_replay(
+    game_perf_json_path: str, 
+    model_name_prefix: str, 
+    game_display_name: str, 
+    harness_status_key: str, 
+    video_output_base_dir: str,
+    seconds_per_frame: float = DEFAULT_SECONDS_PER_FRAME,
+    default_cell_size_render: int = DEFAULT_TETRIS_CELL_SIZE
+):
+    """Generates MP4 video for median-scoring Tetris episode."""
+    print(f"Attempting Tetris median replay: {model_name_prefix} ('{game_display_name}', {harness_status_key}).")
+
+    try: subprocess.run(["ffmpeg", "-version"], capture_output=True, check=True)
+    except: print("[ReplayUtils] Error: ffmpeg not found. Tetris video gen aborted."); return
+
+    try: 
+        with open(game_perf_json_path, 'r') as f: all_game_perf_data = json.load(f)
+    except FileNotFoundError: print(f"Error: {game_perf_json_path} not found."); return
+    except json.JSONDecodeError: print(f"Error: JSON decode failed for {game_perf_json_path}."); return
+
+    try:
+        model_data = all_game_perf_data.get(game_display_name, {}).get(model_name_prefix, {}).get(harness_status_key, {})
+        if not model_data or "episodes_data" not in model_data:
+            print(f"No data for {model_name_prefix}/{game_display_name}/{harness_status_key}."); return
+        episodes_data = model_data["episodes_data"]
+        if not episodes_data: print(f"No episodes for {model_name_prefix}/{game_display_name}/{harness_status_key}."); return
+
+        scores = [ep.get("total_episode_perf_score", 0) for ep in episodes_data]
+        if not scores: print("No scores for Tetris median."); return
+            
+        median_score_value = statistics.median(scores)
+        median_episodes = [ep for ep in episodes_data if ep.get("total_episode_perf_score", 0) == median_score_value]
+        
+        median_episode = None
+        if not median_episodes:
+            episodes_data.sort(key=lambda ep: ep.get("total_episode_perf_score", 0))
+            median_episode_idx = (len(episodes_data) - 1) // 2 
+            if not episodes_data: print(f"No episodes to select for CC median replay for {model_name_prefix}, {harness_status_key}."); return
+            median_episode = episodes_data[median_episode_idx]
+            print(f"Exact median score not found for CC. Using ep score: {median_episode.get('total_episode_perf_score', 'N/A')}")
+        else:
+            median_episode = median_episodes[0]
+            print(f"Selected CC median episode score: {median_episode.get('total_episode_perf_score', 'N/A')}")
+
+        episode_id_str = median_episode.get("episode_id", "unknown_ep")
+        actual_median_score = median_episode.get("total_episode_perf_score", 0.0)
+        replayable_step_data = median_episode.get("replayable_steps")
+        
+        if not replayable_step_data: print(f"No 'replayable_steps' for CC median ep {episode_id_str} of {model_name_prefix}."); return
+
+        temp_dir = tempfile.mkdtemp()
+        frame_files = []
+        print(f"Generating CC frames in temp dir: {temp_dir}")
+
+        for idx, step_data in enumerate(replayable_step_data):
+            textual_rep = step_data.get("textual_representation")
+            action_taken = step_data.get("agent_action", "N/A")
+            img_path_from_log = step_data.get("img_path")
+            # Define perf_score_for_frame here to ensure it's always available
+            perf_score_for_frame = step_data.get("perf_score") 
+            frame_path = os.path.join(temp_dir, f"frame_{idx:04d}.png")
+
+            board_array, next_ids, score, lines_count, level_num = None, None, None, None, None
+            if textual_rep:
+                board_array, next_ids, score, lines_count, level_num = _parse_tetris_textual_representation(textual_rep)
+            
+            if board_array is not None:
+                _create_board_image_tetris_for_replay(
+                    board_array, frame_path, cell_size=default_cell_size_render,
+                    next_piece_ids_to_display=next_ids,
+                    score_val=score, lines_val=lines_count, level_val=level_num,
+                    action_taken_str=action_taken, current_perf_score=perf_score_for_frame
+                )
+                frame_files.append(frame_path)
+            elif img_path_from_log and os.path.exists(img_path_from_log):
+                 print(f"  Frame {idx}: Tetris textual parse failed, falling back to logged image: {img_path_from_log}")
+                 overlay_text_on_image( # Re-use generic overlay if textual fails but image exists
+                    source_image_path=img_path_from_log, output_save_path=frame_path,
+                    perf_score=perf_score_for_frame, action_taken_str=action_taken,
+                    reference_size_for_font=default_cell_size_render * 10 # Pass a rough board width
+                 )
+                 frame_files.append(frame_path)
+            else:
+                error_img_width = default_cell_size_render * 10 # Standard Tetris width
+                error_img_height = default_cell_size_render * 20 + TEXT_INFO_BAR_HEIGHT_TETRIS
+                error_img = Image.new('RGB', (error_img_width, error_img_height), (30, 30, 30))
+                draw = ImageDraw.Draw(error_img); err_font = _load_font(POTENTIAL_FONTS, default_cell_size_render)
+                draw.text((10,10), f"Frame {idx}: No Data", fill=(255,50,50), font=err_font)
+                error_img.save(frame_path); frame_files.append(frame_path)
+
+        if not frame_files: print(f"No CC frames for median ep {episode_id_str} of {model_name_prefix}."); shutil.rmtree(temp_dir); return
+
+        harness_short = "hT" if "true" in harness_status_key.lower() else "hF"
+        safe_model_name = "".join(c for c in model_name_prefix if c.isalnum() or c in ['-','_'])[:15]
+        video_name = f"tetris_{safe_model_name}_{harness_short}_median_ep{episode_id_str}_score{actual_median_score:.0f}.mp4"
+        
+        model_video_dir = os.path.join(video_output_base_dir, safe_model_name)
+        os.makedirs(model_video_dir, exist_ok=True)
+        output_video_path = os.path.join(model_video_dir, video_name)
+
+        print(f"Compiling {len(frame_files)} CC frames to {output_video_path} ({1/seconds_per_frame:.2f} FPS).")
+        framerate = 1.0 / seconds_per_frame
+        ffmpeg_cmd = ["ffmpeg", "-framerate", str(framerate), "-i", os.path.join(temp_dir, "frame_%04d.png"),
+                      "-c:v", "libx264", "-pix_fmt", "yuv420p", "-y", output_video_path]
+        try:
+            process = subprocess.run(ffmpeg_cmd, capture_output=True, text=True, check=True)
+            # Optionally print stdout/stderr if needed for debugging ffmpeg
+            # if process.stdout: print(f"[ReplayUtils] ffmpeg stdout (CC):\n{process.stdout}")
+            # if process.stderr: print(f"[ReplayUtils] ffmpeg stderr (CC):\n{process.stderr}")
+            print(f"CC median score replay MP4 saved to {output_video_path}")
+        except subprocess.CalledProcessError as e:
+            print(f"[ReplayUtils] Error creating CC MP4 with ffmpeg:\nCmd: {' '.join(e.cmd)}\nReturn: {e.returncode}\nstdout:\n{e.stdout}\nstderr:\n{e.stderr}")
+            print(f"CC frames are in {temp_dir}")
+            return 
+        finally:
+            if os.path.exists(temp_dir) and os.path.isdir(temp_dir): shutil.rmtree(temp_dir)
+    
+    except Exception as e:
+        print(f"Unexpected error in generate_tetris_median_score_replay for {model_name_prefix}, {harness_status_key}: {e}")
+        if 'temp_dir' in locals() and os.path.exists(temp_dir) and os.path.isdir(temp_dir): shutil.rmtree(temp_dir)
+
+
 # Ensure the script can be called, e.g. if __name__ == "__main__": block
 # For now, just defining the functions.
 # Example usage would be added in a main block or a separate script. 
