@@ -145,7 +145,7 @@ def run_game_episode(agent: BaseAgent, game_env: Any, episode_id: int, args: arg
             game_env.render() # Call env's render method directly
 
         start_time = time.time()
-        action_dict = agent.get_action(agent_observation)
+        action_dict, processed_agent_observation = agent.get_action(agent_observation)
         end_time = time.time()
         time_taken_s = end_time - start_time
 
@@ -163,6 +163,8 @@ def run_game_episode(agent: BaseAgent, game_env: Any, episode_id: int, args: arg
             thought_process=thought_process, 
             time_taken_s=time_taken_s
         )
+        # Inherit game trajectory
+        agent_observation.game_trajectory = processed_agent_observation.game_trajectory
             
         total_reward_for_episode += reward
         total_perf_score_for_episode += current_step_perf_score

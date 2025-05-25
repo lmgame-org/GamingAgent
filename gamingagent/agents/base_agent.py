@@ -290,6 +290,7 @@ class BaseAgent(ABC):
             
         Returns:
             Action to take in the environment
+            Updated Observation
         """
         # Ensure observation is an Observation object
         if not isinstance(observation, Observation):
@@ -352,7 +353,7 @@ class BaseAgent(ABC):
             
             # 1. Process observation with perception module (already an Observation)
             processed_observation = perception_module.process_observation(observation)
-            perception_data = perception_module.get_perception_summary()
+            perception_data = perception_module.get_perception_summary(processed_observation)
 
             print("perception data:")
             print(perception_data)
@@ -360,20 +361,25 @@ class BaseAgent(ABC):
             # 2. Update memory with perception data
             memory_summary = None
             if memory_module:
-                processed_observation = memory_module.update_memory(processed_observation, perception_data)
-                memory_summary = memory_module.get_memory_summary()
+                processed_observation = memory_module.process_observation(
+                    processed_observation, perception_data,
+                )
+                memory_summary = memory_module.get_memory_summary(processed_observation)
             
             print("memory data:")
             print(memory_summary)
             
             # 3. Plan action with reasoning module
             action_plan = reasoning_module.plan_action(
-                observation=processed_observation,
-                perception_data=perception_data,
-                memory_summary=memory_summary
+                observation=processed_observation
+            )
+
+            # 4. record action and thought
+            processed_observation = memory_module.update_action_memory(
+                processed_observation, action=action_plan["action"], thought=action_plan["thought"],
             )
             
             print("action plan:")
             print(action_plan)
             
-            return action_plan
+            return action_plan, processed_observation

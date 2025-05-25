@@ -24,7 +24,7 @@ class GameTrajectory:
     def get(self) -> Optional[str]:
         if not self.trajectory:
             return None
-        return f"Past {self.history_length} turn game trajectory\n" + "\n".join(self.trajectory)
+        return f"Past {self.history_length} turn(s) game trajectory (each turn an unique hash)\n" + "\n".join(self.trajectory)
 
 
 @dataclass
