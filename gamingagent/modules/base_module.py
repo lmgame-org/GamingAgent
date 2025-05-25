@@ -56,45 +56,27 @@ class BaseModule(CoreModule):
         self.observation = Observation()  # Observation data class
             
     def plan_action(self, 
-            observation=None, 
-            img_path=None, 
-            textual_representation=None
+            observation
         ):
         """
         Process the observation to plan the next action based on the observation_mode.
         If no observations are provided, uses previously set observations via set_perception_observation().
         
         Args:
-            observation (Observation, optional): A complete Observation instance
-            img_path (str, optional): For "vision" or "both" mode: image path
-            textual_representation (str, optional): For "text" or "both" mode: textual representation of game board
+            observation (Observation): A complete Observation instance
             
         Returns:
             dict: A dictionary containing 'action' and 'thought' keys
         """
         # Update observation
-        if observation or img_path or textual_representation:
-            self.observation.set_perception_observation(observation, img_path, textual_representation)
+        if observation:
+            self.observation.set_perception_observation(observation)
         
         # Validate observation based on mode
         if self.observation_mode in ["vision", "both"]:
             assert self.observation.img_path is not None, "No vision observation available"
         if self.observation_mode in ["text", "both"]: 
             assert (self.observation.textual_representation is not None) or (self.observation.processed_visual_description is not None), "No textual representation available"
-    
-        def prepare_text_based_game_state():
-            textual_representation = self.observation.get_textual_representation()
-            processed_visual_description = self.observation.get_processed_visual_description()
-            if textual_representation and processed_visual_description:
-                text_repr = f"Game Textual Representation:\n{textual_representation}\n\nGmae Visual Elements Description:\n{processed_visual_description}\n\n"
-            elif textual_representation:
-                text_repr = f"Game Textual Representation:\n{textual_representation}\n\n"
-            elif processed_visual_description:
-                text_repr = f"Gmae Visual Elements Description:\n{processed_visual_description}\n\n"
-            else:
-                text_repr = "No Text-Based Game State Provided."
-            
-            return text_repr
         
         response = None
         if self.observation_mode == "vision":
@@ -126,9 +108,7 @@ class BaseModule(CoreModule):
         
         elif self.observation_mode == "text":
             # Create the full prompt with the text-based game state
-            # TODO (lanxiang): replace with Observation.get_complete_prompt
-            text_repr = prepare_text_based_game_state()
-            full_prompt = f"{self.prompt}\n\n{text_repr}"
+            full_prompt = observation.get_complete_prompt(observation_mode=self.observation_mode, prompt_template=self.prompt)
             
             # Call the text API with the textual representation in the prompt
             response = self.api_manager.text_only_completion(
@@ -146,9 +126,7 @@ class BaseModule(CoreModule):
             new_img_path = scale_image_up(self.observation.get_img_path())
             
             # Create the full prompt with the text-based game state
-            # TODO (lanxiang): replace with Observation.get_complete_prompt
-            text_repr = prepare_text_based_game_state()
-            full_prompt = f"{self.prompt}\n\n{text_repr}"
+            full_prompt = observation.get_complete_prompt(observation_mode=self.observation_mode, prompt_template=self.prompt)
             
             # Call the vision API with both the image and textual representation
             response = self.api_manager.vision_text_completion(

@@ -14,23 +14,25 @@ from gamingagent.envs.custom_01_2048.twentyFortyEightEnv import TwentyFortyEight
 from gamingagent.envs.custom_02_sokoban.sokobanEnv import SokobanEnv
 from gamingagent.envs.custom_03_candy_crush.candyCrushEnv import CandyCrushEnvWrapper
 from gamingagent.envs.retro_01_super_mario_bros.superMarioBrosEnv import SuperMarioBrosEnvWrapper
+from gamingagent.envs.retro_03_1942.NineteenFortyTwo_env import NineteenFortyTwoEnvWrapper
 
 game_config_mapping = {"twenty_forty_eight": "custom_01_2048",
                        "sokoban": "custom_02_sokoban",
                        "candy_crush": "custom_03_candy_crush",
                        "tetris": "custom_04_tetris",
                        "super_mario_bros":"retro_01_super_mario_bros",
-                       "ace_attorney":"retro_02_ace_attorney"}
+                       "ace_attorney":"retro_02_ace_attorney",
+                       "nineteen_forty_two": "retro_03_1942"}
 
 def parse_arguments(defaults_map=None, argv_to_parse=None):
     parser = argparse.ArgumentParser(description="Run GamingAgent for the 2048 Gym Environment.")
     # Game name is fixed for this runner, but kept for config loading structure
     parser.add_argument("--game_name", type=str, default="twenty_forty_eight", 
-                        help="Name of the game (fixed to twenty_forty_eight for this runner).")
-    parser.add_argument("--model_name", type=str, default="claude-3-haiku-20240307",
-                        help="Name of the model for the agent.")
+                        help="Name of the game.")
     parser.add_argument("--config_root_dir", type=str, default="configs",
                         help="Root directory for agent configurations.")
+    parser.add_argument("--model_name", type=str, default="claude-3-haiku-20240307",
+                        help="Name of the model for the agent.")
     parser.add_argument("--harness", action="store_true",
                         help="Use perception-memory-reasoning pipeline (harness mode). Default is False.")
     parser.add_argument("--num_runs", type=int, default=1, help="Number of game episodes.")
@@ -269,7 +271,8 @@ def main():
     config_dir_name = game_config_mapping.get(pre_args.game_name.lower())
     if not config_dir_name:
         print(f"Warning: Game name '{pre_args.game_name}' not found in game_config_mapping. Using game name directly for config path.")
-        config_dir_name = pre_args.game_name
+        config_dir_name = pre_args.game_name 
+    print(f"Running game: {pre_args.game_name}")
 
     defaults_from_yaml = {}
     config_file_path = os.path.join(pre_args.config_root_dir, config_dir_name, "config.yaml")
@@ -281,6 +284,7 @@ def main():
                 if loaded_yaml:
                     if loaded_yaml.get('game_env'):
                         game_env_config_yaml = loaded_yaml['game_env']
+                        defaults_from_yaml['game_name'] = game_env_config_yaml.get('name')
                         defaults_from_yaml['num_runs'] = game_env_config_yaml.get('num_runs')
                         defaults_from_yaml['max_steps_per_episode'] = game_env_config_yaml.get('max_steps')
                         defaults_from_yaml['seed'] = game_env_config_yaml.get('seed')
