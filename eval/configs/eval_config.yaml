@@ -2,11 +2,11 @@
 
 # List of game names to process
 # Example: ["twenty_forty_eight", "sokoban"]
-game_list: ["twenty_forty_eight", "sokoban", "candy_crush", "super_mario_bros"]
+game_list: ["sokoban", "candy_crush", "tetris", "twenty_forty_eight", "super_mario_bros"]
 
 # List of model names/prefixes to process
 # Example: ["claude-3-5-sonnet-20241022", "gpt-4o"]
-model_list: ["claude-3-5-sonnet-latest"]
+model_list: ["gemini-2.0-flash"]
 
 # Force update existing entries in model_perf_rank.json (boolean)
 force_model_perf_rank: false

@@ -1,7 +1,7 @@
 game_env:
   name: "candy_crush"
   env_type: "custom" # Since CandyCrushEnvWrapper is a custom wrapper
-  num_runs: 2
+  num_runs: 1
   render_mode: "human"
   max_steps: 50 # Max steps per episode for Candy Crush
   seed: 42 # Or a specific seed

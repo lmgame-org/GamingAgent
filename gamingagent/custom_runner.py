@@ -6,6 +6,7 @@ import time
 import numpy as np
 import yaml
 from typing import Any
+import sys
 
 from gamingagent.agents.base_agent import BaseAgent
 from gamingagent.modules import PerceptionModule, ReasoningModule # Observation is imported by Env
@@ -15,6 +16,7 @@ from gamingagent.envs.custom_02_sokoban.sokobanEnv import SokobanEnv
 from gamingagent.envs.custom_03_candy_crush.candyCrushEnv import CandyCrushEnvWrapper
 from gamingagent.envs.retro_01_super_mario_bros.superMarioBrosEnv import SuperMarioBrosEnvWrapper
 from gamingagent.envs.retro_03_1942.NineteenFortyTwo_env import NineteenFortyTwoEnvWrapper
+from gamingagent.envs.custom_04_tetris.tetrisEnv import TetrisEnv
 
 game_config_mapping = {"twenty_forty_eight": "custom_01_2048",
                        "sokoban": "custom_02_sokoban",
@@ -25,10 +27,13 @@ game_config_mapping = {"twenty_forty_eight": "custom_01_2048",
                        "nineteen_forty_two": "retro_03_1942"}
 
 def parse_arguments(defaults_map=None, argv_to_parse=None):
-    parser = argparse.ArgumentParser(description="Run GamingAgent for the 2048 Gym Environment.")
-    # Game name is fixed for this runner, but kept for config loading structure
-    parser.add_argument("--game_name", type=str, default="twenty_forty_eight", 
-                        help="Name of the game.")
+    parser = argparse.ArgumentParser(description="Run GamingAgent for a specified Gym Environment.")
+    # Game name will be set by defaults_map from prelim_parser, so not strictly required here.
+    # A check after parsing will ensure it has a value.
+    parser.add_argument("--game_name", type=str, default=None, 
+                        help="Name of the game (e.g., twenty_forty_eight, sokoban). Set by prelim parser.")
+    parser.add_argument("--model_name", type=str, default="claude-3-haiku-20240307",
+                        help="Name of the model for the agent.")
     parser.add_argument("--config_root_dir", type=str, default="configs",
                         help="Root directory for agent configurations.")
     parser.add_argument("--model_name", type=str, default="claude-3-haiku-20240307",
@@ -175,6 +180,46 @@ def create_environment(game_name_arg: str,
             # config_root_dir is already an arg to runner, CandyCrushEnvWrapper doesn't need it directly if path is absolute
         )
         return env
+    elif game_name_arg == "tetris":
+        # Load params specific to Tetris
+        if os.path.exists(env_specific_config_path):
+            with open(env_specific_config_path, 'r') as f:
+                env_specific_config = json.load(f)
+                env_init_kwargs = env_specific_config.get('env_init_kwargs', {})
+                env_init_params['board_width'] = env_init_kwargs.get('board_width', 10)
+                env_init_params['board_height'] = env_init_kwargs.get('board_height', 20)
+                env_init_params['gravity'] = env_init_kwargs.get('gravity', True)
+                env_init_params['render_upscale'] = env_init_kwargs.get('render_upscale', 25)
+                env_init_params['queue_size'] = env_init_kwargs.get('queue_size', 4)
+                env_init_params['render_mode_for_make'] = env_specific_config.get('render_mode_for_make', 'human') # Corresponds to TetrisEnv render_mode
+                env_init_params['max_stuck_steps_for_adapter'] = env_specific_config.get('max_unchanged_steps_for_termination', 30)
+        else:
+            print(f"Warning: {env_specific_config_path} for {game_name_arg} not found. Using default env parameters for Tetris.")
+            env_init_params['board_width'] = 10
+            env_init_params['board_height'] = 20
+            env_init_params['gravity'] = True
+            env_init_params['render_upscale'] = 25
+            env_init_params['queue_size'] = 4
+            env_init_params['render_mode_for_make'] = 'human'
+            env_init_params['max_stuck_steps_for_adapter'] = 30
+
+        print(f"Initializing environment: {game_name_arg} with params: {env_init_params}")
+        env = TetrisEnv(
+            render_mode=env_init_params.get('render_mode_for_make'),
+            board_width=env_init_params.get('board_width'),
+            board_height=env_init_params.get('board_height'),
+            gravity=env_init_params.get('gravity'),
+            render_upscale=env_init_params.get('render_upscale'),
+            queue_size=env_init_params.get('queue_size'),
+            # Adapter related params
+            game_name_for_adapter=game_name_arg,
+            observation_mode_for_adapter=obs_mode_arg,
+            agent_cache_dir_for_adapter=cache_dir_for_adapter,
+            game_specific_config_path_for_adapter=env_specific_config_path,
+            max_stuck_steps_for_adapter=env_init_params.get('max_stuck_steps_for_adapter')
+            # seed will be passed during reset, not __init__ for TetrisEnv as per its definition
+        )
+        return env
     elif game_name_arg == "super_mario_bros":
         # SuperMarioBrosEnvWrapper loads its specific configs internally.
         # The runner primarily needs to provide paths and agent/run-level settings.
@@ -264,46 +309,76 @@ def run_game_episode(agent: BaseAgent, game_env: Any, episode_id: int, args: arg
 
 def main():
     prelim_parser = argparse.ArgumentParser(add_help=False)
-    prelim_parser.add_argument("--game_name", type=str, default="twenty_forty_eight")
+    # No default for game_name here; it must be passed for prelim_parser to find the correct config.yaml
+    prelim_parser.add_argument("--game_name", type=str, required=False) # Make it not strictly required for prelim if main parser will catch it. Or handle if None.
+                                                                     # Let's make it required=True here too for robustness if pre_args is used directly for critical path
     prelim_parser.add_argument("--config_root_dir", type=str, default="configs")
     pre_args, remaining_argv = prelim_parser.parse_known_args()
 
-    config_dir_name = game_config_mapping.get(pre_args.game_name.lower())
-    if not config_dir_name:
+    if not pre_args.game_name:
+        # This case should ideally not be hit if run.py always passes game_name.
+        # If it's hit, it means game_name wasn't passed early enough for config loading.
+        # The main parser (later) will fail due to "required=True" if it's still missing.
+        # For now, we might use a fallback or let the main parser handle the error.
+        # However, for loading the correct config, game_name is essential.
+        # A better approach: main parser in parse_arguments makes game_name required.
+        # Here, we can make it optional for prelim_parser. If pre_args.game_name is None, then
+        # defaults_from_yaml might not be loaded correctly for a *specific* game,
+        # but the main parser will then use its defaults (if any) or fail if required and not given.
+
+        # Corrected approach: game_name IS critical for prelim_parser to find the right config.
+        # So, if it's not passed, we can't load game-specific defaults.
+        # We'll print a warning and proceed; the main parser will ultimately enforce `game_name` requirement.
+        print("Warning: --game_name not provided or not parsed by prelim_parser. Game-specific defaults from config.yaml might not be loaded.")
+        config_dir_name = None # No specific game config can be loaded
+    else:
+        config_dir_name = game_config_mapping.get(pre_args.game_name.lower())
+    
+    if not config_dir_name and pre_args.game_name: # game_name was provided, but not in mapping
         print(f"Warning: Game name '{pre_args.game_name}' not found in game_config_mapping. Using game name directly for config path.")
-        config_dir_name = pre_args.game_name 
-    print(f"Running game: {pre_args.game_name}")
+        config_dir_name = pre_args.game_name
+    elif not config_dir_name and not pre_args.game_name: # game_name wasn't provided to prelim_parser
+        # Defaults_from_yaml will be empty, main parser will use its own defaults or fail on required args
+        pass
 
     defaults_from_yaml = {}
-    config_file_path = os.path.join(pre_args.config_root_dir, config_dir_name, "config.yaml")
+    config_file_path = None # Initialize config_file_path to ensure it's always defined
 
-    if os.path.exists(config_file_path):
-        try:
-            with open(config_file_path, 'r') as f:
-                loaded_yaml = yaml.safe_load(f)
-                if loaded_yaml:
-                    if loaded_yaml.get('game_env'):
-                        game_env_config_yaml = loaded_yaml['game_env']
-                        defaults_from_yaml['game_name'] = game_env_config_yaml.get('name')
-                        defaults_from_yaml['num_runs'] = game_env_config_yaml.get('num_runs')
-                        defaults_from_yaml['max_steps_per_episode'] = game_env_config_yaml.get('max_steps')
-                        defaults_from_yaml['seed'] = game_env_config_yaml.get('seed')
+    # Add game_name from prelim_parser to defaults_from_yaml so it's passed to set_defaults for the main parser
+    if pre_args.game_name:
+        defaults_from_yaml['game_name'] = pre_args.game_name
 
-                    if loaded_yaml.get('agent'):
-                        agent_config_yaml = loaded_yaml['agent']
-                        defaults_from_yaml['model_name'] = agent_config_yaml.get('model_name')
-                        defaults_from_yaml['harness'] = agent_config_yaml.get('harness')
-                        defaults_from_yaml['observation_mode'] = agent_config_yaml.get('observation_mode')
-                        
-                        # Still load max_memory from its specific module config if present
-                        if agent_config_yaml.get('modules'):
-                            if agent_config_yaml['modules'].get('memory_module'):
-                                defaults_from_yaml['max_memory'] = agent_config_yaml['modules']['memory_module'].get('max_memory')
-                    defaults_from_yaml = {k: v for k, v in defaults_from_yaml.items() if v is not None}
-        except Exception as e:
-            print(f"Warning: Could not load or process defaults from {config_file_path}: {e}")
-    else:
-        print(f"Info: Main config file {config_file_path} not found. Using command-line args and hardcoded defaults.")
+    if config_dir_name: # Only try to load if we have a config_dir_name
+        config_file_path = os.path.join(pre_args.config_root_dir, config_dir_name, "config.yaml")
+        if os.path.exists(config_file_path):
+            try:
+                with open(config_file_path, 'r') as f:
+                    loaded_yaml = yaml.safe_load(f)
+                    if loaded_yaml:
+                        if loaded_yaml.get('game_env'):
+                            game_env_config_yaml = loaded_yaml['game_env']
+                            defaults_from_yaml['num_runs'] = game_env_config_yaml.get('num_runs')
+                            defaults_from_yaml['max_steps_per_episode'] = game_env_config_yaml.get('max_steps')
+                            defaults_from_yaml['seed'] = game_env_config_yaml.get('seed')
+
+                        if loaded_yaml.get('agent'):
+                            agent_config_yaml = loaded_yaml['agent']
+                            defaults_from_yaml['model_name'] = agent_config_yaml.get('model_name')
+                            defaults_from_yaml['harness'] = agent_config_yaml.get('harness')
+                            defaults_from_yaml['observation_mode'] = agent_config_yaml.get('observation_mode')
+                            
+                            # Still load max_memory from its specific module config if present
+                            if agent_config_yaml.get('modules'):
+                                if agent_config_yaml['modules'].get('memory_module'):
+                                    defaults_from_yaml['max_memory'] = agent_config_yaml['modules']['memory_module'].get('max_memory')
+                        defaults_from_yaml = {k: v for k, v in defaults_from_yaml.items() if v is not None}
+            except Exception as e:
+                print(f"Warning: Could not load or process defaults from {config_file_path}: {e}")
+        else:
+            # This print is for when the specific game's config.yaml is not found
+            print(f"Info: Game-specific config file {config_file_path} not found. Using command-line args and built-in defaults.")
+    # If config_dir_name was None (e.g. game_name not passed to prelim_parser), 
+    # config_file_path remains None, and we skip loading YAML defaults.
 
     # DEBUG PRINT 2: Remaining argv and defaults_map
     # print(f"DEBUG: remaining_argv before parse_arguments: {remaining_argv}")
@@ -311,10 +386,47 @@ def main():
 
     args = parse_arguments(defaults_map=defaults_from_yaml, argv_to_parse=remaining_argv)
 
-    agent_prompts_config_path = os.path.join(args.config_root_dir, config_dir_name, "module_prompts.json")
-    if not os.path.isfile(agent_prompts_config_path):
-        print(f"Warning: Agent prompts file {agent_prompts_config_path} not found. Agent will use default prompts.")
-        agent_prompts_config_path = None
+    # Critical check: Ensure game_name has a value after all parsing.
+    if not args.game_name:
+        print("ERROR: game_name is missing after parsing. This should not happen if run.py provides it.")
+        sys.exit(2) # Exit with a different code to distinguish from argparse error
+
+    # --- Override specific args with YAML values if they existed in the config file ---
+    # This makes config.yaml authoritative for these specific parameters over command-line args,
+    # while game_name, model_name, and harness are primarily driven by command-line (from run.py).
+
+    params_where_config_wins = {
+        'num_runs', 
+        'max_steps_per_episode',
+        'seed',
+        'observation_mode',
+        'max_memory'
+    }
+
+    if config_file_path and os.path.exists(config_file_path):
+        for param_name in params_where_config_wins:
+            if param_name in defaults_from_yaml: # If the param was indeed in the loaded YAML config
+                yaml_value = defaults_from_yaml[param_name]
+                current_arg_value = getattr(args, param_name, None)
+                if current_arg_value != yaml_value:
+                    print(f"INFO: Overriding '{param_name}' with value from {config_file_path}. Was: {current_arg_value}, Now: {yaml_value}")
+                    setattr(args, param_name, yaml_value)
+    # --- End of override logic ---
+
+    # Ensure agent_prompts_config_path uses the potentially overridden args.config_root_dir and correct config_dir_name
+    # config_dir_name determined earlier is correct for the game specified by command line.
+    final_config_dir_name = config_dir_name 
+    if not final_config_dir_name and args.game_name: # If prelim parsing didn't get game_name but main args did
+        final_config_dir_name = game_config_mapping.get(args.game_name.lower(), args.game_name)
+
+    agent_prompts_config_path = None
+    if final_config_dir_name: # It might still be None if game_name was never resolved
+        agent_prompts_config_path = os.path.join(args.config_root_dir, final_config_dir_name, "module_prompts.json")
+        if not os.path.isfile(agent_prompts_config_path):
+            print(f"Warning: Agent prompts file {agent_prompts_config_path} not found. Agent will use default prompts.")
+            agent_prompts_config_path = None
+    else:
+        print("Warning: Could not determine config directory for prompts due to missing game name resolution.")
 
     # DEBUG PRINT
     # print(f"DEBUG: Value of args.harness before check: {args.harness} (type: {type(args.harness)})")
