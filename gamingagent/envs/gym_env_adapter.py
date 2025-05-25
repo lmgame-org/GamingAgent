@@ -35,7 +35,7 @@ class GymEnvAdapter:
         observation_mode (str): How the agent observes the environment. 
                                 Options: "vision", "text", "both".
         agent_cache_dir (str): Directory to store episode logs and generated observation images.
-        game_specific_config_path (str): Path to the game's JSON configuration file 
+        game_specific_config_path (Optional[str]): Path to the game's JSON configuration file 
                                          (e.g., `game_env_config.json`) which contains action
                                          mappings and other game-specific settings for the adapter.
         max_steps_for_stuck (Optional[int]): Number of consecutive unchanged observations before
@@ -46,7 +46,7 @@ class GymEnvAdapter:
                  game_name: str,
                  observation_mode: str, # "vision", "text", "both"
                  agent_cache_dir: str, # Used for logs and observations
-                 game_specific_config_path: str, # Path to game_env_config.json
+                 game_specific_config_path: Optional[str] = None, # Path to game_env_config.json, now optional
                  max_steps_for_stuck: Optional[int] = None):
         self.game_name = game_name
         self.observation_mode = observation_mode
@@ -68,12 +68,14 @@ class GymEnvAdapter:
         self.action_mapping_config: Dict[str, int] = {}
         self.move_to_action_idx: Dict[str, int] = {}
         self.action_idx_to_move: Dict[int, str] = {}
-        self._load_game_specific_config(game_specific_config_path)
+        if game_specific_config_path: # This check will now work as intended
+            self._load_game_specific_config(game_specific_config_path)
         
         self.all_episode_results: List[Dict] = [] # To store results of each episode
 
     def _load_game_specific_config(self, config_path: str):
         """Loads game-specific settings like action mapping and stuck detection params from JSON."""
+        print(f"[GymEnvAdapter DEBUG _load_game_specific_config] Called with config_path: {config_path}")
         print(f"[GymEnvAdapter] Loading game-specific config from: {config_path}")
         if os.path.exists(config_path):
             try:

@@ -992,6 +992,185 @@ def generate_candy_crush_median_score_replay(
         print(f"Unexpected error in generate_candy_crush_median_score_replay for {model_name_prefix}, {harness_status_key}: {e}")
         if 'temp_dir' in locals() and os.path.exists(temp_dir) and os.path.isdir(temp_dir): shutil.rmtree(temp_dir)
 
+def generate_super_mario_bros_median_replay(
+    game_perf_json_path: str,
+    model_name_prefix: str,
+    game_display_name: str, # e.g., "super_mario_bros" or "Super Mario Bros"
+    harness_status_key: str, # e.g., "harness_false"
+    video_output_base_dir: str,
+    # seconds_per_frame is not directly used by playback_movie, but kept for signature consistency if needed later
+    seconds_per_frame: float = DEFAULT_SECONDS_PER_FRAME 
+):
+    """
+    Generates an MP4 video replay from a .bk2 file for the median-scoring Super Mario Bros episode.
+    Uses `python3 -m retro.scripts.playback_movie`.
+    """
+    print(f"Attempting to generate Super Mario Bros median score MP4 replay for {model_name_prefix} (game: '{game_display_name}', harness: {harness_status_key}).")
+
+    # Check for ffmpeg (required by retro.scripts.playback_movie for .mp4 output)
+    try:
+        subprocess.run(["ffmpeg", "-version"], capture_output=True, check=True, text=True)
+        print("[ReplayUtils] ffmpeg found.")
+    except (subprocess.CalledProcessError, FileNotFoundError) as e:
+        print("[ReplayUtils] Error: ffmpeg is not installed or not found in PATH. Video generation aborted for Super Mario Bros.")
+        if isinstance(e, subprocess.CalledProcessError):
+            print(f"ffmpeg stdout: {e.stdout}")
+            print(f"ffmpeg stderr: {e.stderr}")
+        return
+
+    try:
+        with open(game_perf_json_path, 'r') as f:
+            all_game_perf_data = json.load(f)
+    except FileNotFoundError:
+        print(f"Error: game_perf.json not found at {game_perf_json_path}")
+        return
+    except json.JSONDecodeError:
+        print(f"Error: Could not decode JSON from {game_perf_json_path}")
+        return
+
+    try:
+        model_data = all_game_perf_data.get(game_display_name, {}).get(model_name_prefix, {}).get(harness_status_key, {})
+        if not model_data or "episodes_data" not in model_data:
+            print(f"No data found for {model_name_prefix} - game '{game_display_name}' - {harness_status_key} in {game_perf_json_path}")
+            return
+
+        episodes_data = model_data["episodes_data"]
+        if not episodes_data:
+            print(f"No episodes found for {model_name_prefix} - game '{game_display_name}' - {harness_status_key}.")
+            return
+
+        scores = [ep.get("total_episode_perf_score", 0) for ep in episodes_data]
+        if not scores:
+            print("No scores available to find median for Super Mario Bros.")
+            return
+            
+        median_score_value = statistics.median(scores)
+        median_episodes = [ep for ep in episodes_data if ep.get("total_episode_perf_score", 0) == median_score_value]
+        
+        if not median_episodes:
+            episodes_data.sort(key=lambda ep: ep.get("total_episode_perf_score", 0))
+            if not episodes_data: # Should be caught by `if not scores` earlier
+                 print(f"No episodes to select for Super Mario Bros median replay for {model_name_prefix}, {harness_status_key}.")
+                 return
+            median_episode_idx = (len(episodes_data) -1) // 2 # Fallback: pick middle or lower-middle
+            median_episode = episodes_data[median_episode_idx]
+            print(f"Could not find exact median score match for Super Mario Bros. Using episode with score: {median_episode.get('total_episode_perf_score', 'N/A')}")
+        else:
+            median_episode = median_episodes[0] # Pick the first one if multiple have the exact median score
+            print(f"Selected Super Mario Bros median episode with score: {median_episode.get('total_episode_perf_score', 'N/A')}")
+
+        episode_id_str = median_episode.get("episode_id", "unknown_ep") # e.g., "001", "002"
+        actual_median_score = median_episode.get("total_episode_perf_score", 0.0)
+        session_log_dir = median_episode.get("log_dir_path") # Path to session cache dir
+
+        if not session_log_dir:
+            print(f"Error: 'log_dir_path' not found for median episode {episode_id_str} of {model_name_prefix}. Cannot locate .bk2 file.")
+            return
+
+        bk2_recordings_dir = os.path.join(session_log_dir, "bk2_recordings")
+        if not os.path.isdir(bk2_recordings_dir):
+            print(f"Error: bk2_recordings directory not found at {bk2_recordings_dir} for episode {episode_id_str}.")
+            return
+
+        # Convert 1-indexed episode_id_str (e.g., "001") to 0-indexed for Retro's -epXXXXXX- pattern
+        try:
+            retro_ep_idx = int(episode_id_str) - 1
+            if retro_ep_idx < 0: raise ValueError("Episode ID must be positive.")
+        except ValueError:
+            print(f"Error: Invalid episode_id_str '{episode_id_str}'. Cannot determine .bk2 file.")
+            return
+        
+        # The file name typically ends with -<run_number>.bk2, where run_number is 0-indexed episode
+        target_bk2_file_suffix = f"-{retro_ep_idx:06d}.bk2" # NEW LOGIC
+        found_bk2_file = None
+
+        print(f"Searching for .bk2 file in {bk2_recordings_dir} ending with: '{target_bk2_file_suffix}'")
+        for filename in os.listdir(bk2_recordings_dir):
+            # We also need to make sure it's for the correct game, though bk2_recordings_dir should be specific enough.
+            # A more robust check could involve parsing the game name from the .bk2 file if needed,
+            # but for now, ending with the correct run number should suffice within the specific session's bk2_recordings dir.
+            if filename.endswith(target_bk2_file_suffix): # NEW LOGIC
+                # Example: SuperMarioBros-Nes-Level1-1-000000.bk2
+                # We expect self.env_id (e.g., "SuperMarioBros-Nes") to be part of the filename.
+                # This check might be overly strict if the env_id in the config isn't exactly matching the prefix
+                # For now, let's be a bit more lenient and just check the suffix, as the directory is already specific.
+                # A better check would be `filename.startswith(self.env_id)` if we had env_id here.
+                # Since env_id isn't directly passed, we rely on the specific log_dir_path.
+                found_bk2_file = os.path.join(bk2_recordings_dir, filename)
+                print(f"Found .bk2 file: {found_bk2_file}")
+                break 
+        
+        if not found_bk2_file:
+            print(f"Error: No .bk2 file found for episode {episode_id_str} (pattern part '{target_bk2_file_suffix}') in {bk2_recordings_dir}.")
+            print(f"Files in directory: {os.listdir(bk2_recordings_dir)}")
+            return
+
+        harness_short = "hT" if "true" in harness_status_key.lower() else "hF"
+        safe_model_name = "".join(c if c.isalnum() or c in ['-', '_'] else '_' for c in model_name_prefix)[:15]
+        
+        # Use a distinct prefix for SMB, e.g., "smb"
+        video_name = f"smb_{safe_model_name}_{harness_short}_median_ep{episode_id_str}_score{actual_median_score:.0f}.mp4"
+        
+        model_video_dir = os.path.join(video_output_base_dir, safe_model_name)
+        os.makedirs(model_video_dir, exist_ok=True)
+        output_video_path = os.path.join(model_video_dir, video_name)
+
+        print(f"Preparing to generate MP4 video: {output_video_path} from {found_bk2_file}")
+        
+        # Command for retro.scripts.playback_movie
+        # Original attempt:
+        # python3 -m retro.scripts.playback_movie <movie_file> --output-video <output_mp4_path>
+        # New approach: Generate in place, then move.
+        
+        # Predict the output filename that playback_movie will create in found_bk2_file's directory
+        bk2_basename_no_ext = os.path.splitext(os.path.basename(found_bk2_file))[0]
+        intermediate_video_filename = f"{bk2_basename_no_ext}.mp4"
+        intermediate_video_path = os.path.join(bk2_recordings_dir, intermediate_video_filename)
+
+        playback_cmd = [
+            "python3", 
+            "-m", "retro.scripts.playback_movie",
+            found_bk2_file,
+            "--lossless", "mp4"  # Use mp4 for better color compatibility
+        ]
+
+        try:
+            print(f"[ReplayUtils] Executing playback command to generate intermediate video: {' '.join(playback_cmd)}")
+            if os.path.exists(intermediate_video_path):
+                print(f"[ReplayUtils] Warning: Intermediate video path {intermediate_video_path} already exists. Removing before generation.")
+                os.remove(intermediate_video_path)
+
+            process = subprocess.run(playback_cmd, capture_output=True, text=True, check=True)
+            if process.stdout: print(f"[ReplayUtils] playback_movie stdout:\n{process.stdout}")
+            if process.stderr: print(f"[ReplayUtils] playback_movie stderr:\n{process.stderr}")
+
+            if not os.path.exists(intermediate_video_path):
+                print(f"[ReplayUtils] Error: Intermediate video file {intermediate_video_path} was not created by playback_movie.py.")
+                print(f"[ReplayUtils] Check stderr above for clues. It might be using a different output name or failed silently.")
+                return # Give up if the file isn't created
+
+            print(f"[ReplayUtils] Intermediate video successfully created at: {intermediate_video_path}")
+            print(f"[ReplayUtils] Moving intermediate video to final path: {output_video_path}")
+            shutil.move(intermediate_video_path, output_video_path)
+            print(f"Super Mario Bros median score replay MP4 video saved to {output_video_path}")
+
+        except subprocess.CalledProcessError as e:
+            print(f"[ReplayUtils] Error running retro.scripts.playback_movie for Super Mario Bros:")
+            print(f"[ReplayUtils] Command: {' '.join(e.cmd)}")
+            print(f"[ReplayUtils] Return code: {e.returncode}")
+            print(f"[ReplayUtils] stdout:\n{e.stdout}")
+            print(f"[ReplayUtils] stderr:\n{e.stderr}")
+            # Do not clean up anything here, user might want to inspect video_output_base_dir
+            return
+        except FileNotFoundError: # e.g. python3 not found
+            print("[ReplayUtils] Error: python3 (or the interpreter) not found. Cannot run playback_movie script.")
+            return
+    
+    except Exception as e:
+        print(f"An unexpected error occurred in generate_super_mario_bros_median_replay for {model_name_prefix}, game '{game_display_name}', harness {harness_status_key}: {type(e).__name__} - {e}")
+        import traceback
+        traceback.print_exc()
+
 # Ensure the script can be called, e.g. if __name__ == "__main__": block
 # For now, just defining the functions.
 # Example usage would be added in a main block or a separate script. 

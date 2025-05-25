@@ -13,6 +13,7 @@ from gamingagent.modules import PerceptionModule, ReasoningModule # Observation 
 from gamingagent.envs.custom_01_2048.twentyFortyEightEnv import TwentyFortyEightEnv
 from gamingagent.envs.custom_02_sokoban.sokobanEnv import SokobanEnv
 from gamingagent.envs.custom_03_candy_crush.candyCrushEnv import CandyCrushEnvWrapper
+from gamingagent.envs.retro_01_super_mario_bros.superMarioBrosEnv import SuperMarioBrosEnvWrapper
 
 game_config_mapping = {"twenty_forty_eight": "custom_01_2048",
                        "sokoban": "custom_02_sokoban",
@@ -48,6 +49,7 @@ def parse_arguments(defaults_map=None, argv_to_parse=None):
     return parser.parse_args()
 
 def create_environment(game_name_arg: str, 
+                       model_name_arg: str,
                        obs_mode_arg: str, 
                        config_dir_name_for_env_cfg: str, # For loading game_env_config.json
                        cache_dir_for_adapter: str):
@@ -171,6 +173,25 @@ def create_environment(game_name_arg: str,
             # config_root_dir is already an arg to runner, CandyCrushEnvWrapper doesn't need it directly if path is absolute
         )
         return env
+    elif game_name_arg == "super_mario_bros":
+        # SuperMarioBrosEnvWrapper loads its specific configs internally.
+        # The runner primarily needs to provide paths and agent/run-level settings.
+        env_wrapper_config_dir = os.path.join("gamingagent/envs", config_dir_name_for_env_cfg)
+        
+        print(f"Initializing environment: {game_name_arg} using SuperMarioBrosEnvWrapper")
+        print(f"  Wrapper config dir: {env_wrapper_config_dir}")
+        print(f"  Model name for adapter: {model_name_arg}")
+        print(f"  Observation mode for adapter: {obs_mode_arg}")
+        print(f"  Base log dir for adapter: {cache_dir_for_adapter}")
+
+        env = SuperMarioBrosEnvWrapper(
+            game_name=game_name_arg,
+            model_name=model_name_arg,
+            config_dir_path=env_wrapper_config_dir, # e.g., "gamingagent/envs/retro_01_super_mario_bros"
+            observation_mode=obs_mode_arg,
+            base_log_dir=cache_dir_for_adapter # This will be like "cache/super_mario_bros/model_name_agent_cache"
+        )
+        return env
     else:
         print(f"ERROR: Game '{game_name_arg}' is not defined or implemented in custom_runner.py's create_environment function.")
         return None
@@ -188,8 +209,8 @@ def run_game_episode(agent: BaseAgent, game_env: Any, episode_id: int, args: arg
 
     for step_num in range(args.max_steps_per_episode):
         final_step_num = step_num + 1
-        if game_env.render_mode == 'human':
-            game_env.render() # Call env's render method directly
+        # if game_env.render_mode == 'human':
+        game_env.render() # Call env's render method directly
 
         start_time = time.time()
         action_dict = agent.get_action(agent_observation)
@@ -278,12 +299,19 @@ def main():
     else:
         print(f"Info: Main config file {config_file_path} not found. Using command-line args and hardcoded defaults.")
 
+    # DEBUG PRINT 2: Remaining argv and defaults_map
+    # print(f"DEBUG: remaining_argv before parse_arguments: {remaining_argv}")
+    # print(f"DEBUG: defaults_from_yaml before parse_arguments: {defaults_from_yaml}")
+
     args = parse_arguments(defaults_map=defaults_from_yaml, argv_to_parse=remaining_argv)
 
     agent_prompts_config_path = os.path.join(args.config_root_dir, config_dir_name, "module_prompts.json")
     if not os.path.isfile(agent_prompts_config_path):
         print(f"Warning: Agent prompts file {agent_prompts_config_path} not found. Agent will use default prompts.")
         agent_prompts_config_path = None
+
+    # DEBUG PRINT
+    # print(f"DEBUG: Value of args.harness before check: {args.harness} (type: {type(args.harness)})")
 
     custom_modules_for_agent = None
     if args.harness:
@@ -309,6 +337,7 @@ def main():
     # Env params are now loaded inside create_environment
     game_env = create_environment(
         game_name_arg=args.game_name,
+        model_name_arg=args.model_name,
         obs_mode_arg=args.observation_mode,
         config_dir_name_for_env_cfg=config_dir_name,
         cache_dir_for_adapter=runner_log_dir

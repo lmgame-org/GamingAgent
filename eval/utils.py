@@ -162,6 +162,7 @@ class GameLogProcessor:
                         "total_reward": self._convert_numpy_to_python(total_reward_for_episode),
                         # Store the sum of per-step perf_scores as total_episode_perf_score
                         "total_episode_perf_score": self._convert_numpy_to_python(raw_total_episode_perf_score),
+                        "log_dir_path": exp_dir  # ADDED: Store the path to the experiment directory
                     }
                     if self.score_transformation_rule:
                         transformed_final_score = self._apply_score_transformation(
