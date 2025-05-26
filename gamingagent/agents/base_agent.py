@@ -83,7 +83,7 @@ class BaseAgent(ABC):
                 else:
                     print(f"    -> WARNING: {module_name.replace('_', ' ').title()} not loaded correctly for harness mode.")
         else:
-            print("  Agent is in NON-HARNESS mode (BaseModule direct pipeline).")
+            print("  Agent is in NON-HARNESS mode (BaseModule pipeline).")
             if self.modules.get("base_module") and self.modules["base_module"] is not None:
                  print(f"    -> Using Base Module: {self.modules['base_module'].__class__.__name__}")
             else:
@@ -335,8 +335,8 @@ class BaseAgent(ABC):
             # Unharness mode: Use base module directly with the Observation object
             print("Invoking WITHOUT HARNESS mode.")
 
-            result = self.modules["base_module"].plan_action(observation=observation)
-            return result
+            action_plan = self.modules["base_module"].plan_action(observation=observation)
+            return action_plan, observation
         
         else:
             # Harness mode: Perception -> Memory -> Reasoning

@@ -14,7 +14,7 @@ agent:
   cache_dir: "cache/twenty_forty_eight"
   reasoning_effort: "high"
   token_limit: 100000
-  harness: true # Whether to use the perception-memory-reasoning pipeline
+  harness: false # Whether to use the perception-memory-reasoning pipeline
   observation_mode: "both"
   # Module-specific settings
   modules:

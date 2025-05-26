@@ -72,13 +72,11 @@ class SuperMarioBrosEnvWrapper:
     def __init__(
         self,
         game_name: str, # e.g., "super_mario_bros"
-        model_name: str,  # For adapter's logging/cache structure
         config_dir_path: str,  # Path to "gamingagent/envs/retro_01_super_mario_bros/"
         observation_mode: str,  # Should typically be "vision"
         base_log_dir: str,  # Base directory for all logs, e.g., "cache"
     ):
         self.game_name = game_name
-        self.model_name = model_name
         self.config_dir_path = config_dir_path
         self.game_specific_config_json_path = os.path.join(config_dir_path, "game_env_config.json")
         self.observation_mode = observation_mode # Used by GymEnvAdapter for hashing observation
