@@ -65,9 +65,9 @@ class GymEnvAdapter:
         self._max_unchanged_steps: int = max_steps_for_stuck if max_steps_for_stuck is not None else 10 # Default from wrapper
 
         # Load game-specific config (action mapping, etc.)
-        self.action_mapping_config: Dict[str, int] = {}
-        self.move_to_action_idx: Dict[str, int] = {}
-        self.action_idx_to_move: Dict[int, str] = {}
+        self.action_mapping_config: Dict[str, Any] = {} # Value can be int or List[int]
+        self.move_to_action_idx: Dict[str, Any] = {}   # Value can be int or List[int]
+        self.action_idx_to_move: Dict[Any, str] = {} # Key can be int (might be problematic for list actions)
         self._load_game_specific_config(game_specific_config_path)
         
         self.all_episode_results: List[Dict] = [] # To store results of each episode
@@ -83,9 +83,22 @@ class GymEnvAdapter:
                 action_mapping = config.get("action_mapping")
                 if isinstance(action_mapping, dict):
                     self.action_mapping_config = action_mapping
-                    self.move_to_action_idx = {str(k).lower(): int(v) for k, v in action_mapping.items()}
-                    self.action_idx_to_move = {int(v): str(k).lower() for k, v in action_mapping.items()}
-                    print(f"[GymEnvAdapter] Loaded action mapping: {self.move_to_action_idx}")
+                    # Values can be int or list, store them as is
+                    self.move_to_action_idx = {str(k).lower(): v for k, v in action_mapping.items()}
+                    
+                    # action_idx_to_move might be less straightforward if v is a list.
+                    # For now, we only map if v is an int. This part might need rethinking
+                    # if bi-directional mapping is critical for list-based actions.
+                    self.action_idx_to_move = {}
+                    for k, v in action_mapping.items():
+                        if isinstance(v, int):
+                            self.action_idx_to_move[v] = str(k).lower()
+                        # If v is a list, creating a reverse mapping is ambiguous without a unique key for the list itself.
+                        # For now, we skip adding list actions to action_idx_to_move.
+                        # If needed, the list could be converted to a tuple to be a dict key, but utility is questionable here.
+
+                    print(f"[GymEnvAdapter] Loaded action mapping (move_to_action_idx): {self.move_to_action_idx}")
+                    print(f"[GymEnvAdapter] Loaded reverse action mapping (action_idx_to_move, int actions only): {self.action_idx_to_move}")
                 else:
                     print(f"[GymEnvAdapter] Warning: 'action_mapping' in {config_path} is not a dict or is missing.")
 
@@ -175,7 +188,9 @@ class GymEnvAdapter:
             perf_score (float): Performance score calculated for this step.
             agent_observation (Observation): The agent-facing observation for this step.
         """
-        print(f"[GymEnvAdapter] E{self.current_episode_id} S{self.current_step_num}: AgentAct='{agent_action_str}', R={reward:.2f}, Perf={perf_score:.2f}, Term={terminated}, Trunc={truncated}, T={time_taken_s:.2f}s")
+        # Conditional print: Only print if not an uneventful AUTO_NO_OP, or if it's an interesting event, or a milestone AUTO_NO_OP step.
+        if agent_action_str != "<AUTO_NO_OP>" or reward != 0 or perf_score != 0 or terminated or truncated or (agent_action_str == "<AUTO_NO_OP>" and self.current_step_num > 0 and self.current_step_num < 10):
+            print(f"[GymEnvAdapter] E{self.current_episode_id} S{self.current_step_num}: AgentAct='{agent_action_str}', R={reward:.2f}, Perf={perf_score:.2f}, Term={terminated}, Trunc={truncated}, T={time_taken_s:.2f}s")
 
         log_entry = {
             "episode_id": self.current_episode_id,
@@ -265,15 +280,16 @@ class GymEnvAdapter:
 
         return reward # Now returns reward directly
 
-    def map_agent_action_to_env_action(self, agent_action_str: Optional[str]) -> Optional[int]:
+    def map_agent_action_to_env_action(self, agent_action_str: Optional[str]) -> Optional[Any]:
         """
-        Maps an agent's action string (e.g., "left") to an environment-specific action index.
+        Maps an agent's action string (e.g., "left") to an environment-specific action.
+        The action can be an integer index or a list/array representing button states.
 
         Args:
             agent_action_str (Optional[str]): The action string from the agent.
 
         Returns:
-            Optional[int]: The corresponding action index for the Gymnasium environment,
+            Optional[Any]: The corresponding action for the Gymnasium environment (int or List/np.array),
                            or None if the action is invalid, None, or "skip".
         """
         if agent_action_str is None or not agent_action_str.strip():
@@ -283,7 +299,20 @@ class GymEnvAdapter:
         if action_str_lower == "skip":
              return None # Explicit skip
 
-        return self.move_to_action_idx.get(action_str_lower)
+        # self.move_to_action_idx now holds the direct value (int or list)
+        action_val = self.move_to_action_idx.get(action_str_lower)
+        
+        if isinstance(action_val, list):
+            return np.array(action_val, dtype=bool) # Convert to numpy array for retro env
+        elif isinstance(action_val, int):
+            return action_val
+        else:
+            # If action_val is None (not found) or some other unexpected type
+            if action_val is None:
+                 print(f"[GymEnvAdapter] Warning: Action '{agent_action_str}' not found in move_to_action_idx.")
+            else:
+                 print(f"[GymEnvAdapter] Warning: Action '{agent_action_str}' mapped to unexpected type: {type(action_val)}.")
+            return None
 
     def close_log_file(self):
         """Closes the current episode's log file if it's open."""

@@ -224,7 +224,7 @@ python ./gamingagent/runner.py --game_name twenty_forty_eight
 
 Example with more options:
 ```bash
-python ./gamingagent/runner.py --game_name twenty_forty_eight --model_name claude-3-haiku-20240307 --observation_mode vision --harness false --num_episodes 5
+python gamingagent/custom_runner.py --game_name tetris --model_name claude-3-haiku-20240307 --observation_mode vision --harness true
 ```
 
 ## 5. Notes

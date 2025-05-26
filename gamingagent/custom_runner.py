@@ -6,6 +6,10 @@ import time
 import numpy as np
 import yaml
 import gym
+import retro
+# Corrected imports based on retro/__init__.py
+from retro.enums import Actions, Observations, State
+# retro.data will be used directly for Integrations
 
 from gamingagent.agents.base_agent import BaseAgent
 from gamingagent.modules import PerceptionModule, ReasoningModule # Observation is imported by Env
@@ -13,7 +17,8 @@ from gamingagent.modules import PerceptionModule, ReasoningModule # Observation 
 from gamingagent.envs.custom_01_2048.twentyFortyEightEnv import TwentyFortyEightEnv
 from gamingagent.envs.custom_02_sokoban.sokobanEnv import SokobanEnv
 from gamingagent.envs.custom_03_candy_crush.candyCrushEnv import CandyCrushEnv
-from gamingagent.envs.custom_04_tetris.tetrisEnv import TetrisEnv 
+from gamingagent.envs.custom_04_tetris.tetrisEnv import TetrisEnv
+from gamingagent.envs.retro_02_ace_attorney.aceAttorneyEnv import AceAttorneyEnv
 
 game_config_mapping = {"twenty_forty_eight": "custom_01_2048",
                        "sokoban": "custom_02_sokoban",
@@ -203,6 +208,94 @@ def create_environment(game_name_arg: str,
             game_specific_config_path_for_adapter=env_specific_config_path,
             max_stuck_steps_for_adapter=env_init_params.get('max_stuck_steps_for_adapter')
         )
+        return env
+    elif game_name_arg == "ace_attorney":
+        # Parameters for AceAttorneyEnv which inherits from retro.Env
+        # These will be passed to AceAttorneyEnv.__init__
+        # Some will directly go to retro.Env.__init__ via super() call
+        # Others are for the adapter or wrapper behavior
+        env_params_for_constructor = {}
+        if os.path.exists(env_specific_config_path):
+            with open(env_specific_config_path, 'r') as f:
+                env_cfg_json = json.load(f)
+                # Params for retro.Env base class
+                retro_init_kwargs = env_cfg_json.get('env_init_kwargs', {})
+                env_params_for_constructor['game'] = retro_init_kwargs.get('retro_game_name', 'AceAttorney-GbAdvance')
+                env_params_for_constructor['state'] = retro_init_kwargs.get('retro_state_name', State.DEFAULT) # From retro.enums
+                env_params_for_constructor['scenario'] = retro_init_kwargs.get('scenario') 
+                env_params_for_constructor['info'] = retro_init_kwargs.get('info') 
+                
+                use_restricted_val = retro_init_kwargs.get('use_restricted_actions', "FILTERED") # Get the value
+                if isinstance(use_restricted_val, str):
+                    use_restricted_str_upper = use_restricted_val.upper()
+                    if use_restricted_str_upper == "DISCRETE":
+                        env_params_for_constructor['use_restricted_actions'] = Actions.DISCRETE
+                    elif use_restricted_str_upper == "MULTI_DISCRETE":
+                        env_params_for_constructor['use_restricted_actions'] = Actions.MULTI_DISCRETE
+                    elif use_restricted_str_upper == "ALL":
+                        env_params_for_constructor['use_restricted_actions'] = Actions.ALL
+                    # Default to FILTERED if string is "FILTERED" or unrecognized
+                    else: 
+                        env_params_for_constructor['use_restricted_actions'] = Actions.FILTERED
+                elif isinstance(use_restricted_val, int):
+                    # Pass integer directly, assuming it corresponds to retro.Actions enum values
+                    env_params_for_constructor['use_restricted_actions'] = use_restricted_val
+                else: 
+                    # Fallback for unexpected types, default to FILTERED
+                    print(f"Warning: Unexpected type for use_restricted_actions: {type(use_restricted_val)}. Defaulting to FILTERED.")
+                    env_params_for_constructor['use_restricted_actions'] = Actions.FILTERED
+                
+                env_params_for_constructor['record'] = retro_init_kwargs.get('record', False)
+                env_params_for_constructor['players'] = retro_init_kwargs.get('players', 1)
+                
+                inttype_str = retro_init_kwargs.get('inttype', "ALL").upper()
+                if inttype_str == "CUSTOM":
+                     env_params_for_constructor['inttype'] = retro.data.Integrations.CUSTOM
+                elif inttype_str == "STABLE":
+                     env_params_for_constructor['inttype'] = retro.data.Integrations.STABLE
+                elif inttype_str == "EXPERIMENTAL":
+                     env_params_for_constructor['inttype'] = retro.data.Integrations.EXPERIMENTAL
+                elif inttype_str == "ALL":
+                     env_params_for_constructor['inttype'] = retro.data.Integrations.ALL
+                else:
+                     env_params_for_constructor['inttype'] = retro.data.Integrations.ALL
+                
+                obs_type_str = retro_init_kwargs.get('obs_type', "IMAGE").upper()
+                if obs_type_str == "RAM":
+                    env_params_for_constructor['obs_type'] = Observations.RAM
+                else: 
+                    env_params_for_constructor['obs_type'] = Observations.IMAGE
+
+                # Params for GymEnvAdapter instance within AceAttorneyEnv
+                env_params_for_constructor['adapter_game_name'] = game_name_arg # Should be "ace_attorney"
+                env_params_for_constructor['adapter_observation_mode'] = obs_mode_arg
+                env_params_for_constructor['adapter_agent_cache_dir'] = cache_dir_for_adapter
+                env_params_for_constructor['adapter_config_path'] = env_specific_config_path
+                env_params_for_constructor['adapter_max_stuck_steps'] = env_cfg_json.get('max_unchanged_steps_for_termination', 50)
+                
+                # Parameter for AceAttorneyEnv wrapper itself (e.g. render mode)
+                env_params_for_constructor['wrapper_render_mode'] = env_cfg_json.get('render_mode_gym_adapter', 'rgb_array')
+
+        else:
+            print(f"Warning: {env_specific_config_path} for {game_name_arg} not found. Using default parameters for AceAttorneyEnv.")
+            # Fill with defaults if config is missing
+            env_params_for_constructor['game'] = 'AceAttorney-GbAdvance'
+            env_params_for_constructor['state'] = State.DEFAULT
+            env_params_for_constructor['use_restricted_actions'] = Actions.FILTERED
+            env_params_for_constructor['obs_type'] = Observations.IMAGE
+            env_params_for_constructor['inttype'] = retro.data.Integrations.ALL
+            env_params_for_constructor['adapter_game_name'] = game_name_arg
+            env_params_for_constructor['adapter_observation_mode'] = obs_mode_arg
+            env_params_for_constructor['adapter_agent_cache_dir'] = cache_dir_for_adapter
+            env_params_for_constructor['adapter_config_path'] = env_specific_config_path
+            env_params_for_constructor['adapter_max_stuck_steps'] = 50
+            env_params_for_constructor['wrapper_render_mode'] = 'rgb_array'
+
+        print(f"Initializing environment: AceAttorneyEnv with combined params: { {k:v for k,v in env_params_for_constructor.items() if k not in ['adapter_agent_cache_dir']} }")
+        
+        # Import retro here if not already at top level, for retro.STATE_DEFAULT etc.
+        # import retro # No longer needed here as DefaultStates, etc. are imported above
+        env = AceAttorneyEnv(**env_params_for_constructor)
         return env
     else:
         print(f"ERROR: Game '{game_name_arg}' is not defined or implemented in custom_runner.py's create_environment function.")

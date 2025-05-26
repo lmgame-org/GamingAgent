@@ -14,15 +14,13 @@ agent:
   cache_dir: "cache/twenty_forty_eight"
   reasoning_effort: "high"
   token_limit: 100000
-  harness: true # Whether to use the perception-memory-reasoning pipeline
+  harness: false # Whether to use the perception-memory-reasoning pipeline
   observation_mode: "vision"
   # Module-specific settings
   modules:
     base_module:
-      observation_mode: "both"  # Options: "vision", "text", "both"
     
     perception_module:
-      observation_mode: "both"  # Options: "vision", "text", "both"
 
     memory_module:
       max_memory: 10  # Maximum number of memory entries to store

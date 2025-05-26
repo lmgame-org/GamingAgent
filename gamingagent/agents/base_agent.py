@@ -6,6 +6,7 @@ from PIL import Image
 import numpy as np
 import importlib
 import inspect
+from typing import Optional, Any
 
 # Import modules
 from gamingagent.modules import BaseModule, PerceptionModule, MemoryModule, ReasoningModule, Observation
@@ -28,6 +29,7 @@ class BaseAgent(ABC):
             cache_dir=None,
             custom_modules=None, 
             observation_mode="vision",    # change the abstraction to with or without image
+            env: Optional[Any] = None # ADDED: Environment instance
         ):
         """
         Initialize the agent with base parameters and modules.
@@ -42,12 +44,14 @@ class BaseAgent(ABC):
             cache_dir (str, optional): Custom cache directory path
             custom_modules (dict, optional): Custom module classes to use
             observation_mode (str): Mode for processing observations ("vision", "text", or "both")
+            env (Optional[Any]): The game environment instance, used for specific interactions like dialogue handling.
         """
         self.game_name = game_name
         self.model_name = model_name
         self.harness = harness
         self.max_memory = max_memory
         self.observation_mode = observation_mode
+        self.env = env # ADDED: Store environment instance
         
         # Set up cache directory following the specified pattern
         if cache_dir is None:
@@ -334,7 +338,31 @@ class BaseAgent(ABC):
             # Unharness mode: Use base module directly with the Observation object
             print("Invoking WITHOUT HARNESS mode.")
 
-            result = self.modules["base_module"].plan_action(observation=observation)
+            base_mod = self.modules["base_module"]
+            additional_prompt_context = None
+            if self.game_name == "ace_attorney" and self.env and hasattr(self.env, "get_mapped_dialogue_event_for_prompt"):
+                # print("[BaseAgent get_action] Ace Attorney non-harness mode: Getting mapped dialogue event.")
+                dialogue_event_keyword = self.env.get_mapped_dialogue_event_for_prompt()
+                if dialogue_event_keyword:
+                    additional_prompt_context = f"Previous Dialogue Event Context: {dialogue_event_keyword}\n\n"
+                    # print(f"[BaseAgent get_action] Using additional context: {additional_prompt_context}")
+                # else:
+                    # print("[BaseAgent get_action] No dialogue event keyword returned from env.")
+
+            result = base_mod.plan_action(
+                observation=observation,
+                additional_prompt_context=additional_prompt_context # Pass to BaseModule
+            )
+
+            if self.game_name == "ace_attorney" and self.env and hasattr(self.env, "store_llm_extracted_dialogue"):
+                print(f"[BaseAgent DEBUG] In Ace Attorney non-harness mode. Checking for dialogue to store.")
+                if result and "parsed_dialogue" in result and result["parsed_dialogue"]:
+                    print(f"[BaseAgent DEBUG] Parsed dialogue from BaseModule: {result['parsed_dialogue']}")
+                    print(f"[BaseAgent DEBUG] Attempting to call store_llm_extracted_dialogue on env.")
+                    self.env.store_llm_extracted_dialogue(result["parsed_dialogue"])
+                else:
+                    # print("[BaseAgent get_action] No parsed dialogue from BaseModule to store, or result/key missing.")
+                    print(f"[BaseAgent DEBUG] No parsed dialogue from BaseModule to store. Result: {result}")
             return result
         
         else:
