@@ -58,10 +58,6 @@ class PerceptionModule(CoreModule):
         assert observation_mode in valid_observation_modes, f"Invalid observation_mode: {observation_mode}, choose only from: {valid_observation_modes}"
         self.observation_mode = observation_mode
         
-        # Initialize observation
-        self.observation = observation if observation is not None else Observation()
-        self.processed_observation = copy.deepcopy(observation) if observation is not None else Observation()
-        
         # Create observations directory for storing game state images
         self.obs_dir = os.path.join(cache_dir, "observations")
         os.makedirs(self.obs_dir, exist_ok=True)
@@ -85,12 +81,11 @@ class PerceptionModule(CoreModule):
             processed_observation: An updated observation with processed data
         """
         # Set the observation
-        self.observation = observation
-        self.processed_observation = copy.deepcopy(observation)
+        processed_observation = copy.deepcopy(observation) if observation is not None else Observation()
         
         # read variables from observation
-        img_path = self.observation.img_path
-        textual_representation = self.observation.textual_representation
+        img_path = observation.img_path
+        textual_representation = observation.textual_representation
 
         '''
         `-->` represents conversion performed by perception module
@@ -103,15 +98,16 @@ class PerceptionModule(CoreModule):
         
         # Process based on observation source
         if self.observation_mode in ["text"]:
-            assert self.observation.textual_representation is not None, "to proceed with the game, at very least textual representations should be provided in observation."
+            assert observation.textual_representation is not None, "to proceed with the game, at very least textual representations should be provided in observation."
 
             # TODO: add textual representation processing logic
-            self.processed_observation.textual_representation = self.observation.textual_representation
+            # This might involve a text-only API
+            processed_observation.textual_representation = observation.textual_representation
 
             return self.processed_observation
         elif self.observation_mode in ["vision", "both"]:
-            assert self.observation.img_path is not None, "to process from graphic representation, image should have been prepared and path should exist in observation."
-            new_img_path = scale_image_up(self.observation.get_img_path())
+            assert observation.img_path is not None, "to process from graphic representation, image should have been prepared and path should exist in observation."
+            new_img_path = scale_image_up(observation.get_img_path())
 
             processed_visual_description = self.api_manager.vision_text_completion(
                 model_name=self.model_name,
@@ -123,14 +119,14 @@ class PerceptionModule(CoreModule):
                 token_limit=self.token_limit
             )
 
-            self.processed_observation.processed_visual_description = processed_visual_description
-            self.processed_observation.image_path = new_img_path
+            processed_observation.processed_visual_description = processed_visual_description
+            processed_observation.image_path = new_img_path
 
-            return self.processed_observation
+            return processed_observation
         else:
             raise NotImplementedError(f"observation mode: {self.observation_mode} not supported.")
     
-    def get_perception_summary(self):
+    def get_perception_summary(self, observation):
         """
         Get a summary of the current perception.
         Uses Observation.get_textual_representation() to retrieve the symbolic representation.
@@ -142,9 +138,9 @@ class PerceptionModule(CoreModule):
                 3) processed_visual_description
         """
         result = {
-            "img_path": self.processed_observation.img_path,
-            "textual_representation": self.processed_observation.get_textual_representation(),
-            "processed_visual_description": self.processed_observation.processed_visual_description
+            "img_path": observation.img_path,
+            "textual_representation": observation.get_textual_representation(),
+            "processed_visual_description": observation.processed_visual_description
         }
         return result
     

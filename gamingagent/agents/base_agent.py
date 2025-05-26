@@ -83,7 +83,7 @@ class BaseAgent(ABC):
                 else:
                     print(f"    -> WARNING: {module_name.replace('_', ' ').title()} not loaded correctly for harness mode.")
         else:
-            print("  Agent is in NON-HARNESS mode (BaseModule direct pipeline).")
+            print("  Agent is in NON-HARNESS mode (BaseModule pipeline).")
             if self.modules.get("base_module") and self.modules["base_module"] is not None:
                  print(f"    -> Using Base Module: {self.modules['base_module'].__class__.__name__}")
             else:
@@ -290,6 +290,7 @@ class BaseAgent(ABC):
             
         Returns:
             Action to take in the environment
+            Updated Observation
         """
         # Ensure observation is an Observation object
         if not isinstance(observation, Observation):
@@ -334,8 +335,8 @@ class BaseAgent(ABC):
             # Unharness mode: Use base module directly with the Observation object
             print("Invoking WITHOUT HARNESS mode.")
 
-            result = self.modules["base_module"].plan_action(observation=observation)
-            return result
+            action_plan = self.modules["base_module"].plan_action(observation=observation)
+            return action_plan, observation
         
         else:
             # Harness mode: Perception -> Memory -> Reasoning
@@ -352,7 +353,7 @@ class BaseAgent(ABC):
             
             # 1. Process observation with perception module (already an Observation)
             processed_observation = perception_module.process_observation(observation)
-            perception_data = perception_module.get_perception_summary()
+            perception_data = perception_module.get_perception_summary(processed_observation)
 
             print("perception data:")
             print(perception_data)
@@ -360,20 +361,25 @@ class BaseAgent(ABC):
             # 2. Update memory with perception data
             memory_summary = None
             if memory_module:
-                processed_observation = memory_module.update_memory(processed_observation, perception_data)
-                memory_summary = memory_module.get_memory_summary()
+                processed_observation = memory_module.process_observation(
+                    processed_observation, perception_data,
+                )
+                memory_summary = memory_module.get_memory_summary(processed_observation)
             
             print("memory data:")
             print(memory_summary)
             
             # 3. Plan action with reasoning module
             action_plan = reasoning_module.plan_action(
-                observation=processed_observation,
-                perception_data=perception_data,
-                memory_summary=memory_summary
+                observation=processed_observation
+            )
+
+            # 4. record action and thought
+            processed_observation = memory_module.update_action_memory(
+                processed_observation, action=action_plan["action"], thought=action_plan["thought"],
             )
             
             print("action plan:")
             print(action_plan)
             
-            return action_plan
+            return action_plan, processed_observation

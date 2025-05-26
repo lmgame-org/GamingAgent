@@ -15,6 +15,7 @@ from gamingagent.envs.custom_01_2048.twentyFortyEightEnv import TwentyFortyEight
 from gamingagent.envs.custom_02_sokoban.sokobanEnv import SokobanEnv
 from gamingagent.envs.custom_03_candy_crush.candyCrushEnv import CandyCrushEnvWrapper
 from gamingagent.envs.retro_01_super_mario_bros.superMarioBrosEnv import SuperMarioBrosEnvWrapper
+from gamingagent.envs.retro_03_1942.NineteenFortyTwo_env import NineteenFortyTwoEnvWrapper
 from gamingagent.envs.custom_04_tetris.tetrisEnv import TetrisEnv
 
 game_config_mapping = {"twenty_forty_eight": "custom_01_2048",
@@ -22,7 +23,8 @@ game_config_mapping = {"twenty_forty_eight": "custom_01_2048",
                        "candy_crush": "custom_03_candy_crush",
                        "tetris": "custom_04_tetris",
                        "super_mario_bros":"retro_01_super_mario_bros",
-                       "ace_attorney":"retro_02_ace_attorney"}
+                       "ace_attorney":"retro_02_ace_attorney",
+                       "nineteen_forty_two": "retro_03_1942"}
 
 def parse_arguments(defaults_map=None, argv_to_parse=None):
     parser = argparse.ArgumentParser(description="Run GamingAgent for a specified Gym Environment.")
@@ -30,10 +32,10 @@ def parse_arguments(defaults_map=None, argv_to_parse=None):
     # A check after parsing will ensure it has a value.
     parser.add_argument("--game_name", type=str, default=None, 
                         help="Name of the game (e.g., twenty_forty_eight, sokoban). Set by prelim parser.")
-    parser.add_argument("--model_name", type=str, default="claude-3-haiku-20240307",
-                        help="Name of the model for the agent.")
     parser.add_argument("--config_root_dir", type=str, default="configs",
                         help="Root directory for agent configurations.")
+    parser.add_argument("--model_name", type=str, default="claude-3-haiku-20240307",
+                        help="Name of the model for the agent.")
     parser.add_argument("--harness", action="store_true",
                         help="Use perception-memory-reasoning pipeline (harness mode). Default is False.")
     parser.add_argument("--num_runs", type=int, default=1, help="Number of game episodes.")
@@ -229,10 +231,27 @@ def create_environment(game_name_arg: str,
 
         env = SuperMarioBrosEnvWrapper(
             game_name=game_name_arg,
-            model_name=model_name_arg,
             config_dir_path=env_wrapper_config_dir, # e.g., "gamingagent/envs/retro_01_super_mario_bros"
             observation_mode=obs_mode_arg,
-            base_log_dir=cache_dir_for_adapter # This will be like "cache/super_mario_bros/model_name_agent_cache"
+            base_log_dir=cache_dir_for_adapter # This will be like "cache/super_mario_bros/{model_name}_agent_cache"
+        )
+        return env
+    elif game_name_arg == "nineteen_forty_two":
+        # NineteenFortyTwoEnvWrapper loads its specific configs internally.
+        # The runner primarily needs to provide paths and agent/run-level settings.
+        env_wrapper_config_dir = os.path.join("gamingagent/envs", config_dir_name_for_env_cfg)
+        
+        print(f"Initializing environment: {game_name_arg} using NineteenFortyTwoEnvWrapper")
+        print(f"  Wrapper config dir: {env_wrapper_config_dir}")
+        print(f"  Model name for adapter: {model_name_arg}")
+        print(f"  Observation mode for adapter: {obs_mode_arg}")
+        print(f"  Base log dir for adapter: {cache_dir_for_adapter}")
+
+        env = NineteenFortyTwoEnvWrapper(
+            game_name=game_name_arg,
+            config_dir_path=env_wrapper_config_dir, # e.g., "gamingagent/envs/retro_03_1942"
+            observation_mode=obs_mode_arg,
+            base_log_dir=cache_dir_for_adapter # This will be like "cache/1942/{model_name}_agent_cache"
         )
         return env
     else:
@@ -256,7 +275,7 @@ def run_game_episode(agent: BaseAgent, game_env: Any, episode_id: int, args: arg
         game_env.render() # Call env's render method directly
 
         start_time = time.time()
-        action_dict = agent.get_action(agent_observation)
+        action_dict, processed_agent_observation = agent.get_action(agent_observation)
         end_time = time.time()
         time_taken_s = end_time - start_time
 
@@ -274,6 +293,8 @@ def run_game_episode(agent: BaseAgent, game_env: Any, episode_id: int, args: arg
             thought_process=thought_process, 
             time_taken_s=time_taken_s
         )
+        # Inherit game trajectory
+        agent_observation.game_trajectory = processed_agent_observation.game_trajectory
             
         total_reward_for_episode += reward
         total_perf_score_for_episode += current_step_perf_score
@@ -304,25 +325,11 @@ def run_game_episode(agent: BaseAgent, game_env: Any, episode_id: int, args: arg
 def main():
     prelim_parser = argparse.ArgumentParser(add_help=False)
     # No default for game_name here; it must be passed for prelim_parser to find the correct config.yaml
-    prelim_parser.add_argument("--game_name", type=str, required=False) # Make it not strictly required for prelim if main parser will catch it. Or handle if None.
-                                                                     # Let's make it required=True here too for robustness if pre_args is used directly for critical path
-    prelim_parser.add_argument("--config_root_dir", type=str, default="configs")
+    prelim_parser.add_argument("--game_name", type=str, required=True, help="Game name needs to be passed to identify correct config.")
+    prelim_parser.add_argument("--config_root_dir", type=str, default="configs", help="Root path config files.")
     pre_args, remaining_argv = prelim_parser.parse_known_args()
 
     if not pre_args.game_name:
-        # This case should ideally not be hit if run.py always passes game_name.
-        # If it's hit, it means game_name wasn't passed early enough for config loading.
-        # The main parser (later) will fail due to "required=True" if it's still missing.
-        # For now, we might use a fallback or let the main parser handle the error.
-        # However, for loading the correct config, game_name is essential.
-        # A better approach: main parser in parse_arguments makes game_name required.
-        # Here, we can make it optional for prelim_parser. If pre_args.game_name is None, then
-        # defaults_from_yaml might not be loaded correctly for a *specific* game,
-        # but the main parser will then use its defaults (if any) or fail if required and not given.
-
-        # Corrected approach: game_name IS critical for prelim_parser to find the right config.
-        # So, if it's not passed, we can't load game-specific defaults.
-        # We'll print a warning and proceed; the main parser will ultimately enforce `game_name` requirement.
         print("Warning: --game_name not provided or not parsed by prelim_parser. Game-specific defaults from config.yaml might not be loaded.")
         config_dir_name = None # No specific game config can be loaded
     else:
@@ -430,7 +437,7 @@ def main():
         print("Initializing agent in HARNESS mode.")
         custom_modules_for_agent = {"perception_module": PerceptionModule, "reasoning_module": ReasoningModule}
     else:
-        print("Initializing agent in NON-HARNESS (BaseModule direct) mode.")
+        print("Initializing agent in NON-HARNESS (BaseModule) mode.")
 
     agent = BaseAgent(
         game_name=args.game_name,

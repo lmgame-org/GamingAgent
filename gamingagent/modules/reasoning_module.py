@@ -53,7 +53,7 @@ class ReasoningModule(CoreModule):
 
         self.observation_mode = observation_mode
 
-    def plan_action(self, observation, perception_data, memory_summary, img_path=None):
+    def plan_action(self, observation):
         """
         Plan the next action sequence based on current perception and memory.
         
@@ -70,15 +70,15 @@ class ReasoningModule(CoreModule):
         # THEY SHOULD HAVE BEEN PRESENT IN observation
 
         # Get the image path (prefer the passed parameter if available)
-        image_path = img_path or perception_data.get("img_path")
-        textual_representation = perception_data.get("textual_representation", "")
+        image_path = getattr(observation, "img_path", None)
+        textual_representation = getattr(observation, "textual_representation", "")
         
         # Get the description of visual elements from perception module
-        processed_visual_description = perception_data.get("processed_visual_description", "")
+        processed_visual_description = getattr(observation, "processed_visual_description", "")
         
         # Extract game trajectory and reflection memory module
-        game_trajectory = memory_summary.get("game_trajectory", "")
-        reflection = memory_summary.get("reflection", "")
+        game_trajectory = getattr(observation, "game_trajectory", "")
+        reflection = getattr(observation, "reflection", "")
         
         # Format the memory and perception context, and create full context
         #memory_context = f"Memory History:\n{game_trajectory}\n\n"
@@ -86,7 +86,7 @@ class ReasoningModule(CoreModule):
         #reflection_context = f"Reflection:\n{memory_reflection}" if memory_reflection else ""
         #full_context = memory_context + perception_context + reflection_context
 
-        use_memory = bool(game_trajectory and reflection)
+        use_memory = bool(game_trajectory.get() and reflection)
         use_perception = bool(processed_visual_description)
 
         full_context = observation.get_complete_prompt(
@@ -107,8 +107,11 @@ class ReasoningModule(CoreModule):
         
         # Log the reasoning process
         self.log({
-            "perception_data": perception_data,
-            "memory_summary": memory_summary,
+            "image_path": image_path,
+            "textual_representation": textual_representation,
+            "processed_visual_description": processed_visual_description,
+            "game_trajectory": game_trajectory,
+            "reflection": reflection,
             "response": response,
             "thought": parsed_response.get("thought"),
             "action": parsed_response.get("action")
