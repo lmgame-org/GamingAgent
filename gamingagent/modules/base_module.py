@@ -221,6 +221,7 @@ class BaseModule(CoreModule):
         # REMOVED (?:^|\n) anchor from start of patterns for diagnostic purposes
         thought_pattern = r'(?:#\s*)?thought:\s*(.+)(?=(?:$|\n(?:action|move|dialog):))'
         action_pattern = r'(?:#\s*)?(?:action|move):\s*([^\n]+)'
+        # Refined dialogue pattern to be non-greedy and have a more robust lookahead
         dialogue_pattern = r'(?:#\s*)?dialog(?:ue)?[:-]\s*([^:]+?):\s*(.+?)(?=(?:$|\n\s*(?:action|move|thought|Options|Evidence|Scene):))'
         
         # Find thought section using regex (case insensitive)

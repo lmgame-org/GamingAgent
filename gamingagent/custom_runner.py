@@ -434,6 +434,23 @@ def main():
     else:
         print("Initializing agent in NON-HARNESS (BaseModule direct) mode.")
 
+    # --- Create Environment FIRST ---
+    runner_log_dir_base = os.path.join("cache", args.game_name, args.model_name.replace("-", "_")[:15], datetime.datetime.now().strftime("%Y%m%d_%H%M%S"))
+    os.makedirs(runner_log_dir_base, exist_ok=True)
+    print(f"Agent and Environment cache directory: {runner_log_dir_base}")
+
+    game_env = create_environment(
+        game_name_arg=args.game_name,
+        obs_mode_arg=args.observation_mode,
+        config_dir_name_for_env_cfg=config_dir_name,
+        cache_dir_for_adapter=runner_log_dir_base # Use the same cache dir for adapter logs
+    )
+
+    if game_env is None:
+        print("Failed to create game environment. Exiting.")
+        return
+
+    # --- Then Create Agent, passing the environment ---
     agent = BaseAgent(
         game_name=args.game_name,
         model_name=args.model_name,
@@ -441,24 +458,26 @@ def main():
         harness=args.harness,
         max_memory=args.max_memory, 
         custom_modules=custom_modules_for_agent,
-        observation_mode=args.observation_mode
+        observation_mode=args.observation_mode,
+        env=game_env,  # Pass the created environment instance to the agent
+        cache_dir=runner_log_dir_base # Ensure agent uses the same cache_dir
     )
     
-    runner_log_dir = agent.cache_dir
-    os.makedirs(runner_log_dir, exist_ok=True)
-    print(f"Agent cache directory (contains episode logs and summary): {runner_log_dir}")
+    # runner_log_dir = agent.cache_dir # Agent already sets its cache_dir, this can be removed or used for verification
+    # os.makedirs(runner_log_dir, exist_ok=True) # Already created by agent or above
+    # print(f"Agent cache directory (contains episode logs and summary): {runner_log_dir}")
 
     # Env params are now loaded inside create_environment
-    game_env = create_environment(
-        game_name_arg=args.game_name,
-        obs_mode_arg=args.observation_mode,
-        config_dir_name_for_env_cfg=config_dir_name,
-        cache_dir_for_adapter=runner_log_dir
-    )
+    # game_env = create_environment( # This block is now moved above agent creation
+    #     game_name_arg=args.game_name,
+    #     obs_mode_arg=args.observation_mode,
+    #     config_dir_name_for_env_cfg=config_dir_name,
+    #     cache_dir_for_adapter=runner_log_dir
+    # )
 
-    if game_env is None:
-        print("Failed to create game environment. Exiting.")
-        return
+    # if game_env is None:
+    #     print("Failed to create game environment. Exiting.")
+    #     return
 
     for i in range(args.num_runs):
         run_id = i + 1

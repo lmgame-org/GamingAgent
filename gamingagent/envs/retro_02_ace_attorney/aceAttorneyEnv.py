@@ -43,7 +43,7 @@ class AceAttorneyEnv(RetroEnv):
         self,
         # retro.Env parameters
         game: str = "AceAttorney-GbAdvance",
-        state: Optional[str] = "The_First_Turnabout", # This will be our primary level/scene identifier
+        state: Optional[str] = "level1_1_5", # This will be our primary level/scene identifier
         scenario: Optional[str] = None,
         info: Optional[str] = None,
         use_restricted_actions: int = Actions.FILTERED, # Defaulting to FILTERED
@@ -122,7 +122,7 @@ class AceAttorneyEnv(RetroEnv):
         print(f"[AceAttorneyEnv __init__] RetroEnv initialized. Action space: {self.action_space}, Buttons: {self.buttons}")
 
         # --- Game Specific Variables & Configs ---
-        self.initial_retro_state_name: str = state if state is not None else "The_First_Turnabout" # Default if None
+        self.initial_retro_state_name: str = state if state is not None else "level1_1_5" # Default if None
         self.current_retro_state_name: str = self.initial_retro_state_name
         self.retro_inttype = inttype # Store for state loading
 
@@ -533,70 +533,44 @@ class AceAttorneyEnv(RetroEnv):
         return None
 
     def store_llm_extracted_dialogue(self, dialogue_data: Dict[str, str]):
-        """Stores dialogue extracted by the LLM into a JSON file in the agent_cache_dir."""
+        """Stores dialogue extracted by the LLM into a JSONL file in the agent_cache_dir."""
         print(f"[AceAttorneyEnv DEBUG store_llm_extracted_dialogue] Method called. Received dialogue_data: {dialogue_data}")
 
         if not self.current_retro_state_name:
-            print("[AceAttorneyEnv store_llm_extracted_dialogue] ERROR: current_retro_state_name is not set. Cannot determine episode for storing dialogue.")
-            return
+            print("[AceAttorneyEnv store_llm_extracted_dialogue] ERROR: current_retro_state_name is not set. Cannot reliably tag dialogue origin.")
+            # We can still store it, but it might lack full context if state name is crucial for later analysis
+            # For now, we'll proceed but this is a potential point of data integrity concern if state changes often
+            # and is critical for interpreting the dialogue log.
 
         if not dialogue_data or not isinstance(dialogue_data, dict) or "speaker" not in dialogue_data or "text" not in dialogue_data:
             print(f"[AceAttorneyEnv store_llm_extracted_dialogue] ERROR: Invalid dialogue_data format: {dialogue_data}. Required keys: 'speaker', 'text'.")
             return
 
-        # ADDED: Update last_llm_dialogue_info
+        # Update last_llm_dialogue_info for immediate use (e.g., by get_mapped_dialogue_event_for_prompt)
         self.last_llm_dialogue_info = {
-            "state_name": self.current_retro_state_name,
+            "state_name": self.current_retro_state_name, # Store current state for context
             "speaker": dialogue_data["speaker"],
             "text": dialogue_data["text"],
             "timestamp": time.time()
         }
-        # print(f"[AceAttorneyEnv store_llm_extracted_dialogue] Updated self.last_llm_dialogue_info: {self.last_llm_dialogue_info}")
+        print(f"[AceAttorneyEnv store_llm_extracted_dialogue] Updated self.last_llm_dialogue_info: {self.last_llm_dialogue_info}")
 
+        # Define the single dialogues.jsonl file path in the root of agent_cache_dir
+        dialogue_file_path = os.path.join(self.adapter.agent_cache_dir, "dialogues.jsonl")
+        print(f"[AceAttorneyEnv DEBUG store_llm_extracted_dialogue] Dialogue log file path: {dialogue_file_path}")
 
-        # Create a unique hash for the dialogue content to use as part of the filename or key
-        dialogue_str_for_hash = f"{dialogue_data['speaker']}:{dialogue_data['text']}"
-        dialogue_hash = hashlib.md5(dialogue_str_for_hash.encode('utf-8')).hexdigest()[:8]
-
-        # Define directory structure: cache_dir/dialogue_store/EpisodeName/LevelName/
-        # Using current_retro_state_name as a proxy for LevelName or SceneGroup
-        # This path is relative to the adapter's agent_cache_dir
-        dialogue_storage_base_dir = os.path.join(self.adapter.agent_cache_dir, "llm_dialogue_store")
-        # episode_name_for_path = f"episode_{self.adapter.current_episode_id:03d}" # Or a more meaningful episode name if available
-        print(f"[AceAttorneyEnv DEBUG store_llm_extracted_dialogue] dialogue_storage_base_dir: {dialogue_storage_base_dir}")
-        
-        # For Ace Attorney, self.initial_retro_state_name often is the "Episode Name" like "The_First_Turnabout"
-        # And self.current_retro_state_name can be a specific scene/save state within that episode.
-        # Let's use self.initial_retro_state_name for the main episode folder, and current_retro_state_name for sub-context.
-        
-        # If self.current_retro_state_name changes often (e.g. after every save state), this might create many folders.
-        # Consider if current_retro_state_name is stable enough for a "scene group" concept.
-        # For simplicity, let's assume current_retro_state_name is a good grouping for now.
-
-        # Simplified path: cache_dir/llm_dialogue_store/STATENAME/HASH.json
-        state_specific_dialogue_dir = os.path.join(dialogue_storage_base_dir, self.current_retro_state_name)
-        os.makedirs(state_specific_dialogue_dir, exist_ok=True)
-        print(f"[AceAttorneyEnv DEBUG store_llm_extracted_dialogue] Ensured state_specific_dialogue_dir exists: {state_specific_dialogue_dir}")
-        
-        # Filename includes a hash of the dialogue to distinguish different dialogues within the same state/scene.
-        # And step number to ensure uniqueness if dialogue is identical but occurs at different times.
-        dialogue_file_name = f"dialogue_S{self.adapter.current_step_num:04d}_{dialogue_hash}.json"
-        dialogue_file_path = os.path.join(state_specific_dialogue_dir, dialogue_file_name)
-        print(f"[AceAttorneyEnv DEBUG store_llm_extracted_dialogue] Final dialogue_file_path: {dialogue_file_path}")
+        entry_to_save = {
+            "retro_state_name": self.current_retro_state_name, # Current game state/level
+            "speaker": dialogue_data["speaker"],
+            "text": dialogue_data["text"],
+        }
 
         try:
-            with open(dialogue_file_path, 'w') as f:
-                json.dump({
-                    "episode_id": self.adapter.current_episode_id,
-                    "step_num": self.adapter.current_step_num,
-                    "retro_state_name": self.current_retro_state_name,
-                    "dialogue_hash": dialogue_hash,
-                    "speaker": dialogue_data["speaker"],
-                    "text": dialogue_data["text"],
-                    "timestamp_saved": time.time()
-                }, f, indent=2)
-            # print(f"[AceAttorneyEnv store_llm_extracted_dialogue] LLM-extracted dialogue saved to: {dialogue_file_path}")
-            print(f"[AceAttorneyEnv DEBUG store_llm_extracted_dialogue] Successfully saved dialogue to: {dialogue_file_path}")
+            # Open in append mode ('a') to add new dialogue entries
+            with open(dialogue_file_path, 'a') as f:
+                json.dump(entry_to_save, f)
+                f.write('\n') # Add a newline to separate JSON objects (JSONL format)
+            print(f"[AceAttorneyEnv DEBUG store_llm_extracted_dialogue] Successfully appended dialogue to: {dialogue_file_path}")
         except Exception as e:
             print(f"[AceAttorneyEnv store_llm_extracted_dialogue] CRITICAL ERROR: Failed to save LLM dialogue to {dialogue_file_path}. Details: {e}")
 
@@ -605,18 +579,23 @@ class AceAttorneyEnv(RetroEnv):
         Retrieves the last stored LLM dialogue, maps its text to a keyword using
         self.dialogue_keyword_map, and returns the keyword.
         """
+        print(f"[AceAttorneyEnv DEBUG get_mapped_dialogue_event] Method called.")
         if not self.last_llm_dialogue_info or "text" not in self.last_llm_dialogue_info:
-            # print("[AceAttorneyEnv get_mapped_dialogue_event] No last LLM dialogue info available.")
+            print("[AceAttorneyEnv DEBUG get_mapped_dialogue_event] No last LLM dialogue info available or 'text' key missing.")
             return None
 
         dialogue_text = self.last_llm_dialogue_info["text"]
+        print(f"[AceAttorneyEnv DEBUG get_mapped_dialogue_event] Last dialogue text: '{dialogue_text[:100]}...'")
         
         if not self.dialogue_keyword_map:
-            # print("[AceAttorneyEnv get_mapped_dialogue_event] Dialogue keyword map is empty.")
+            print("[AceAttorneyEnv DEBUG get_mapped_dialogue_event] Dialogue keyword map (self.dialogue_keyword_map) is empty.")
             return None # Or a default like "DIALOGUE_OCCURRED_NO_MAP"
-
+        
         map_patterns = self.dialogue_keyword_map.get("patterns", [])
         default_keyword = self.dialogue_keyword_map.get("default_keyword", "UNMAPPED_DIALOGUE")
+
+        if not map_patterns:
+            print("[AceAttorneyEnv DEBUG get_mapped_dialogue_event] 'patterns' list in dialogue_keyword_map is empty.")
 
         for item in map_patterns:
             regex = item.get("regex")
@@ -624,12 +603,12 @@ class AceAttorneyEnv(RetroEnv):
             if regex and keyword:
                 try:
                     if re.search(regex, dialogue_text, re.IGNORECASE):
-                        # print(f"[AceAttorneyEnv get_mapped_dialogue_event] Matched regex '{regex}' to keyword '{keyword}' for text: '{dialogue_text[:50]}...'")
+                        print(f"[AceAttorneyEnv DEBUG get_mapped_dialogue_event] Matched regex '{regex}' to keyword '{keyword}'")
                         return keyword
                 except re.error as e:
                     print(f"[AceAttorneyEnv get_mapped_dialogue_event] Regex error for pattern '{regex}': {e}")
         
-        # print(f"[AceAttorneyEnv get_mapped_dialogue_event] No pattern matched for text: '{dialogue_text[:50]}...'. Returning default keyword '{default_keyword}'.")
+        print(f"[AceAttorneyEnv DEBUG get_mapped_dialogue_event] No pattern matched. Returning default keyword '{default_keyword}'.")
         return default_keyword
 
     def close(self):

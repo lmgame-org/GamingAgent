@@ -354,6 +354,11 @@ class BaseAgent(ABC):
                 additional_prompt_context=additional_prompt_context # Pass to BaseModule
             )
 
+            print(f"[BaseAgent DEBUG] Result received from base_mod.plan_action(): {result}")
+
+            print(f"[BaseAgent DEBUG] Type of self.env: {type(self.env)}")
+            print(f"[BaseAgent DEBUG] hasattr(self.env, 'store_llm_extracted_dialogue'): {hasattr(self.env, 'store_llm_extracted_dialogue')}")
+
             if self.game_name == "ace_attorney" and self.env and hasattr(self.env, "store_llm_extracted_dialogue"):
                 print(f"[BaseAgent DEBUG] In Ace Attorney non-harness mode. Checking for dialogue to store.")
                 if result and "parsed_dialogue" in result and result["parsed_dialogue"]:
@@ -361,8 +366,7 @@ class BaseAgent(ABC):
                     print(f"[BaseAgent DEBUG] Attempting to call store_llm_extracted_dialogue on env.")
                     self.env.store_llm_extracted_dialogue(result["parsed_dialogue"])
                 else:
-                    # print("[BaseAgent get_action] No parsed dialogue from BaseModule to store, or result/key missing.")
-                    print(f"[BaseAgent DEBUG] No parsed dialogue from BaseModule to store. Result: {result}")
+                    print(f"[BaseAgent DEBUG] No parsed dialogue from BaseModule to store. Result (inside 'if' check): {result}")
             return result
         
         else:
