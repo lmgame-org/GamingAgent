@@ -339,20 +339,62 @@ class BaseAgent(ABC):
             print("Invoking WITHOUT HARNESS mode.")
 
             base_mod = self.modules["base_module"]
-            additional_prompt_context = None
-            if self.game_name == "ace_attorney" and self.env and hasattr(self.env, "get_mapped_dialogue_event_for_prompt"):
-                # print("[BaseAgent get_action] Ace Attorney non-harness mode: Getting mapped dialogue event.")
-                dialogue_event_keyword = self.env.get_mapped_dialogue_event_for_prompt()
-                if dialogue_event_keyword:
-                    additional_prompt_context = f"Previous Dialogue Event Context: {dialogue_event_keyword}\n\n"
-                    # print(f"[BaseAgent get_action] Using additional context: {additional_prompt_context}")
-                # else:
-                    # print("[BaseAgent get_action] No dialogue event keyword returned from env.")
+            
+            final_prompt_for_llm: str
+            # `additional_context_for_plan_action` will be the argument to base_mod.plan_action's `additional_prompt_context`
+            additional_context_for_plan_action: Optional[str] = None 
 
+            if self.game_name == "ace_attorney" and self.env:
+                # --- ACE ATTORNEY PROMPT LOGIC ---
+                # 1. Start with the base module's configured prompt (e.g., from prompts.json)
+                # This will be the main body of the prompt.
+                current_main_prompt_body = base_mod.prompt 
+
+                # 2. Replace {memory_context} in the main body with comprehensive data
+                if hasattr(self.env, "get_comprehensive_memory_string"):
+                    comprehensive_memory_ctx = self.env.get_comprehensive_memory_string()
+                    if "{memory_context}" in current_main_prompt_body:
+                        current_main_prompt_body = current_main_prompt_body.replace("{memory_context}", comprehensive_memory_ctx)
+                        print(f"[BaseAgent DEBUG] Replaced '{{memory_context}}' with comprehensive_memory_ctx for Ace Attorney.")
+                    # else: If {memory_context} is not in prompt, it's an issue with prompts.json for Ace Attorney.
+                else: # Method get_comprehensive_memory_string is missing
+                    if "{memory_context}" in current_main_prompt_body:
+                        current_main_prompt_body = current_main_prompt_body.replace("{memory_context}", "Comprehensive memory context (method missing).")
+                
+                # 3. Get previous dialogue string ("speaker: text") to be used as a prefix via additional_prompt_context
+                dialogue_event_str = None
+                if hasattr(self.env, "get_mapped_dialogue_event_for_prompt"):
+                    dialogue_event_str = self.env.get_mapped_dialogue_event_for_prompt() # This is "speaker: text"
+                
+                # `final_prompt_for_llm` will be temporarily set as base_mod.prompt (the main body part)
+                final_prompt_for_llm = current_main_prompt_body 
+                
+                # `additional_context_for_plan_action` will be passed to BaseModule.plan_action
+                # to be prepended to its self.prompt (which we've set to current_main_prompt_body)
+                if dialogue_event_str:
+                    additional_context_for_plan_action = f"Previous Dialogue Context: {dialogue_event_str}\\n\\n"
+                else:
+                    additional_context_for_plan_action = None # No previous dialogue to prepend
+
+            else: 
+                # --- NON-ACE ATTORNEY GAMES PROMPT LOGIC ---
+                # `base_mod.prompt` (original) will be used as is.
+                final_prompt_for_llm = base_mod.prompt 
+                # No special additional_prompt_context from BaseAgent for other games by default.
+                additional_context_for_plan_action = None 
+
+            # Temporarily update base_mod.prompt. This becomes `self.prompt` inside BaseModule.plan_action.
+            original_base_mod_prompt = base_mod.prompt
+            base_mod.prompt = final_prompt_for_llm
+            
+            # Call plan_action.
+            # For AA: additional_context_for_plan_action (previous dialogue) will be prepended to base_mod.prompt (main body with memory).
+            # For others: additional_context_for_plan_action is None, so base_mod.prompt (original) is used as is.
             result = base_mod.plan_action(
-                observation=observation,
-                additional_prompt_context=additional_prompt_context # Pass to BaseModule
+                observation=observation, 
+                additional_prompt_context=additional_context_for_plan_action 
             )
+            base_mod.prompt = original_base_mod_prompt # Restore original prompt
 
             print(f"[BaseAgent DEBUG] Result received from base_mod.plan_action(): {result}")
 

@@ -1,5 +1,6 @@
 from abc import abstractmethod
 from .core_module import CoreModule, Observation
+from typing import Optional
 
 import re
 
@@ -16,6 +17,7 @@ class ReasoningModule(CoreModule):
     """
     
     def __init__(self, 
+                game_name: Optional[str] = None,
                 model_name="claude-3-7-sonnet-latest", 
                 observation_mode="vision",
                 cache_dir="cache",
@@ -28,6 +30,7 @@ class ReasoningModule(CoreModule):
         Initialize the reasoning module.
         
         Args:
+            game_name (str, optional): Name of the game, for game-specific logic.
             model_name (str): The name of the model to use for inference.
             observation_mode (str): Mode for processing observations:
                 - "vision": Uses image path as input
@@ -52,13 +55,14 @@ class ReasoningModule(CoreModule):
         )
 
         self.observation_mode = observation_mode
+        self.game_name = game_name
 
-    def plan_action(self, observation, perception_data, memory_summary, img_path=None):
+    def plan_action(self, observation: Observation, perception_data: dict, memory_summary: dict, img_path: Optional[str]=None):
         """
         Plan the next action sequence based on current perception and memory.
         
         Args:
-            observation (Observation, optional): An Observation instance
+            observation (Observation): An Observation instance, potentially containing all primary data.
             perception_data (dict): Output from perception_module.get_perception_summary()
             memory_summary (dict): Output from memory_module.get_memory_summary()
             img_path (str, optional): Path to the current game image (override for perception_data["img_path"])
@@ -70,37 +74,80 @@ class ReasoningModule(CoreModule):
         # THEY SHOULD HAVE BEEN PRESENT IN observation
 
         # Get the image path (prefer the passed parameter if available)
-        image_path = img_path or perception_data.get("img_path")
-        textual_representation = perception_data.get("textual_representation", "")
+        image_path_to_use = img_path or perception_data.get("img_path")
         
-        # Get the description of visual elements from perception module
-        processed_visual_description = perception_data.get("processed_visual_description", "")
-        
-        # Extract game trajectory and reflection memory module
-        game_trajectory = memory_summary.get("game_trajectory", "")
-        reflection = memory_summary.get("reflection", "")
-        
-        # Format the memory and perception context, and create full context
-        #memory_context = f"Memory History:\n{game_trajectory}\n\n"
-        #perception_context = f"Current Perception:\n{textual_representation}\n\n"
-        #reflection_context = f"Reflection:\n{memory_reflection}" if memory_reflection else ""
-        #full_context = memory_context + perception_context + reflection_context
+        # Memory data
+        game_trajectory = memory_summary.get("game_trajectory", "No game trajectory available.")
+        latest_reflection = memory_summary.get("reflection", "No reflection available.")
 
-        use_memory = bool(game_trajectory and reflection)
-        use_perception = bool(processed_visual_description)
+        full_prompt_str: str
 
-        full_context = observation.get_complete_prompt(
-            observation_mode=self.observation_mode,
-            prompt_template=self.prompt,
-            use_memory_module=use_memory,
-            use_perception_module=use_perception,
-        )
-        
-        # Choose API call based on whether an image is available
-        if image_path:
-            response = self._call_vision_api(full_context, image_path)
+        if self.game_name == "ace_attorney":
+            # --- Ace Attorney Specific Prompt Population ---
+            # print("[ReasoningModule DEBUG] Using Ace Attorney specific prompt population.")
+            
+            # Extract detailed perception fields
+            p_game_state = perception_data.get("game_state_from_perception", "Unknown")
+            p_dialogue = perception_data.get("parsed_dialogue") # This is a dict or None
+            p_dialogue_speaker = p_dialogue.get("speaker", "N/A") if p_dialogue else "N/A"
+            p_dialogue_text = p_dialogue.get("text", "N/A") if p_dialogue else "N/A"
+            p_dialogue_cont = perception_data.get("dialogue_continuation_from_perception", "Unknown")
+            p_options = perception_data.get("options_from_perception", "None")
+            p_selected_evidence = perception_data.get("selected_evidence_from_perception", "None")
+            p_scene_desc = perception_data.get("scene_description_from_perception", "No scene description available.")
+
+            # Use the module's self.prompt (which should be the Ace Attorney reasoning prompt)
+            # And replace placeholders.
+            prompt_template = self.prompt # This should be loaded from module_prompts.json
+            
+            full_prompt_str = prompt_template.replace("{perception_game_state}", str(p_game_state)) \
+                                        .replace("{perception_dialogue_speaker}", str(p_dialogue_speaker)) \
+                                        .replace("{perception_dialogue_text}", str(p_dialogue_text)) \
+                                        .replace("{perception_dialogue_continuation}", str(p_dialogue_cont)) \
+                                        .replace("{perception_options}", str(p_options)) \
+                                        .replace("{perception_selected_evidence}", str(p_selected_evidence)) \
+                                        .replace("{perception_scene_description}", str(p_scene_desc)) \
+                                        .replace("{memory_game_trajectory}", str(game_trajectory)) \
+                                        .replace("{memory_latest_reflection}", str(latest_reflection))
+            # print(f"[ReasoningModule DEBUG Ace Attorney] Populated prompt (first 300 chars): {full_prompt_str[:300]}")
+
         else:
-            response = self._call_text_api(full_context)
+            # --- Generic/Default Prompt Population ---
+            # print("[ReasoningModule DEBUG] Using Generic prompt population.")
+            # This part reuses the older logic from Observation.get_complete_prompt for non-AA games
+            textual_representation = perception_data.get("textual_representation", "")
+            processed_visual_description = perception_data.get("processed_visual_description", "")
+            
+            use_memory = bool(game_trajectory and latest_reflection)
+            use_perception_text = bool(processed_visual_description or textual_representation)
+
+            # Constructing context similar to Observation.get_complete_prompt()
+            context_parts = []
+            if use_memory:
+                context_parts.append(f"Memory History:\n{game_trajectory}")
+                context_parts.append(f"Reflection:\n{latest_reflection}")
+            
+            if use_perception_text:
+                if textual_representation:
+                    context_parts.append(f"Current Symbolic State:\n{textual_representation}")
+                if processed_visual_description:
+                    context_parts.append(f"Current Visual Description:\n{processed_visual_description}")
+            
+            combined_context = "\n\n".join(context_parts)
+            
+            # Replace {context} in the generic prompt, or append if no placeholder
+            if "{context}" in self.prompt:
+                full_prompt_str = self.prompt.replace("{context}", combined_context)
+            else:
+                full_prompt_str = f"{combined_context}\n\n{self.prompt}"
+            # print(f"[ReasoningModule DEBUG Generic] Populated prompt (first 300 chars): {full_prompt_str[:300]}")
+
+        # Choose API call based on whether an image is available
+        response: Optional[str] = None
+        if image_path_to_use:
+            response = self._call_vision_api(full_prompt_str, image_path_to_use)
+        else:
+            response = self._call_text_api(full_prompt_str)
         
         # Parse the response
         parsed_response = self._parse_response(response)
@@ -116,31 +163,29 @@ class ReasoningModule(CoreModule):
         
         return parsed_response
     
-    def _call_vision_api(self, context, img_path):
+    def _call_vision_api(self, user_prompt_str: str, img_path: str):
         """
         Call the vision API with text context and image.
         
         Args:
-            context (str): Formatted context with perception and memory
+            user_prompt_str (str): The fully formatted user prompt string.
             img_path (str): Path to the current game image
             
         Returns:
             str: Raw response from the API
         """
-        # Create user prompt with context
-        user_prompt = self.prompt.replace("{context}", context) if "{context}" in self.prompt else context
-
-        print(f"""
------------------------- VISION API — FINAL USER PROMPT ------------------------
-{user_prompt}
------------------------- END FINAL USER PROMPT ------------------------
-""")
+        # System prompt is self.system_prompt
+        # user_prompt_str is already fully formed here
+        # print(f"""
+# --- VISION API --- Reasoning Module --- FINAL USER PROMPT ---
+# {user_prompt_str}
+# --- END FINAL USER PROMPT ---
+# """)
         
-        # Call the vision-text API
         response = self.api_manager.vision_text_completion(
             model_name=self.model_name,
             system_prompt=self.system_prompt,
-            prompt=user_prompt,
+            prompt=user_prompt_str, # Use the fully constructed prompt directly
             image_path=img_path,
             thinking=True,
             reasoning_effort=self.reasoning_effort,
@@ -149,37 +194,34 @@ class ReasoningModule(CoreModule):
         
         return response
     
-    def _call_text_api(self, context, custom_prompt=None):
+    def _call_text_api(self, user_prompt_str: str, custom_prompt=None):
         """
         Call the text-only API with context.
         
         Args:
-            context (str): Formatted context with perception and memory data
-            custom_prompt (str, optional): Custom prompt to use
+            user_prompt_str (str): The fully formatted user prompt string.
+            custom_prompt (str, optional): Not typically used if user_prompt_str is already complete.
             
         Returns:
             str: Raw response from the API
         """
-        # Create user prompt
-        user_prompt = custom_prompt if custom_prompt else self.prompt
-        
-        # Replace context placeholder if it exists
-        if "{context}" in user_prompt:
-            user_prompt = user_prompt.replace("{context}", context)
-        else:
-            # If no placeholder, append the context
-            user_prompt = context + "\n\n" + user_prompt
-        
-        print(f"""
------------------------- TEXT API - FINAL USER PROMPT ------------------------
-{user_prompt}
------------------------- END TEXT API PROMPT ------------------------
-""")
-        # Call the API
+        # System prompt is self.system_prompt
+        # user_prompt_str is already fully formed here. custom_prompt argument is largely redundant now.
+        final_prompt_to_send = user_prompt_str
+        if custom_prompt: # Though not expected to be used with the new logic
+            # This case would need re-evaluation if custom_prompt is still desired
+            # print("[ReasoningModule WARNING] _call_text_api received custom_prompt, but user_prompt_str was already formatted. Prioritizing user_prompt_str.")
+            pass 
+
+        # print(f"""
+# --- TEXT API --- Reasoning Module --- FINAL USER PROMPT ---
+# {final_prompt_to_send}
+# --- END FINAL USER PROMPT ---
+# """)
         response = self.api_manager.text_only_completion(
             model_name=self.model_name,
             system_prompt=self.system_prompt,
-            prompt=user_prompt,
+            prompt=final_prompt_to_send, # Use the fully constructed prompt
             thinking=True,
             reasoning_effort=self.reasoning_effort,
             token_limit=self.token_limit

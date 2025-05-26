@@ -5,6 +5,8 @@ import datetime
 from abc import ABC, abstractmethod
 from PIL import Image
 from .core_module import CoreModule, Observation
+import re
+from typing import Optional, Dict, Any
 
 import copy
 
@@ -19,6 +21,7 @@ class PerceptionModule(CoreModule):
     """
     
     def __init__(self, 
+                game_name: Optional[str] = None,
                 model_name="claude-3-7-sonnet-latest", 
                 observation=None,
                 observation_mode="vision",
@@ -32,6 +35,7 @@ class PerceptionModule(CoreModule):
         Initialize the perception module.
         
         Args:
+            game_name (str, optional): Name of the game, for game-specific logic.
             model_name (str): The name of the model to use for inference.
             observation: The initial game state observation (Observation dataclass).
             observation_mode (str): Mode for processing observations:
@@ -57,6 +61,7 @@ class PerceptionModule(CoreModule):
         valid_observation_modes = ["vision", "text", "both"]
         assert observation_mode in valid_observation_modes, f"Invalid observation_mode: {observation_mode}, choose only from: {valid_observation_modes}"
         self.observation_mode = observation_mode
+        self.game_name = game_name
         
         # Initialize observation
         self.observation = observation if observation is not None else Observation()
@@ -66,6 +71,96 @@ class PerceptionModule(CoreModule):
         self.obs_dir = os.path.join(cache_dir, "observations")
         os.makedirs(self.obs_dir, exist_ok=True)
         
+    def _extract_dialogue_from_description(self, description_text: str) -> Optional[Dict[str, str]]:
+        """
+        Extracts structured dialogue (speaker: text) from a given text.
+        Tries to find patterns like "Dialog: Speaker: Text content".
+        """
+        if not description_text:
+            return None
+        dialogue_pattern = r'(?:#\s*)?dialog(?:ue)?[:-]\s*([^:]+?):\s*(.+?)(?=(?:$|\n\s*\n|\n[A-Z0-9_][a-zA-Z0-9_ ]*:))'
+        
+        dialogue_match = re.search(dialogue_pattern, description_text, re.DOTALL | re.IGNORECASE)
+        
+        if dialogue_match:
+            speaker = dialogue_match.group(1).strip()
+            text = dialogue_match.group(2).strip()
+            # print(f"[PerceptionModule DEBUG] Extracted dialogue: Speaker='{speaker}', Text='{text[:50]}...'")
+            return {"speaker": speaker, "text": text}
+        
+        # print(f"[PerceptionModule DEBUG] No dialogue pattern matched in description: '{description_text[:100]}...'")
+        return None
+
+    def _parse_detailed_perception(self, llm_output: str) -> Dict[str, Any]:
+        """
+        Parses the detailed perception output from the LLM based on the
+        Ace Attorney perception prompt format.
+        """
+        if not llm_output:
+            return {}
+
+        # Initialize default values
+        parsed_data = {
+            "game_state_from_perception": None,
+            "parsed_dialogue": None, # Will be {"speaker": ..., "text": ...}
+            "dialogue_continuation_from_perception": None,
+            "options_from_perception": None,
+            "selected_evidence_from_perception": None,
+            "scene_description_from_perception": None
+        }
+
+        # Regex patterns based on the specified output format
+        # Using re.IGNORECASE | re.DOTALL for flexibility
+        patterns = {
+            "game_state_from_perception": r"Game State:\\s*(.+?)(?:\\nDialog:|\\nDialogue Continuation:|\\nOptions:|\\nEvidence:|\\nScene:|$)",
+            "dialogue_full": r"Dialog:\\s*([^:]+?):\\s*(.+?)(?:\\nDialogue Continuation:|\\nOptions:|\\nEvidence:|\\nScene:|$)",
+            "dialogue_continuation_from_perception": r"Dialogue Continuation:\\s*(.+?)(?:\\nOptions:|\\nEvidence:|\\nScene:|$)",
+            "options_from_perception": r"Options:\\s*(.+?)(?:\\nEvidence:|\\nScene:|$)",
+            "selected_evidence_from_perception": r"Evidence:\\s*(.+?)(?:\\nScene:|$)",
+            "scene_description_from_perception": r"Scene:\\s*(.+?$)"
+        }
+
+        # Extract Game State
+        match = re.search(patterns["game_state_from_perception"], llm_output, re.IGNORECASE | re.DOTALL)
+        if match:
+            parsed_data["game_state_from_perception"] = match.group(1).strip()
+
+        # Extract Dialogue (speaker and text)
+        match = re.search(patterns["dialogue_full"], llm_output, re.IGNORECASE | re.DOTALL)
+        if match:
+            speaker = match.group(1).strip()
+            text = match.group(2).strip()
+            if speaker.lower() != "none" and text.lower() != "none":
+                 parsed_data["parsed_dialogue"] = {"speaker": speaker, "text": text}
+
+        # Extract Dialogue Continuation
+        match = re.search(patterns["dialogue_continuation_from_perception"], llm_output, re.IGNORECASE | re.DOTALL)
+        if match:
+            parsed_data["dialogue_continuation_from_perception"] = match.group(1).strip()
+            if parsed_data["dialogue_continuation_from_perception"].lower() == "none":
+                 parsed_data["dialogue_continuation_from_perception"] = None
+
+
+        # Extract Options
+        match = re.search(patterns["options_from_perception"], llm_output, re.IGNORECASE | re.DOTALL)
+        if match:
+            options_text = match.group(1).strip()
+            parsed_data["options_from_perception"] = options_text if options_text.lower() != "none" else None
+            
+        # Extract Evidence
+        match = re.search(patterns["selected_evidence_from_perception"], llm_output, re.IGNORECASE | re.DOTALL)
+        if match:
+            evidence_text = match.group(1).strip()
+            parsed_data["selected_evidence_from_perception"] = evidence_text if evidence_text.lower() != "none" else None
+
+        # Extract Scene Description
+        match = re.search(patterns["scene_description_from_perception"], llm_output, re.IGNORECASE | re.DOTALL)
+        if match:
+            parsed_data["scene_description_from_perception"] = match.group(1).strip()
+        
+        # print(f"[PerceptionModule DEBUG _parse_detailed_perception] Parsed data: {json.dumps(parsed_data, indent=2)}")
+        return parsed_data
+
     def process_observation(self, observation):
         """
         Process a new observation to update the internal state.
@@ -113,7 +208,7 @@ class PerceptionModule(CoreModule):
             assert self.observation.img_path is not None, "to process from graphic representation, image should have been prepared and path should exist in observation."
             new_img_path = scale_image_up(self.observation.get_img_path())
 
-            processed_visual_description = self.api_manager.vision_text_completion(
+            processed_visual_description_text = self.api_manager.vision_text_completion(
                 model_name=self.model_name,
                 system_prompt=self.system_prompt,
                 prompt=self.prompt,
@@ -123,9 +218,37 @@ class PerceptionModule(CoreModule):
                 token_limit=self.token_limit
             )
 
-            self.processed_observation.processed_visual_description = processed_visual_description
+            self.processed_observation.processed_visual_description = processed_visual_description_text
             self.processed_observation.image_path = new_img_path
 
+            # Parse the detailed perception output
+            # For now, we assume this module instance is for Ace Attorney if this prompt is used.
+            # A more robust way would be to pass game_name or have game-specific perception modules.
+            if self.processed_observation.processed_visual_description:
+                if self.game_name == "ace_attorney":
+                    detailed_data = self._parse_detailed_perception(self.processed_observation.processed_visual_description)
+                    
+                    self.processed_observation.game_state_from_perception = detailed_data.get("game_state_from_perception")
+                    self.processed_observation.parsed_dialogue = detailed_data.get("parsed_dialogue")
+                    self.processed_observation.dialogue_continuation_from_perception = detailed_data.get("dialogue_continuation_from_perception")
+                    self.processed_observation.options_from_perception = detailed_data.get("options_from_perception")
+                    self.processed_observation.selected_evidence_from_perception = detailed_data.get("selected_evidence_from_perception")
+                    self.processed_observation.scene_description_from_perception = detailed_data.get("scene_description_from_perception")
+                else:
+                    # For non-Ace Attorney games, ensure these specific fields are None
+                    # And attempt generic dialogue extraction if needed (or remove if not)
+                    # For now, removing generic dialogue extraction from here, assuming BaseModule or other
+                    # game-specific modules handle it if necessary for other games.
+                    self.processed_observation.game_state_from_perception = None
+                    self.processed_observation.parsed_dialogue = None
+                    self.processed_observation.dialogue_continuation_from_perception = None
+                    self.processed_observation.options_from_perception = None
+                    self.processed_observation.selected_evidence_from_perception = None
+                    self.processed_observation.scene_description_from_perception = None
+            else:
+                # Ensure fields are None if no description text was processed
+                self.processed_observation.game_state_from_perception = None
+                
             return self.processed_observation
         else:
             raise NotImplementedError(f"observation mode: {self.observation_mode} not supported.")
@@ -133,18 +256,20 @@ class PerceptionModule(CoreModule):
     def get_perception_summary(self):
         """
         Get a summary of the current perception.
-        Uses Observation.get_textual_representation() to retrieve the symbolic representation.
-        
-        Returns:
-            dict: A dictionary containing 
-                1) img_path
-                2) textual_representation
-                3) processed_visual_description
+        Includes detailed parsed fields if available.
         """
+        # Base result
         result = {
             "img_path": self.processed_observation.img_path,
             "textual_representation": self.processed_observation.get_textual_representation(),
-            "processed_visual_description": self.processed_observation.processed_visual_description
+            "processed_visual_description": self.processed_observation.processed_visual_description, # Raw LLM output
+             # Fields parsed by _parse_detailed_perception
+            "game_state_from_perception": getattr(self.processed_observation, 'game_state_from_perception', None),
+            "parsed_dialogue": getattr(self.processed_observation, 'parsed_dialogue', None),
+            "dialogue_continuation_from_perception": getattr(self.processed_observation, 'dialogue_continuation_from_perception', None),
+            "options_from_perception": getattr(self.processed_observation, 'options_from_perception', None),
+            "selected_evidence_from_perception": getattr(self.processed_observation, 'selected_evidence_from_perception', None),
+            "scene_description_from_perception": getattr(self.processed_observation, 'scene_description_from_perception', None)
         }
         return result
     
@@ -181,8 +306,6 @@ class PerceptionModule(CoreModule):
         Returns:
             dict: Structured perception data
         """
-        import re
-        
         if not response:
             return {"textual_representation": "", "game_state_details": ""}
         

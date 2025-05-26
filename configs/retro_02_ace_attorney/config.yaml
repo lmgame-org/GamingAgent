@@ -8,7 +8,7 @@ game_env:
 
 agent:
   name: "ace_attorney_retro_agent"
-  model_name: "claude-3-5-sonnet-latest"
+  model_name: "gpt-4o"
   cache_dir: "cache/retro_ace_attorney" 
   harness: false
   observation_mode: "vision" # "vision", "text", or "both"
