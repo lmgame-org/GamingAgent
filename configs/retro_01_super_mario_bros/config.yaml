@@ -14,7 +14,7 @@ agent:
   cache_dir: "cache/super_mario_bros"
   reasoning_effort: "high"
   token_limit: 100000
-  harness: True
+  harness: false
   observation_mode: "vision"
   # Module-specific settings
   modules:

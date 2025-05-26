@@ -5,6 +5,7 @@ import sys
 import multiprocessing
 from typing import List, Tuple
 from concurrent.futures import ProcessPoolExecutor, as_completed
+import time
 
 # python run.py --model_name gemini-2.0-flash --game_names sokoban,tetris,candy_crush,twenty_forty_eight,super_mario_bros --harness_mode both
 
@@ -113,8 +114,14 @@ def main():
     results = []
     with ProcessPoolExecutor(max_workers=num_processes) as executor:
         # Submit all tasks and keep track of the futures
-        future_to_task_args = {executor.submit(run_single_game_config, *task_args): task_args for task_args in tasks_to_run}
+        future_to_task_args = {}
+        for task_args in tasks_to_run:
+            future = executor.submit(run_single_game_config, *task_args)
+            future_to_task_args[future] = task_args
+            # print(f"Submitted task: {task_args[:3]}...") # Optional: for seeing submission order
+            time.sleep(1) # Add 1-second delay between submissions
         
+        print(f"All {len(tasks_to_run)} tasks submitted. Waiting for completion...")
         for future in as_completed(future_to_task_args):
             task_args_for_future = future_to_task_args[future]
             try:
