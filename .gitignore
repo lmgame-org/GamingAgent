@@ -75,5 +75,7 @@ setup_env.sh
 *.sms
 *.bk2
 custom_integrations/roms/
+*.state
+*.sha
 
 perf/
