@@ -10,6 +10,7 @@ pygame==2.6.1
 PyGetWindow==0.0.9
 google-generativeai==0.8.4
 google.genai==1.5.0
+gym
 stable-retro
 together
 pytest==8.3.5
