@@ -26,14 +26,6 @@ class NineteenFortyTwoEnvWrapper(gym.Env):
     metadata = {"render_modes": ["human", "rgb_array"], "render_fps": 60}
 
     _DEFAULT_ENV_ID = "1942-Nes"
-    _DEFAULT_ACTION_MAP = {
-        "a": 0,   # loop‑the‑loop / dodge
-        "b": 1,   # shoot
-        "up": 2,
-        "down": 3,
-        "left": 4,
-        "right": 5,
-    }
 
     def __init__(
         self,
@@ -55,10 +47,7 @@ class NineteenFortyTwoEnvWrapper(gym.Env):
         self.game_name = game_name
         self.env_id: str = _cfg.get("env_id", self._DEFAULT_ENV_ID)
         self.env_init_kwargs: Dict[str, Any] = _cfg.get("env_init_kwargs", {})
-        self.action_map: Dict[str, int] = {
-            **self._DEFAULT_ACTION_MAP,
-            **{k.lower(): int(v) for k, v in _cfg.get("action_mapping", {}).items()},
-        }
+        self.action_map: Dict[str, Any] = _cfg.get("action_mapping", {})
         self._max_stuck_steps = _cfg.get("max_unchanged_steps_for_termination", 200)
         self.render_mode_human = _cfg.get("render_mode_human", False)
 
@@ -93,38 +82,47 @@ class NineteenFortyTwoEnvWrapper(gym.Env):
 
     def _buttons_from_str(self, s: Optional[str]) -> List[int]:
         """
-        Convert the agent’s action string into an 8‑button boolean vector.
+        Turn an action string (or 'a||left' combo) into the button vector expected
+        by retro.  It tries the GymEnvAdapter first, then this wrapper's
+        self.action_map.  Both ints *and* full boolean arrays are accepted.
         """
-        btns = np.zeros(8, dtype=bool)
+        # ensure we already know how many buttons there are
+        n = getattr(self, "num_buttons", 8)
+        btns = np.zeros(n, dtype=bool)
 
         if not s or not s.strip():
             return btns.tolist()
 
-        for token in (part.strip() for part in s.split("||") if part.strip()):
-            # ① try the adapter (preferred – picks up config.json mapping)
+        for tok in (p.strip() for p in s.split("||") if p.strip()):
+            # -------- 1) Ask the adapter ------------
             env_act = None
             if hasattr(self, "adapter"):
                 try:
-                    env_act = self.adapter.map_agent_action_to_env_action(token)
+                    env_act = self.adapter.map_agent_action_to_env_action(tok)
                 except Exception as e:
-                    print(f"[1942] adapter.map failed for '{token}': {e}")
+                    print(f"[1942] adapter.map failed for '{tok}': {e}")
 
-            #  • bool array / list  → OR in
-            if isinstance(env_act, (list, np.ndarray)) and len(env_act):
-                btns |= np.array(env_act, dtype=bool)
+            if isinstance(env_act, (list, np.ndarray)):
+                vec = np.array(env_act, dtype=bool)
+                if vec.size != n:  # pad / trim just in case
+                    vec = np.resize(vec, n)
+                btns |= vec
                 continue
-            #  • int index          → set bit
-            if isinstance(env_act, (int, np.integer)):
-                if 0 <= env_act < len(btns):
-                    btns[env_act] = True
+            if isinstance(env_act, (int, np.integer)) and 0 <= env_act < n:
+                btns[env_act] = True
                 continue
 
-            # ② fallback to local action_map
-            idx = self.action_map.get(token.lower())
-            if idx is not None and 0 <= idx < len(btns):
-                btns[idx] = True
+            # -------- 2) Fallback to local map -------
+            val = self.action_map.get(tok.lower())
+            if isinstance(val, (list, np.ndarray)):
+                vec = np.array(val, dtype=bool)
+                if vec.size != n:
+                    vec = np.resize(vec, n)
+                btns |= vec
+            elif isinstance(val, (int, np.integer)) and 0 <= val < n:
+                btns[val] = True
             else:
-                print(f"[1942] Warning: unknown action token '{token}'")
+                print(f"[1942] Warning: unknown action token '{tok}'")
 
         return btns.astype(int).tolist()
 
