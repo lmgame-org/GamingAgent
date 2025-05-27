@@ -117,7 +117,7 @@ class NineteenFortyTwoEnvWrapper(gym.Env):
             )
             _save_frame(self.current_frame, img_path)
 
-        obs = self.adapter.create_agent_observation(img_path, self._text_repr())
+        obs = self.adapter.create_agent_observation(img_path=img_path, text_representation=self._text_repr())
         return obs, self.current_info.copy()
 
     def step(
@@ -145,7 +145,7 @@ class NineteenFortyTwoEnvWrapper(gym.Env):
             )
             _save_frame(self.current_frame, img_path)
 
-        obs = self.adapter.create_agent_observation(img_path, self._text_repr())
+        obs = self.adapter.create_agent_observation(img_path=img_path, text_representation=self._text_repr())
 
         term, trunc = self.adapter.verify_termination(obs, term, trunc)
 

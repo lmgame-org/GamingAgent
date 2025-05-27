@@ -109,6 +109,15 @@ class MemoryModule(CoreModule):
         Returns:
             processed_observation: An updated observation with processed data
         """
+
+        """
+        `-->` represents conversion performed by memory module
+        game_trajctory |-- [obs_i, action_i]  |--> reflection
+
+
+        (inspired by LMAct)
+        Maybe we can add demonstrations as well
+        """
         prev_context = observation.game_trajectory.get() or ""
         reflection = self._reflect(
             prev_context=prev_context,
