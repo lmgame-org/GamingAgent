@@ -161,12 +161,6 @@ def create_board_image_2048(board_powers: np.ndarray, save_path: str, size: int 
         print(f"[create_board_image_2048] Error saving 2048 board image to {save_path}: {e}") 
 
 
-# TETRIS_COLORS dictionary is REMOVED
-# TETRIS_TEXT_COLOR is REMOVED (or set to a default if still used by create_board_image_tetris)
-# DEFAULT_PIECE_COLOR = (200, 200, 200)  # A light grey for pieces
-# DEFAULT_EMPTY_COLOR = (0, 0, 0)      # Black for empty space
-# DEFAULT_TEXT_COLOR_TETRIS = (220, 220, 220) # Default text color if needed
-
 # Define a default text color here if not passed or found in mapping for info panel text
 DEFAULT_INFO_TEXT_COLOR = (220, 220, 220) 
 FALLBACK_PIECE_COLOR_UTIL = (255, 0, 255) # Magenta, if a piece ID is not in the map

@@ -1,6 +1,7 @@
 # virtual env and running logs
 lmgame-bench/*
 logs/*
+eval/perf/*
 
 # 💾 Cache and Temporary Files
 cache/*
@@ -74,3 +75,7 @@ setup_env.sh
 *.sms
 *.bk2
 custom_integrations/roms/
+*.state
+*.sha
+
+perf/

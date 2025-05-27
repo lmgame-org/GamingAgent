@@ -9,17 +9,19 @@ game_env:
 
 agent:
   name: "tetris_agent"
-  model_name: "claude-3-5-sonnet-latest" # Or your preferred model like gemini-2.0-flash
+  model_name: "gemini-2.0-flash" # Or your preferred model like gemini-2.0-flash
   cache_dir: "cache/tetris" # Base cache directory for this agent/game
   reasoning_effort: "high" # Example, if your agent uses this
   token_limit: 8000        # Example token limit
-  harness: false         # Default to non-harness mode, set to true to use perception/reasoning modules
-  observation_mode: "vision" 
+  harness: true        # Default to non-harness mode, set to true to use perception/reasoning modules
+  observation_mode: "both" 
   
   modules:
     base_module:
+      observation_mode: "both"
     
     perception_module: 
+      observation_mode: "both"
 
     memory_module:
       max_memory: 10  # Maximum number of memory entries to store

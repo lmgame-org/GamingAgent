@@ -4,8 +4,6 @@ from .core_module import CoreModule, Observation
 from tools.utils import scale_image_up
 import re
 import os
-from typing import Optional
-import json
 
 # TODO: 
 # 1. with visual state (vision only) 
@@ -54,55 +52,31 @@ class BaseModule(CoreModule):
             token_limit=token_limit,
             reasoning_effort=reasoning_effort
         )
-        # --- DEBUG PRINT --- 
-        print(f"DEBUG (BaseModule.__init__): Received system_prompt: '{system_prompt[:100]}...'")
-        print(f"DEBUG (BaseModule.__init__): Received prompt: '{prompt[:100]}...'")
-        # --- END DEBUG PRINT ---
         self.observation_mode = observation_mode
         self.observation = Observation()  # Observation data class
             
     def plan_action(self, 
-            observation=None, 
-            img_path=None, 
-            textual_representation=None,
-            additional_prompt_context: Optional[str] = None
+            observation
         ):
         """
         Process the observation to plan the next action based on the observation_mode.
         If no observations are provided, uses previously set observations via set_perception_observation().
         
         Args:
-            observation (Observation, optional): A complete Observation instance
-            img_path (str, optional): For "vision" or "both" mode: image path
-            textual_representation (str, optional): For "text" or "both" mode: textual representation of game board
-            additional_prompt_context (str, optional): Additional text to prepend to the main prompt for the LLM.
+            observation (Observation): A complete Observation instance
             
         Returns:
             dict: A dictionary containing 'action' and 'thought' keys
         """
         # Update observation
-        if observation or img_path or textual_representation:
-            self.observation.set_perception_observation(observation, img_path, textual_representation)
+        if observation:
+            self.observation.set_perception_observation(observation)
         
         # Validate observation based on mode
         if self.observation_mode in ["vision", "both"]:
             assert self.observation.img_path is not None, "No vision observation available"
         if self.observation_mode in ["text", "both"]: 
             assert (self.observation.textual_representation is not None) or (self.observation.processed_visual_description is not None), "No textual representation available"
-    
-        def prepare_text_based_game_state():
-            textual_representation = self.observation.get_textual_representation()
-            processed_visual_description = self.observation.get_processed_visual_description()
-            if textual_representation and processed_visual_description:
-                text_repr = f"Game Textual Representation:\n{textual_representation}\n\nGame Visual Elements Description:\n{processed_visual_description}\n\n"
-            elif textual_representation:
-                text_repr = f"Game Textual Representation:\n{textual_representation}\n\n"
-            elif processed_visual_description:
-                text_repr = f"Game Visual Elements Description:\n{processed_visual_description}\n\n"
-            else:
-                text_repr = "No Text-Based Game State Provided."
-            
-            return text_repr
         
         response = None
         if self.observation_mode == "vision":
@@ -110,20 +84,22 @@ class BaseModule(CoreModule):
             # Scale up image if needed
             new_img_path = scale_image_up(self.observation.get_img_path())
             
-            # --- DEBUG PRINT ---
-            print(f"DEBUG (BaseModule.plan_action for VISION): self.system_prompt: '{self.system_prompt[:100]}...'")
-            # --- MODIFIED prompt logging ---
-            current_prompt_for_llm = self.prompt
-            if additional_prompt_context:
-                current_prompt_for_llm = additional_prompt_context + self.prompt
-            print(f"DEBUG (BaseModule.plan_action for VISION): current_prompt_for_llm: '{current_prompt_for_llm[:150]}...'")
-            # --- END DEBUG PRINT ---
-            
+            print(f"""
+------------------------ BASE MODULE VISION API — SYSTEM PROMPT ------------------------
+{self.system_prompt}
+------------------------ END SYSTEM PROMPT ------------------------
+""")
+            print(f"""
+------------------------ BASE MODULE VISION API — USER PROMPT ------------------------
+{self.prompt}
+------------------------ END USER PROMPT ------------------------
+""")
+
             # Call the vision API
             response = self.api_manager.vision_text_completion(
                 model_name=self.model_name,
                 system_prompt=self.system_prompt,
-                prompt=current_prompt_for_llm,
+                prompt=self.prompt,
                 image_path=new_img_path,
                 thinking=True,
                 reasoning_effort=self.reasoning_effort,
@@ -132,16 +108,7 @@ class BaseModule(CoreModule):
         
         elif self.observation_mode == "text":
             # Create the full prompt with the text-based game state
-            # TODO (lanxiang): replace with Observation.get_complete_prompt
-            text_repr = prepare_text_based_game_state()
-            full_prompt = f"{self.prompt}\n\n{text_repr}"
-            if additional_prompt_context:
-                full_prompt = additional_prompt_context + full_prompt
-            
-            # --- DEBUG PRINT ---
-            print(f"DEBUG (BaseModule.plan_action for TEXT): self.system_prompt: '{self.system_prompt[:100]}...'")
-            print(f"DEBUG (BaseModule.plan_action for TEXT): full_prompt: '{full_prompt[:100]}...'") # Check combined prompt
-            # --- END DEBUG PRINT ---
+            full_prompt = observation.get_complete_prompt(observation_mode=self.observation_mode, prompt_template=self.prompt)
             
             # Call the text API with the textual representation in the prompt
             response = self.api_manager.text_only_completion(
@@ -159,16 +126,7 @@ class BaseModule(CoreModule):
             new_img_path = scale_image_up(self.observation.get_img_path())
             
             # Create the full prompt with the text-based game state
-            # TODO (lanxiang): replace with Observation.get_complete_prompt
-            text_repr = prepare_text_based_game_state()
-            full_prompt = f"{self.prompt}\n\n{text_repr}"
-            if additional_prompt_context:
-                full_prompt = additional_prompt_context + full_prompt
-            
-            # --- DEBUG PRINT ---
-            print(f"DEBUG (BaseModule.plan_action for BOTH): self.system_prompt: '{self.system_prompt[:100]}...'")
-            print(f"DEBUG (BaseModule.plan_action for BOTH): full_prompt: '{full_prompt[:100]}...'") # Check combined prompt
-            # --- END DEBUG PRINT ---
+            full_prompt = observation.get_complete_prompt(observation_mode=self.observation_mode, prompt_template=self.prompt)
             
             # Call the vision API with both the image and textual representation
             response = self.api_manager.vision_text_completion(
@@ -197,104 +155,52 @@ class BaseModule(CoreModule):
     def _parse_response(self, response):
         """
         Parse the response to extract thought and action.
-        Handles both plain text with keywords and JSON formatted responses.
         
         Args:
             response (str): The raw response from the LLM
             
         Returns:
-            dict: A dictionary containing action, thought, and parsed_dialogue
+            dict: A dictionary containing action and thought
         """
         if not response:
-            return {"action": None, "thought": "No response received", "parsed_dialogue": None}
-
-        # print(f"[BaseModule DEBUG _parse_response] Raw LLM response:\n---\n{response}\n---")
-
+            return {"action": None, "thought": "No response received"}
+        
+        # Initialize result with defaults
         result = {
             "action": None,
-            "thought": None,
-            "parsed_dialogue": None
+            "thought": None
         }
-
-        def _strip_markdown_fences(text):
-            # Remove ```json ... ``` or ``` ... ```
-            match = re.match(r'^```(?:json)?\n(.*?)\n```$', text, re.DOTALL | re.IGNORECASE)
-            if match:
-                return match.group(1).strip()
-            return text.strip()
-
-        stripped_response = _strip_markdown_fences(response)
-
-        # Attempt JSON parsing first
-        try:
-            json_data = json.loads(stripped_response)
-            if isinstance(json_data, dict):
-                # print(f"[BaseModule DEBUG _parse_response] Successfully parsed as JSON: {json_data}")
-                result["action"] = json_data.get("move", json_data.get("action"))
-                result["thought"] = json_data.get("thought")
-                
-                dialogue_str = json_data.get("Dialog", json_data.get("dialog"))
-                if dialogue_str and isinstance(dialogue_str, str):
-                    parts = dialogue_str.split(":", 1)
-                    if len(parts) == 2:
-                        speaker = parts[0].strip()
-                        text = parts[1].strip()
-                        result["parsed_dialogue"] = {"speaker": speaker, "text": text}
-                    else: # Could be just text without a speaker
-                        result["parsed_dialogue"] = {"speaker": "Unknown", "text": dialogue_str.strip()}
-                
-                # If we got at least action or thought or dialogue from JSON, consider it a success
-                if result["action"] or result["thought"] or result["parsed_dialogue"]:
-                    # print(f"[BaseModule DEBUG _parse_response] Parsed from JSON: {result}")
-                    return result
-        except json.JSONDecodeError:
-            # print(f"[BaseModule DEBUG _parse_response] Not a valid JSON response or markdown stripping failed. Falling back to regex.")
-            pass # Not JSON, or malformed, proceed to regex parsing
-        
-        # Fallback to Regex parsing if JSON parsing fails or doesn't yield useful data
-        # print(f"[BaseModule DEBUG _parse_response] Attempting regex parsing on: {stripped_response}")
         
         # Use regex to find thought and action sections
-        # Match patterns like \"thought:\", \"# thought:\", \"Thought:\", etc.
-        
-        # REMOVED (?:^|\n) anchor from start of patterns for diagnostic purposes
-        thought_pattern = r'(?:#\s*)?thought:\s*(.+)(?=(?:$|\n(?:action|move|dialog):))'
-        action_pattern = r'(?:#\s*)?(?:action|move):\s*([^\n]+)'
-        # Refined dialogue pattern to be non-greedy and have a more robust lookahead
-        dialogue_pattern = r'(?:#\s*)?dialog(?:ue)?[:-]\s*([^:]+?):\s*(.+?)(?=(?:$|\n\s*(?:action|move|thought|Options|Evidence|Scene):))'
+        # Match patterns like "thought:", "# thought:", "Thought:", etc.
+        thought_pattern = r'(?:^|\n)(?:#\s*)?thought:(.+?)(?=(?:\n(?:#\s*)?(?:action|move):)|$)'
+        action_pattern = r'(?:^|\n)(?:#\s*)?(?:action|move):(.+?)(?=(?:\n(?:#\s*)?thought:)|$)'
         
         # Find thought section using regex (case insensitive)
-        thought_match = re.search(thought_pattern, stripped_response, re.DOTALL | re.IGNORECASE) # Use stripped_response
-        # print(f"[BaseModule DEBUG _parse_response] thought_match (pattern: {thought_pattern}): {thought_match}")
+        thought_match = re.search(thought_pattern, response, re.DOTALL | re.IGNORECASE)
         if thought_match:
             result["thought"] = thought_match.group(1).strip()
         
         # Find action section using regex (case insensitive)
-        action_match = re.search(action_pattern, stripped_response, re.DOTALL | re.IGNORECASE) # Use stripped_response
-        # print(f"[BaseModule DEBUG _parse_response] action_match (pattern: {action_pattern}): {action_match}")
+        action_match = re.search(action_pattern, response, re.DOTALL | re.IGNORECASE)
         if action_match:
             result["action"] = action_match.group(1).strip()
         
-        # Find dialogue section using regex (case insensitive)
-        dialogue_match = re.search(dialogue_pattern, stripped_response, re.DOTALL | re.IGNORECASE) # Use stripped_response
-        # print(f"[BaseModule DEBUG _parse_response] dialogue_match (pattern: {dialogue_pattern}): {dialogue_match}")
-        if dialogue_match:
-            speaker = dialogue_match.group(1).strip()
-            text = dialogue_match.group(2).strip()
-            result["parsed_dialogue"] = {"speaker": speaker, "text": text}
-        
-        # If no structured format was found by either JSON or Regex, treat the whole (stripped) response as thought
-        if not result["thought"] and not result["action"] and not result["parsed_dialogue"]:
-            result["thought"] = stripped_response # Use stripped_response
-        elif not result["thought"] and not result["parsed_dialogue"]:  # If only action was found by regex
+        # If no structured format was found, treat the whole response as thought
+        if not result["thought"] and not result["action"]:
+            result["thought"] = response.strip()
+        elif not result["thought"]:  # If only action was found
             # Look for any text before the action as thought
-            pre_action_parts = re.split(r'(?:^|\n)(?:#\s*)?(?:action|move):\s*', stripped_response, flags=re.IGNORECASE) # Use stripped_response
-            if pre_action_parts and pre_action_parts[0] and pre_action_parts[0].strip():
-                result["thought"] = pre_action_parts[0].strip()
-            # action is already set from regex
+            pre_action = re.split(r'(?:^|\n)(?:#\s*)?(?:action|move):', response, flags=re.IGNORECASE)[0]
+            if pre_action and pre_action.strip():
+                result["thought"] = pre_action.strip()
+            # action is left as none
         
-        # If only thought is found by regex, action is left as none (default)
-        # If only dialogue is found by regex, action/thought are none (default)
+        # If only thought is found, action is left as none
         
-        # print(f"[BaseModule DEBUG _parse_response] Final parsed result (after fallbacks): {result}")
+        # Normalize action format if needed
+        if result["action"]:
+            # Process specific action formats if needed
+            pass
+        
         return result

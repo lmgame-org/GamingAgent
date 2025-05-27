@@ -27,10 +27,12 @@ dependencies = [
     "google-generativeai==0.8.4",
     "google.genai==1.5.0",
     "pyyaml==6.0.2",
+    "gym",
+    "stable-retro",
     "together",
     "gymnasium",
     "gymnasium_2048",
-    "stable-retro"
+    "tile_match_gym"
 ]
 license = {text = "MIT"}
 repository = "https://github.com/lmgame-org/GamingAgent"

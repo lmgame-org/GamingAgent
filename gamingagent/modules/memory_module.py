@@ -27,26 +27,28 @@ class MemoryModule(CoreModule):
             cache_dir=cache_dir,
         )
 
-        self.trajectory = GameTrajectory(max_length=max_memory)
-        self._load_trajectory()
+        self.max_memory=max_memory
 
     def _load_trajectory(self) -> None:
-        """Reload trajectory entries (as already‑stringified lines) from disk."""
+        """Load and return trajectory entries (as already‑stringified lines) from disk."""
         
+        trajectory = GameTrajectory(max_length=self.max_memory)
         if os.path.exists(self.module_file):
             try:
                 with open(self.module_file, "r") as f:
                     entries = json.load(f)
 
                 # keep only the last maxlen lines and push them into the deque
-                for e in entries[-self.trajectory.history_length:]:
+                for e in entries[-self.max_memory:]:
                     # expect the entry to have been stored as a ready‑to‑print line
                     if isinstance(e, str):
-                        self.trajectory.add(e)
+                        trajectory.add(e)
             except Exception as exc:
                 print(f"[MemoryModule] failed to load trajectory: {exc}")
         else:
-            print("memory isn't reloaded as trajectory entries do not exist.")
+            print("trajectory entries do not exist.")
+        
+        return trajectory
 
     def _append_to_log(self, line: str) -> None:
         """
@@ -62,23 +64,19 @@ class MemoryModule(CoreModule):
 
             data.append(line)
             with open(self.module_file, "w") as f:
-                json.dump(data[-self.trajectory.history_length:], f, indent=2)
+                json.dump(data[-self.max_memory:], f, indent=2)
         except Exception as exc:
             print(f"[MemoryModule] failed to write log: {exc}")
 
     def _reflect(self,
-                 prev_context: str,
-                 current_state: str,
-                 last_action: str | None,
-                 last_thought: str | None) -> str:
+                prev_context: str,
+                current_state: str) -> str:
         """
         Ask the LLM to write a reflection given the running context string.
         """
         formatted_prompt = self.prompt.format(
             prev_context=prev_context or "None",
             current_observation=current_state,
-            last_action=str(last_action) if last_action else "None",
-            last_thought=str(last_thought) if last_thought else "None",
         )
 
         raw = self.api_manager.text_only_completion(
@@ -98,11 +96,9 @@ class MemoryModule(CoreModule):
         )
         return (m.group(1).strip() if m else raw.strip()) or "No valid reflection produced."
 
-    def update_memory(self,
-                      observation: Observation,
-                      game_state: str,
-                      action: str | None = None,
-                      thought: str | None = None) -> str:
+    def process_observation(self,
+                        observation: Observation,
+                        game_state: str) -> str:
         """
         Main entry point called by the agent each turn.
         Generates reflection and pushes a compact line into the trajectory.
@@ -113,41 +109,79 @@ class MemoryModule(CoreModule):
         Returns:
             processed_observation: An updated observation with processed data
         """
-        prev_context = self.trajectory.get() or ""
+
+        """
+        `-->` represents conversion performed by memory module
+        game_trajctory |-- [obs_i, action_i]  |--> reflection
+
+
+        (inspired by LMAct)
+        Maybe we can add demonstrations as well
+        """
+        prev_context = observation.game_trajectory.get() or ""
         reflection = self._reflect(
             prev_context=prev_context,
             current_state=str(game_state),
-            last_action=action,
-            last_thought=thought,
         )
 
         # build a single printable entry line
         ts = datetime.datetime.now().isoformat(timespec="seconds")
+        game_state.pop("img_path")
+        
+        # reflection excluded from game trajectory
+        # reflection will be extracted by the reasoning module
         line = (
-            f"[{ts}] "
-            f"Obs: {game_state} | "
-            f"Action: {action} | Thought: {thought} | "
-            f"Reflection: {reflection}"
+            f"##Turn Hash\n[{ts}]\n"
+            f"###Obs\n{game_state}\n"
         )
+        #f"###Reflection\n{reflection}\n"
 
         # add to dequeue
-        self.trajectory.add(line)
+        observation.game_trajectory.add(line)
         # disk persistence
         self._append_to_log(line)
 
-        observation.game_trajectory = self.trajectory
         observation.reflection = reflection
 
         return observation
 
-    def get_memory_summary(self) -> dict[str, str]:
+    def update_action_memory(self,
+                    observation: Observation,
+                    action: str | None,
+                    thought: str | None) -> str:
+        """
+        Main entry point called by the agent each turn.
+        Generates reflection and pushes a compact line into the trajectory.
+
+        Args:
+            observation: The new game observation
+            
+        Returns:
+            processed_observation: An updated observation with processed data
+        """
+
+        # build a single printable entry line
+        ts = datetime.datetime.now().isoformat(timespec="seconds")
+        line = (
+            f"###Action\n{action}\n"
+            f"###Thought\n{thought}\n"
+        )
+
+        # add to dequeue
+        observation.game_trajectory.add(line)
+        # disk persistence
+        self._append_to_log(line)
+
+        return observation
+
+    def get_memory_summary(self, observation) -> dict[str, str]:
         """
         Provide the reasoning module with:
           • up‑to‑N past lines (already formatted by GameTrajectory)
           • no extra metadata dance
         """
-        past = self.trajectory.get() or "No previous game states available."
-        latest = self.trajectory.trajectory[-1] if self.trajectory.trajectory else "N/A"
+        past = observation.game_trajectory.get() or "No previous game states available."
+        latest = observation.game_trajectory.trajectory[-1] if observation.game_trajectory.trajectory else "N/A"
 
         return {
             "game_trajectory": past,

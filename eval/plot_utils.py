@@ -84,7 +84,7 @@ def prepare_dataframe_for_plots(
             game_scores_list = harness_entry.get(game_name, [])
             display_game_name = game_specific_configs.get(game_name, {}).get("display_name", game_name)
             score_col_name = f"{display_game_name} Score" 
-            
+
             if game_scores_list and isinstance(game_scores_list, list):
                 numeric_scores = [float(s) for s in game_scores_list if isinstance(s, (int, float))]
                 if numeric_scores:

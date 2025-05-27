@@ -29,7 +29,6 @@ class BaseAgent(ABC):
             cache_dir=None,
             custom_modules=None, 
             observation_mode="vision",    # change the abstraction to with or without image
-            env: Optional[Any] = None # ADDED: Environment instance
         ):
         """
         Initialize the agent with base parameters and modules.
@@ -44,14 +43,12 @@ class BaseAgent(ABC):
             cache_dir (str, optional): Custom cache directory path
             custom_modules (dict, optional): Custom module classes to use
             observation_mode (str): Mode for processing observations ("vision", "text", or "both")
-            env (Optional[Any]): The game environment instance, used for specific interactions like dialogue handling.
         """
         self.game_name = game_name
         self.model_name = model_name
         self.harness = harness
         self.max_memory = max_memory
         self.observation_mode = observation_mode
-        self.env = env # ADDED: Store environment instance
         
         # Set up cache directory following the specified pattern
         if cache_dir is None:
@@ -87,7 +84,7 @@ class BaseAgent(ABC):
                 else:
                     print(f"    -> WARNING: {module_name.replace('_', ' ').title()} not loaded correctly for harness mode.")
         else:
-            print("  Agent is in NON-HARNESS mode (BaseModule direct pipeline).")
+            print("  Agent is in NON-HARNESS mode (BaseModule pipeline).")
             if self.modules.get("base_module") and self.modules["base_module"] is not None:
                  print(f"    -> Using Base Module: {self.modules['base_module'].__class__.__name__}")
             else:
@@ -294,6 +291,7 @@ class BaseAgent(ABC):
             
         Returns:
             Action to take in the environment
+            Updated Observation
         """
         # Ensure observation is an Observation object
         if not isinstance(observation, Observation):
@@ -338,79 +336,8 @@ class BaseAgent(ABC):
             # Unharness mode: Use base module directly with the Observation object
             print("Invoking WITHOUT HARNESS mode.")
 
-            base_mod = self.modules["base_module"]
-            
-            final_prompt_for_llm: str
-            # `additional_context_for_plan_action` will be the argument to base_mod.plan_action's `additional_prompt_context`
-            additional_context_for_plan_action: Optional[str] = None 
-
-            if self.game_name == "ace_attorney" and self.env:
-                # --- ACE ATTORNEY PROMPT LOGIC ---
-                # 1. Start with the base module's configured prompt (e.g., from prompts.json)
-                # This will be the main body of the prompt.
-                current_main_prompt_body = base_mod.prompt 
-
-                # 2. Replace {memory_context} in the main body with comprehensive data
-                if hasattr(self.env, "get_comprehensive_memory_string"):
-                    comprehensive_memory_ctx = self.env.get_comprehensive_memory_string()
-                    if "{memory_context}" in current_main_prompt_body:
-                        current_main_prompt_body = current_main_prompt_body.replace("{memory_context}", comprehensive_memory_ctx)
-                        print(f"[BaseAgent DEBUG] Replaced '{{memory_context}}' with comprehensive_memory_ctx for Ace Attorney.")
-                    # else: If {memory_context} is not in prompt, it's an issue with prompts.json for Ace Attorney.
-                else: # Method get_comprehensive_memory_string is missing
-                    if "{memory_context}" in current_main_prompt_body:
-                        current_main_prompt_body = current_main_prompt_body.replace("{memory_context}", "Comprehensive memory context (method missing).")
-                
-                # 3. Get previous dialogue string ("speaker: text") to be used as a prefix via additional_prompt_context
-                dialogue_event_str = None
-                if hasattr(self.env, "get_mapped_dialogue_event_for_prompt"):
-                    dialogue_event_str = self.env.get_mapped_dialogue_event_for_prompt() # This is "speaker: text"
-                
-                # `final_prompt_for_llm` will be temporarily set as base_mod.prompt (the main body part)
-                final_prompt_for_llm = current_main_prompt_body 
-                
-                # `additional_context_for_plan_action` will be passed to BaseModule.plan_action
-                # to be prepended to its self.prompt (which we've set to current_main_prompt_body)
-                if dialogue_event_str:
-                    additional_context_for_plan_action = f"Previous Dialogue Context: {dialogue_event_str}\\n\\n"
-                else:
-                    additional_context_for_plan_action = None # No previous dialogue to prepend
-
-            else: 
-                # --- NON-ACE ATTORNEY GAMES PROMPT LOGIC ---
-                # `base_mod.prompt` (original) will be used as is.
-                final_prompt_for_llm = base_mod.prompt 
-                # No special additional_prompt_context from BaseAgent for other games by default.
-                additional_context_for_plan_action = None 
-
-            # Temporarily update base_mod.prompt. This becomes `self.prompt` inside BaseModule.plan_action.
-            original_base_mod_prompt = base_mod.prompt
-            base_mod.prompt = final_prompt_for_llm
-            
-            # Call plan_action.
-            # For AA: additional_context_for_plan_action (previous dialogue) will be prepended to base_mod.prompt (main body with memory).
-            # For others: additional_context_for_plan_action is None, so base_mod.prompt (original) is used as is.
-            result = base_mod.plan_action(
-                observation=observation, 
-                additional_prompt_context=additional_context_for_plan_action 
-            )
-            base_mod.prompt = original_base_mod_prompt # Restore original prompt
-
-            print(f"[BaseAgent DEBUG] Result received from base_mod.plan_action(): {result}")
-
-            print(f"[BaseAgent DEBUG] Type of self.env: {type(self.env)}")
-            print(f"[BaseAgent DEBUG] hasattr(self.env, 'store_llm_extracted_dialogue'): {hasattr(self.env, 'store_llm_extracted_dialogue')}")
-
-            if self.game_name == "ace_attorney" and self.env and hasattr(self.env, "store_llm_extracted_dialogue"):
-                print(f"[BaseAgent DEBUG] In Ace Attorney non-harness mode. Checking for dialogue to store.")
-                if result and "parsed_dialogue" in result and result["parsed_dialogue"]:
-                    print(f"[BaseAgent DEBUG] Parsed dialogue from BaseModule: {result['parsed_dialogue']}")
-                    print(f"[BaseAgent DEBUG] Attempting to call store_llm_extracted_dialogue on env.")
-                    self.env.store_llm_extracted_dialogue(result["parsed_dialogue"])
-                else:
-                    print(f"[BaseAgent DEBUG] No parsed dialogue from BaseModule to store. Result (inside 'if' check): {result}")
-            return result
-        
+            action_plan = self.modules["base_module"].plan_action(observation=observation)
+            return action_plan, observation 
         else:
             # Harness mode: Perception -> Memory -> Reasoning
             print("Invoking WITH HARNESS mode.")
@@ -426,7 +353,7 @@ class BaseAgent(ABC):
             
             # 1. Process observation with perception module (already an Observation)
             processed_observation = perception_module.process_observation(observation)
-            perception_data = perception_module.get_perception_summary()
+            perception_data = perception_module.get_perception_summary(processed_observation)
 
             print("perception data:")
             print(perception_data)
@@ -434,20 +361,25 @@ class BaseAgent(ABC):
             # 2. Update memory with perception data
             memory_summary = None
             if memory_module:
-                processed_observation = memory_module.update_memory(processed_observation, perception_data)
-                memory_summary = memory_module.get_memory_summary()
+                processed_observation = memory_module.process_observation(
+                    processed_observation, perception_data,
+                )
+                memory_summary = memory_module.get_memory_summary(processed_observation)
             
             print("memory data:")
             print(memory_summary)
             
             # 3. Plan action with reasoning module
             action_plan = reasoning_module.plan_action(
-                observation=processed_observation,
-                perception_data=perception_data,
-                memory_summary=memory_summary
+                observation=processed_observation
+            )
+
+            # 4. record action and thought
+            processed_observation = memory_module.update_action_memory(
+                processed_observation, action=action_plan["action"], thought=action_plan["thought"],
             )
             
             print("action plan:")
             print(action_plan)
             
-            return action_plan
+            return action_plan, processed_observation
