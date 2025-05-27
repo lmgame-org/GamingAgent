@@ -5,7 +5,7 @@ from tools.utils import scale_image_up
 import re
 import os
 
-# TODO: 
+# TODO:
 # 1. with visual state (vision only) 
 # 2. without visual state (text only) 
 # 3. with visual state + text state (both)
@@ -143,6 +143,10 @@ class BaseModule(CoreModule):
             raise NotImplementedError(f"observation mode: {self.observation_mode} not supported.")
         
         # Parse and log the response
+        #print("============================================")
+        #print(f"base module generated response:\n{response}\n")
+        #print("============================================")
+
         parsed_response = self._parse_response(response)
         self.log({
             "response": response,
