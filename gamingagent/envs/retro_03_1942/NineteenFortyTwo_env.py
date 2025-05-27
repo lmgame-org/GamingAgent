@@ -92,13 +92,41 @@ class NineteenFortyTwoEnvWrapper(gym.Env):
             )
 
     def _buttons_from_str(self, s: Optional[str]) -> List[int]:
-        if not s:
-            return [0] * 8
-        idx = self.action_map.get(s.lower())
-        vec = [0] * 8
-        if idx is not None:
-            vec[idx] = 1
-        return vec
+        """
+        Convert the agent’s action string into an 8‑button boolean vector.
+        """
+        btns = np.zeros(8, dtype=bool)
+
+        if not s or not s.strip():
+            return btns.tolist()
+
+        for token in (part.strip() for part in s.split("||") if part.strip()):
+            # ① try the adapter (preferred – picks up config.json mapping)
+            env_act = None
+            if hasattr(self, "adapter"):
+                try:
+                    env_act = self.adapter.map_agent_action_to_env_action(token)
+                except Exception as e:
+                    print(f"[1942] adapter.map failed for '{token}': {e}")
+
+            #  • bool array / list  → OR in
+            if isinstance(env_act, (list, np.ndarray)) and len(env_act):
+                btns |= np.array(env_act, dtype=bool)
+                continue
+            #  • int index          → set bit
+            if isinstance(env_act, (int, np.integer)):
+                if 0 <= env_act < len(btns):
+                    btns[env_act] = True
+                continue
+
+            # ② fallback to local action_map
+            idx = self.action_map.get(token.lower())
+            if idx is not None and 0 <= idx < len(btns):
+                btns[idx] = True
+            else:
+                print(f"[1942] Warning: unknown action token '{token}'")
+
+        return btns.astype(int).tolist()
 
     def _frame_hash(self, arr: np.ndarray) -> str:
         return hashlib.md5(arr.tobytes()).hexdigest()
