@@ -1,0 +1,8 @@
+{
+  "default_state": "level1_1_5",
+  "whitelist": {
+    "variables.json": [
+      "suspicious type >u2 for lives"
+    ]
+  }
+}

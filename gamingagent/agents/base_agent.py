@@ -6,6 +6,7 @@ from PIL import Image
 import numpy as np
 import importlib
 import inspect
+from typing import Optional, Any
 
 # Import modules
 from gamingagent.modules import BaseModule, PerceptionModule, MemoryModule, ReasoningModule, Observation
@@ -336,8 +337,7 @@ class BaseAgent(ABC):
             print("Invoking WITHOUT HARNESS mode.")
 
             action_plan = self.modules["base_module"].plan_action(observation=observation)
-            return action_plan, observation
-        
+            return action_plan, observation 
         else:
             # Harness mode: Perception -> Memory -> Reasoning
             print("Invoking WITH HARNESS mode.")

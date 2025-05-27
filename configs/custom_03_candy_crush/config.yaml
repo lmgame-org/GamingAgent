@@ -8,14 +8,16 @@ game_env:
 
 agent:
   model_name: "claude-3-5-sonnet-latest" # Or your preferred model
-  harness: true # Set to true to use Perception/Memory/Reasoning modules
+  harness: false
   token_limit: 100000
   reasoning_effort: "high"
   observation_mode: "both" 
 modules:
     base_module:
+      observation_mode: "both"
 
     perception_module:
+      observation_mode: "both"
 
     memory_module:
       max_memory: 10 

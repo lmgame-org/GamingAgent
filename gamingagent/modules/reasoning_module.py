@@ -59,16 +59,10 @@ class ReasoningModule(CoreModule):
         
         Args:
             observation (Observation, optional): An Observation instance
-            perception_data (dict): Output from perception_module.get_perception_summary()
-            memory_summary (dict): Output from memory_module.get_memory_summary()
-            img_path (str, optional): Path to the current game image (override for perception_data["img_path"])
             
         Returns:
             dict: A dictionary containing action and thought
         """
-        # TODO: CLEAN UP — remove perception_data, memory_summary
-        # THEY SHOULD HAVE BEEN PRESENT IN observation
-
         # Get the image path (prefer the passed parameter if available)
         image_path = getattr(observation, "img_path", None)
         textual_representation = getattr(observation, "textual_representation", "")
@@ -79,12 +73,6 @@ class ReasoningModule(CoreModule):
         # Extract game trajectory and reflection memory module
         game_trajectory = getattr(observation, "game_trajectory", "")
         reflection = getattr(observation, "reflection", "")
-        
-        # Format the memory and perception context, and create full context
-        #memory_context = f"Memory History:\n{game_trajectory}\n\n"
-        #perception_context = f"Current Perception:\n{textual_representation}\n\n"
-        #reflection_context = f"Reflection:\n{memory_reflection}" if memory_reflection else ""
-        #full_context = memory_context + perception_context + reflection_context
 
         use_memory = bool(game_trajectory.get() and reflection)
         use_perception = bool(processed_visual_description)

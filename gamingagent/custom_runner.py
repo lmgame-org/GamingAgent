@@ -8,6 +8,11 @@ import yaml
 from typing import Any
 import sys
 
+import gym
+
+import retro
+from retro.enums import Actions, Observations, State # retro.data will be used directly for Integrations
+
 from gamingagent.agents.base_agent import BaseAgent
 from gamingagent.modules import PerceptionModule, ReasoningModule # Observation is imported by Env
 # Directly import the specific environment we are using
@@ -15,6 +20,7 @@ from gamingagent.envs.custom_01_2048.twentyFortyEightEnv import TwentyFortyEight
 from gamingagent.envs.custom_02_sokoban.sokobanEnv import SokobanEnv
 from gamingagent.envs.custom_03_candy_crush.candyCrushEnv import CandyCrushEnvWrapper
 from gamingagent.envs.retro_01_super_mario_bros.superMarioBrosEnv import SuperMarioBrosEnvWrapper
+from gamingagent.envs.retro_02_ace_attorney.aceAttorneyEnv import AceAttorneyEnv
 from gamingagent.envs.retro_03_1942.NineteenFortyTwo_env import NineteenFortyTwoEnvWrapper
 from gamingagent.envs.custom_04_tetris.tetrisEnv import TetrisEnv
 
@@ -140,7 +146,7 @@ def create_environment(game_name_arg: str,
             with open(env_specific_config_path, 'r') as f:
                 env_specific_config = json.load(f)
                 env_init_kwargs = env_specific_config.get('env_init_kwargs', {})
-                # Parameters for CandyCrushEnvWrapper's internal TileMatchEnv
+                # Parameters for CandyCrushEnv's internal TileMatchEnv
                 env_init_params['num_rows'] = env_init_kwargs.get('num_rows', 8)
                 env_init_params['num_cols'] = env_init_kwargs.get('num_cols', 8)
                 env_init_params['num_colours'] = env_init_kwargs.get('num_colours', 4)
@@ -161,21 +167,21 @@ def create_environment(game_name_arg: str,
             env_init_params['max_stuck_steps_for_adapter'] = 20
 
         print(f"Initializing environment: {game_name_arg} with params: {env_init_params}")
-        env = CandyCrushEnvWrapper(
-            # Parameters for CandyCrushEnvWrapper -> TileMatchEnv core
+        env = CandyCrushEnv(
+            # Parameters for CandyCrushEnv -> TileMatchEnv core
             num_rows_override=env_init_params.get('num_rows'),
             num_cols_override=env_init_params.get('num_cols'),
             num_colours_override=env_init_params.get('num_colours'),
             num_moves_override=env_init_params.get('num_moves'),
-            # Parameters for GymEnvAdapter instance within CandyCrushEnvWrapper
+            # Parameters for GymEnvAdapter instance within CandyCrushEnv
             game_name_for_adapter=game_name_arg, 
             observation_mode_for_adapter=obs_mode_arg, 
             agent_cache_dir_for_adapter=cache_dir_for_adapter, 
             # This is the path the env itself will use to load its own full config (including env_init_kwargs)
             game_specific_config_path_for_adapter=env_specific_config_path, 
             max_stuck_steps_for_adapter=env_init_params.get('max_stuck_steps_for_adapter'),
-            # Other params potentially needed by CandyCrushEnvWrapper if not covered by game_specific_config_path_for_adapter
-            # config_root_dir is already an arg to runner, CandyCrushEnvWrapper doesn't need it directly if path is absolute
+            # Other params potentially needed by CandyCrushEnv if not covered by game_specific_config_path_for_adapter
+            # config_root_dir is already an arg to runner, CandyCrushEnv doesn't need it directly if path is absolute
         )
         return env
     elif game_name_arg == "tetris":
@@ -254,11 +260,99 @@ def create_environment(game_name_arg: str,
             base_log_dir=cache_dir_for_adapter # This will be like "cache/1942/{model_name}_agent_cache"
         )
         return env
+    elif game_name_arg == "ace_attorney":
+        # Parameters for AceAttorneyEnv which inherits from retro.Env
+        # These will be passed to AceAttorneyEnv.__init__
+        # Some will directly go to retro.Env.__init__ via super() call
+        # Others are for the adapter or wrapper behavior
+        env_params_for_constructor = {}
+        if os.path.exists(env_specific_config_path):
+            with open(env_specific_config_path, 'r') as f:
+                env_cfg_json = json.load(f)
+                # Params for retro.Env base class
+                retro_init_kwargs = env_cfg_json.get('env_init_kwargs', {})
+                env_params_for_constructor['game'] = retro_init_kwargs.get('retro_game_name', 'AceAttorney-GbAdvance')
+                env_params_for_constructor['state'] = retro_init_kwargs.get('retro_state_name', State.DEFAULT) # From retro.enums
+                env_params_for_constructor['scenario'] = retro_init_kwargs.get('scenario') 
+                env_params_for_constructor['info'] = retro_init_kwargs.get('info') 
+                
+                use_restricted_val = retro_init_kwargs.get('use_restricted_actions', "FILTERED") # Get the value
+                if isinstance(use_restricted_val, str):
+                    use_restricted_str_upper = use_restricted_val.upper()
+                    if use_restricted_str_upper == "DISCRETE":
+                        env_params_for_constructor['use_restricted_actions'] = Actions.DISCRETE
+                    elif use_restricted_str_upper == "MULTI_DISCRETE":
+                        env_params_for_constructor['use_restricted_actions'] = Actions.MULTI_DISCRETE
+                    elif use_restricted_str_upper == "ALL":
+                        env_params_for_constructor['use_restricted_actions'] = Actions.ALL
+                    # Default to FILTERED if string is "FILTERED" or unrecognized
+                    else: 
+                        env_params_for_constructor['use_restricted_actions'] = Actions.FILTERED
+                elif isinstance(use_restricted_val, int):
+                    # Pass integer directly, assuming it corresponds to retro.Actions enum values
+                    env_params_for_constructor['use_restricted_actions'] = use_restricted_val
+                else: 
+                    # Fallback for unexpected types, default to FILTERED
+                    print(f"Warning: Unexpected type for use_restricted_actions: {type(use_restricted_val)}. Defaulting to FILTERED.")
+                    env_params_for_constructor['use_restricted_actions'] = Actions.FILTERED
+                
+                env_params_for_constructor['record'] = retro_init_kwargs.get('record', False)
+                env_params_for_constructor['players'] = retro_init_kwargs.get('players', 1)
+                
+                inttype_str = retro_init_kwargs.get('inttype', "ALL").upper()
+                if inttype_str == "CUSTOM":
+                     env_params_for_constructor['inttype'] = retro.data.Integrations.CUSTOM
+                elif inttype_str == "STABLE":
+                     env_params_for_constructor['inttype'] = retro.data.Integrations.STABLE
+                elif inttype_str == "EXPERIMENTAL":
+                     env_params_for_constructor['inttype'] = retro.data.Integrations.EXPERIMENTAL
+                elif inttype_str == "ALL":
+                     env_params_for_constructor['inttype'] = retro.data.Integrations.ALL
+                else:
+                     env_params_for_constructor['inttype'] = retro.data.Integrations.ALL
+                
+                obs_type_str = retro_init_kwargs.get('obs_type', "IMAGE").upper()
+                if obs_type_str == "RAM":
+                    env_params_for_constructor['obs_type'] = Observations.RAM
+                else: 
+                    env_params_for_constructor['obs_type'] = Observations.IMAGE
+
+                # Params for GymEnvAdapter instance within AceAttorneyEnv
+                env_params_for_constructor['adapter_game_name'] = game_name_arg # Should be "ace_attorney"
+                env_params_for_constructor['adapter_observation_mode'] = obs_mode_arg
+                env_params_for_constructor['adapter_agent_cache_dir'] = cache_dir_for_adapter
+                env_params_for_constructor['adapter_config_path'] = env_specific_config_path
+                env_params_for_constructor['adapter_max_stuck_steps'] = env_cfg_json.get('max_unchanged_steps_for_termination', 50)
+                
+                # Parameter for AceAttorneyEnv wrapper itself (e.g. render mode)
+                env_params_for_constructor['wrapper_render_mode'] = env_cfg_json.get('render_mode_gym_adapter', 'rgb_array')
+
+        else:
+            print(f"Warning: {env_specific_config_path} for {game_name_arg} not found. Using default parameters for AceAttorneyEnv.")
+            # Fill with defaults if config is missing
+            env_params_for_constructor['game'] = 'AceAttorney-GbAdvance'
+            env_params_for_constructor['state'] = State.DEFAULT
+            env_params_for_constructor['use_restricted_actions'] = Actions.FILTERED
+            env_params_for_constructor['obs_type'] = Observations.IMAGE
+            env_params_for_constructor['inttype'] = retro.data.Integrations.ALL
+            env_params_for_constructor['adapter_game_name'] = game_name_arg
+            env_params_for_constructor['adapter_observation_mode'] = obs_mode_arg
+            env_params_for_constructor['adapter_agent_cache_dir'] = cache_dir_for_adapter
+            env_params_for_constructor['adapter_config_path'] = env_specific_config_path
+            env_params_for_constructor['adapter_max_stuck_steps'] = 50
+            env_params_for_constructor['wrapper_render_mode'] = 'rgb_array'
+
+        print(f"Initializing environment: AceAttorneyEnv with combined params: { {k:v for k,v in env_params_for_constructor.items() if k not in ['adapter_agent_cache_dir']} }")
+        
+        # Import retro here if not already at top level, for retro.STATE_DEFAULT etc.
+        # import retro # No longer needed here as DefaultStates, etc. are imported above
+        env = AceAttorneyEnv(**env_params_for_constructor)
+        return env
     else:
         print(f"ERROR: Game '{game_name_arg}' is not defined or implemented in custom_runner.py's create_environment function.")
         return None
 
-def run_game_episode(agent: BaseAgent, game_env: Any, episode_id: int, args: argparse.Namespace):
+def run_game_episode(agent: BaseAgent, game_env: gym.Env, episode_id: int, args: argparse.Namespace):
     print(f"Starting Episode {episode_id} for {args.game_name} with seed {args.seed if args.seed is not None else 'default'}...")
 
     # Pass episode_id to env.reset
@@ -279,13 +373,16 @@ def run_game_episode(agent: BaseAgent, game_env: Any, episode_id: int, args: arg
         end_time = time.time()
         time_taken_s = end_time - start_time
 
-        action_from_agent = action_dict.get("action")
-        if action_from_agent is None:
-            action_str_agent = "skip" # Default to no_op if action is None
-        else:
-            action_str_agent = str(action_from_agent).strip().lower()
-            
-        thought_process = action_dict.get("thought", "")
+        # Ensure action_dict is not None and action is handled if None
+        raw_action_from_agent = None
+        if action_dict and action_dict.get("action") is not None:
+            raw_action_from_agent = action_dict.get("action")
+        
+        action_str_agent = "None" # Default to "None" string if no valid action
+        if raw_action_from_agent:
+            action_str_agent = str(raw_action_from_agent).strip().lower()
+        
+        thought_process = action_dict.get("thought", "") if action_dict else "No thought process due to API failure."
 
         # Step the environment using the new signature, including agent action details
         agent_observation, reward, terminated, truncated, last_info, current_step_perf_score = game_env.step(
@@ -298,6 +395,10 @@ def run_game_episode(agent: BaseAgent, game_env: Any, episode_id: int, args: arg
             
         total_reward_for_episode += reward
         total_perf_score_for_episode += current_step_perf_score
+
+        # --- DEBUG PRINT for reward ---
+        print(f"E{episode_id} S{final_step_num}: Action='{action_str_agent}', StepR={reward:.2f}, TotalR={total_reward_for_episode:.2f}, Perf={current_step_perf_score:.2f}, Term={terminated}, Trunc={truncated}")
+        # --- END DEBUG PRINT for reward ---
 
         if terminated or truncated:
             break
@@ -439,6 +540,12 @@ def main():
     else:
         print("Initializing agent in NON-HARNESS (BaseModule) mode.")
 
+    # --- Create Environment FIRST ---
+    runner_log_dir_base = os.path.join("cache", args.game_name, args.model_name.replace("-", "_")[:15], datetime.datetime.now().strftime("%Y%m%d_%H%M%S"))
+    os.makedirs(runner_log_dir_base, exist_ok=True)
+    print(f"Agent and Environment cache directory: {runner_log_dir_base}")
+
+    # --- Then Create Agent, passing the environment ---
     agent = BaseAgent(
         game_name=args.game_name,
         model_name=args.model_name,
@@ -446,12 +553,13 @@ def main():
         harness=args.harness,
         max_memory=args.max_memory, 
         custom_modules=custom_modules_for_agent,
-        observation_mode=args.observation_mode
+        observation_mode=args.observation_mode,
+        cache_dir=runner_log_dir_base # Ensure agent uses the same cache_dir
     )
     
-    runner_log_dir = agent.cache_dir
-    os.makedirs(runner_log_dir, exist_ok=True)
-    print(f"Agent cache directory (contains episode logs and summary): {runner_log_dir}")
+    # runner_log_dir = agent.cache_dir # Agent already sets its cache_dir, this can be removed or used for verification
+    # os.makedirs(runner_log_dir, exist_ok=True) # Already created by agent or above
+    # print(f"Agent cache directory (contains episode logs and summary): {runner_log_dir}")
 
     # Env params are now loaded inside create_environment
     game_env = create_environment(
@@ -459,7 +567,7 @@ def main():
         model_name_arg=args.model_name,
         obs_mode_arg=args.observation_mode,
         config_dir_name_for_env_cfg=config_dir_name,
-        cache_dir_for_adapter=runner_log_dir
+        cache_dir_for_adapter=runner_log_dir_base
     )
 
     if game_env is None:
@@ -480,8 +588,8 @@ def main():
         overall_stat_summary = game_env.adapter.finalize_and_save_summary(vars(args))
     else:
         print("Warning: game_env.adapter not found. Cannot finalize and save summary.")
-    
-    game_env.close() # Close environment
+
+    game_env.close() # Close environment after all runs
 
     print("\n" + "="*30 + " Overall Summary " + "="*30)
     print(f"Game: {args.game_name}, Model: {args.model_name}, Mode: {'Harness' if args.harness else 'BaseOnly'}, ObsMode: {args.observation_mode}")

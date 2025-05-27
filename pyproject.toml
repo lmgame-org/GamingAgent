@@ -27,6 +27,7 @@ dependencies = [
     "google-generativeai==0.8.4",
     "google.genai==1.5.0",
     "pyyaml==6.0.2",
+    "gym",
     "stable-retro",
     "together",
     "gymnasium",

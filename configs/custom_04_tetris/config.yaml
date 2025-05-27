@@ -18,8 +18,10 @@ agent:
   
   modules:
     base_module:
+      observation_mode: "both"
     
     perception_module: 
+      observation_mode: "both"
 
     memory_module:
       max_memory: 10  # Maximum number of memory entries to store

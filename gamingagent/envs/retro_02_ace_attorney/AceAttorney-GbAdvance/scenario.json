@@ -1,0 +1,22 @@
+{
+  "crop": [
+    0,
+    0,
+    0,
+    0
+  ],
+  "done": {
+    "variables": {
+      "lives": {
+        "op": "equal"
+      }
+    }
+  },
+  "reward": {
+    "variables": {
+      "lives": {
+        "reward": -1.0
+      }
+    }
+  }
+}

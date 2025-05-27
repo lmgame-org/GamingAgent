@@ -26,14 +26,6 @@ class NineteenFortyTwoEnvWrapper(gym.Env):
     metadata = {"render_modes": ["human", "rgb_array"], "render_fps": 60}
 
     _DEFAULT_ENV_ID = "1942-Nes"
-    _DEFAULT_ACTION_MAP = {
-        "a": 0,   # loop‑the‑loop / dodge
-        "b": 1,   # shoot
-        "up": 2,
-        "down": 3,
-        "left": 4,
-        "right": 5,
-    }
 
     def __init__(
         self,
@@ -55,10 +47,7 @@ class NineteenFortyTwoEnvWrapper(gym.Env):
         self.game_name = game_name
         self.env_id: str = _cfg.get("env_id", self._DEFAULT_ENV_ID)
         self.env_init_kwargs: Dict[str, Any] = _cfg.get("env_init_kwargs", {})
-        self.action_map: Dict[str, int] = {
-            **self._DEFAULT_ACTION_MAP,
-            **{k.lower(): int(v) for k, v in _cfg.get("action_mapping", {}).items()},
-        }
+        self.action_map: Dict[str, Any] = _cfg.get("action_mapping", {})
         self._max_stuck_steps = _cfg.get("max_unchanged_steps_for_termination", 200)
         self.render_mode_human = _cfg.get("render_mode_human", False)
 
@@ -92,13 +81,50 @@ class NineteenFortyTwoEnvWrapper(gym.Env):
             )
 
     def _buttons_from_str(self, s: Optional[str]) -> List[int]:
-        if not s:
-            return [0] * 8
-        idx = self.action_map.get(s.lower())
-        vec = [0] * 8
-        if idx is not None:
-            vec[idx] = 1
-        return vec
+        """
+        Turn an action string (or 'a||left' combo) into the button vector expected
+        by retro.  It tries the GymEnvAdapter first, then this wrapper's
+        self.action_map.  Both ints *and* full boolean arrays are accepted.
+        """
+        # ensure we already know how many buttons there are
+        n = getattr(self, "num_buttons", 8)
+        btns = np.zeros(n, dtype=bool)
+
+        if not s or not s.strip():
+            return btns.tolist()
+
+        for tok in (p.strip() for p in s.split("||") if p.strip()):
+            # -------- 1) Ask the adapter ------------
+            env_act = None
+            if hasattr(self, "adapter"):
+                try:
+                    env_act = self.adapter.map_agent_action_to_env_action(tok)
+                except Exception as e:
+                    print(f"[1942] adapter.map failed for '{tok}': {e}")
+
+            if isinstance(env_act, (list, np.ndarray)):
+                vec = np.array(env_act, dtype=bool)
+                if vec.size != n:  # pad / trim just in case
+                    vec = np.resize(vec, n)
+                btns |= vec
+                continue
+            if isinstance(env_act, (int, np.integer)) and 0 <= env_act < n:
+                btns[env_act] = True
+                continue
+
+            # -------- 2) Fallback to local map -------
+            val = self.action_map.get(tok.lower())
+            if isinstance(val, (list, np.ndarray)):
+                vec = np.array(val, dtype=bool)
+                if vec.size != n:
+                    vec = np.resize(vec, n)
+                btns |= vec
+            elif isinstance(val, (int, np.integer)) and 0 <= val < n:
+                btns[val] = True
+            else:
+                print(f"[1942] Warning: unknown action token '{tok}'")
+
+        return btns.astype(int).tolist()
 
     def _frame_hash(self, arr: np.ndarray) -> str:
         return hashlib.md5(arr.tobytes()).hexdigest()
@@ -117,7 +143,7 @@ class NineteenFortyTwoEnvWrapper(gym.Env):
             )
             _save_frame(self.current_frame, img_path)
 
-        obs = self.adapter.create_agent_observation(img_path, self._text_repr())
+        obs = self.adapter.create_agent_observation(img_path=img_path, text_representation=self._text_repr())
         return obs, self.current_info.copy()
 
     def step(
@@ -145,7 +171,7 @@ class NineteenFortyTwoEnvWrapper(gym.Env):
             )
             _save_frame(self.current_frame, img_path)
 
-        obs = self.adapter.create_agent_observation(img_path, self._text_repr())
+        obs = self.adapter.create_agent_observation(img_path=img_path, text_representation=self._text_repr())
 
         term, trunc = self.adapter.verify_termination(obs, term, trunc)
 
