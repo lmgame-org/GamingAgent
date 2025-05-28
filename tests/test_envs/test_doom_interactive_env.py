@@ -11,6 +11,8 @@ from pyglet.window import key as keycodes
 
 from gamingagent.envs.custom_05_doom.Doom_env import DoomEnvWrapper
 
+# creating interactive test for doom, still working on it
+
 class Interactive(abc.ABC):
     """
     Base class for making gym environments interactive for human use
