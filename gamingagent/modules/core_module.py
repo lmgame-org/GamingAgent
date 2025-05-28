@@ -186,7 +186,6 @@ class Observation:
         var_names = [fld for _, fld, _, _ in formatter.parse(prompt_template) if fld]
         assert var_names, "Expected at least one variable in prompt_template."
 
-
         # Collect values for referenced attributes (initialize with "N/A")
         harness_content_map = {name: "N/A" for name in var_names}
         # Fill in existing values
