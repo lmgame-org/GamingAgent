@@ -4,7 +4,7 @@ import os, json
 from typing import Any, Dict, List, Tuple, Optional
 
 import numpy as np
-from vizdoom import DoomGame, Mode, ScreenResolution, ScreenFormat, gymnasium_wrapper, Button
+from vizdoom import DoomGame, Mode, ScreenResolution, ScreenFormat, gymnasium_wrapper, Button, GameVariable
 from gamingagent.envs.gym_env_adapter import GymEnvAdapter
 from gamingagent.modules.core_module import Observation
 import gymnasium as gym
@@ -91,6 +91,13 @@ class DoomEnvWrapper:
             Button.MOVE_LEFT,
             Button.MOVE_RIGHT,
             Button.ATTACK
+        ])
+        
+        # Set up game variables to track
+        self._game.set_available_game_variables([
+            GameVariable.HEALTH,
+            GameVariable.AMMO2,
+            GameVariable.KILLCOUNT
         ])
         
         self._game.init()
@@ -231,10 +238,15 @@ class DoomEnvWrapper:
         if state is None or state.game_variables is None:
             return {}
 
+        # Get game variables in the order they were set up
+        health = state.game_variables[0] if len(state.game_variables) > 0 else None
+        ammo = state.game_variables[1] if len(state.game_variables) > 1 else None
+        kills = state.game_variables[2] if len(state.game_variables) > 2 else None
+
         return {
-            "health": state.game_variables[0] if len(state.game_variables) > 0 else None,
-            "ammo": state.game_variables[1] if len(state.game_variables) > 1 else None,
-            "kills": state.game_variables[2] if len(state.game_variables) > 2 else None,
+            "health": health,
+            "ammo": ammo,
+            "kills": kills,
         }
 
     def _text_repr(self) -> str:
@@ -244,7 +256,11 @@ class DoomEnvWrapper:
         if not self.current_info:
             return "No game state available."
 
-        return f"Health: {self.current_info.get('health', 'N/A')}, Ammo: {self.current_info.get('ammo', 'N/A')}, Kills: {self.current_info.get('kills', 'N/A')}"
+        health = self.current_info.get('health', 'N/A')
+        ammo = self.current_info.get('ammo', 'N/A')
+        kills = self.current_info.get('kills', 'N/A')
+
+        return f"Health: {health}, Ammo: {ammo}, Kills: {kills}"
 
     def render(self) -> None:
         """

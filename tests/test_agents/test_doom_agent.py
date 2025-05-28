@@ -66,12 +66,39 @@ class DoomAgent:
             if perception_data:
                 combined_observation.processed_visual_description = perception_data
             if memory_summary:
-                combined_observation.game_trajectory = memory_summary.get("game_trajectory", "")
+                # Update reflection from memory summary
                 combined_observation.reflection = memory_summary.get("reflection", "")
             
-            action_plan = await self.reasoning_module.plan_action(combined_observation)
-            self.last_action = action_plan["action"]
-            return action_plan
+            # Call plan_action without await since it's not async
+            action_plan = self.reasoning_module.plan_action(combined_observation)
+            
+            # Log only the necessary information
+            if hasattr(self.reasoning_module, 'log'):
+                self.reasoning_module.log({
+                    "image_path": getattr(combined_observation, "img_path", None),
+                    "textual_representation": getattr(combined_observation, "textual_representation", ""),
+                    "processed_visual_description": getattr(combined_observation, "processed_visual_description", ""),
+                    "game_trajectory": getattr(combined_observation.game_trajectory, "get", lambda: "")() if hasattr(combined_observation, "game_trajectory") else "",
+                    "reflection": getattr(combined_observation, "reflection", ""),
+                    "thought": action_plan.get("thought", ""),
+                    "action": action_plan.get("action", "")
+                })
+            
+            # Get action and thought, with fallbacks
+            action = action_plan.get("action")
+            thought = action_plan.get("thought", "No thought provided")
+            
+            # If no action was provided, use a default action
+            if action is None:
+                action = "move_up"  # Default action
+                thought = "No action provided, using default action"
+            
+            # Strip square brackets from action if present
+            if isinstance(action, str) and action.startswith("[") and action.endswith("]"):
+                action = action[1:-1]
+            
+            self.last_action = action
+            return {"action": action, "thought": thought}
 
         action = self.base_module.process_observation(observation)
         return {"action": action, "thought": "Base only"}
