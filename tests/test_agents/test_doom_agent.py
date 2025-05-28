@@ -45,11 +45,22 @@ def main():
 
     # Create Doom agent
     agent = BaseAgent(
-        env=env,
         game_name="doom",
-        api_provider=args.api_provider,
-        model_name=args.model_name
+        model_name=args.model_name,
+        config_path=args.game_config_path,
+        harness=True,
+        max_memory=10,
+        cache_dir="cache/doom/test_run",
+        observation_mode="vision"
     )
+
+    # Fixing the action_mapping issue
+    if not isinstance(env.adapter.move_to_action_idx, dict) or not env.adapter.move_to_action_idx:
+        env.adapter.move_to_action_idx = {
+            "move_left": 0,
+            "move_right": 1,
+            "attack": 2
+        }
 
     verbosity = args.verbose - args.quiet
 
