@@ -1,13 +1,14 @@
 game_env:
   name: "doom"
   description: "Doom game environment"
+  env_type: "custom"
   render_mode: "human"
-  max_steps: 300  # Matches episode_timeout
+  max_steps: 300
   seed: 42
   num_runs: 1
   doom_scenario_path: "basic.wad"
   doom_map: "map01"
-  living_reward: 1  # +1 for every tic the agent is alive
+  living_reward: 1
   screen_resolution: "RES_320X240"
   screen_format: "CRCGCB"
   render_hud: true
@@ -28,26 +29,27 @@ game_env:
   mode: "PLAYER"
   doom_skill: 5
   rewards:
-    kill_monster: 106  # +106 for killing the monster
-    shot_penalty: -5   # -5 for every shot
+    kill_monster: 106
+    shot_penalty: -5
 
 agent:
-  # Global agent settings
   name: "doom_agent"
-  model_name: "gpt-4o"  # Updated model name
+  model_name: "gpt-4o"
   cache_dir: "cache/doom"
   reasoning_effort: "high"
   token_limit: 100000
   harness: false
   observation_mode: "vision"
-  # Module-specific settings
+
   modules:
     base_module:
-    
+      observation_mode: "vision"
+
     perception_module:
+      observation_mode: "vision"
 
     memory_module:
-      max_memory: 15  # Maximum number of memory entries to store
+      max_memory: 15
 
     reasoning_module:
       use_perception: true
