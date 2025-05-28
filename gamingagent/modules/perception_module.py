@@ -130,7 +130,7 @@ class PerceptionModule(CoreModule):
         else:
             raise NotImplementedError(f"observation mode: {self.observation_mode} not supported.")
     
-    def get_perception_summary(self):
+    def get_perception_summary(self, observation):
         """
         Get a summary of the current perception.
         Uses Observation.get_textual_representation() to retrieve the symbolic representation.
@@ -139,12 +139,12 @@ class PerceptionModule(CoreModule):
             dict: A dictionary containing 
                 1) img_path
                 2) textual_representation
-                3) processed_visual_description
+                3) visual_description
         """
         result = {
-            "img_path": self.processed_observation.img_path,
-            "textual_representation": self.processed_observation.get_textual_representation(),
-            "processed_visual_description": self.processed_observation.processed_visual_description
+            "img_path": observation.img_path,
+            "textual_representation": observation.get_textual_representation(),
+            "processed_visual_description": observation.processed_visual_description
         }
         return result
     
@@ -170,3 +170,7 @@ class PerceptionModule(CoreModule):
         except Exception as e:
             print(f"Error loading observation from {img_path}: {e}")
             return None
+    
+    def _parse_response(self, response):
+        # TODO: no specific response parsing need for perception module as of 05/27/2025
+        pass

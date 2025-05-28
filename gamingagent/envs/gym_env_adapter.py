@@ -73,6 +73,23 @@ class GymEnvAdapter:
         
         self.all_episode_results: List[Dict] = [] # To store results of each episode
 
+    def save_frame_and_get_path(self, frame: "np.ndarray") -> str:
+        """
+        Convenience for wrappers: save a NumPy frame to the canonical
+        observations folder and return the path.  All path formatting is
+        centralised here.
+        """
+        path = self._create_agent_observation_path(
+            self.current_episode_id, self.current_step_num
+        )
+        try:
+            os.makedirs(os.path.dirname(path), exist_ok=True)
+            from PIL import Image  # local import to avoid hard dep for text‑only games
+            Image.fromarray(frame).save(path)
+        except Exception as e:
+            print(f"[GymEnvAdapter] Warning: could not save frame to {path}: {e}")
+        return path
+    
     def _load_game_specific_config(self, config_path: str):
         """Loads game-specific settings like action mapping and stuck detection params from JSON."""
         print(f"[GymEnvAdapter DEBUG _load_game_specific_config] Called with config_path: {config_path}")
