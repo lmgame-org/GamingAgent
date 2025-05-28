@@ -1,6 +1,49 @@
 import argparse
 from gamingagent.envs.custom_05_doom.Doom_env import DoomEnvWrapper
 from gamingagent.agents.base_agent import BaseAgent
+# Import our agent modules
+from tests.test_agents.modules.base_module import Base_module
+from tests.test_agents.modules.perception import PerceptionModule
+from tests.test_agents.modules.memory import MemoryModule
+from tests.test_agents.modules.reasoning import ReasoningModule
+from tools.serving import APIManager
+from gamingagent.modules.perception_module import PerceptionModule
+from gamingagent.modules.memory_module import MemoryModule
+from gamingagent.modules.reasoning_module import ReasoningModule
+
+
+class DoomAgent:
+    def __init__(self, model_name="gpt-4o", agent_mode="full"):
+        self.model_name = model_name
+        self.agent_mode = agent_mode
+        self.last_action = None
+
+        self.perception_module = None
+        self.memory_module = None
+        self.reasoning_module = None
+
+        if self.agent_mode == "full":
+            self.perception_module = PerceptionModule(model_name, "cache/doom")
+            self.memory_module = MemoryModule(model_name, "cache/doom/memory.json", "cache/doom")
+            self.reasoning_module = ReasoningModule(model_name)
+        elif self.agent_mode == "memory_reasoning":
+            self.memory_module = MemoryModule(model_name, "cache/doom/memory.json", "cache/doom")
+            self.reasoning_module = ReasoningModule(model_name)
+
+    async def get_action(self, observation):
+        if self.agent_mode == "full":
+            perception_data = self.perception_module.process_observation(observation)  # Updated from analyze_frame to process_observation
+            self.memory_module.add_game_state(perception_data, self.last_action)
+            memory_summary = self.memory_module.get_memory_summary()
+            action_plan = await self.reasoning_module.plan_action(perception_data, memory_summary)
+            self.last_action = action_plan["move"]
+            return action_plan
+        elif self.agent_mode == "memory_reasoning":
+            memory_summary = self.memory_module.get_memory_summary()
+            action_plan = await self.reasoning_module.plan_action(None, memory_summary)
+            self.last_action = action_plan["move"]
+            return action_plan
+
 
 def main():
     parser = argparse.ArgumentParser()
@@ -37,11 +80,22 @@ def main():
 
     # Create environment
     env = DoomEnvWrapper(
+        game_name="doom",  # Added the required game_name argument
         game_config_path=args.game_config_path,
         observation_mode="vision",
         base_log_dir="cache/doom/test_run",
         render_mode_human=True
     )
+
+    # Fixing the action_mapping issue
+    if not isinstance(env.adapter.move_to_action_idx, dict) or not env.adapter.move_to_action_idx:
+        env.adapter.move_to_action_idx = {
+            "move_up": 0,
+            "move_down": 1,
+            "move_left": 2,
+            "move_right": 3,
+            "attack": 4  # Updated to match the available_buttons
+        }
 
     # Create Doom agent
     agent = BaseAgent(
@@ -54,13 +108,13 @@ def main():
         observation_mode="vision"
     )
 
-    # Fixing the action_mapping issue
-    if not isinstance(env.adapter.move_to_action_idx, dict) or not env.adapter.move_to_action_idx:
-        env.adapter.move_to_action_idx = {
-            "move_left": 0,
-            "move_right": 1,
-            "attack": 2
-        }
+    # Initialize Perception and Reasoning Modules
+    perception_module = PerceptionModule(model_name=args.model_name, cache_dir="cache/doom/test_run")
+    reasoning_module = ReasoningModule(model_name=args.model_name, cache_dir="cache/doom/test_run")
+
+    # Attach modules to the agent
+    agent.perception_module = perception_module
+    agent.reasoning_module = reasoning_module
 
     verbosity = args.verbose - args.quiet
 
@@ -72,7 +126,7 @@ def main():
 
             while True:
                 # Get action from agent
-                action = agent.select_action(observation)
+                action = agent.get_action(observation)  # Updated from select_action to get_action
 
                 # Take step in environment
                 observation, reward, terminated, truncated, info = env.step(action)
@@ -108,5 +162,28 @@ def main():
     finally:
         env.close()
 
+
+async def test_doom_agent():
+    env = DoomEnvWrapper(
+        game_name="doom",
+        game_config_path="configs/custom_05_doom/config.yaml",
+        observation_mode="vision",
+        base_log_dir="cache/doom/test_run",
+        render_mode_human=True
+    )
+    agent = DoomAgent(model_name="gpt-4o", agent_mode="full")
+
+    observation, _ = env.reset()  # Extract observation from the tuple
+    done = False
+    while not done:
+        action_plan = await agent.get_action(observation)
+        print(f"Action: {action_plan['move']}, Thought: {action_plan['thought']}")
+        observation, reward, done, info = env.step(action_plan["move"])
+
+    env.close()
+
+
 if __name__ == "__main__":
-    main()
+    import asyncio
+
+    asyncio.run(test_doom_agent())

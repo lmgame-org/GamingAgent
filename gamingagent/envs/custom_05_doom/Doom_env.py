@@ -13,6 +13,8 @@ import gymnasium as gym
 __all__ = ["DoomEnvWrapper"]
 
 class DoomEnvWrapper:
+    _DEFAULT_ENV_ID = "Doom-Snes"  # Default environment ID for Doom
+
     def __init__(
         self,
         game_name: str, # e.g., "super_mario_bros"
@@ -79,26 +81,23 @@ class DoomEnvWrapper:
         # Reset the adapter for the new episode
         self.adapter.reset_episode(episode_id)
 
-        # Reset the raw environment and extract the initial frame and info
-        self.current_frame, _ = self._game.reset(seed=seed)
-        self.current_info = self._extract_info()
-
         # Start a new episode in the Doom game
         self._game.new_episode()
 
+        # Get the initial frame and game-specific info
+        state = self._game.get_state()
+        self.current_frame = state.screen_buffer if state else None
+        self.current_info = self._extract_game_specific_info()
+
         # Handle observation modes and save the initial frame if needed
         img_path = None
-        if self.adapter.observation_mode in ("vision", "both"):
+        if self.adapter.observation_mode in ("vision", "both") and self.current_frame is not None:
             img_path = self.adapter.save_frame_and_get_path(self.current_frame)
 
         # Create the initial observation for the agent
         obs = self.adapter.create_agent_observation(
             img_path=img_path, text_representation=self._text_repr()
         )
-
-        # Update the current frame and game-specific info
-        self.current_frame = self._game.get_state().screen_buffer
-        self.current_info = self._extract_game_specific_info()
 
         return obs, self.current_info.copy()
 
@@ -171,6 +170,15 @@ class DoomEnvWrapper:
             "ammo": state.game_variables[1] if len(state.game_variables) > 1 else None,
             "kills": state.game_variables[2] if len(state.game_variables) > 2 else None,
         }
+
+    def _text_repr(self) -> str:
+        """
+        Generate a textual representation of the current game state.
+        """
+        if not self.current_info:
+            return "No game state available."
+
+        return f"Health: {self.current_info.get('health', 'N/A')}, Ammo: {self.current_info.get('ammo', 'N/A')}, Kills: {self.current_info.get('kills', 'N/A')}"
 
     def render(self) -> None:
         """
