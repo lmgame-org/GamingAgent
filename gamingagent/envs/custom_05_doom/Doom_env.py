@@ -4,7 +4,7 @@ import os, json
 from typing import Any, Dict, List, Tuple, Optional
 
 import numpy as np
-from vizdoom import DoomGame, Mode, ScreenResolution, gymnasium_wrapper
+from vizdoom import DoomGame, Mode, ScreenResolution, gymnasium_wrapper, Button
 from gamingagent.envs.gym_env_adapter import GymEnvAdapter
 from gamingagent.modules.core_module import Observation
 import gymnasium as gym
@@ -57,13 +57,22 @@ class DoomEnvWrapper:
         """
         Initialize the Doom environment using vizdoom.
         """
-            
         self._game = DoomGame()
         self._game.set_screen_resolution(ScreenResolution.RES_320X240)
         self._game.set_window_visible(self.render_mode_human)
         self._game.set_mode(Mode.PLAYER)
         self._game.set_living_reward(1)  # Matches living_reward in config
         self._game.set_doom_skill(5)  # Matches doom_skill in config
+        
+        # Set up available buttons
+        self._game.set_available_buttons([
+            Button.MOVE_UP,
+            Button.MOVE_DOWN,
+            Button.MOVE_LEFT,
+            Button.MOVE_RIGHT,
+            Button.ATTACK
+        ])
+        
         self._game.init()
         
         
@@ -83,13 +92,43 @@ class DoomEnvWrapper:
 
         # Get the initial frame and game-specific info
         state = self._game.get_state()
-        self.current_frame = state.screen_buffer if state else None
+        if state and state.screen_buffer is not None:
+            # Ensure screen buffer is properly formatted as (height, width, channels)
+            screen_buffer = state.screen_buffer
+            if not isinstance(screen_buffer, np.ndarray):
+                print(f"[DoomEnvWrapper] Warning: screen_buffer is not a numpy array (type: {type(screen_buffer)})")
+                self.current_frame = None
+            else:
+                # Ensure the buffer is in the correct shape (240, 320, 3)
+                if screen_buffer.shape != (240, 320, 3):
+                    try:
+                        # Try to reshape if possible
+                        if screen_buffer.size == 240 * 320 * 3:
+                            self.current_frame = screen_buffer.reshape(240, 320, 3)
+                        else:
+                            print(f"[DoomEnvWrapper] Warning: Cannot reshape screen buffer of shape {screen_buffer.shape} to (240, 320, 3)")
+                            self.current_frame = None
+                    except Exception as e:
+                        print(f"[DoomEnvWrapper] Error reshaping screen buffer: {e}")
+                        self.current_frame = None
+                else:
+                    self.current_frame = screen_buffer
+        else:
+            self.current_frame = None
         self.current_info = self._extract_game_specific_info()
 
         # Handle observation modes and save the initial frame if needed
         img_path = None
         if self.adapter.observation_mode in ("vision", "both") and self.current_frame is not None:
-            img_path = self.adapter.save_frame_and_get_path(self.current_frame)
+            try:
+                # Create directory if it doesn't exist
+                os.makedirs(os.path.dirname(self.adapter._create_agent_observation_path(episode_id, 0)), exist_ok=True)
+                # Ensure the frame is in the correct format for saving
+                if self.current_frame.dtype != np.uint8:
+                    self.current_frame = self.current_frame.astype(np.uint8)
+                img_path = self.adapter.save_frame_and_get_path(self.current_frame)
+            except Exception as e:
+                print(f"[DoomEnvWrapper] Error saving frame: {e}")
 
         # Create the initial observation for the agent
         obs = self.adapter.create_agent_observation(
@@ -115,7 +154,29 @@ class DoomEnvWrapper:
         if not done:
             # Update the current frame and game-specific info
             state = self._game.get_state()
-            self.current_frame = state.screen_buffer if state else None
+            if state and state.screen_buffer is not None:
+                # Ensure screen buffer is properly formatted as (height, width, channels)
+                screen_buffer = state.screen_buffer
+                if not isinstance(screen_buffer, np.ndarray):
+                    print(f"[DoomEnvWrapper] Warning: screen_buffer is not a numpy array (type: {type(screen_buffer)})")
+                    self.current_frame = None
+                else:
+                    # Ensure the buffer is in the correct shape (240, 320, 3)
+                    if screen_buffer.shape != (240, 320, 3):
+                        try:
+                            # Try to reshape if possible
+                            if screen_buffer.size == 240 * 320 * 3:
+                                self.current_frame = screen_buffer.reshape(240, 320, 3)
+                            else:
+                                print(f"[DoomEnvWrapper] Warning: Cannot reshape screen buffer of shape {screen_buffer.shape} to (240, 320, 3)")
+                                self.current_frame = None
+                        except Exception as e:
+                            print(f"[DoomEnvWrapper] Error reshaping screen buffer: {e}")
+                            self.current_frame = None
+                    else:
+                        self.current_frame = screen_buffer
+            else:
+                self.current_frame = None
             self.current_info = self._extract_game_specific_info()
         else:
             # Clear the frame and info if the episode is finished
@@ -131,7 +192,15 @@ class DoomEnvWrapper:
         # Handle observation modes and save the frame if needed
         img_path = None
         if self.adapter.observation_mode in ("vision", "both") and self.current_frame is not None:
-            img_path = self.adapter.save_frame_and_get_path(self.current_frame)
+            try:
+                # Create directory if it doesn't exist
+                os.makedirs(os.path.dirname(self.adapter._create_agent_observation_path(self.adapter.current_episode_id, self.adapter.current_step_num)), exist_ok=True)
+                # Ensure the frame is in the correct format for saving
+                if self.current_frame.dtype != np.uint8:
+                    self.current_frame = self.current_frame.astype(np.uint8)
+                img_path = self.adapter.save_frame_and_get_path(self.current_frame)
+            except Exception as e:
+                print(f"[DoomEnvWrapper] Error saving frame: {e}")
 
         # Create the observation for the agent
         observation = self.adapter.create_agent_observation(
@@ -143,15 +212,27 @@ class DoomEnvWrapper:
     # ───────────────────── info / other helpers ─────────────────────
     def _buttons_from_str(self, action_str: Optional[str]) -> List[int]:
         """
-        Map an action string (e.g., "MOVE_LEFT||MOVE_RIGHT||MOVE_UP||MOVE_DOWN||ATTACK") to a button vector for vizdoom.
+        Map an action string (e.g., "move_left") to a button vector for vizdoom.
         """
         buttons = [0] * self._game.get_available_buttons_size()
         if action_str:
-            for action in action_str.split("||"):
-                if action in self._game.get_available_buttons():
-                    buttons[self._game.get_available_buttons().index(action)] = 1
-                else:
-                    raise ValueError(f"Invalid action: {action} is not in available buttons: {self._game.get_available_buttons()}")
+            # Map string actions to Button enums
+            action_to_button = {
+                "move_up": Button.MOVE_UP,
+                "move_down": Button.MOVE_DOWN,
+                "move_left": Button.MOVE_LEFT,
+                "move_right": Button.MOVE_RIGHT,
+                "attack": Button.ATTACK
+            }
+            
+            # Get the Button enum for the action
+            button = action_to_button.get(action_str.lower())
+            if button is None:
+                raise ValueError(f"Invalid action: {action_str}. Valid actions are: {list(action_to_button.keys())}")
+            
+            # Set the corresponding button to 1
+            buttons[self._game.get_available_buttons().index(button)] = 1
+            
         return buttons
 
     def _extract_game_specific_info(self) -> Dict[str, Any]:
