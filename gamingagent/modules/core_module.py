@@ -206,8 +206,8 @@ class Observation:
         if use_memory_module:
             allowed_vars |= self.MEMORY_ATTR
 
-        print("allowed variables:")
-        print(allowed_vars)
+        # print("allowed variables:")
+        # print(allowed_vars)
 
         return prompt_template.format(**harness_content_map)
 

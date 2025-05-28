@@ -89,15 +89,11 @@ class ReasoningModule(CoreModule):
             response = self._call_vision_api(full_context, image_path)
         else:
             response = self._call_text_api(full_context)
-        
-        
-        raw_llm_output_string = None
-        if isinstance(response, tuple) and len(response) > 0 and isinstance(response[0], str):
-            raw_llm_output_string = response[0]
-        elif isinstance(response, str):
-            raw_llm_output_string = response
-        parsed_response = self._parse_response(raw_llm_output_string)
-        if parsed_response is None: # Ensure parsed_response is a dict
+
+        #returned API response should be a tuple
+        response_string = response[0]
+        parsed_response = self._parse_response(response_string)
+        if parsed_response is None:
             parsed_response = {}
         parsed_response["raw_response_str"] = processed_visual_description
 
@@ -109,7 +105,7 @@ class ReasoningModule(CoreModule):
             "processed_visual_description": processed_visual_description,
             "game_trajectory": game_trajectory.get() if hasattr(game_trajectory, 'get') else str(game_trajectory),
             "reflection": reflection,
-            "response": raw_llm_output_string,
+            "response": response_string,
             "thought": parsed_response.get("thought"),
             "action": parsed_response.get("action")
         })
@@ -130,11 +126,11 @@ class ReasoningModule(CoreModule):
         # Create user prompt with context
         user_prompt = self.prompt.replace("{context}", context) if "{context}" in self.prompt else context
 
-        print(f"""
------------------------- VISION API — FINAL USER PROMPT ------------------------
-{user_prompt}
------------------------- END FINAL USER PROMPT ------------------------
-""")
+#         print(f"""
+# ------------------------ VISION API — FINAL USER PROMPT ------------------------
+# {user_prompt}
+# ------------------------ END FINAL USER PROMPT ------------------------
+# """)
         
         # Call the vision-text API
         response = self.api_manager.vision_text_completion(

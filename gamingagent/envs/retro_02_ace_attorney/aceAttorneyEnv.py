@@ -19,7 +19,7 @@ from gamingagent.envs.gym_env_adapter import GymEnvAdapter
 # --- Constants ---
 ASSETS_DIR = os.path.join(os.path.dirname(__file__), "assets")
 DEFAULT_GAME_SCRIPT_PATH = os.path.join(ASSETS_DIR, "mapping.json")
-DEFAULT_SKIP_CONVERSATIONS_PATH = os.path.join(ASSETS_DIR, "ace_attorney_1_skip_conversations.json")
+DEFAULT_SKIP_CONVERSATIONS_PATH = os.path.join(ASSETS_DIR, "skip_conversations.json")
 LIVES_RAM_VARIABLE_NAME = "lives" # Example RAM variable, confirm actual name from .json
 
 # Ensure PIL is imported for image operations if any are done directly here
@@ -218,12 +218,11 @@ class AceAttorneyEnv(RetroEnv):
         if not self.current_retro_state_name or not self.game_script_data:
             # print("[AceAttorneyEnv] Cannot initialize level data: retro_state_name or game_script_data missing.")
             return
-
+        
         level_data = self.game_script_data.get(self.current_retro_state_name)
         if not level_data:
-            # print(f"[AceAttorneyEnv] WARNING: No data in mapping.json for level: {self.current_retro_state_name}")
+            print(f"[AceAttorneyEnv] WARNING: No data in mapping.json for level: {self.current_retro_state_name}")
             return
-
         self.current_level_background = level_data.get("background_transcript", [])
         self.current_level_initial_evidence = level_data.get("evidences", [])
         self.current_level_name_map = level_data.get("name_mappings", {})
@@ -449,7 +448,7 @@ class AceAttorneyEnv(RetroEnv):
         """
         if not self.dialogue_history_for_agent: # Check if history is empty
             return None
-
+        # print(f"[AceAttorneyEnv _check_and_trigger_skip_sequence] Dialogue ket: {self.dialogue_history_for_agent[-1]}")
         trigger_key = self.dialogue_history_for_agent[-1] # Use the last line from history
 
         # Ensure current_level_skip_map is populated
@@ -471,7 +470,7 @@ class AceAttorneyEnv(RetroEnv):
                 print("[AceAttorneyEnv _check_and_trigger_skip_sequence] CRITICAL: Cannot determine 'A' button action for skipping.")
                 return None
 
-
+        # print(f"[AceAttorneyEnv _check_and_trigger_skip_sequence] Current level skip map: {self.current_level_skip_map}")
         if self.current_level_skip_map and trigger_key in self.current_level_skip_map:
             lines_to_skip = self.current_level_skip_map[trigger_key]
             num_skips = len(lines_to_skip)

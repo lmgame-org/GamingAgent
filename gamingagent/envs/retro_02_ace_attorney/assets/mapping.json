@@ -173,7 +173,8 @@
         },
         "dialog": {
             "Sahwit: I was going door-to-door, selling subscriptions when I saw a man fleeing an apartment.": "witness 1: I was going door-to-door selling magazine subscriptions when I spotted a man running out of an apartment.",
-            "Sahwit: I thought he must be in a hurry because he left the door half-open behind him.": "witness 1: I assumed he must have been in a rush because he left the door partially open.",
+            "Sahwit: I thought he must be in a hurry because he left the": "witness 1: I assumed he must have been in a rush because he left the",
+            "Sahwit: door half-open behind him.": "witness 1: door partially open.",
             "Sahwit: Thinking it strange, I looked inside the apartment.": "witness 1: Finding it odd, I decided to peek inside the apartment.",
             "Sahwit: Then I saw her lying there... A woman... not moving... dead!": "witness 1: That's when I saw her... a woman... lying still... dead!",
             "Sahwit: I quailed in fright and found myself unable to go inside.": "witness 1: I froze in terror and couldn't bring myself to step inside.",
