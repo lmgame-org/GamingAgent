@@ -1,107 +1,38 @@
 import argparse
 import os
+import json
 from datetime import datetime
 from gamingagent.envs.custom_05_doom.Doom_env import DoomEnvWrapper
 from tests.test_agents.modules.doom_base_module import DoomBaseModule
 from gamingagent.modules.perception_module import PerceptionModule
 from gamingagent.modules.memory_module import MemoryModule
 from gamingagent.modules.reasoning_module import ReasoningModule
+from gamingagent.modules.core_module import GameTrajectory
 import asyncio
-import json
 
-class DoomAgent:
-    def __init__(self, model_name, cache_dir, use_perception=False, use_memory=False, use_reasoning=False, config_path=None):
-        self.base_module = DoomBaseModule()
-        self.perception_module = PerceptionModule(model_name, cache_dir) if use_perception else None
-        self.memory_module = MemoryModule(model_name, os.path.join(cache_dir, "memory.json"), cache_dir) if use_memory else None
-        
-        # Load config if provided
-        config = {}
-        if config_path and os.path.exists(config_path):
-            with open(config_path, 'r') as f:
-                config = json.load(f)
-        
-        # Initialize reasoning module with config
-        if use_reasoning:
-            reasoning_config = config.get("reasoning_module", {})
-            self.reasoning_module = ReasoningModule(
-                model_name=model_name,
-                cache_dir=cache_dir,
-                system_prompt=reasoning_config.get("system_prompt", ""),
-                prompt=reasoning_config.get("prompt", "")
-            )
-        else:
-            self.reasoning_module = None
-            
-        self.last_action = None
+def load_model_config():
+    """Load model configuration from file."""
+    config_path = os.path.join("configs", "model_config.json")
+    if os.path.exists(config_path):
+        with open(config_path, 'r') as f:
+            return json.load(f)
+    return {}
 
-    async def get_action(self, observation):
-        perception_data = self.perception_module.process_observation(observation) if self.perception_module else None
-
-        if self.memory_module and perception_data:
-            # Convert perception data to game state dictionary
-            game_state = {
-                "img_path": observation.img_path if hasattr(observation, "img_path") else None,
-                "textual_representation": observation.textual_representation if hasattr(observation, "textual_representation") else "",
-                "perception_data": perception_data
-            }
-            
-            # Process observation through memory module
-            observation = self.memory_module.process_observation(observation, game_state)
-            
-            # Update memory with action and thought
-            if self.last_action:
-                observation = self.memory_module.update_action_memory(
-                    observation, 
-                    self.last_action, 
-                    "Previous action"
-                )
-            memory_summary = self.memory_module.get_memory_summary(observation)
-        else:
-            memory_summary = None
-
-        if self.reasoning_module:
-            # Create a combined observation with all available data
-            combined_observation = observation
-            if perception_data:
-                combined_observation.processed_visual_description = perception_data
-            if memory_summary:
-                # Update reflection from memory summary
-                combined_observation.reflection = memory_summary.get("reflection", "")
-            
-            # Call plan_action without await since it's not async
-            action_plan = self.reasoning_module.plan_action(combined_observation)
-            
-            # Log only the necessary information
-            if hasattr(self.reasoning_module, 'log'):
-                self.reasoning_module.log({
-                    "image_path": getattr(combined_observation, "img_path", None),
-                    "textual_representation": getattr(combined_observation, "textual_representation", ""),
-                    "processed_visual_description": getattr(combined_observation, "processed_visual_description", ""),
-                    "game_trajectory": getattr(combined_observation.game_trajectory, "get", lambda: "")() if hasattr(combined_observation, "game_trajectory") else "",
-                    "reflection": getattr(combined_observation, "reflection", ""),
-                    "thought": action_plan.get("thought", ""),
-                    "action": action_plan.get("action", "")
-                })
-            
-            # Get action and thought, with fallbacks
-            action = action_plan.get("action")
-            thought = action_plan.get("thought", "No thought provided")
-            
-            # If no action was provided, use a default action
-            if action is None:
-                action = "move_up"  # Default action
-                thought = "No action provided, using default action"
-            
-            # Strip square brackets from action if present
-            if isinstance(action, str) and action.startswith("[") and action.endswith("]"):
-                action = action[1:-1]
-            
-            self.last_action = action
-            return {"action": action, "thought": thought}
-
-        action = self.base_module.process_observation(observation)
-        return {"action": action, "thought": "Base only"}
+def get_model_config(model_name):
+    """Get the appropriate model configuration based on the model name."""
+    config = load_model_config()
+    if not config or "models" not in config:
+        raise ValueError("Model configuration not found")
+    
+    if model_name not in config["models"]:
+        raise ValueError(f"Unsupported model: {model_name}")
+    
+    model_info = config["models"][model_name]
+    api_key = os.getenv(model_info["env_var"])
+    if not api_key:
+        raise ValueError(f"Environment variable {model_info['env_var']} not set")
+    
+    return model_info["name"]
 
 def parse_args():
     parser = argparse.ArgumentParser()
@@ -109,13 +40,166 @@ def parse_args():
     parser.add_argument("--use_perception", action="store_true", help="Enable perception module")
     parser.add_argument("--use_memory", action="store_true", help="Enable memory module")
     parser.add_argument("--use_reasoning", action="store_true", help="Enable reasoning module")
+    
+    # Load available models from config
+    config = load_model_config()
+    available_models = list(config.get("models", {}).keys()) if config else ["gpt-4"]
+    
+    parser.add_argument("--model", type=str, default=config.get("default_model", "gpt-4"), 
+                      choices=available_models,
+                      help="Model to use for the agent")
     return parser.parse_args()
+
+class DoomAgent:
+    def __init__(self, model_name, cache_dir, use_perception=False, use_memory=False, use_reasoning=False, config_path=None):
+        self.base_module = DoomBaseModule()
+        
+        # Load config if provided
+        config = {}
+        if config_path and os.path.exists(config_path):
+            with open(config_path, 'r') as f:
+                config = json.load(f)
+        
+        # Create module-specific cache directories
+        perception_cache_dir = os.path.join(cache_dir, "perception") if use_perception else None
+        memory_cache_dir = os.path.join(cache_dir, "memory") if use_memory else None
+        reasoning_cache_dir = os.path.join(cache_dir, "reasoning") if use_reasoning else None
+        
+        # Create directories if they don't exist
+        for dir_path in [perception_cache_dir, memory_cache_dir, reasoning_cache_dir]:
+            if dir_path:
+                os.makedirs(dir_path, exist_ok=True)
+        
+        # Initialize perception module with config
+        if use_perception:
+            perception_config = config.get("perception_module", {})
+            self.perception_module = PerceptionModule(
+                model_name=model_name,
+                cache_dir=perception_cache_dir,
+                system_prompt=perception_config.get("system_prompt", ""),
+                prompt=perception_config.get("prompt", "")
+            )
+            print(f"Initialized perception module with cache dir: {perception_cache_dir}")
+        else:
+            self.perception_module = None
+        
+        # Initialize memory module with config
+        if use_memory:
+            memory_config = config.get("memory_module", {})
+            self.memory_module = MemoryModule(
+                model_name=model_name,
+                cache_dir=memory_cache_dir,
+                system_prompt=memory_config.get("system_prompt", ""),
+                prompt=memory_config.get("prompt", "")
+            )
+            print(f"Initialized memory module with cache dir: {memory_cache_dir}")
+        else:
+            self.memory_module = None
+        
+        # Initialize reasoning module with config
+        if use_reasoning:
+            reasoning_config = config.get("reasoning_module", {})
+            self.reasoning_module = ReasoningModule(
+                model_name=model_name,
+                cache_dir=reasoning_cache_dir,
+                system_prompt=reasoning_config.get("system_prompt", ""),
+                prompt=reasoning_config.get("prompt", "")
+            )
+            print(f"Initialized reasoning module with cache dir: {reasoning_cache_dir}")
+        else:
+            self.reasoning_module = None
+            
+        self.last_action = None
+        self.last_thought = None
+
+    async def get_action(self, observation):
+        # Process observation through perception module if available
+        perception_data = self.perception_module.process_observation(observation) if self.perception_module else None
+        
+        # Create game state dictionary with all available information
+        game_state = {
+            "perception_data": perception_data,
+            "last_action": self.last_action,
+            "last_thought": self.last_thought,
+            "health": getattr(observation, "health", None),
+            "ammo": getattr(observation, "ammo", None),
+            "kills": getattr(observation, "kills", None),
+            "textual_representation": getattr(observation, "textual_representation", ""),
+            "img_path": getattr(observation, "img_path", None)
+        }
+        
+        # Ensure observation has game_trajectory
+        if not hasattr(observation, "game_trajectory"):
+            observation.game_trajectory = GameTrajectory(max_length=10)
+        
+        # Process observation through memory module if available
+        if self.memory_module:
+            # Pass game_state as a dictionary to memory module
+            observation = self.memory_module.process_observation(observation, game_state)
+            
+            # Update memory with last action and thought
+            if self.last_action or self.last_thought:
+                observation = self.memory_module.update_action_memory(
+                    observation,
+                    self.last_action,
+                    self.last_thought
+                )
+        
+        # Get action from reasoning module if available, otherwise use base module
+        if self.reasoning_module:
+            # Get memory summary if available
+            memory_summary = None
+            if self.memory_module:
+                memory_summary = self.memory_module.get_memory_summary(observation)
+                if memory_summary:
+                    # Create a new GameTrajectory object with the memory summary
+                    trajectory = GameTrajectory(max_length=10)
+                    if memory_summary.get("game_trajectory"):
+                        trajectory.add(memory_summary["game_trajectory"])
+                    observation.game_trajectory = trajectory
+                    observation.reflection = memory_summary.get("reflection", "")
+            
+            action_plan = self.reasoning_module.plan_action(observation)
+        else:
+            action_plan = self.base_module.get_action(observation)
+            
+        # Update last action and thought
+        if isinstance(action_plan, dict):
+            self.last_action = action_plan.get("action")
+            self.last_thought = action_plan.get("thought")
+        else:
+            self.last_action = action_plan
+            self.last_thought = None
+            
+        # Ensure we return a dictionary with action and thought
+        if not isinstance(action_plan, dict):
+            action_plan = {"action": action_plan, "thought": "Base module action"}
+            
+        # Ensure action is a single string, not a list
+        if isinstance(action_plan["action"], list):
+            action_plan["action"] = action_plan["action"][0]
+        elif isinstance(action_plan["action"], str):
+            # Remove any brackets and quotes from the action string
+            action = action_plan["action"].strip()
+            if action.startswith("[") and action.endswith("]"):
+                action = action[1:-1]
+            if action.startswith("'") and action.endswith("'"):
+                action = action[1:-1]
+            if action.startswith('"') and action.endswith('"'):
+                action = action[1:-1]
+            action_plan["action"] = action
+            
+        return action_plan
 
 async def run():
     args = parse_args()
     
+    # Get model configuration
+    model_name = get_model_config(args.model)
+    print(f"Using model: {model_name}")
+    
     # Set up cache directory
-    cache_dir = os.path.join("doom", "cache", datetime.now().strftime("%Y%m%d_%H%M%S"))
+    cache_dir = os.path.join("doom", "cache", f"{args.model}_{datetime.now().strftime('%Y%m%d_%H%M%S')}")
     os.makedirs(cache_dir, exist_ok=True)
     
     # Initialize the environment
@@ -128,12 +212,12 @@ async def run():
     
     # Initialize agent with all modules enabled
     agent = DoomAgent(
-        model_name="gpt-4o",
+        model_name=model_name,
         cache_dir=cache_dir,
-        use_perception=True,  # Enable perception module
-        use_memory=True,      # Enable memory module
-        use_reasoning=True,   # Enable reasoning module
-        config_path="configs/custom_05_doom/module_prompts.json"  # Add config path
+        use_perception=args.use_perception or args.all,
+        use_memory=args.use_memory or args.all,
+        use_reasoning=args.use_reasoning or args.all,
+        config_path="configs/custom_05_doom/module_prompts.json"
     )
     
     # Reset the environment
