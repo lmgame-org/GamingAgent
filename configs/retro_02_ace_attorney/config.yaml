@@ -19,7 +19,7 @@ agent:
     perception_module: 
 
     memory_module:
-      max_memory: 15
+      max_memory: 5
     
     reasoning_module:
       use_perception: True

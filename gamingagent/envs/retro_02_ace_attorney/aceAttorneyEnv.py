@@ -481,6 +481,13 @@ class AceAttorneyEnv(RetroEnv):
 
             print(f"[AceAttorneyEnv DEBUG _check_and_trigger_skip_sequence] Matched skip trigger: '{trigger_key}'. Skipping {num_skips} lines.")
 
+            # Add the dialogue lines that are being skipped to the agent's history
+            for skipped_dialogue_line in lines_to_skip:
+                # The _build_agent_observation_components method, when called later for the
+                # final observation of this skip block, will process this history.
+                # It includes logic for speaker name mapping and duplicate prevention of the last line.
+                self.dialogue_history_for_agent.append(skipped_dialogue_line)
+
             accumulated_skip_reward: float = 0.0
             skip_terminated: bool = False
             skip_truncated: bool = False
