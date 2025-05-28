@@ -478,13 +478,10 @@ class AceAttorneyEnv(RetroEnv):
             if num_skips == 0:
                 return None # No lines to skip for this trigger
 
-            print(f"[AceAttorneyEnv DEBUG _check_and_trigger_skip_sequence] Matched skip trigger: '{trigger_key}'. Skipping {num_skips} lines.")
+            # print(f"[AceAttorneyEnv DEBUG _check_and_trigger_skip_sequence] Matched skip trigger: '{trigger_key}'. Skipping {num_skips} lines.")
 
             # Add the dialogue lines that are being skipped to the agent's history
             for skipped_dialogue_line in lines_to_skip:
-                # The _build_agent_observation_components method, when called later for the
-                # final observation of this skip block, will process this history.
-                # It includes logic for speaker name mapping and duplicate prevention of the last line.
                 self.dialogue_history_for_agent.append(skipped_dialogue_line)
 
             accumulated_skip_reward: float = 0.0
@@ -539,7 +536,8 @@ class AceAttorneyEnv(RetroEnv):
 
             img_path_skip, txt_rep_skip = self._build_agent_observation_components(final_skip_info, skip_screenshot=False)
             final_skip_obs = self.adapter.create_agent_observation(img_path=img_path_skip, text_representation=txt_rep_skip)
-            
+            print(self.dialogue_history_for_agent)
+
             # Log this entire skip block as a single meta-action
             self.adapter.log_step_data(
                 agent_action_str=f"<AUTO_SKIP_BLOCK_{num_skips}_FRAMES>",
@@ -564,7 +562,9 @@ class AceAttorneyEnv(RetroEnv):
             return False
 
         current_dialogue_line = self.dialogue_history_for_agent[-1] # Use the last line from history
-        
+        print(f"[AceAttorneyEnv DEBUG _check_for_end_statement_match] Current dialogue'{self.dialogue_history_for_agent}'")
+        print(f"[AceAttorneyEnv DEBUG _check_for_end_statement_match] Current dialogue line: '{current_dialogue_line}'")
+        print(f"[AceAttorneyEnv DEBUG _check_for_end_statement_match] Current level end statements: {self.current_level_end_statements}")
         for end_statement in self.current_level_end_statements:
             if current_dialogue_line == end_statement: # Exact match
                 print(f"[AceAttorneyEnv DEBUG _check_for_end_statement_match] Matched end statement: '{end_statement}'")
@@ -575,6 +575,8 @@ class AceAttorneyEnv(RetroEnv):
         # Store the raw LLM output from this step, to be used in the *next* step's observation construction
         self.raw_llm_output_from_previous_step = raw_llm_output_for_next_obs
         # --- Initial End Statement Check (based on PREVIOUS turn's dialogue) ---
+
+        print(f"[AceAttorneyEnv STEP] Checking for end statement match {self._check_for_end_statement_match()}")
         if self._check_for_end_statement_match():
             # print(f"[AceAttorneyEnv STEP] Terminating level '{self.current_retro_state_name}' due to matched end statement from previous observation.")
             
@@ -609,9 +611,9 @@ class AceAttorneyEnv(RetroEnv):
                     self.adapter.log_step_data(
                         agent_action_str="<LEVEL_COMPLETE_PROCEED_TO_NEXT>",
                         thought_process=f"Level {self.initial_retro_state_name} ended. Starting {self.current_retro_state_name}.", # initial_retro_state_name here is a bit off, but conveys transition
-                        reward=0.0, # No specific reward for level transition itself in this step
+                        reward=0.0, 
                         info=current_info.copy(),
-                        terminated=True, # The step in the *previous* level is terminated
+                        terminated=False,
                         truncated=False,
                         time_taken_s=0.0,
                         perf_score=perf_for_new_level_start,
@@ -619,7 +621,7 @@ class AceAttorneyEnv(RetroEnv):
                     )
                     # The runner will likely see terminated=True and might reset or just continue if designed for sequential levels.
                     # We return the first observation of the new level.
-                    return obs_for_new_level_start, 0.0, True, False, current_info, perf_for_new_level_start
+                    return obs_for_new_level_start, 0.0, False, False, current_info, perf_for_new_level_start
 
                 except Exception as e:
                     print(f"[AceAttorneyEnv STEP] CRITICAL ERROR loading next level '{next_level_state_name}': {e}. Treating as game over.")
