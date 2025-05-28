@@ -7,7 +7,7 @@
     },
     "rendering_options": {
         "screen_resolution": "RES_320X240",
-        "screen_format": "CRCGCB",
+        "screen_format": "RGB24",
         "render_hud": true,
         "render_crosshair": false,
         "render_weapon": true,

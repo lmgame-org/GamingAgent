@@ -4,7 +4,7 @@ import os, json
 from typing import Any, Dict, List, Tuple, Optional
 
 import numpy as np
-from vizdoom import DoomGame, Mode, ScreenResolution, gymnasium_wrapper, Button
+from vizdoom import DoomGame, Mode, ScreenResolution, ScreenFormat, gymnasium_wrapper, Button
 from gamingagent.envs.gym_env_adapter import GymEnvAdapter
 from gamingagent.modules.core_module import Observation
 import gymnasium as gym
@@ -39,6 +39,10 @@ class DoomEnvWrapper:
         self.env_init_kwargs: Dict[str, Any] = _cfg.get("env_init_kwargs", {})
         self.base_log_dir = base_log_dir
         self.render_mode_human = _cfg.get("render_mode_human", False)
+        
+        # Load rendering options
+        self.rendering_options = _cfg.get("rendering_options", {})
+        self.episode_settings = _cfg.get("episode_settings", {})
 
         # Adapter for logging and observation handling
         self.adapter = GymEnvAdapter(
@@ -58,11 +62,27 @@ class DoomEnvWrapper:
         Initialize the Doom environment using vizdoom.
         """
         self._game = DoomGame()
+        
+        # Set screen resolution and format from config
         self._game.set_screen_resolution(ScreenResolution.RES_320X240)
-        self._game.set_window_visible(self.render_mode_human)
+        self._game.set_screen_format(ScreenFormat.RGB24)
+        
+        # Set rendering options from config
+        self._game.set_window_visible(self.rendering_options.get("window_visible", False))
+        self._game.set_render_hud(self.rendering_options.get("render_hud", True))
+        self._game.set_render_crosshair(self.rendering_options.get("render_crosshair", False))
+        self._game.set_render_weapon(self.rendering_options.get("render_weapon", True))
+        self._game.set_render_decals(self.rendering_options.get("render_decals", False))
+        self._game.set_render_particles(self.rendering_options.get("render_particles", False))
+        
+        # Set game mode and settings
         self._game.set_mode(Mode.PLAYER)
-        self._game.set_living_reward(1)  # Matches living_reward in config
-        self._game.set_doom_skill(5)  # Matches doom_skill in config
+        self._game.set_living_reward(self.rendering_options.get("living_reward", 1))
+        self._game.set_doom_skill(self.episode_settings.get("doom_skill", 5))
+        
+        # Set episode settings
+        self._game.set_episode_start_time(self.episode_settings.get("episode_start_time", 14))
+        self._game.set_episode_timeout(self.episode_settings.get("episode_timeout", 300))
         
         # Set up available buttons
         self._game.set_available_buttons([
@@ -74,9 +94,7 @@ class DoomEnvWrapper:
         ])
         
         self._game.init()
-        
-        
-    # ───────────────────── Gym API ──────────────────────
+
     def reset(self, *, seed: int | None = None, episode_id: int = 1, **kwargs) -> Observation:
         """
         Reset the environment and return the initial observation.
@@ -93,26 +111,11 @@ class DoomEnvWrapper:
         # Get the initial frame and game-specific info
         state = self._game.get_state()
         if state and state.screen_buffer is not None:
-            # Ensure screen buffer is properly formatted as (height, width, channels)
-            screen_buffer = state.screen_buffer
-            if not isinstance(screen_buffer, np.ndarray):
-                print(f"[DoomEnvWrapper] Warning: screen_buffer is not a numpy array (type: {type(screen_buffer)})")
+            # The screen buffer should be in RGB24 format (240, 320, 3)
+            self.current_frame = state.screen_buffer
+            if self.current_frame.shape != (240, 320, 3):
+                print(f"[DoomEnvWrapper] Warning: Unexpected screen buffer shape: {self.current_frame.shape}")
                 self.current_frame = None
-            else:
-                # Ensure the buffer is in the correct shape (240, 320, 3)
-                if screen_buffer.shape != (240, 320, 3):
-                    try:
-                        # Try to reshape if possible
-                        if screen_buffer.size == 240 * 320 * 3:
-                            self.current_frame = screen_buffer.reshape(240, 320, 3)
-                        else:
-                            print(f"[DoomEnvWrapper] Warning: Cannot reshape screen buffer of shape {screen_buffer.shape} to (240, 320, 3)")
-                            self.current_frame = None
-                    except Exception as e:
-                        print(f"[DoomEnvWrapper] Error reshaping screen buffer: {e}")
-                        self.current_frame = None
-                else:
-                    self.current_frame = screen_buffer
         else:
             self.current_frame = None
         self.current_info = self._extract_game_specific_info()
@@ -155,26 +158,11 @@ class DoomEnvWrapper:
             # Update the current frame and game-specific info
             state = self._game.get_state()
             if state and state.screen_buffer is not None:
-                # Ensure screen buffer is properly formatted as (height, width, channels)
-                screen_buffer = state.screen_buffer
-                if not isinstance(screen_buffer, np.ndarray):
-                    print(f"[DoomEnvWrapper] Warning: screen_buffer is not a numpy array (type: {type(screen_buffer)})")
+                # The screen buffer should be in RGB24 format (240, 320, 3)
+                self.current_frame = state.screen_buffer
+                if self.current_frame.shape != (240, 320, 3):
+                    print(f"[DoomEnvWrapper] Warning: Unexpected screen buffer shape: {self.current_frame.shape}")
                     self.current_frame = None
-                else:
-                    # Ensure the buffer is in the correct shape (240, 320, 3)
-                    if screen_buffer.shape != (240, 320, 3):
-                        try:
-                            # Try to reshape if possible
-                            if screen_buffer.size == 240 * 320 * 3:
-                                self.current_frame = screen_buffer.reshape(240, 320, 3)
-                            else:
-                                print(f"[DoomEnvWrapper] Warning: Cannot reshape screen buffer of shape {screen_buffer.shape} to (240, 320, 3)")
-                                self.current_frame = None
-                        except Exception as e:
-                            print(f"[DoomEnvWrapper] Error reshaping screen buffer: {e}")
-                            self.current_frame = None
-                    else:
-                        self.current_frame = screen_buffer
             else:
                 self.current_frame = None
             self.current_info = self._extract_game_specific_info()
