@@ -1,4 +1,7 @@
 import argparse
+from datetime import datetime
+import os
+import json
 from gamingagent.envs.custom_05_doom.Doom_env import DoomEnvWrapper
 from gamingagent.agents.base_agent import BaseAgent
 # Import our agent modules
@@ -10,6 +13,53 @@ from tools.serving import APIManager
 from gamingagent.modules.perception_module import PerceptionModule
 from gamingagent.modules.memory_module import MemoryModule
 from gamingagent.modules.reasoning_module import ReasoningModule
+
+# Create cache directory for this run
+CACHE_DIR = os.path.join("doom", "cache", datetime.now().strftime("%Y%m%d_%H%M%S"))
+GAME_LOG_FILE = os.path.join(CACHE_DIR, "game_log.jsonl")
+DATA_LOG_FILE = os.path.join(CACHE_DIR, "data_log.jsonl")
+MEMORY_FILE = os.path.join(CACHE_DIR, "memory.json")
+os.makedirs(CACHE_DIR, exist_ok=True)
+os.makedirs(os.path.join(CACHE_DIR, "observations"), exist_ok=True)
+
+
+# Logging helper functions
+def convert_numpy_types(obj):
+    if isinstance(obj, (int, float, str, bool)):
+        return obj
+    elif isinstance(obj, dict):
+        return {k: convert_numpy_types(v) for k, v in obj.items()}
+    elif isinstance(obj, list):
+        return [convert_numpy_types(i) for i in obj]
+    elif hasattr(obj, 'tolist'):
+        return obj.tolist()
+    return str(obj)
+
+def log_game_step(step, action, reward, info, observation):
+    log_entry = {
+        "step": step,
+        "timestamp": datetime.now().isoformat(),
+        "action": action,
+        "reward": reward,
+        "info": convert_numpy_types(info),
+        "observation": convert_numpy_types(observation)
+    }
+    with open(GAME_LOG_FILE, 'a') as f:
+        json.dump(log_entry, f)
+        f.write('\n')
+
+def log_raw_data(step, action, reward, info, observation):
+    data_entry = {
+        "step": step,
+        "timestamp": datetime.now().isoformat(),
+        "action": action,
+        "reward": reward,
+        "info": convert_numpy_types(info),
+        "observation": convert_numpy_types(observation)
+    }
+    with open(DATA_LOG_FILE, 'a') as f:
+        json.dump(data_entry, f)
+        f.write('\n')
 
 
 class DoomAgent:
@@ -48,9 +98,9 @@ class DoomAgent:
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument(
-        "--game_config_path",
-        default="configs/custom_05_doom/config.yaml",
-        help="Path to the game configuration file",
+        "--game",
+        default="doom",
+        help="the name or path for the game to run",
     )
     parser.add_argument(
         "--api_provider",
@@ -78,12 +128,13 @@ def main():
     )
     args = parser.parse_args()
 
+
     # Create environment
     env = DoomEnvWrapper(
         game_name="doom",  # Added the required game_name argument
         game_config_path=args.game_config_path,
         observation_mode="vision",
-        base_log_dir="cache/doom/test_run",
+        base_log_dir=CACHE_DIR,
         render_mode_human=True
     )
 
@@ -104,13 +155,13 @@ def main():
         config_path=args.game_config_path,
         harness=True,
         max_memory=10,
-        cache_dir="cache/doom/test_run",
+        cache_dir=CACHE_DIR,
         observation_mode="vision"
     )
 
     # Initialize Perception and Reasoning Modules
-    perception_module = PerceptionModule(model_name=args.model_name, cache_dir="cache/doom/test_run")
-    reasoning_module = ReasoningModule(model_name=args.model_name, cache_dir="cache/doom/test_run")
+    perception_module = PerceptionModule(model_name=args.model_name, cache_dir=CACHE_DIR)
+    reasoning_module = ReasoningModule(model_name=args.model_name, cache_dir=CACHE_DIR)
 
     # Attach modules to the agent
     agent.perception_module = perception_module
@@ -130,6 +181,8 @@ def main():
 
                 # Take step in environment
                 observation, reward, terminated, truncated, info = env.step(action)
+                log_game_step(t, action, reward, info, observation)
+                log_raw_data(t, action, reward, info, observation)
                 t += 1
                 total_reward += reward
 
@@ -166,19 +219,22 @@ def main():
 async def test_doom_agent():
     env = DoomEnvWrapper(
         game_name="doom",
-        game_config_path="configs/custom_05_doom/config.yaml",
         observation_mode="vision",
-        base_log_dir="cache/doom/test_run",
+        base_log_dir=CACHE_DIR,
         render_mode_human=True
     )
     agent = DoomAgent(model_name="gpt-4o", agent_mode="full")
 
     observation, _ = env.reset()  # Extract observation from the tuple
     done = False
+    t = 0
     while not done:
         action_plan = await agent.get_action(observation)
         print(f"Action: {action_plan['move']}, Thought: {action_plan['thought']}")
         observation, reward, done, info = env.step(action_plan["move"])
+        log_game_step(t, action_plan["move"], reward, info, observation)
+        log_raw_data(t, action_plan["move"], reward, info, observation)
+        t += 1
 
     env.close()
 

@@ -18,7 +18,6 @@ class DoomEnvWrapper:
     def __init__(
         self,
         game_name: str, # e.g., "super_mario_bros"
-        game_config_path: str = "configs/custom_05_doom/config.yaml",
         config_dir_path: str = "gamingagent/envs/custom_05_doom",
         observation_mode: str = "vision",
         base_log_dir: str = "cache/doom/default_run",
@@ -38,7 +37,6 @@ class DoomEnvWrapper:
         self.game_name = game_name
         self.env_id: str = _cfg.get("env_id", self._DEFAULT_ENV_ID)
         self.env_init_kwargs: Dict[str, Any] = _cfg.get("env_init_kwargs", {})
-        self.game_config_path = game_config_path
         self.base_log_dir = base_log_dir
         self.render_mode_human = _cfg.get("render_mode_human", False)
 
@@ -61,7 +59,6 @@ class DoomEnvWrapper:
         """
             
         self._game = DoomGame()
-        self._game.load_config(self.game_config_path)
         self._game.set_screen_resolution(ScreenResolution.RES_320X240)
         self._game.set_window_visible(self.render_mode_human)
         self._game.set_mode(Mode.PLAYER)
