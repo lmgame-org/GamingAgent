@@ -460,10 +460,10 @@ class APIManager:
             empty_costs = {
                 "prompt_tokens": 0,
                 "completion_tokens": 0,
-                "prompt_cost": Decimal("0"),
-                "completion_cost": Decimal("0"),
+                "prompt_cost": "0",
+                "completion_cost": "0",
                 "image_tokens": 0,
-                "image_cost": Decimal("0")
+                "image_cost": "0"
             }
             
             # Skip cost calculation and API call logging entirely

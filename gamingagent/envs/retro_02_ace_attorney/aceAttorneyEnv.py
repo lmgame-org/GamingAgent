@@ -138,6 +138,8 @@ class AceAttorneyEnv(RetroEnv):
         self.current_core_info: Dict[str, Any] = {} # Info from core retro env step/reset
 
         self.last_llm_dialogue_info: Optional[Dict] = None # ADDED: To store last LLM extracted dialogue
+        self.raw_llm_output_from_previous_step: Optional[str] = None # ADDED: To store raw LLM output from previous step
+        self.dialogue_history_for_agent: List[str] = [] # ADDED: To accumulate dialogue for agent observation
 
         # Initialize level-specific data (dialogue log, skip map, end statements)
         self._initialize_level_specific_data() # Depends on self.game_script_data and self.current_retro_state_name
@@ -311,8 +313,9 @@ class AceAttorneyEnv(RetroEnv):
         Builds the image **and text** components for the agent's observation.
 
         * Image is saved unless `skip_screenshot` is True or obs‑mode lacks vision.
-        * Text component is now constructed from the same helpers the LLM prompt
-          uses: a comprehensive memory block plus the latest dialogue line.
+        * Text component is now constructed from:
+            - Comprehensive memory (background, evidence)
+            - The latest LLM-parsed dialogue line.
         """
         # Vision
         img_path_component: Optional[str] = None
@@ -323,12 +326,61 @@ class AceAttorneyEnv(RetroEnv):
         # Text part
         text_obs_component: Optional[str] = None
         if self.adapter.observation_mode in ("text", "both"):
-            memory_block = self.get_comprehensive_memory_string()
-            last_line   = self.get_mapped_dialogue_event_for_prompt()
-            parts = [memory_block]
-            if last_line:
-                parts.append(f"Previous Dialogue: {last_line}")
-            text_obs_component = "\n\n".join(parts)
+            parts = []
+            
+            # 1. Comprehensive Memory (Background & Evidence)
+            # get_comprehensive_memory_string() returns a single string with both.
+            comprehensive_memory = self.get_comprehensive_memory_string()
+            if comprehensive_memory:
+                parts.append(comprehensive_memory) # This already includes "Background Transcript:" and "Evidence List:" headers
+
+            # 2. Process Dialogue from previous LLM output
+            if self.raw_llm_output_from_previous_step:
+                dialogue_match = re.search(r"^[Dd][Ii][Aa][Ll][Oo][Gg]:\s*([^:]+):\s*(.+)$", self.raw_llm_output_from_previous_step, re.MULTILINE)
+                if dialogue_match:
+                    speaker = dialogue_match.group(1).strip()
+                    text = dialogue_match.group(2).strip()
+                    
+                    current_parsed_dialogue_line = f"{speaker}: {text}"
+                    
+                    # Check for duplicates before appending
+                    if not self.dialogue_history_for_agent or self.dialogue_history_for_agent[-1] != current_parsed_dialogue_line:
+                        self.dialogue_history_for_agent.append(current_parsed_dialogue_line)
+                    
+                    # Store the parsed dialogue to update self.last_llm_dialogue_info for other internal uses
+                    parsed_dialogue_data_for_storage = {"speaker": speaker, "text": text}
+                    if hasattr(self, "store_llm_extracted_dialogue"):
+                        self.store_llm_extracted_dialogue(parsed_dialogue_data_for_storage)
+            
+            # 3. Construct Dialogue History for observation with mapping logic
+            if self.dialogue_history_for_agent:
+                displayed_dialogue_lines = []
+                for history_line in self.dialogue_history_for_agent:
+                    # Attempt to find a full-line match in the current level's dialog map
+                    if self.current_level_dialog_map and history_line in self.current_level_dialog_map:
+                        displayed_dialogue_lines.append(self.current_level_dialog_map[history_line])
+                    else:
+                        # If no full match, try to map just the speaker
+                        # Use a different variable name here to avoid overwriting the outer 'parts' list
+                        speaker_text_pair = history_line.split(": ", 1)
+                        if len(speaker_text_pair) == 2:
+                            speaker_orig, text_orig = speaker_text_pair[0], speaker_text_pair[1]
+                            mapped_speaker = speaker_orig # Default to original if not in name_map
+                            if self.current_level_name_map:
+                                mapped_speaker = self.current_level_name_map.get(speaker_orig.lower(), speaker_orig)
+                            displayed_dialogue_lines.append(f"{mapped_speaker}: {text_orig}")
+                        else:
+                            displayed_dialogue_lines.append(history_line) # Should not happen if parsing was correct
+                
+                dialogue_history_str = "Dialogue History (older -> newer):\n" + "\n".join(displayed_dialogue_lines)
+                parts.append(dialogue_history_str)
+            else:
+                parts.append("Dialogue History: None available yet.")
+            
+            text_obs_component = "\n\n".join(parts).strip()
+            if not text_obs_component: # Ensure it's not an empty string if all parts are None/empty
+                text_obs_component = "No textual information available."
+
 
         return img_path_component, text_obs_component
 
@@ -357,6 +409,7 @@ class AceAttorneyEnv(RetroEnv):
         # Reset internal game logic state variables to their initial values for this env instance.
         self.current_lives = self.initial_lives 
         # print(f"[AceAttorneyEnv RESET] Lives reset to initial value: {self.current_lives}")
+        self.dialogue_history_for_agent = [] # ADDED: Clear dialogue history
         
         self._initialize_level_specific_data() # Re-initialize dialogue logs, skip maps, etc., for the initial_retro_state_name.
         self._update_internal_game_state(self.current_core_info) # Update lives from RAM if different (should match initial_lives now)
@@ -390,16 +443,14 @@ class AceAttorneyEnv(RetroEnv):
 
     def _check_and_trigger_skip_sequence(self) -> Optional[Tuple[Observation, SupportsFloat, bool, bool, Dict[str, Any], float]]:
         """
-        Checks if the last LLM-parsed dialogue triggers a skip sequence.
+        Checks if the last dialogue line in history triggers a skip sequence.
         If so, executes 'A' presses and returns the state after skipping.
         Returns None if no skip sequence is triggered.
         """
-        if not self.last_llm_dialogue_info or "speaker" not in self.last_llm_dialogue_info or "text" not in self.last_llm_dialogue_info:
+        if not self.dialogue_history_for_agent: # Check if history is empty
             return None
 
-        speaker = self.last_llm_dialogue_info["speaker"]
-        text = self.last_llm_dialogue_info["text"]
-        trigger_key = f"{speaker}: {text}"
+        trigger_key = self.dialogue_history_for_agent[-1] # Use the last line from history
 
         # Ensure current_level_skip_map is populated
         if not hasattr(self.adapter, 'map_agent_action_to_env_action'):
@@ -500,15 +551,13 @@ class AceAttorneyEnv(RetroEnv):
         return None # No skip triggered
 
     def _check_for_end_statement_match(self) -> bool:
-        """Checks if the last LLM-parsed dialogue matches any defined end statement for the current level."""
-        if not self.last_llm_dialogue_info or "speaker" not in self.last_llm_dialogue_info or "text" not in self.last_llm_dialogue_info:
+        """Checks if the last dialogue line in history matches any defined end statement for the current level."""
+        if not self.dialogue_history_for_agent: # Check if history is empty
             return False
         if not self.current_level_end_statements: # No end statements defined for this level
             return False
 
-        speaker = self.last_llm_dialogue_info["speaker"]
-        text = self.last_llm_dialogue_info["text"]
-        current_dialogue_line = f"{speaker}: {text}"
+        current_dialogue_line = self.dialogue_history_for_agent[-1] # Use the last line from history
         
         for end_statement in self.current_level_end_statements:
             if current_dialogue_line == end_statement: # Exact match
@@ -516,7 +565,9 @@ class AceAttorneyEnv(RetroEnv):
                 return True
         return False
 
-    def step(self, agent_action_str:Optional[str], thought_process:str="",time_taken_s:float=0.0) -> Tuple[Observation,SupportsFloat,bool,bool,Dict[str,Any],float]:
+    def step(self, agent_action_str:Optional[str], thought_process:str="",time_taken_s:float=0.0, raw_llm_output_for_next_obs: Optional[str] = None) -> Tuple[Observation,SupportsFloat,bool,bool,Dict[str,Any],float]:
+        # Store the raw LLM output from this step, to be used in the *next* step's observation construction
+        self.raw_llm_output_from_previous_step = raw_llm_output_for_next_obs
         # --- Initial End Statement Check (based on PREVIOUS turn's dialogue) ---
         if self._check_for_end_statement_match():
             # print(f"[AceAttorneyEnv STEP] Terminating level '{self.current_retro_state_name}' due to matched end statement from previous observation.")
@@ -885,12 +936,13 @@ class AceAttorneyEnv(RetroEnv):
         """
         Compiles a comprehensive memory string including mapped background transcript
         and mapped evidence list for the current game state.
+        Now structured with clear headers for each section.
         """
         # print(f"[AceAttorneyEnv DEBUG get_comprehensive_memory_string] Method called for state: {self.current_retro_state_name}")
         if not self.current_retro_state_name or not self.game_script_data or \
            self.current_retro_state_name not in self.game_script_data:
             # print(f"[AceAttorneyEnv get_comprehensive] Essential data missing for state '{self.current_retro_state_name}'. Returning empty context.")
-            return "Comprehensive memory context not available for current state."
+            return "Background Transcript: Not available for current state.\\n\\nEvidence List: Not available for current state."
 
         state_data = self.game_script_data[self.current_retro_state_name]
         name_map = state_data.get("name_mappings", {})
@@ -900,45 +952,37 @@ class AceAttorneyEnv(RetroEnv):
         evidences_orig = state_data.get("evidences", [])
 
         # Process Background Transcript
-        processed_background = []
+        processed_background_lines = []
         if background_transcript_orig:
-            processed_background.append("Background Transcript:")
             for line in background_transcript_orig:
                 parts = line.split(": ", 1)
                 mapped_line = line
                 if len(parts) == 2:
                     speaker, text = parts[0], parts[1]
                     mapped_speaker = name_map.get(speaker.lower(), speaker)
-                    if mapped_speaker != speaker:
-                        # print(f"[AceAttorneyEnv get_comprehensive] BG Speaker '{speaker}' mapped to '{mapped_speaker}'.")
-                        pass # Avoid too much logging here, focus on the final string
                     mapped_line = f"{mapped_speaker}: {text}"
-                processed_background.append(mapped_line)
-        else:
-            processed_background.append("Background Transcript: None available.")
+                processed_background_lines.append(mapped_line)
+        
+        background_section = "Background Transcript:\\n" + ("\\n".join(processed_background_lines) if processed_background_lines else "None available.")
         
         # Process Evidences
-        processed_evidences = []
+        processed_evidences_lines = []
         if evidences_orig:
-            processed_evidences.append("\nEvidence List:")
             for ev_line in evidences_orig:
                 parts = ev_line.split(": ", 1)
                 mapped_ev_line = ev_line
                 if len(parts) == 2:
                     ev_name, ev_desc = parts[0], parts[1]
-                    # Evidence names in evidence_mappings are typically uppercase
                     short_ev_name = evidence_map.get(ev_name.upper(), None)
                     if short_ev_name:
-                        # MODIFIED: Only use short_ev_name and ev_desc
                         mapped_ev_line = f"{short_ev_name}: {ev_desc}"
                     else:
-                        # If not in map, just use original name and description (no change here)
                         mapped_ev_line = f"{ev_name}: {ev_desc}"
-                processed_evidences.append(mapped_ev_line)
-        else:
-            processed_evidences.append("\nEvidence List: None available.")
+                processed_evidences_lines.append(mapped_ev_line)
+        
+        evidence_section = "Evidence List:\\n" + ("\\n".join(processed_evidences_lines) if processed_evidences_lines else "None available.")
 
-        final_context_string = "\n".join(processed_background) + "\n" + "\n".join(processed_evidences)
+        final_context_string = f"{background_section}\\n\\n{evidence_section}"
         # print(f"[AceAttorneyEnv get_comprehensive] Generated comprehensive context (first 200 chars): {final_context_string[:200]}...")
         return final_context_string
 
@@ -960,21 +1004,10 @@ class AceAttorneyEnv(RetroEnv):
         additional_prefix = None
         dialogue_line = self.get_mapped_dialogue_event_for_prompt()
         if dialogue_line:
-            additional_prefix = f"Previous Dialogue Context: {dialogue_line}\n\n"
+            additional_prefix = f"Previous Dialogue Context: {dialogue_line}\\n\\n"
 
         return prompt_body, additional_prefix
 
-    def handle_llm_result(self, llm_result: Any) -> None:
-        """
-        Let the env capture anything interesting that came back from the LLM.
-        """
-        if (
-            isinstance(llm_result, dict)
-            and llm_result.get("parsed_dialogue")
-            and hasattr(self, "store_llm_extracted_dialogue")
-        ):
-            self.store_llm_extracted_dialogue(llm_result["parsed_dialogue"])
-    
     def close(self):
         """Closes the environment and the adapter's log file."""
         super().close()
