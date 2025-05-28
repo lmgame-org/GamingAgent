@@ -4,7 +4,7 @@ import os, json
 from typing import Any, Dict, List, Tuple, Optional
 
 import numpy as np
-from vizdoom import DoomGame, Mode, ScreenResolution
+from vizdoom import DoomGame, Mode, ScreenResolution, gymnasium_wrapper
 from gamingagent.envs.gym_env_adapter import GymEnvAdapter
 from gamingagent.modules.core_module import Observation
 
@@ -13,7 +13,7 @@ __all__ = ["DoomEnvWrapper"]
 class DoomEnvWrapper:
     def __init__(
         self,
-        game_config_path: str = "configs/custom_05_doom/doom_config.cfg",
+        game_config_path: str = "configs/custom_05_doom/config.yaml",
         observation_mode: str = "vision",
         base_log_dir: str = "cache/doom/default_run",
         render_mode_human: bool = False,
@@ -45,9 +45,11 @@ class DoomEnvWrapper:
         """
         self._game = DoomGame()
         self._game.load_config(self.game_config_path)
-        self._game.set_screen_resolution(ScreenResolution.RES_640X480)
+        self._game.set_screen_resolution(ScreenResolution.RES_320X240)
         self._game.set_window_visible(self.render_mode_human)
         self._game.set_mode(Mode.PLAYER)
+        self._game.set_living_reward(1)  # Matches living_reward in config
+        self._game.set_doom_skill(5)  # Matches doom_skill in config
         self._game.init()
 
     def reset(self) -> Observation:
@@ -83,6 +85,12 @@ class DoomEnvWrapper:
             self.current_frame = None
             self.current_info = {}
 
+        # Adjust rewards based on config
+        if reward == 106:  # Kill monster reward
+            reward += 106
+        elif reward == -5:  # Shot penalty
+            reward -= 5
+
         # Create the observation
         observation = self.adapter.step(
             self.current_frame, self.current_info, agent_action_str, reward
@@ -92,7 +100,7 @@ class DoomEnvWrapper:
 
     def _buttons_from_str(self, action_str: Optional[str]) -> List[int]:
         """
-        Map an action string (e.g., "MOVE_FORWARD||TURN_LEFT") to a button vector for vizdoom.
+        Map an action string (e.g., "MOVE_LEFT||ATTACK") to a button vector for vizdoom.
         """
         buttons = [0] * self._game.get_available_buttons_size()
         if action_str:

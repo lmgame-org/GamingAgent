@@ -1,16 +1,38 @@
 game_env:
   name: "doom"
   description: "Doom game environment"
-  env_type: "retro"
   render_mode: "human"
-  max_steps: 500
+  max_steps: 300  # Matches episode_timeout
   seed: 42
   num_runs: 1
+  doom_scenario_path: "basic.wad"
+  doom_map: "map01"
+  living_reward: 1  # +1 for every tic the agent is alive
+  screen_resolution: "RES_320X240"
+  screen_format: "CRCGCB"
+  render_hud: true
+  render_crosshair: false
+  render_weapon: true
+  render_decals: false
+  render_particles: false
+  window_visible: true
+  episode_start_time: 14
+  available_buttons:
+    - MOVE_LEFT
+    - MOVE_RIGHT
+    - ATTACK
+  available_game_variables:
+    - AMMO2
+  mode: "PLAYER"
+  doom_skill: 5
+  rewards:
+    kill_monster: 106  # +106 for killing the monster
+    shot_penalty: -5   # -5 for every shot
 
 agent:
   # Global agent settings
   name: "doom_agent"
-  model_name: "claude-3-7-sonnet-latest"
+  model_name: "gpt-4o"  # Updated model name
   cache_dir: "cache/doom"
   reasoning_effort: "high"
   token_limit: 100000
@@ -24,7 +46,7 @@ agent:
 
     memory_module:
       max_memory: 15  # Maximum number of memory entries to store
-    
+
     reasoning_module:
       use_perception: True
       use_memory: True
