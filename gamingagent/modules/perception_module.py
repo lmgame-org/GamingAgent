@@ -123,7 +123,14 @@ class PerceptionModule(CoreModule):
                 token_limit=self.token_limit
             )
 
-            self.processed_observation.processed_visual_description = processed_visual_description
+            actual_processed_visual_description = processed_visual_description
+            if isinstance(processed_visual_description, tuple) and len(processed_visual_description) > 0 and isinstance(processed_visual_description[0], str):
+                actual_processed_visual_description = processed_visual_description[0]
+            elif not isinstance(processed_visual_description, str):
+                print(f"[PerceptionModule process_observation WARN] Unexpected response type from vision_text_completion: {type(processed_visual_description)}")
+                actual_processed_visual_description = str(processed_visual_description) # Fallback
+
+            self.processed_observation.processed_visual_description = actual_processed_visual_description
             self.processed_observation.image_path = new_img_path
 
             return self.processed_observation

@@ -88,17 +88,26 @@ class MemoryModule(CoreModule):
             token_limit=self.token_limit,
         )
 
+        # Extract the text response if the API returns a tuple (text, cost_dict)
+        actual_raw_text = raw
+        if isinstance(raw, tuple) and len(raw) > 0 and isinstance(raw[0], str):
+            actual_raw_text = raw[0]
+        elif not isinstance(raw, str):
+            # If it's not a string and not the expected tuple, log an error or handle appropriately
+            print(f"[MemoryModule _reflect WARN] Unexpected response type from text_only_completion: {type(raw)}")
+            actual_raw_text = str(raw) # Fallback to string conversion
+
         # extract "reflection:" section if present
         m = re.search(
             r'(?:^|\n)(?:#\s*)?reflection:(.+?)(?=\n(?:#\s*)?[a-zA-Z]+:|$)',
-            raw,
+            actual_raw_text, # Use the extracted text
             re.DOTALL | re.IGNORECASE,
         )
-        return (m.group(1).strip() if m else raw.strip()) or "No valid reflection produced."
+        return (m.group(1).strip() if m else actual_raw_text.strip()) or "No valid reflection produced."
 
     def process_observation(self,
                         observation: Observation,
-                        game_state: str) -> str:
+                        game_state: dict) -> str:
         """
         Main entry point called by the agent each turn.
         Generates reflection and pushes a compact line into the trajectory.

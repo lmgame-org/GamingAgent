@@ -186,12 +186,16 @@
         "Judge: And with that... This court is adjourned."
       ],
       "end_statement": [
-        "Judge: That's enough!",
+        "Payne: He... er... He was arrested and has been taken away, Your Honor.",
         "Judge: This case has certainly turned out differently than we all expected.",
         "Judge: Mr. Payne... Your witness?",
         "Payne: He... er... He was arrested and has been taken away, Your Honor.",
         "Judge: Very well.",
-        "Judge: I have to say, I'm impressed."
+        "Judge: Very well. Mr. Wright?",
+        "Judge: I have to say, I'm impressed.",
+        "Judge: At this point, this is only a formality, but...",
+        "Judge: This court finds the defendant, Mr. Larry Butz...",
+        "Judge: And with that... This court is adjourned."
       ]
     },
     "level3_1_8": {

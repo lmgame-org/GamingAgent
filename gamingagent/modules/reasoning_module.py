@@ -90,17 +90,26 @@ class ReasoningModule(CoreModule):
         else:
             response = self._call_text_api(full_context)
         
-        # Parse the response
-        parsed_response = self._parse_response(response)
         
+        raw_llm_output_string = None
+        if isinstance(response, tuple) and len(response) > 0 and isinstance(response[0], str):
+            raw_llm_output_string = response[0]
+        elif isinstance(response, str):
+            raw_llm_output_string = response
+        parsed_response = self._parse_response(raw_llm_output_string)
+        if parsed_response is None: # Ensure parsed_response is a dict
+            parsed_response = {}
+        parsed_response["raw_response_str"] = processed_visual_description
+
+
         # Log the reasoning process
         self.log({
             "image_path": image_path,
             "textual_representation": textual_representation,
             "processed_visual_description": processed_visual_description,
-            "game_trajectory": game_trajectory,
+            "game_trajectory": game_trajectory.get() if hasattr(game_trajectory, 'get') else str(game_trajectory),
             "reflection": reflection,
-            "response": response,
+            "response": raw_llm_output_string,
             "thought": parsed_response.get("thought"),
             "action": parsed_response.get("action")
         })

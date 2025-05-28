@@ -138,7 +138,7 @@ class BaseModule(CoreModule):
         else:
             raise NotImplementedError(f"observation mode: {self.observation_mode} not supported.")
         
-        print(f"[BaseModule plan_action DEBUG] Response from APIManager: {str(response)[:300]}...") # DEBUG
+        # sprint(f"[BaseModule plan_action DEBUG] Response from APIManager: {str(response)[:300]}...") # DEBUG
 
         raw_llm_output_string = None
         if isinstance(response, tuple) and len(response) > 0 and isinstance(response[0], str):
@@ -146,7 +146,7 @@ class BaseModule(CoreModule):
         elif isinstance(response, str):
             raw_llm_output_string = response
         
-        print(f"[BaseModule plan_action DEBUG] Extracted raw_llm_output_string: {str(raw_llm_output_string)[:300]}...") # DEBUG
+        # print(f"[BaseModule plan_action DEBUG] Extracted raw_llm_output_string: {str(raw_llm_output_string)[:300]}...") # DEBUG
         
         # Parse and log the response
         parsed_response = self._parse_response(raw_llm_output_string)

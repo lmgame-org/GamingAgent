@@ -575,11 +575,9 @@ class AceAttorneyEnv(RetroEnv):
             # --- LEVEL PROGRESSION LOGIC ---
             next_level_state_name: Optional[str] = None
             if self.current_retro_state_name == "level1_1_5":
-                next_level_state_name = "level2_1_9" # Hardcoded for now
-                # print(f"[AceAttorneyEnv STEP] Progressing to level: {next_level_state_name}")
-            # Add more 'elif self.current_retro_state_name == "levelX_Y_Z": next_level_state_name = "levelA_B_C"' here
-            # Or, better, load this from a progression map in mapping.json or skip_conversations.json
-
+                next_level_state_name = "level2_1_9" 
+            if self.current_retro_state_name == "level2_1_9":
+                next_level_state_name = "level3_1_8" 
             if next_level_state_name:
                 try:
                     # Load the new state into the retro emulator
