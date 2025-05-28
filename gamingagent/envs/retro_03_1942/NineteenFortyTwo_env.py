@@ -13,14 +13,6 @@ from gamingagent.modules.core_module import Observation
 
 __all__ = ["NineteenFortyTwoEnvWrapper"]
 
-# helper functions
-def _save_frame(img: np.ndarray, path: str):
-    try:
-        os.makedirs(os.path.dirname(path), exist_ok=True)
-        Image.fromarray(img).save(path)
-    except Exception as e:
-        print(f"[1942] Warning: could not save {path}: {e}")
-
 # main wrapper
 class NineteenFortyTwoEnvWrapper(gym.Env):
     metadata = {"render_modes": ["human", "rgb_array"], "render_fps": 60}
@@ -47,7 +39,7 @@ class NineteenFortyTwoEnvWrapper(gym.Env):
         self.game_name = game_name
         self.env_id: str = _cfg.get("env_id", self._DEFAULT_ENV_ID)
         self.env_init_kwargs: Dict[str, Any] = _cfg.get("env_init_kwargs", {})
-        self.action_map: Dict[str, Any] = _cfg.get("action_mapping", {})
+
         self._max_stuck_steps = _cfg.get("max_unchanged_steps_for_termination", 200)
         self.render_mode_human = _cfg.get("render_mode_human", False)
 
@@ -58,6 +50,8 @@ class NineteenFortyTwoEnvWrapper(gym.Env):
             game_name=self.game_name,
             observation_mode=observation_mode,
             agent_cache_dir=self.base_log_dir,
+            game_specific_config_path=cfg_file,
+            max_steps_for_stuck=self._max_stuck_steps
         )
 
         # ── retro env created lazily ──
@@ -80,51 +74,34 @@ class NineteenFortyTwoEnvWrapper(gym.Env):
                 **self.env_init_kwargs,
             )
 
-    def _buttons_from_str(self, s: Optional[str]) -> List[int]:
+            self.num_buttons = len(self._raw_env.buttons)
+
+    def _buttons_from_str(self, token: Optional[str]) -> List[int]:
         """
-        Turn an action string (or 'a||left' combo) into the button vector expected
-        by retro.  It tries the GymEnvAdapter first, then this wrapper's
-        self.action_map.  Both ints *and* full boolean arrays are accepted.
+        Convert ONE action token (e.g. 'up') to a boolean button vector.
+        The adapter is the single source of the mapping.
         """
-        # ensure we already know how many buttons there are
         n = getattr(self, "num_buttons", 8)
-        btns = np.zeros(n, dtype=bool)
+        vec = np.zeros(n, dtype=int)
 
-        if not s or not s.strip():
-            return btns.tolist()
+        if token is None or not token.strip():
+            return vec.tolist()
 
-        for tok in (p.strip() for p in s.split("||") if p.strip()):
-            # -------- 1) Ask the adapter ------------
-            env_act = None
-            if hasattr(self, "adapter"):
-                try:
-                    env_act = self.adapter.map_agent_action_to_env_action(tok)
-                except Exception as e:
-                    print(f"[1942] adapter.map failed for '{tok}': {e}")
+        env_act = self.adapter.map_agent_action_to_env_action(token.strip())
+        # numpy / list → full vector
+        if isinstance(env_act, (list, np.ndarray)):
+            tmp = np.array(env_act, dtype=bool)
+            if tmp.size != n:
+                tmp = np.resize(tmp, n)
+            return tmp.astype(int).tolist()
 
-            if isinstance(env_act, (list, np.ndarray)):
-                vec = np.array(env_act, dtype=bool)
-                if vec.size != n:  # pad / trim just in case
-                    vec = np.resize(vec, n)
-                btns |= vec
-                continue
-            if isinstance(env_act, (int, np.integer)) and 0 <= env_act < n:
-                btns[env_act] = True
-                continue
+        # int index → one‑hot
+        if isinstance(env_act, (int, np.integer)) and 0 <= env_act < n:
+            vec[env_act] = 1
+            return vec.tolist()
 
-            # -------- 2) Fallback to local map -------
-            val = self.action_map.get(tok.lower())
-            if isinstance(val, (list, np.ndarray)):
-                vec = np.array(val, dtype=bool)
-                if vec.size != n:
-                    vec = np.resize(vec, n)
-                btns |= vec
-            elif isinstance(val, (int, np.integer)) and 0 <= val < n:
-                btns[val] = True
-            else:
-                print(f"[1942] Warning: unknown action token '{tok}'")
-
-        return btns.astype(int).tolist()
+        print(f"[1942] Warning: unknown action token '{token}'")
+        return vec.tolist()
 
     def _frame_hash(self, arr: np.ndarray) -> str:
         return hashlib.md5(arr.tobytes()).hexdigest()
@@ -138,10 +115,7 @@ class NineteenFortyTwoEnvWrapper(gym.Env):
 
         img_path = None
         if self.adapter.observation_mode in ("vision", "both"):
-            img_path = self.adapter._create_agent_observation_path(
-                self.adapter.current_episode_id, self.adapter.current_step_num
-            )
-            _save_frame(self.current_frame, img_path)
+            img_path = self.adapter.save_frame_and_get_path(self.current_frame)
 
         obs = self.adapter.create_agent_observation(img_path=img_path, text_representation=self._text_repr())
         return obs, self.current_info.copy()
@@ -152,41 +126,73 @@ class NineteenFortyTwoEnvWrapper(gym.Env):
         thought_process: str = "",
         time_taken_s: float = 0.0,
     ):
+        """
+        Execute one or more actions.  If `agent_action_str` contains the
+        separator  “||”, each token is run in a *separate* frame in order.
+
+        Example
+        -------
+        agent_action_str == "up||b"   →
+            frame 1 : UP
+            frame 2 : B (shoot)
+
+        Rewards and perf‑scores are accumulated; termination can occur
+        after any sub‑frame.
+        """
         if self._raw_env is None:
             raise RuntimeError("Call reset() first")
 
-        self.adapter.increment_step()
-        act = self._buttons_from_str(agent_action_str)
-        self.current_frame, reward, term, trunc, retro_info = self._raw_env.step(act)
+        # ── split into sequential tokens ───────────────────────────────
+        tokens: List[Optional[str]] = [
+            t.strip() for t in (agent_action_str or "").split("||") if t.strip()
+        ] or [None]                                  # None → no‑op
 
-        self.current_info = {**self._extract_info(), **retro_info}
+        total_reward: float = 0.0
+        combined_perf: float = 0.0
+        term = trunc = False
+        retro_info: Dict[str, Any] = {}
 
-        # perf score = Δ‑score
-        perf = self._calculate_perf()
-
-        img_path = None
-        if self.adapter.observation_mode in ("vision", "both"):
-            img_path = self.adapter._create_agent_observation_path(
-                self.adapter.current_episode_id, self.adapter.current_step_num
+        for i, tok in enumerate(tokens):
+            self.adapter.increment_step()            # one increment *per* sub‑action
+            act_vec = self._buttons_from_str(tok)
+            self.current_frame, r, term, trunc, retro_info = self._raw_env.step(
+                act_vec
             )
-            _save_frame(self.current_frame, img_path)
 
-        obs = self.adapter.create_agent_observation(img_path=img_path, text_representation=self._text_repr())
+            total_reward += float(r)
+            self.current_info = {**self._extract_info(), **retro_info}
+            combined_perf += self._calculate_perf()
+
+            if term or trunc:                        # stop if game ended
+                break
+
+        # ── save screenshot of the LAST frame, if needed ───────────────
+        img_path = None
+        if self.adapter.observation_mode in ("vision", "both") and self.current_frame is not None:
+            img_path = self.adapter.save_frame_and_get_path(self.current_frame)
+
+        # ── build observation & post‑processing ────────────────────────
+        obs = self.adapter.create_agent_observation(
+            img_path=img_path,
+            text_representation=self._text_repr(),
+        )
 
         term, trunc = self.adapter.verify_termination(obs, term, trunc)
 
         self.adapter.log_step_data(
             agent_action_str=agent_action_str,
             thought_process=thought_process,
-            reward=float(reward),
+            reward=total_reward,
             info=self.current_info,
             terminated=term,
             truncated=trunc,
             time_taken_s=time_taken_s,
-            perf_score=perf,
+            perf_score=combined_perf,
             agent_observation=obs,
         )
-        return obs, float(reward), term, trunc, self.current_info.copy(), perf
+
+        return obs, total_reward, term, trunc, self.current_info.copy(), combined_perf
+
 
     # ───────────────────── info / perf helpers ─────────────────────
     def _extract_info(self) -> Dict[str, Any]:

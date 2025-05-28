@@ -78,28 +78,30 @@ class BaseModule(CoreModule):
         if self.observation_mode in ["text", "both"]: 
             assert (self.observation.textual_representation is not None) or (self.observation.processed_visual_description is not None), "No textual representation available"
         
+        # Create the full prompt with the text-based game state
+        full_prompt = observation.get_complete_prompt(observation_mode=self.observation_mode, prompt_template=self.prompt)
+        
+        print(f"""
+------------------------ BASE MODULE VISION API — SYSTEM PROMPT ------------------------
+{self.system_prompt}
+------------------------ END SYSTEM PROMPT ------------------------
+""")
+        print(f"""
+------------------------ BASE MODULE VISION API — USER PROMPT ------------------------
+{full_prompt}
+------------------------ END USER PROMPT ------------------------
+""")
         response = None
         if self.observation_mode == "vision":
             # Vision-based processing: observation is the image path
             # Scale up image if needed
             new_img_path = scale_image_up(self.observation.get_img_path())
-            
-            print(f"""
------------------------- BASE MODULE VISION API — SYSTEM PROMPT ------------------------
-{self.system_prompt}
------------------------- END SYSTEM PROMPT ------------------------
-""")
-            print(f"""
------------------------- BASE MODULE VISION API — USER PROMPT ------------------------
-{self.prompt}
------------------------- END USER PROMPT ------------------------
-""")
 
             # Call the vision API
             response = self.api_manager.vision_text_completion(
                 model_name=self.model_name,
                 system_prompt=self.system_prompt,
-                prompt=self.prompt,
+                prompt=full_prompt,
                 image_path=new_img_path,
                 thinking=True,
                 reasoning_effort=self.reasoning_effort,
@@ -107,9 +109,6 @@ class BaseModule(CoreModule):
             )
         
         elif self.observation_mode == "text":
-            # Create the full prompt with the text-based game state
-            full_prompt = observation.get_complete_prompt(observation_mode=self.observation_mode, prompt_template=self.prompt)
-            
             # Call the text API with the textual representation in the prompt
             response = self.api_manager.text_only_completion(
                 model_name=self.model_name,
@@ -124,9 +123,6 @@ class BaseModule(CoreModule):
             # Both vision and text processing                
             # Scale up image if needed
             new_img_path = scale_image_up(self.observation.get_img_path())
-            
-            # Create the full prompt with the text-based game state
-            full_prompt = observation.get_complete_prompt(observation_mode=self.observation_mode, prompt_template=self.prompt)
             
             # Call the vision API with both the image and textual representation
             response = self.api_manager.vision_text_completion(
