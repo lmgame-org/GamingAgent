@@ -1,5 +1,34 @@
 {
     "env_id": "Doom-Snes",
+    "doom_scenario_path": "basic.wad",
+    "doom_map": "map01",
+    "rewards": {
+        "living_reward": -1
+    },
+    "rendering_options": {
+        "screen_resolution": "RES_320X240",
+        "screen_format": "CRCGCB",
+        "render_hud": true,
+        "render_crosshair": false,
+        "render_weapon": true,
+        "render_decals": false,
+        "render_particles": false,
+        "window_visible": true
+    },
+    "episode_settings": {
+        "episode_start_time": 14,
+        "episode_timeout": 300
+    },
+    "available_buttons": [
+        "MOVE_LEFT",
+        "MOVE_RIGHT",
+        "ATTACK"
+    ],
+    "available_game_variables": [
+        "AMMO2"
+    ],
+    "mode": "PLAYER",
+    "doom_skill": 5,
     "action_mapping": {
         "up": 0,
         "down": 1,
