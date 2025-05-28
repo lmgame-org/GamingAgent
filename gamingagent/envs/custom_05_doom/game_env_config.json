@@ -20,6 +20,8 @@
         "episode_timeout": 300
     },
     "available_buttons": [
+        "MOVE_UP",
+        "MOVE_DOWN",
         "MOVE_LEFT",
         "MOVE_RIGHT",
         "ATTACK"
@@ -30,12 +32,11 @@
     "mode": "PLAYER",
     "doom_skill": 5,
     "action_mapping": {
-        "up": 0,
-        "down": 1,
-        "left": 2,
-        "right": 3,
-        "a": 4,
-        "b": 5
+        "move_up": 0,
+        "move_down": 1,
+        "move_left": 2,
+        "move_right": 3,
+        "attack": 4
     },
     "ram_addresses": {
         "health": "0x10",
