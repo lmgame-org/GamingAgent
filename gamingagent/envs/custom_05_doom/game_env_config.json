@@ -1,0 +1,17 @@
+{
+    "env_id": "Doom-Snes",
+    "action_mapping": {
+        "up": 0,
+        "down": 1,
+        "left": 2,
+        "right": 3,
+        "a": 4,
+        "b": 5
+    },
+    "ram_addresses": {
+        "health": "0x10",
+        "ammo": "0x20",
+        "x_position": "0x30",
+        "y_position": "0x40"
+    }
+}
