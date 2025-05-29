@@ -315,15 +315,11 @@ class AceAttorneyEnv(RetroEnv):
         latest_parsed_dialogue_line_for_history: Optional[str] = None
 
         if self.adapter.observation_mode in ("both"):
-            print(f"[AceAttorneyEnv _build_agent_observation_components] raw_llm_output_from_previous_step: {self.raw_llm_output_from_previous_step}")
             if self.raw_llm_output_from_previous_step:
                 dialogue_match = re.search(r"^[Dd][Ii][Aa][Ll][Oo][Gg]:\s*([^:]+):\s*(.+)$", self.raw_llm_output_from_previous_step, re.MULTILINE)
-                print(f"[AceAttorneyEnv _build_agent_observation_components] dialogue_match: {dialogue_match}")
                 if dialogue_match:
                     speaker = dialogue_match.group(1).strip()
                     text = dialogue_match.group(2).strip()
-                    print(f"[AceAttorneyEnv _build_agent_observation_components] speaker: {speaker}, text: {text}")
-                    # This is the most current dialogue line
                     current_dialogue_text_component = f"{speaker}: {text}"
                     
                     if not self.dialogue_history_for_agent or self.dialogue_history_for_agent[-1] != current_dialogue_text_component:
