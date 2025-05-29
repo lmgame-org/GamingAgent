@@ -167,7 +167,7 @@ def create_environment(game_name_arg: str,
             env_init_params['max_stuck_steps_for_adapter'] = 20
 
         print(f"Initializing environment: {game_name_arg} with params: {env_init_params}")
-        env = CandyCrushEnv(
+        env = CandyCrushEnvWrapper(
             # Parameters for CandyCrushEnv -> TileMatchEnv core
             num_rows_override=env_init_params.get('num_rows'),
             num_cols_override=env_init_params.get('num_cols'),

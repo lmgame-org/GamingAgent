@@ -414,7 +414,8 @@ class TetrisEnv(gym.Env):
         total_perf:   float = 0.0
         terminated = truncated = False
         last_obs: Optional[Observation] = None
-        first_outer = True  # to propagate user‑supplied time_taken_s
+        # to propagate user‑supplied time_taken_s
+        first_outer = True 
 
         for action_name, frames in actions_sequence:
             env_action_idx = self.adapter.map_agent_action_to_env_action(action_name)
