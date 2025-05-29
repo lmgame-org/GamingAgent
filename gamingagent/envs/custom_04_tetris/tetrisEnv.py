@@ -253,20 +253,20 @@ class TetrisEnv(gym.Env):
 
             (tetris_reward , perf_increment)
 
-        * tetris_reward   – unchanged: +1 for piece +10 per line
-        * perf_increment  – **+1 for the commit itself, plus +1 for every
-                            line cleared** (so a T‑Spin Triple would add 4).
+        * tetris_reward   – +1 for piece +10 per line
+        * perf_increment  – +1 for the commit itself, plus +1 for every
+                            line cleared (so a T‑Spin Triple would add 4).
         """
         if self.active_tetromino is None:
             return 0.0, 0
 
-        # --- place piece on board --------------------------------------
+        # place piece on board
         self._place_active_tetromino()
 
-        # --- line clears -----------------------------------------------
+        # line clears
         lines = self._clear_filled_rows()
 
-        # --- reward bookkeeping (unchanged) ----------------------------
+        # reward bookkeeping
         commit_reward = (
             self.REWARD_PIECE_PLACED          # +1 for placing a piece
             + self._calculate_score(lines)    # +10 per cleared line
@@ -276,10 +276,10 @@ class TetrisEnv(gym.Env):
         if self.lines_cleared_total // 10 >= self.level:
             self.level = (self.lines_cleared_total // 10) + 1
 
-        # --- perf‑score increment (+1 commit, +1 per line) -------------
+        # perf‑score increment (+1 commit, +1 per line)
         perf_increment = 1 + lines
 
-        # --- next piece / game‑over check ------------------------------
+        # next piece / game‑over check
         if not self._spawn_tetromino():
             self.game_over = True
 

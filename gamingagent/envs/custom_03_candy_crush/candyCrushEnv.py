@@ -238,7 +238,7 @@ class CandyCrushEnvWrapper(gym.Env):
         
         self.timer: Optional[int] = None
         self.current_score: float = 0.0 # Raw score from eliminations
-        # --- End of TileMatchEnv __init__ logic integration ---
+        # --- End of TileMatchEnv
 
         # Initialize Adapter
         self.adapter = GymEnvAdapter(
@@ -257,10 +257,7 @@ class CandyCrushEnvWrapper(gym.Env):
             for idx, coords_pair in enumerate(self._action_to_coords):
                 coord1 = tuple(coords_pair[0])
                 coord2 = tuple(coords_pair[1])
-                # Canonical string representation for a move action
-                # Sort coordinates to ensure ((r1,c1),(r2,c2)) has r1<=r2, and if r1==r2, then c1<c2
-                # However, TileMatchEnv action_to_coords already provides a fixed order.
-                # Let's use a simpler consistent representation.
+
                 c_min = min(coord1, coord2) # Sort by tuple comparison
                 c_max = max(coord1, coord2)
                 action_str = f"(({c_min[0]},{c_min[1]}),({c_max[0]},{c_max[1]}))"
@@ -379,9 +376,9 @@ class CandyCrushEnvWrapper(gym.Env):
         raw_observation = self._get_obs()
 
         info = {
-            "score": reward, # Step reward
-            "cumulative_raw_score": self.current_score, # Total eliminations so far
-            "total_score": self.current_score, # Add for consistent runner access
+            "score": reward,
+            "cumulative_raw_score": self.current_score,
+            "total_score": self.current_score,
             "is_combination_match": is_combination_match,
             "num_new_specials": num_new_specials,
             "num_specials_activated": num_specials_activated,
@@ -392,7 +389,7 @@ class CandyCrushEnvWrapper(gym.Env):
         
         return raw_observation, reward, terminated, False, info
 
-    # --- Runner-facing Methods (Adapter Integration) ---
+    # Runner-facing Methods
     def reset(self, seed: Optional[int] = None, episode_id: int = 1, options: Optional[dict] = None) -> Tuple[Observation, Dict[str, Any]]:
         self.adapter.reset_episode(episode_id)
         
@@ -439,10 +436,6 @@ class CandyCrushEnvWrapper(gym.Env):
         )
         
         # Store symbolic representation for stuck detection by adapter
-        # The adapter's verify_termination will use agent_observation.textual_representation or img_path
-        
-        # Info dict for the runner should be based on info_dict from _reset_gym
-        # It already contains 'score' (step score, 0), 'cumulative_raw_score', 'num_moves_left'
         return agent_observation, info_dict
 
     def _parse_agent_action_str(self, action_str_agent: Optional[str]) -> Tuple[Optional[int], str]:
@@ -532,7 +525,7 @@ class CandyCrushEnvWrapper(gym.Env):
             info_dict = {
                 "score": 0.0, # Step reward
                 "cumulative_raw_score": self.current_score,
-                "total_score": self.current_score, # Add for consistent runner access
+                "total_score": self.current_score,
                 "is_combination_match": False, "num_new_specials": 0,
                 "num_specials_activated": 0, "shuffled": False,
                 "effective_actions": self._get_effective_actions(), 
