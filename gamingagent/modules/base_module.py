@@ -138,10 +138,19 @@ class BaseModule(CoreModule):
         else:
             raise NotImplementedError(f"observation mode: {self.observation_mode} not supported.")
         
+        # returned API response should be a tuple
+        response_string = response[0]
+        
+        
         # Parse and log the response
-        parsed_response = self._parse_response(response)
+        parsed_response = self._parse_response(response_string)
+        if parsed_response is None:
+            parsed_response = {}
+        parsed_response["raw_response_str"] = response_string
+
+
         self.log({
-            "response": response,
+            "response": response_string,
             "thought": parsed_response.get("thought"),
             "action": parsed_response.get("action")
         })
@@ -158,6 +167,9 @@ class BaseModule(CoreModule):
         Returns:
             dict: A dictionary containing action and thought
         """
+
+
+        print(f"response: {response}")
         if not response:
             return {"action": None, "thought": "No response received"}
         

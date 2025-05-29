@@ -355,8 +355,8 @@ class BaseAgent(ABC):
             processed_observation = perception_module.process_observation(observation)
             perception_data = perception_module.get_perception_summary(processed_observation)
 
-            print("perception data:")
-            print(perception_data)
+            # print("perception data:")
+            # print(perception_data)
             
             # 2. Update memory with perception data
             memory_summary = None
@@ -366,8 +366,8 @@ class BaseAgent(ABC):
                 )
                 memory_summary = memory_module.get_memory_summary(processed_observation)
             
-            print("memory data:")
-            print(memory_summary)
+            # print("memory data:")
+            # print(memory_summary)
             
             # 3. Plan action with reasoning module
             action_plan = reasoning_module.plan_action(
@@ -379,7 +379,7 @@ class BaseAgent(ABC):
                 processed_observation, action=action_plan["action"], thought=action_plan["thought"],
             )
             
-            print("action plan:")
-            print(action_plan)
+            # print("action plan:")
+            # print(action_plan)
             
             return action_plan, processed_observation

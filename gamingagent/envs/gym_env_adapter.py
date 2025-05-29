@@ -167,23 +167,35 @@ class GymEnvAdapter:
             print(f"[GymEnvAdapter] ERROR: Could not open episode log file {self.episode_log_file_path}: {e}")
             self.episode_log_file_handle = None
 
-    def create_agent_observation(self, img_path: Optional[str] = None, text_representation: Optional[str] = None) -> Observation:
+    def create_agent_observation(self, img_path: Optional[str] = None, text_representation: Optional[str] = None, background_info: Optional[str] = None) -> Observation:
         """
-        Creates an agent-facing Observation object from pre-defined image path and text representation.
+        Creates an agent-facing Observation object from pre-defined image path, text representation, and background info.
         The environment is responsible for generating these components based on its state and
         the adapter's observation_mode.
 
         Args:
             img_path (Optional[str]): Path to the observation image file.
             text_representation (Optional[str]): Textual representation of the observation.
+            background_info (Optional[str]): Static background information for the episode.
 
         Returns:
             Observation: An Observation object suitable for the agent.
         """
-        agent_observation = Observation()
-        agent_observation.set_perception_observation(
+        # Determine if background information should be included in the trajectory
+        trajectory_includes_bg = bool(background_info)
+
+        agent_observation = Observation(
             img_path=img_path,
-            textual_representation=text_representation
+            textual_representation=text_representation,
+            background=background_info,
+            trajectory_includes_background=trajectory_includes_bg
+        )
+        
+        # Now, set perception-specific parts if any, without passing background again
+        agent_observation.set_perception_observation(
+            img_path=img_path, # Pass img_path again as set_perception_observation expects it
+            textual_representation=text_representation # Pass text_representation again as set_perception_observation expects it
+            # processed_visual_description is not handled here, assumed to be set by PerceptionModule if used
         )
         return agent_observation
 
