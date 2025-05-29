@@ -8,7 +8,7 @@ import yaml
 from typing import Any
 import sys
 
-import gym
+import gymnasium as gym
 
 import retro
 from retro.enums import Actions, Observations, State # retro.data will be used directly for Integrations
