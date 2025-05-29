@@ -323,6 +323,7 @@ class AceAttorneyEnv(RetroEnv):
         if self.adapter.observation_mode in ("both"):
             if evidence_list_str:
                 dialogue_parts.append(evidence_list_str)
+            print(f"[AceAttorneyEnv _build_agent_observation_components] Raw LLM output from previous step: {self.raw_llm_output_from_previous_step}")
             if self.raw_llm_output_from_previous_step:
                 dialogue_match = re.search(r"^[Dd][Ii][Aa][Ll][Oo][Gg]:\s*([^:]+):\s*(.+)$", self.raw_llm_output_from_previous_step, re.MULTILINE)
                 if dialogue_match:
@@ -332,27 +333,36 @@ class AceAttorneyEnv(RetroEnv):
                     
                     if not self.dialogue_history_for_agent or self.dialogue_history_for_agent[-1] != current_dialogue_text_component:
                         self.dialogue_history_for_agent.append(current_dialogue_text_component)
-                    # Store the raw parsed dialogue for other internal uses (like mapping.json based systems)
-                    parsed_dialogue_data_for_storage = {"speaker": speaker, "text": text}
-                    if hasattr(self, "store_llm_extracted_dialogue"):
-                        self.store_llm_extracted_dialogue(parsed_dialogue_data_for_storage)
+                        # Store the raw parsed dialogue for other internal uses (like mapping.json based systems)
+                        parsed_dialogue_data_for_storage = {"speaker": speaker, "text": text}
+                        if hasattr(self, "store_llm_extracted_dialogue"):
+                            self.store_llm_extracted_dialogue(parsed_dialogue_data_for_storage)
+
+            print(f"[AceAttorneyEnv _build_agent_observation_components] Dialogue history for agent: {self.dialogue_history_for_agent}")
             if self.dialogue_history_for_agent:
-                history_to_display = []
-                if len(self.dialogue_history_for_agent) > 1:
-                    history_to_display = self.dialogue_history_for_agent
-                
-                if history_to_display:
-                    dialogue_history_str = "Previous Dialogue History (older -> newer):\\n" + "\\n".join(history_to_display)
-                    dialogue_parts.append(dialogue_history_str)
-                else:
-                    dialogue_parts.append("Previous Dialogue History: None.")
-            else:
-                dialogue_parts.append("Previous Dialogue History: None.")
-            
+                displayed_dialogue_lines = []
+                for history_line in self.dialogue_history_for_agent:
+                    # Attempt to find a full-line match in the current level's dialog map
+                    if self.current_level_dialog_map and history_line in self.current_level_dialog_map:
+                        displayed_dialogue_lines.append(self.current_level_dialog_map[history_line])
+                    else:
+                        speaker_text_pair = history_line.split(": ", 1)
+                        if len(speaker_text_pair) == 2:
+                            speaker_orig, text_orig = speaker_text_pair[0], speaker_text_pair[1]
+                            mapped_speaker = speaker_orig # Default to original if not in name_map
+                            if self.current_level_name_map:
+                                mapped_speaker = self.current_level_name_map.get(speaker_orig.lower(), speaker_orig)
+                            displayed_dialogue_lines.append(f"{mapped_speaker}: {text_orig}")
+                        else:
+                            displayed_dialogue_lines.append(history_line) # Should not happen if parsing was correct
+                dialogue_history_str = "Dialogue History (older -> newer):\n" + "\n".join(displayed_dialogue_lines)
+                dialogue_parts.append(dialogue_history_str)
             if not current_dialogue_text_component:
                 current_dialogue_text_component = "Dialogue: None available for current step."
-
-            current_dialogue_text_component = "\n".join(dialogue_parts)
+            
+            # Ensure all parts are strings before joining
+            safe_dialogue_parts = [str(part) for part in dialogue_parts]
+            current_dialogue_text_component = "\n\n".join(safe_dialogue_parts).strip()
 
             background_obs_component = static_background_transcript
             if not background_obs_component: 

@@ -166,13 +166,14 @@
         ],
         "evidence_mappings": {
             "ATTORNEY'S BADGE": "E1",
-            "CINDY'S AUTOPSY REPORT": "E2",
-            "STATUE": "E3",
-            "PASSPORT": "E4",
-            "BLACKOUT RECORD": "E5"
+            "BLACKOUT RECORD": "E2",
+            "PASSPORT": "E3",
+            "STATUE": "E4",
+            "CINDY'S AUTOPSY REPORT": "E5"
         },
         "dialog": {
-            "Sahwit: I was going door-to-door, selling subscriptions when I saw a man fleeing an apartment.": "witness 1: I was going door-to-door selling magazine subscriptions when I spotted a man running out of an apartment.",
+            "Sahwit: I was going door-to-door, selling subscriptions when I saw": "witness 1: I was going door-to-door selling magazine subscriptions when I spotted",
+            "Sahwit: a man fleeing an apartment.": "witness 1: a man running out of an apartment.",
             "Sahwit: I thought he must be in a hurry because he left the": "witness 1: I assumed he must have been in a rush because he left the",
             "Sahwit: door half-open behind him.": "witness 1: door partially open.",
             "Sahwit: Thinking it strange, I looked inside the apartment.": "witness 1: Finding it odd, I decided to peek inside the apartment.",
@@ -462,23 +463,23 @@
         },
         "evidences": [
             "ATTORNEY'S BADGE: No one would believe I was a defense attorney if I didn't carry this.",
-            "MIA'S AUTOPSY REPORT: Time of death: 9/5 at 9:00 PM. Cause: single blunt force trauma. Death was instantaneous.",
-            "MAYA'S CELL PHONE: Holds a conversation between the Chief and Maya. (September 5, 9:27 AM. Maya: Mia! What's up? You haven't called in a while. Mia: Well, actually there's something I want you to hold on to for me. Maya: Again? What is it this time? Mia: It's... a clock. It's made to look like that statue, 'The Thinker.' And it tells you the time! Ah... I should probably tell you, the clock isn't talking right now. Maya: Huh? It's not working? That's lame! Mia: I had to take the clockwork out, sorry. I put some papers inside it instead. Maya: Papers? Is that the evidence, then? Mia: I'll leave that one up to your imagination. See you tonight at nine.)",
-            "GLASS SHARDS: The broken remains of a glass light stand. Broken beyond all recognition.",
-            "THE THINKER: The murder weapon. Looks like a statue, but it's actually a clock. Made by Larry Butz.",
-            "WIRETAP: Found in Miss May's hotel room.",
+            "FLOOR PLANS: The murder scene, the Fey & Co. Law Offices.",
             "RECEIPT: A department store receipt with letters written in blood on the back.",
-            "FLOOR PLANS: The murder scene, the Fey & Co. Law Offices."
+            "WIRETAP: Found in Miss May's hotel room.",
+            "THE THINKER: The murder weapon. Looks like a statue, but it's actually a clock. Made by Larry Butz.",
+            "GLASS SHARDS: The broken remains of a glass light stand. Broken beyond all recognition.",
+            "MAYA'S CELL PHONE: Holds a conversation between the Chief and Maya. (September 5, 9:27 AM. Maya: Mia! What's up? You haven't called in a while. Mia: Well, actually there's something I want you to hold on to for me. Maya: Again? What is it this time? Mia: It's... a clock. It's made to look like that statue, 'The Thinker.' And it tells you the time! Ah... I should probably tell you, the clock isn't talking right now. Maya: Huh? It's not working? That's lame! Mia: I had to take the clockwork out, sorry. I put some papers inside it instead. Maya: Papers? Is that the evidence, then? Mia: I'll leave that one up to your imagination. See you tonight at nine.)",
+            "MIA'S AUTOPSY REPORT: Time of death: 9/5 at 9:00 PM. Cause: single blunt force trauma. Death was instantaneous."
         ],
         "evidence_mappings": {
             "ATTORNEY'S BADGE": "E1",
-            "MIA'S AUTOPSY REPORT": "E2",
-            "MAYA'S CELL PHONE": "E3",
-            "GLASS SHARDS": "E4",
+            "FLOOR PLANS": "E2",
+            "RECEIPT": "E3",
+            "WIRETAP": "E4",
             "THE THINKER": "E5",
-            "WIRETAP": "E6",
-            "RECEIPT": "E7",
-            "FLOOR PLANS": "E8"
+            "GLASS SHARDS": "E6",
+            "MAYA'S CELL PHONE": "E7",
+            "MIA'S AUTOPSY REPORT": "E8"
         },
         "dialog": {
             "Gumshoe: As soon as the phone call came in, I rushed to the scene!": "detective 1: I proceeded to the scene immediately upon receiving the call!",
@@ -1494,26 +1495,26 @@
         },
         "evidences": [
             "ATTORNEY'S BADGE: No one would believe I was a defense attorney if I didn't carry this.",
-            "MIA'S AUTOPSY REPORT: Died from a blow by a blunt object. May have lived for a few minutes after being hit.",
-            "MAYA'S CELL PHONE: Holds a conversation between the Chief and Maya. (September 5, 9:27 AM. Maya: Mia! What's up? You haven't called in a while. Mia: Well, actually there's something I want you to hold on to for me. Maya: Again? What is it this time? Mia: It's... a clock. It's made to look like that statue, 'The Thinker.' And it tells you the time! Ah... I should probably tell you, the clock isn't talking right now. Maya: Huh? It's not working? That's lame! Mia: I had to take the clockwork out, sorry. I put some papers inside it instead. Maya: Papers? Is that the evidence, then? Mia: I'll leave that one up to your imagination. See you tonight at nine.)",
-            "GLASS SHARDS: The broken remains of a glass light stand. Broken beyond all recognition.",
-            "THE THINKER: The murder weapon. Looks like a statue, but it's actually a clock. Made by Larry Butz.",
-            "WIRETAP: Found in Miss May's hotel room.",
-            "RECEIPT: A department store receipt with letters written in blood on the back.",
+            "FLOOR PLANS: The murder scene, the Fey & Co. Law Offices. (The room is viewed from above, split into a lit center and darker corners. A door is at the top-right, and a large window is along the top wall, casting a cone-shaped beam of light inward. In the bottom-left, a plant has been knocked over near a fallen object, with debris scattered into the light. Two pieces of furniture (likely chairs) are overturned in the middle of the room. From the window’s perspective, only the right half of the room is clearly visible—especially the plant debris and doorway area. The far-left corner (where the struggle likely began) is obscured from view, suggesting a witness outside the window could misjudge the victim’s movements.)",
             "MAY TESTIMONY: \"The victim dodged an attack then ran to the right, but she was caught and struck.\"",
-            "FLOOR PLANS: The murder scene, the Fey & Co. Law Offices. (The room is viewed from above, split into a lit center and darker corners. A door is at the top-right, and a large window is along the top wall, casting a cone-shaped beam of light inward. In the bottom-left, a plant has been knocked over near a fallen object, with debris scattered into the light. Two pieces of furniture (likely chairs) are overturned in the middle of the room. From the window’s perspective, only the right half of the room is clearly visible—especially the plant debris and doorway area. The far-left corner (where the struggle likely began) is obscured from view, suggesting a witness outside the window could misjudge the victim’s movements.)"
+            "THE THINKER: The murder weapon. Looks like a statue, but it's actually a clock. Made by Larry Butz.",
+            "RECEIPT: A department store receipt with letters written in blood on the back.",
+            "WIRETAP: Found in Miss May's hotel room.",
+            "GLASS SHARDS: The broken remains of a glass light stand. Broken beyond all recognition.",
+            "MAYA'S CELL PHONE: Holds a conversation between the Chief and Maya. (September 5, 9:27 AM. Maya: Mia! What's up? You haven't called in a while. Mia: Well, actually there's something I want you to hold on to for me. Maya: Again? What is it this time? Mia: It's... a clock. It's made to look like that statue, 'The Thinker.' And it tells you the time! Ah... I should probably tell you, the clock isn't talking right now. Maya: Huh? It's not working? That's lame! Mia: I had to take the clockwork out, sorry. I put some papers inside it instead. Maya: Papers? Is that the evidence, then? Mia: I'll leave that one up to your imagination. See you tonight at nine.)",
+            "MIA'S AUTOPSY REPORT: Died from a blow by a blunt object. May have lived for a few minutes after being hit."  
         ],
         "evidence_mappings": {
             "ATTORNEY'S BADGE": "E1",
-            "MIA'S AUTOPSY REPORT": "E2",
-            "MAYA'S CELL PHONE": "E3",
-            "GLASS SHARDS": "E4",
+            "Mia's Memo": "E2",
+            "FLOOR PLANS": "E3",
+            "MAY TESTIMONY": "E4",
             "THE THINKER": "E5",
-            "WIRETAP": "E6",
-            "RECEIPT": "E7",
-            "MAY TESTIMONY": "E8",
-            "FLOOR PLANS": "E9",
-            "Mia's Memo": "E10"
+            "RECEIPT": "E6",
+            "WIRETAP": "E7",
+            "GLASS SHARDS": "E8",
+            "MAYA'S CELL PHONE": "E9",
+            "MIA'S AUTOPSY REPORT": "E10"
         },
         "dialog": {
             "White: Miss May's testimony was correct... as was mine!": "witness 3: witness 1's testimony was accurate... as was mine!",
