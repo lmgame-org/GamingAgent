@@ -119,7 +119,7 @@ def main():
             future = executor.submit(run_single_game_config, *task_args)
             future_to_task_args[future] = task_args
             # print(f"Submitted task: {task_args[:3]}...") # Optional: for seeing submission order
-            time.sleep(1) # Add 1-second delay between submissions
+            time.sleep(2) # Add 1-second delay between submissions
         
         print(f"All {len(tasks_to_run)} tasks submitted. Waiting for completion...")
         for future in as_completed(future_to_task_args):

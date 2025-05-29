@@ -466,7 +466,6 @@ def main():
                         if loaded_yaml.get('agent'):
                             agent_config_yaml = loaded_yaml['agent']
                             defaults_from_yaml['model_name'] = agent_config_yaml.get('model_name')
-                            defaults_from_yaml['harness'] = agent_config_yaml.get('harness')
                             defaults_from_yaml['observation_mode'] = agent_config_yaml.get('observation_mode')
                             
                             # Still load max_memory from its specific module config if present
@@ -479,12 +478,7 @@ def main():
         else:
             # This print is for when the specific game's config.yaml is not found
             print(f"Info: Game-specific config file {config_file_path} not found. Using command-line args and built-in defaults.")
-    # If config_dir_name was None (e.g. game_name not passed to prelim_parser), 
-    # config_file_path remains None, and we skip loading YAML defaults.
 
-    # DEBUG PRINT 2: Remaining argv and defaults_map
-    # print(f"DEBUG: remaining_argv before parse_arguments: {remaining_argv}")
-    # print(f"DEBUG: defaults_from_yaml before parse_arguments: {defaults_from_yaml}")
 
     args = parse_arguments(defaults_map=defaults_from_yaml, argv_to_parse=remaining_argv)
 

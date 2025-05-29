@@ -79,3 +79,5 @@ custom_integrations/roms/
 *.sha
 
 perf/
+
+logs/
