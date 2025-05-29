@@ -8,6 +8,9 @@ from gymnasium.core import RenderFrame
 
 import cv2 # For rendering 'human' mode
 
+import os
+import re
+
 from gamingagent.envs.gym_env_adapter import GymEnvAdapter
 from gamingagent.modules.core_module import Observation
 from gamingagent.envs.env_utils import create_board_image_tetris
@@ -137,8 +140,15 @@ class TetrisEnv(gym.Env):
             "active_tetromino_mask": gym.spaces.Box(low=0, high=1, shape=(self.height_padded, self.width_padded), dtype=np.uint8),
             "queue_piece_ids": gym.spaces.Box(low=0, high=max_pixel_id_on_board, shape=(self.queue_size,), dtype=np.uint8)
         })
+        
         assert render_mode is None or render_mode in self.metadata["render_modes"]
         self.render_mode = render_mode
+
+        # Headless mode fallback
+        if self.render_mode == "human" and not os.environ.get("DISPLAY"):
+            print("[TetrisEnv] DISPLAY not found – switching render_mode from 'human' to 'rgb_array'")
+            self.render_mode = "rgb_array"
+
         self.adapter = GymEnvAdapter(
             game_name=game_name_for_adapter, observation_mode=observation_mode_for_adapter,
             agent_cache_dir=agent_cache_dir_for_adapter, game_specific_config_path=game_specific_config_path_for_adapter,
@@ -236,24 +246,44 @@ class TetrisEnv(gym.Env):
         # Simplified scoring: +10 per line cleared
         return float(lines * self.REWARD_PER_LINE_CLEARED)
 
-    def _commit_active_tetromino(self) -> float:
-        if self.active_tetromino is None: return 0.0
-        self._place_active_tetromino() # Piece is now placed
-        
-        current_commit_reward = self.REWARD_PIECE_PLACED # +1 for placing a piece
-        
+    def _commit_active_tetromino(self) -> Tuple[float, int]:
+        """
+        Places the active piece, clears full rows, updates game stats
+        and returns:
+
+            (tetris_reward , perf_increment)
+
+        * tetris_reward   – unchanged: +1 for piece +10 per line
+        * perf_increment  – **+1 for the commit itself, plus +1 for every
+                            line cleared** (so a T‑Spin Triple would add 4).
+        """
+        if self.active_tetromino is None:
+            return 0.0, 0
+
+        # --- place piece on board --------------------------------------
+        self._place_active_tetromino()
+
+        # --- line clears -----------------------------------------------
         lines = self._clear_filled_rows()
-        line_clear_reward = self._calculate_score(lines) # +10 per line
-        current_commit_reward += line_clear_reward
-        
-        self.current_score += line_clear_reward
+
+        # --- reward bookkeeping (unchanged) ----------------------------
+        commit_reward = (
+            self.REWARD_PIECE_PLACED          # +1 for placing a piece
+            + self._calculate_score(lines)    # +10 per cleared line
+        )
+        self.current_score += self._calculate_score(lines)
         self.lines_cleared_total += lines
         if self.lines_cleared_total // 10 >= self.level:
             self.level = (self.lines_cleared_total // 10) + 1
-        
+
+        # --- perf‑score increment (+1 commit, +1 per line) -------------
+        perf_increment = 1 + lines
+
+        # --- next piece / game‑over check ------------------------------
         if not self._spawn_tetromino():
             self.game_over = True
-        return current_commit_reward
+
+        return commit_reward, perf_increment
 
     def _get_raw_board_obs_for_render(self) -> np.ndarray:
         projection = self.board.copy()
@@ -343,82 +373,202 @@ class TetrisEnv(gym.Env):
         if self.render_mode == "human": self.render()
         return agent_obs, self.current_info_dict
 
-    def step(self, agent_action_str:Optional[str], thought_process:str="",time_taken_s:float=0.0) -> Tuple[Observation,SupportsFloat,bool,bool,Dict[str,Any],float]:
-        self.adapter.increment_step()
-        action_idx = self.adapter.map_agent_action_to_env_action(agent_action_str)
-        action_idx = action_idx if action_idx is not None else self.ACTION_NO_OP
-        
-        current_step_reward = 0.0 # Initialize step reward to 0
-        terminated = self.game_over
-        truncated = False 
+    def step(
+        self,
+        agent_action_str: Optional[str],
+        thought_process: str = "",
+        time_taken_s: float = 0.0,
+    ) -> Tuple[Observation, SupportsFloat, bool, bool, Dict[str, Any], float]:
+        """
+        Executes a *sequence* of actions in one call, where every action may
+        optionally specify how many physics frames it lasts.
 
-        if not terminated: 
-            if action_idx == self.ACTION_MOVE_LEFT:
-                if self.active_tetromino and not self._collision(self.active_tetromino, self.x-1,self.y): self.x-=1
-            elif action_idx == self.ACTION_MOVE_RIGHT:
-                if self.active_tetromino and not self._collision(self.active_tetromino, self.x+1,self.y): self.x+=1
-            elif action_idx == self.ACTION_ROTATE_CLOCKWISE:
-                if self.active_tetromino:
-                    rotated = self._rotate_tetromino(self.active_tetromino, True)
-                    if not self._collision(rotated, self.x,self.y): self.active_tetromino=rotated
-            elif action_idx == self.ACTION_ROTATE_COUNTERCLOCKWISE:
-                if self.active_tetromino:
-                    rotated = self._rotate_tetromino(self.active_tetromino, False)
-                    if not self._collision(rotated, self.x,self.y): self.active_tetromino=rotated
-            elif action_idx == self.ACTION_SOFT_DROP:
-                if self.active_tetromino and not self._collision(self.active_tetromino,self.x,self.y+1):
-                    self.y+=1
-                    # No immediate reward per cell for soft drop now
-                elif self.active_tetromino: # Collision below or piece is None (should not happen if active)
-                     current_step_reward = self._commit_active_tetromino()
-            elif action_idx == self.ACTION_HARD_DROP:
-                if self.active_tetromino:
-                    # No per-cell reward for hard drop now
-                    while not self._collision(self.active_tetromino,self.x,self.y+1): self.y+=1
-                    current_step_reward = self._commit_active_tetromino()
-            
-            # Gravity application
-            if self.gravity_enabled and self.active_tetromino and \
-               action_idx not in [self.ACTION_HARD_DROP] and \
-               not (action_idx == self.ACTION_SOFT_DROP and self.active_tetromino is None): # if soft drop committed
-                if not self._collision(self.active_tetromino,self.x,self.y+1):
-                    self.y+=1
-                else: # Collision due to gravity
-                    if self.active_tetromino is not None: # Ensure a piece is active to commit
-                         current_step_reward = self._commit_active_tetromino()
-        
-        terminated = self.game_over
-        obs_dict_for_adapter = self._get_obs(); 
-        self.current_info_dict = self._get_info()
-        
-        current_step_perf_score = self.adapter.calculate_perf_score(current_step_reward, self.current_info_dict)
-        self.total_perf_score_episode += current_step_perf_score
-        self.current_info_dict = self._get_info() # Update info dict again for logging and render
+        Examples accepted
+        -----------------
+        "(move_left,2)(rotate_clockwise,1)(hard_drop,1)"
+        "move_left,2; rotate_clockwise,1 ; hard_drop"
+        "soft_drop"
+        """
 
-        img_path, txt_rep = None, None
-        if self.adapter.observation_mode in ["vision", "both"]:
-            img_path = self.adapter._create_agent_observation_path(self.adapter.current_episode_id, self.adapter.current_step_num)
-            create_board_image_tetris(
-                board=obs_dict_for_adapter["board"], 
-                save_path=img_path,
-                pixel_color_mapping=self.pixel_id_to_color_map, 
-                all_tetromino_objects=self.tetrominoes,
-                score=int(self.current_score),
-                lines=self.lines_cleared_total,
-                level=self.level, 
-                next_pieces_ids=self.current_info_dict["next_piece_ids"],
-                perf_score=current_step_perf_score 
-            )
-        if self.adapter.observation_mode in ["text", "both"]:
-            b_str=np.array2string(obs_dict_for_adapter["board"],separator=","); n_str=f"N:{self.current_info_dict['next_piece_ids']}"; i_str=f"S:{self.current_score} L:{self.lines_cleared_total} V:{self.level}"
-            txt_rep = f"{b_str}\n{n_str} {i_str}"
-        agent_obs = self.adapter.create_agent_observation(img_path, txt_rep)
-        final_term, final_trunc = self.adapter.verify_termination(agent_obs, terminated, truncated)
-        self.adapter.log_step_data(agent_action_str=agent_action_str, thought_process=thought_process, reward=current_step_reward,
-                                 info=self.current_info_dict, terminated=final_term, truncated=final_trunc,
-                                 time_taken_s=time_taken_s, perf_score=current_step_perf_score, agent_observation=agent_obs)
-        if self.render_mode == "human": self.render()
-        return agent_obs, current_step_reward, final_term, final_trunc, self.current_info_dict, current_step_perf_score
+        # ---------------------------------------------------------------
+        # 1)  Parse the incoming string → [(action_name, repeat_frames)]
+        # ---------------------------------------------------------------
+        actions_sequence: List[Tuple[str, int]] = []
+
+        if agent_action_str:
+            # Matches:  (optional_quote? action_name optional_quote?,  optional_int)?
+            token_pattern = r"(\w+(?:_\w+)*)(?:\s*,\s*(\d+))?"
+            for name, cnt in re.findall(token_pattern, agent_action_str):
+                repeat = int(cnt) if cnt else 1
+                repeat = max(1, repeat)
+                actions_sequence.append((name.lower(), repeat))
+
+        # Fallback → a single NO‑OP (so we still advance the adapter timers)
+        if not actions_sequence:
+            actions_sequence.append(("noop", 1))
+
+        # ---------------------------------------------------------------
+        # 2)  Execute every (action, frames) pair
+        # ---------------------------------------------------------------
+        total_reward: float = 0.0
+        total_perf:   float = 0.0
+        terminated = truncated = False
+        last_obs: Optional[Observation] = None
+        # to propagate user‑supplied time_taken_s
+        first_outer = True 
+
+        for action_name, frames in actions_sequence:
+            env_action_idx = self.adapter.map_agent_action_to_env_action(action_name)
+            if env_action_idx is None:
+                env_action_idx = self.ACTION_NO_OP
+
+            for frame_idx in range(frames):
+                self.adapter.increment_step()
+                action_idx = env_action_idx
+
+                current_step_reward   = 0.0
+                perf_increment_step   = 0        # NEW
+                terminated_flag       = self.game_over
+                truncated_flag        = False
+
+                if not terminated_flag:
+                    if action_idx == self.ACTION_MOVE_LEFT:
+                        if self.active_tetromino and not self._collision(
+                            self.active_tetromino, self.x - 1, self.y
+                        ):
+                            self.x -= 1
+                    elif action_idx == self.ACTION_MOVE_RIGHT:
+                        if self.active_tetromino and not self._collision(
+                            self.active_tetromino, self.x + 1, self.y
+                        ):
+                            self.x += 1
+                    elif action_idx == self.ACTION_ROTATE_CLOCKWISE:
+                        if self.active_tetromino:
+                            rotated = self._rotate_tetromino(
+                                self.active_tetromino, True
+                            )
+                            if not self._collision(rotated, self.x, self.y):
+                                self.active_tetromino = rotated
+                    elif action_idx == self.ACTION_ROTATE_COUNTERCLOCKWISE:
+                        if self.active_tetromino:
+                            rotated = self._rotate_tetromino(
+                                self.active_tetromino, False
+                            )
+                            if not self._collision(rotated, self.x, self.y):
+                                self.active_tetromino = rotated
+                    elif action_idx == self.ACTION_SOFT_DROP:
+                        if self.active_tetromino and not self._collision(
+                            self.active_tetromino, self.x, self.y + 1
+                        ):
+                            self.y += 1
+                        elif self.active_tetromino:
+                            reward, perf = self._commit_active_tetromino()
+                            current_step_reward += reward
+                            perf_increment_step += perf
+                    elif action_idx == self.ACTION_HARD_DROP:
+                        if self.active_tetromino:
+                            while not self._collision(self.active_tetromino, self.x, self.y + 1):
+                                self.y += 1
+                            # Only commit once after dropping
+                            if self.active_tetromino is not None:
+                                reward, perf = self._commit_active_tetromino()
+                                current_step_reward += reward
+                                perf_increment_step += perf
+
+                    # gravity
+                    if (
+                        self.gravity_enabled
+                        and self.active_tetromino
+                        and action_idx != self.ACTION_HARD_DROP
+                        and not (
+                            action_idx == self.ACTION_SOFT_DROP
+                            and self.active_tetromino is None
+                        )
+                    ):
+                        if not self._collision(
+                            self.active_tetromino, self.x, self.y + 1
+                        ):
+                            self.y += 1
+                        else:
+                            if self.active_tetromino is not None:
+                                reward, perf = self._commit_active_tetromino()
+                                current_step_reward += reward
+                                perf_increment_step += perf
+
+                terminated_flag = self.game_over
+                obs_dict = self._get_obs()
+                self.current_info_dict = self._get_info()
+
+                current_step_perf = self.adapter.calculate_perf_score(
+                    current_step_reward, self.current_info_dict
+                )
+                self.total_perf_score_episode += current_step_perf
+                self.current_info_dict = self._get_info()
+
+                img_path = txt_rep = None
+                if self.adapter.observation_mode in ["vision", "both"]:
+                    img_path = self.adapter._create_agent_observation_path(
+                        self.adapter.current_episode_id, self.adapter.current_step_num
+                    )
+                    create_board_image_tetris(
+                        board=obs_dict["board"],
+                        save_path=img_path,
+                        pixel_color_mapping=self.pixel_id_to_color_map,
+                        all_tetromino_objects=self.tetrominoes,
+                        score=int(self.current_score),
+                        lines=self.lines_cleared_total,
+                        level=self.level,
+                        next_pieces_ids=self.current_info_dict["next_piece_ids"],
+                        perf_score=current_step_perf,
+                    )
+                if self.adapter.observation_mode in ["text", "both"]:
+                    b_str = np.array2string(obs_dict["board"], separator=",")
+                    n_str = f"N:{self.current_info_dict['next_piece_ids']}"
+                    i_str = (
+                        f"S:{self.current_score} "
+                        f"L:{self.lines_cleared_total} "
+                        f"V:{self.level}"
+                    )
+                    txt_rep = f"{b_str}\n{n_str} {i_str}"
+                agent_obs = self.adapter.create_agent_observation(img_path, txt_rep)
+
+                final_term, final_trunc = self.adapter.verify_termination(
+                    agent_obs, terminated_flag, truncated_flag
+                )
+                self.adapter.log_step_data(
+                    agent_action_str=action_name,
+                    thought_process=thought_process,
+                    reward=current_step_reward,
+                    info=self.current_info_dict,
+                    terminated=final_term,
+                    truncated=final_trunc,
+                    time_taken_s=time_taken_s if first_outer and frame_idx == 0 else 0.0,
+                    perf_score=current_step_perf,
+                    agent_observation=agent_obs,
+                )
+                if self.render_mode == "human":
+                    self.render()
+
+                # accumulate & maybe early‑exit
+                total_reward += current_step_reward
+                total_perf += perf_increment_step # our customized performance metrics
+                last_obs = agent_obs
+                terminated, truncated = final_term, final_trunc
+                if terminated or truncated:
+                    break
+
+            first_outer = False
+            if terminated or truncated:
+                break
+
+        return (
+            last_obs,
+            total_reward,
+            terminated,
+            truncated,
+            self.current_info_dict,
+            total_perf,
+        )
 
     def render(self) -> Optional[RenderFrame]:
         if self.render_mode == "ansi":

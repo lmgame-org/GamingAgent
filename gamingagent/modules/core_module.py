@@ -4,7 +4,7 @@ import datetime
 from abc import ABC, abstractmethod
 from tools.serving import APIManager
 from dataclasses import dataclass
-from typing import Optional, Any
+from typing import Optional, Dict, Any
 
 from collections import deque
 
@@ -44,7 +44,6 @@ class GameTrajectory:
              return None
         else: # Background not needed or not set, but trajectory exists
             return history_text_repr
-
 
 @dataclass
 class Observation:

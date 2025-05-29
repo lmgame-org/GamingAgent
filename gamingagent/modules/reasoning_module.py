@@ -102,7 +102,7 @@ class ReasoningModule(CoreModule):
             "image_path": image_path,
             "textual_representation": textual_representation,
             "processed_visual_description": processed_visual_description,
-            "game_trajectory": game_trajectory.get() if hasattr(game_trajectory, 'get') else str(game_trajectory),
+            "game_trajectory": game_trajectory.get(),
             "reflection": reflection,
             "response": response_string,
             "thought": parsed_response.get("thought"),

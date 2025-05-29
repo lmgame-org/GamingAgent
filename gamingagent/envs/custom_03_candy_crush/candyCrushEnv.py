@@ -201,7 +201,6 @@ class CandyCrushEnvWrapper(gym.Env):
                 temp_rng = np.random.default_rng(seed=self.seed_val)
                 self.colour_map = temp_rng.choice(range(105, 230), size=self.num_colours + 1, replace=False)
 
-
         self.num_colour_specials = len(self.colour_specials)
         self.num_colourless_specials = len(self.colourless_specials)
 
