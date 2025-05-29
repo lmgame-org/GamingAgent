@@ -73,7 +73,6 @@ class ReasoningModule(CoreModule):
         # Extract game trajectory and reflection memory module
         game_trajectory = getattr(observation, "game_trajectory", "")
         reflection = getattr(observation, "reflection", "")
-
         use_memory = bool(game_trajectory.get() and reflection)
         use_perception = bool(processed_visual_description)
 
@@ -89,18 +88,23 @@ class ReasoningModule(CoreModule):
             response = self._call_vision_api(full_context, image_path)
         else:
             response = self._call_text_api(full_context)
-        
-        # Parse the response
-        parsed_response = self._parse_response(response)
-        
+
+        #returned API response should be a tuple
+        response_string = response[0]
+        parsed_response = self._parse_response(response_string)
+        if parsed_response is None:
+            parsed_response = {}
+        parsed_response["raw_response_str"] = processed_visual_description
+
+
         # Log the reasoning process
         self.log({
             "image_path": image_path,
             "textual_representation": textual_representation,
             "processed_visual_description": processed_visual_description,
-            "game_trajectory": game_trajectory,
+            "game_trajectory": game_trajectory.get() if hasattr(game_trajectory, 'get') else str(game_trajectory),
             "reflection": reflection,
-            "response": response,
+            "response": response_string,
             "thought": parsed_response.get("thought"),
             "action": parsed_response.get("action")
         })

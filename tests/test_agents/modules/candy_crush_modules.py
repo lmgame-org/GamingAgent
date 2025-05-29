@@ -696,13 +696,43 @@ move: ((row1, col1), (row2, col2))
 Make sure your coordinates are integers representing valid positions on the visible board.
 The candies to swap MUST be adjacent."""
     
-    def process_observation(self, observation, info=None):
+    def _prepare_memory_context(self, memory_summary):
+        """Prepare a concise summary of memory for the prompt."""
+        if not memory_summary:
+            return "No memory of past game states available."
+            
+        recent_memory = memory_summary[-5:] # Take last 5 entries
+        
+        summary_parts = []
+        for i, entry in enumerate(recent_memory):
+            game_state = entry.get("game_state", {})
+            # CandyCrush memory stores a full perception dict in game_state
+            board_list = game_state.get("board", [])
+            potential_matches_count = game_state.get("num_potential_matches", 0)
+            board_text = "Board state N/A"
+            if board_list:
+                board_text = "\n".join(" ".join(map(str, row)) for row in board_list)
+            
+            last_action_taken = entry.get("last_action", "N/A")
+            reflection = entry.get("reflection", "No reflection.")
+            
+            entry_summary = f"Past State {i+1} (most recent is last):\n"
+            entry_summary += f"  Action leading to this state: {last_action_taken}\n"
+            entry_summary += f"  Board (summary): Approx {potential_matches_count} potential matches. Example row: {board_list[0] if board_list else 'N/A'}\n"
+            # entry_summary += f"  Board:\n{board_text}\n"
+            entry_summary += f"  Reflection: {reflection}\n"
+            summary_parts.append(entry_summary)
+            
+        return "\n".join(summary_parts)
+
+    def process_observation(self, observation, info=None, memory_summary=None):
         """
         Process the observation directly to plan the next action.
         
         Args:
             observation: The game observation (image or board state)
             info: Additional info from the environment
+            memory_summary: Summary of past game states
             
         Returns:
             dict: A dictionary containing move and thought
@@ -715,11 +745,19 @@ The candies to swap MUST be adjacent."""
             # If we have a valid observation with image data
             if isinstance(observation, np.ndarray) and len(observation.shape) == 3 and observation.shape[2] == 3:
                 # Create a user prompt for image analysis
+                
+                memory_context_for_prompt = "No recent game history available."
+                if memory_summary:
+                    memory_context_for_prompt = self._prepare_memory_context(memory_summary)
+
                 user_prompt = f"""Analyze this Candy Crush board image and find the best move.
+
+Recent Game History:
+{memory_context_for_prompt}
 
 {self.action_prompt}
 
-Based on the current game state in the image, what is the best move you can make?"""
+Based on the current game state in the image, and considering recent history, what is the best move you can make?"""
                 
                 # Make API call with vision model
                 response, _ = self.api_manager.vision_text_completion(

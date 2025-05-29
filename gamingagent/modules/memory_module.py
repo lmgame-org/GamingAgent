@@ -87,18 +87,19 @@ class MemoryModule(CoreModule):
             reasoning_effort=self.reasoning_effort,
             token_limit=self.token_limit,
         )
-
+        # returned API response should be a tuple
+        actual_raw_text = raw[0]
         # extract "reflection:" section if present
         m = re.search(
             r'(?:^|\n)(?:#\s*)?reflection:(.+?)(?=\n(?:#\s*)?[a-zA-Z]+:|$)',
-            raw,
+            actual_raw_text, # Use the extracted text
             re.DOTALL | re.IGNORECASE,
         )
-        return (m.group(1).strip() if m else raw.strip()) or "No valid reflection produced."
+        return (m.group(1).strip() if m else actual_raw_text.strip()) or "No valid reflection produced."
 
     def process_observation(self,
                         observation: Observation,
-                        game_state: str) -> str:
+                        game_state: dict) -> str:
         """
         Main entry point called by the agent each turn.
         Generates reflection and pushes a compact line into the trajectory.
@@ -119,12 +120,14 @@ class MemoryModule(CoreModule):
         Maybe we can add demonstrations as well
         """
         prev_context = observation.game_trajectory.get() or ""
+        if observation.game_trajectory.background is None and observation.trajectory_includes_background:
+            observation.game_trajectory.set_background(observation.get_background() or "Background not available.")
+
         reflection = self._reflect(
             prev_context=prev_context,
             current_state=str(game_state),
         )
 
-        # build a single printable entry line
         ts = datetime.datetime.now().isoformat(timespec="seconds")
         game_state.pop("img_path")
         

@@ -812,13 +812,43 @@ action_sequence: [List of action indices]
 
 Your action sequence should include all necessary rotations, movements, and drops to place the current piece."""
     
-    async def process_observation(self, observation, info=None):
+    def _prepare_memory_context(self, memory_summary):
+        """Prepare a concise summary of memory for the prompt."""
+        if not memory_summary:
+            return "No memory of past states available."
+            
+        # Take up to the last 5-10 memory entries to keep context concise
+        # The number can be adjusted based on typical context window and usefulness
+        recent_memory = memory_summary[-5:] 
+        
+        summary_parts = []
+        for i, entry in enumerate(recent_memory):
+            # entry structure is assumed to be: 
+            # {"timestamp": ..., "game_state": {"board_text": ..., "next_pieces_text": ...}, 
+            #  "last_action": ..., "reflection": ...}
+            game_state = entry.get("game_state", {})
+            board_text = game_state.get("board_text", "N/A")
+            next_pieces_text = game_state.get("next_pieces_text", "N/A")
+            last_action_taken = entry.get("last_action", "N/A")
+            reflection = entry.get("reflection", "No reflection.")
+            
+            entry_summary = f"Past State {i+1} (most recent is last):"
+            entry_summary += f"  Board: {board_text}"
+            entry_summary += f"  Next Pieces: {next_pieces_text}"
+            entry_summary += f"  Action leading to this state: {last_action_taken}"
+            entry_summary += f"  Reflection on this state: {reflection}"
+            summary_parts.append(entry_summary)
+            
+        return "\n".join(summary_parts)
+
+    async def process_observation(self, observation, info=None, memory_summary=None):
         """
         Process the observation directly to plan the next action sequence.
         
         Args:
             observation: The game observation (image)
             info: Additional info from the environment
+            memory_summary: Summary of past game states
             
         Returns:
             dict: A dictionary containing action_sequence and thought
@@ -840,8 +870,8 @@ Your action sequence should include all necessary rotations, movements, and drop
                     
                     # Add detailed piece representations if available
                     if 'piece_queue_texts' in info and info['piece_queue_texts']:
-                        for i, piece_text in enumerate(info['piece_queue_texts']):
-                            piece_queue_text += f"Next Piece {i+1}:\n{piece_text}\n\n"
+                        for i, piece_text_item in enumerate(info['piece_queue_texts']):
+                            piece_queue_text += f"Next Piece {i+1}:\n{piece_text_item}\n\n"
 
                 tetris_mechanics = """
 Tetris Game Mechanics:
@@ -932,11 +962,18 @@ Guidelines for planning:
 2. Then position the piece horizontally (actions 0 and 1)
 3. Finally, use hard drop (action 5) for final placement
 4. Consider the next pieces in queue when planning your current move
+5. Review recent game history (if provided) to inform your strategy and avoid repeating mistakes.
 """
-                
+                memory_context_for_prompt = "No recent game history available." # Default
+                if memory_summary:
+                    memory_context_for_prompt = self._prepare_memory_context(memory_summary)
+
                 user_prompt = f"""Analyze this Tetris screenshot and plan an optimal action sequence.
 
 {piece_queue_text}
+
+Recent Game History:
+{memory_context_for_prompt}
 
 {tetris_mechanics}
 
@@ -947,12 +984,13 @@ Your task is to:
    - Move it to the optimal position.
    - Drop it into place.
 3. Consider the upcoming pieces in the queue (provided above as text, if available) for better long-term placement.
+4. Leverage insights from Recent Game History to make strategic decisions.
 
 The sequence should be a list of action indices (0-7) that completely handles the current piece.
 Example: [3, 3, 1, 1, 5] (rotate twice, move right twice, then hard drop)
 
 Format your response exactly as follows:
-thought: [Your detailed reasoning about the optimal placement, considering the upcoming pieces if available, and why]
+thought: [Your detailed reasoning about the optimal placement, considering the upcoming pieces and game history if available, and why]
 action_sequence: [list of action indices]
 
 Make sure your action sequence is comprehensive and includes all steps needed."""

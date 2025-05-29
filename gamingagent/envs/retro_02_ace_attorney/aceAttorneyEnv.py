@@ -19,7 +19,7 @@ from gamingagent.envs.gym_env_adapter import GymEnvAdapter
 # --- Constants ---
 ASSETS_DIR = os.path.join(os.path.dirname(__file__), "assets")
 DEFAULT_GAME_SCRIPT_PATH = os.path.join(ASSETS_DIR, "mapping.json")
-DEFAULT_SKIP_CONVERSATIONS_PATH = os.path.join(ASSETS_DIR, "ace_attorney_1_skip_conversations.json")
+DEFAULT_SKIP_CONVERSATIONS_PATH = os.path.join(ASSETS_DIR, "skip_conversations.json")
 LIVES_RAM_VARIABLE_NAME = "lives" # Example RAM variable, confirm actual name from .json
 
 # Ensure PIL is imported for image operations if any are done directly here
@@ -89,25 +89,12 @@ class AceAttorneyEnv(RetroEnv):
             skip_conversations_path: Path to JSON file for skipping known dialogue sequences.
             initial_lives: The starting number of lives/penalties.
         """
-        # --- RetroEnv Initialization ---
-        # ADDED: Register custom integration path
         custom_integration_path = os.path.dirname(os.path.abspath(__file__))
         retro.data.Integrations.add_custom_path(custom_integration_path)
-        # print(f"[AceAttorneyEnv __init__] Added custom integration path: {custom_integration_path}")
-        # print(f"[AceAttorneyEnv __init__] Available games after adding custom path: {retro.data.list_games(inttype=inttype)}")
-        # print(f"[AceAttorneyEnv __init__] Checking for game: {game}")
-        # if game not in retro.data.list_games(inttype=inttype):
-        # print(f"[AceAttorneyEnv __init__] WARNING: Game '{game}' still not found after attempting to add custom path. Ensure integration files exist at the expected location.")
-
-        # Determine num_buttons for the action array
-        # This should align with how the game integration is set up (e.g., what env.buttons reports)
         # For GBA, it's typically 10 or 12 (B, SELECT, START, UP, DOWN, LEFT, RIGHT, A, L, R, + 2 Nones for 12)
-        # We'll use a placeholder and confirm/adjust after first run or by inspecting retro game data.
-        self.num_buttons = 12 # Assuming 12 for GBA based on previous findings (A=8, B=0, L=10, R=11)
+        self.num_buttons = 12
         self.NO_OP_ACTION_ARRAY = np.zeros(self.num_buttons, dtype=bool)
-
-        # Initialize RetroEnv (superclass)
-        # obs_type is set to RAM to allow reading 'lives'. Visuals are handled by get_screen().
+        
         super().__init__(
             game=game,
             state=state, # The initial .state file name
@@ -138,6 +125,8 @@ class AceAttorneyEnv(RetroEnv):
         self.current_core_info: Dict[str, Any] = {} # Info from core retro env step/reset
 
         self.last_llm_dialogue_info: Optional[Dict] = None # ADDED: To store last LLM extracted dialogue
+        self.raw_llm_output_from_previous_step: Optional[str] = None # ADDED: To store raw LLM output from previous step
+        self.dialogue_history_for_agent: List[str] = [] # ADDED: To accumulate dialogue for agent observation
 
         # Initialize level-specific data (dialogue log, skip map, end statements)
         self._initialize_level_specific_data() # Depends on self.game_script_data and self.current_retro_state_name
@@ -216,12 +205,11 @@ class AceAttorneyEnv(RetroEnv):
         if not self.current_retro_state_name or not self.game_script_data:
             # print("[AceAttorneyEnv] Cannot initialize level data: retro_state_name or game_script_data missing.")
             return
-
+        
         level_data = self.game_script_data.get(self.current_retro_state_name)
         if not level_data:
-            # print(f"[AceAttorneyEnv] WARNING: No data in mapping.json for level: {self.current_retro_state_name}")
+            print(f"[AceAttorneyEnv] WARNING: No data in mapping.json for level: {self.current_retro_state_name}")
             return
-
         self.current_level_background = level_data.get("background_transcript", [])
         self.current_level_initial_evidence = level_data.get("evidences", [])
         self.current_level_name_map = level_data.get("name_mappings", {})
@@ -306,31 +294,71 @@ class AceAttorneyEnv(RetroEnv):
         self,
         agent_facing_info: Dict,
         skip_screenshot: bool = False
-    ) -> Tuple[Optional[str], Optional[str]]:
+    ) -> Tuple[Optional[str], Optional[str], Optional[str]]:
         """
-        Builds the image **and text** components for the agent's observation.
+        Builds the image, current dialogue text, and background components for the agent's observation.
 
         * Image is saved unless `skip_screenshot` is True or obs‑mode lacks vision.
-        * Text component is now constructed from the same helpers the LLM prompt
-          uses: a comprehensive memory block plus the latest dialogue line.
+        * Current Dialogue Text component is the latest LLM-parsed dialogue line.
+        * Background component is constructed from:
+            - Comprehensive memory (static background transcript, evidence)
+            - Dialogue history (all lines except the most recent one).
         """
         # Vision
         img_path_component: Optional[str] = None
-        if self.adapter.observation_mode in ("vision", "both"):
+        if self.adapter.observation_mode in ("both"):
             if not skip_screenshot and self.current_raw_frame is not None:
                 img_path_component = self._save_frame_to_path(self.current_raw_frame)
+        # Background Observation component
+        background_obs_component: Optional[str] = None
+        if self.adapter.observation_mode in ("both"):
+            static_background_transcript, evidence_list_str = self.get_comprehensive_memory_string()
+            background_obs_component = static_background_transcript
+            if not background_obs_component: 
+                background_obs_component = "No background information available."
 
-        # Text part
-        text_obs_component: Optional[str] = None
-        if self.adapter.observation_mode in ("text", "both"):
-            memory_block = self.get_comprehensive_memory_string()
-            last_line   = self.get_mapped_dialogue_event_for_prompt()
-            parts = [memory_block]
-            if last_line:
-                parts.append(f"Previous Dialogue: {last_line}")
-            text_obs_component = "\n\n".join(parts)
+        # Current Dialogue Text part 
+        dialogue_parts =[]
+        current_dialogue_text_component: Optional[str] = None
+        if self.adapter.observation_mode in ("both"):
+            if evidence_list_str:
+                dialogue_parts.append(evidence_list_str)
+            if self.raw_llm_output_from_previous_step:
+                dialogue_match = re.search(r"^[Dd][Ii][Aa][Ll][Oo][Gg]:\s*([^:]+):\s*(.+)$", self.raw_llm_output_from_previous_step, re.MULTILINE)
+                if dialogue_match:
+                    speaker = dialogue_match.group(1).strip()
+                    text = dialogue_match.group(2).strip()
+                    current_dialogue_text_component = f"{speaker}: {text}"
+                    
+                    if not self.dialogue_history_for_agent or self.dialogue_history_for_agent[-1] != current_dialogue_text_component:
+                        self.dialogue_history_for_agent.append(current_dialogue_text_component)
+                    # Store the raw parsed dialogue for other internal uses (like mapping.json based systems)
+                    parsed_dialogue_data_for_storage = {"speaker": speaker, "text": text}
+                    if hasattr(self, "store_llm_extracted_dialogue"):
+                        self.store_llm_extracted_dialogue(parsed_dialogue_data_for_storage)
+            if self.dialogue_history_for_agent:
+                history_to_display = []
+                if len(self.dialogue_history_for_agent) > 1:
+                    history_to_display = self.dialogue_history_for_agent
+                
+                if history_to_display:
+                    dialogue_history_str = "Previous Dialogue History (older -> newer):\\n" + "\\n".join(history_to_display)
+                    dialogue_parts.append(dialogue_history_str)
+                else:
+                    dialogue_parts.append("Previous Dialogue History: None.")
+            else:
+                dialogue_parts.append("Previous Dialogue History: None.")
+            
+            if not current_dialogue_text_component:
+                current_dialogue_text_component = "Dialogue: None available for current step."
 
-        return img_path_component, text_obs_component
+            current_dialogue_text_component = "\n".join(dialogue_parts)
+
+            background_obs_component = static_background_transcript
+            if not background_obs_component: 
+                background_obs_component = "No background information available."
+
+        return img_path_component, current_dialogue_text_component, background_obs_component
 
     def reset(self, *, seed: Optional[int]=None, options: Optional[Dict[str,Any]]=None, episode_id:int=1) -> Tuple[Observation, Dict[str,Any]]:
         # Always reset to the designated initial_retro_state_name for this environment instance.
@@ -357,6 +385,7 @@ class AceAttorneyEnv(RetroEnv):
         # Reset internal game logic state variables to their initial values for this env instance.
         self.current_lives = self.initial_lives 
         # print(f"[AceAttorneyEnv RESET] Lives reset to initial value: {self.current_lives}")
+        self.dialogue_history_for_agent = [] # ADDED: Clear dialogue history
         
         self._initialize_level_specific_data() # Re-initialize dialogue logs, skip maps, etc., for the initial_retro_state_name.
         self._update_internal_game_state(self.current_core_info) # Update lives from RAM if different (should match initial_lives now)
@@ -366,8 +395,8 @@ class AceAttorneyEnv(RetroEnv):
         self.adapter.reset_episode(episode_id) # Reset adapter's episode tracking.
 
         # Build the first observation for the agent.
-        img_path, txt_rep = self._build_agent_observation_components(agent_facing_info, skip_screenshot=False)
-        agent_obs = self.adapter.create_agent_observation(img_path=img_path, text_representation=txt_rep)
+        img_path, txt_rep, bg_rep = self._build_agent_observation_components(agent_facing_info, skip_screenshot=False)
+        agent_obs = self.adapter.create_agent_observation(img_path=img_path, text_representation=txt_rep, background_info=bg_rep)
         
         initial_step_perf_score = self.adapter.calculate_perf_score(0.0, agent_facing_info)
         self.adapter.log_step_data(
@@ -390,16 +419,14 @@ class AceAttorneyEnv(RetroEnv):
 
     def _check_and_trigger_skip_sequence(self) -> Optional[Tuple[Observation, SupportsFloat, bool, bool, Dict[str, Any], float]]:
         """
-        Checks if the last LLM-parsed dialogue triggers a skip sequence.
+        Checks if the last dialogue line in history triggers a skip sequence.
         If so, executes 'A' presses and returns the state after skipping.
         Returns None if no skip sequence is triggered.
         """
-        if not self.last_llm_dialogue_info or "speaker" not in self.last_llm_dialogue_info or "text" not in self.last_llm_dialogue_info:
+        if not self.dialogue_history_for_agent: # Check if history is empty
             return None
-
-        speaker = self.last_llm_dialogue_info["speaker"]
-        text = self.last_llm_dialogue_info["text"]
-        trigger_key = f"{speaker}: {text}"
+        # print(f"[AceAttorneyEnv _check_and_trigger_skip_sequence] Dialogue ket: {self.dialogue_history_for_agent[-1]}")
+        trigger_key = self.dialogue_history_for_agent[-1] # Use the last line from history
 
         # Ensure current_level_skip_map is populated
         if not hasattr(self.adapter, 'map_agent_action_to_env_action'):
@@ -420,7 +447,7 @@ class AceAttorneyEnv(RetroEnv):
                 print("[AceAttorneyEnv _check_and_trigger_skip_sequence] CRITICAL: Cannot determine 'A' button action for skipping.")
                 return None
 
-
+        # print(f"[AceAttorneyEnv _check_and_trigger_skip_sequence] Current level skip map: {self.current_level_skip_map}")
         if self.current_level_skip_map and trigger_key in self.current_level_skip_map:
             lines_to_skip = self.current_level_skip_map[trigger_key]
             num_skips = len(lines_to_skip)
@@ -428,7 +455,11 @@ class AceAttorneyEnv(RetroEnv):
             if num_skips == 0:
                 return None # No lines to skip for this trigger
 
-            print(f"[AceAttorneyEnv DEBUG _check_and_trigger_skip_sequence] Matched skip trigger: '{trigger_key}'. Skipping {num_skips} lines.")
+            # print(f"[AceAttorneyEnv DEBUG _check_and_trigger_skip_sequence] Matched skip trigger: '{trigger_key}'. Skipping {num_skips} lines.")
+
+            # Add the dialogue lines that are being skipped to the agent's history
+            for skipped_dialogue_line in lines_to_skip:
+                self.dialogue_history_for_agent.append(skipped_dialogue_line)
 
             accumulated_skip_reward: float = 0.0
             skip_terminated: bool = False
@@ -480,9 +511,10 @@ class AceAttorneyEnv(RetroEnv):
             final_skip_info = self._get_agent_info()
             skip_block_perf_score = self.adapter.calculate_perf_score(accumulated_skip_reward, final_skip_info)
 
-            img_path_skip, txt_rep_skip = self._build_agent_observation_components(final_skip_info, skip_screenshot=False)
-            final_skip_obs = self.adapter.create_agent_observation(img_path=img_path_skip, text_representation=txt_rep_skip)
-            
+            img_path_skip, txt_rep_skip, bg_rep_skip = self._build_agent_observation_components(final_skip_info, skip_screenshot=False)
+            final_skip_obs = self.adapter.create_agent_observation(img_path=img_path_skip, text_representation=txt_rep_skip, background_info=bg_rep_skip)
+            print(self.dialogue_history_for_agent)
+
             # Log this entire skip block as a single meta-action
             self.adapter.log_step_data(
                 agent_action_str=f"<AUTO_SKIP_BLOCK_{num_skips}_FRAMES>",
@@ -500,35 +532,34 @@ class AceAttorneyEnv(RetroEnv):
         return None # No skip triggered
 
     def _check_for_end_statement_match(self) -> bool:
-        """Checks if the last LLM-parsed dialogue matches any defined end statement for the current level."""
-        if not self.last_llm_dialogue_info or "speaker" not in self.last_llm_dialogue_info or "text" not in self.last_llm_dialogue_info:
+        """Checks if the last dialogue line in history matches any defined end statement for the current level."""
+        if not self.dialogue_history_for_agent: # Check if history is empty
             return False
         if not self.current_level_end_statements: # No end statements defined for this level
             return False
 
-        speaker = self.last_llm_dialogue_info["speaker"]
-        text = self.last_llm_dialogue_info["text"]
-        current_dialogue_line = f"{speaker}: {text}"
-        
+        current_dialogue_line = self.dialogue_history_for_agent[-1] # Use the last line from history
         for end_statement in self.current_level_end_statements:
             if current_dialogue_line == end_statement: # Exact match
                 print(f"[AceAttorneyEnv DEBUG _check_for_end_statement_match] Matched end statement: '{end_statement}'")
                 return True
         return False
 
-    def step(self, agent_action_str:Optional[str], thought_process:str="",time_taken_s:float=0.0) -> Tuple[Observation,SupportsFloat,bool,bool,Dict[str,Any],float]:
+    def step(self, agent_action_str:Optional[str], thought_process:str="",time_taken_s:float=0.0, raw_llm_output_for_next_obs: Optional[str] = None) -> Tuple[Observation,SupportsFloat,bool,bool,Dict[str,Any],float]:
+        # Store the raw LLM output from this step, to be used in the *next* step's observation construction
+        self.raw_llm_output_from_previous_step = raw_llm_output_for_next_obs
         # --- Initial End Statement Check (based on PREVIOUS turn's dialogue) ---
+
+        print(f"[AceAttorneyEnv STEP] Checking for end statement match {self._check_for_end_statement_match()}")
         if self._check_for_end_statement_match():
             # print(f"[AceAttorneyEnv STEP] Terminating level '{self.current_retro_state_name}' due to matched end statement from previous observation.")
             
             # --- LEVEL PROGRESSION LOGIC ---
             next_level_state_name: Optional[str] = None
             if self.current_retro_state_name == "level1_1_5":
-                next_level_state_name = "level2_1_9" # Hardcoded for now
-                # print(f"[AceAttorneyEnv STEP] Progressing to level: {next_level_state_name}")
-            # Add more 'elif self.current_retro_state_name == "levelX_Y_Z": next_level_state_name = "levelA_B_C"' here
-            # Or, better, load this from a progression map in mapping.json or skip_conversations.json
-
+                next_level_state_name = "level2_1_9" 
+            if self.current_retro_state_name == "level2_1_9":
+                next_level_state_name = "level3_1_8" 
             if next_level_state_name:
                 try:
                     # Load the new state into the retro emulator
@@ -546,17 +577,17 @@ class AceAttorneyEnv(RetroEnv):
                     
                     # Construct observation for the agent for this new level's start
                     current_info = self._get_agent_info() # Info for the new level
-                    img_path_new_level, txt_rep_new_level = self._build_agent_observation_components(current_info, skip_screenshot=False)
-                    obs_for_new_level_start = self.adapter.create_agent_observation(img_path=img_path_new_level, text_representation=txt_rep_new_level)
+                    img_path_new_level, txt_rep_new_level, bg_rep_new_level = self._build_agent_observation_components(current_info, skip_screenshot=False)
+                    obs_for_new_level_start = self.adapter.create_agent_observation(img_path=img_path_new_level, text_representation=txt_rep_new_level, background_info=bg_rep_new_level)
                     perf_for_new_level_start = self.adapter.calculate_perf_score(0.0, current_info)
 
                     # Log that the level ended and new one is starting
                     self.adapter.log_step_data(
                         agent_action_str="<LEVEL_COMPLETE_PROCEED_TO_NEXT>",
                         thought_process=f"Level {self.initial_retro_state_name} ended. Starting {self.current_retro_state_name}.", # initial_retro_state_name here is a bit off, but conveys transition
-                        reward=0.0, # No specific reward for level transition itself in this step
+                        reward=0.0, 
                         info=current_info.copy(),
-                        terminated=True, # The step in the *previous* level is terminated
+                        terminated=False,
                         truncated=False,
                         time_taken_s=0.0,
                         perf_score=perf_for_new_level_start,
@@ -564,14 +595,14 @@ class AceAttorneyEnv(RetroEnv):
                     )
                     # The runner will likely see terminated=True and might reset or just continue if designed for sequential levels.
                     # We return the first observation of the new level.
-                    return obs_for_new_level_start, 0.0, True, False, current_info, perf_for_new_level_start
+                    return obs_for_new_level_start, 0.0, False, False, current_info, perf_for_new_level_start
 
                 except Exception as e:
                     print(f"[AceAttorneyEnv STEP] CRITICAL ERROR loading next level '{next_level_state_name}': {e}. Treating as game over.")
                     # Fall through to game over logic if next level load fails
                     current_info = self._get_agent_info()
-                    img_path_err, txt_rep_err = self._build_agent_observation_components(current_info, skip_screenshot=False)
-                    obs_err = self.adapter.create_agent_observation(img_path=img_path_err, text_representation=txt_rep_err)
+                    img_path_err, txt_rep_err, bg_rep_err = self._build_agent_observation_components(current_info, skip_screenshot=False)
+                    obs_err = self.adapter.create_agent_observation(img_path=img_path_err, text_representation=txt_rep_err, background_info=bg_rep_err)
                     perf_err = self.adapter.calculate_perf_score(0.0, current_info)
                     self.adapter.log_step_data("<LEVEL_LOAD_ERROR_GAME_OVER>", f"Failed to load {next_level_state_name}", 0.0, current_info.copy(), True, False, 0.0, perf_err, obs_err)
                     return obs_err, 0.0, True, False, current_info, perf_err
@@ -580,8 +611,8 @@ class AceAttorneyEnv(RetroEnv):
                 # Standard termination for the last defined level
                 last_obs_for_agent = self.adapter.get_last_observation_for_agent()
                 if last_obs_for_agent is None:
-                    img_path_term, txt_rep_term = self._build_agent_observation_components(self._get_agent_info(), skip_screenshot=False)
-                    last_obs_for_agent = self.adapter.create_agent_observation(img_path=img_path_term, text_representation=txt_rep_term)
+                    img_path_term, txt_rep_term, bg_rep_term = self._build_agent_observation_components(self._get_agent_info(), skip_screenshot=False)
+                    last_obs_for_agent = self.adapter.create_agent_observation(img_path=img_path_term, text_representation=txt_rep_term, background_info=bg_rep_term)
                 current_info = self._get_agent_info()
                 current_perf = self.adapter.calculate_perf_score(0.0, current_info)
                 self.adapter.log_step_data("<FINAL_LEVEL_COMPLETE>", "Final level completed via end statement.", 0.0, current_info.copy(), True, False, 0.0, current_perf, last_obs_for_agent)
@@ -634,8 +665,8 @@ class AceAttorneyEnv(RetroEnv):
             p1_step_perf_score = self.adapter.calculate_perf_score(float(p1_step_reward), p1_agent_facing_info)
             overall_accumulated_perf_score += p1_step_perf_score
             
-            p1_img_path, p1_txt_rep = self._build_agent_observation_components(p1_agent_facing_info) # skip_screenshot is False
-            p1_current_agent_obs = self.adapter.create_agent_observation(img_path=p1_img_path, text_representation=p1_txt_rep)
+            p1_img_path, p1_txt_rep, p1_bg_rep = self._build_agent_observation_components(p1_agent_facing_info) # skip_screenshot is False
+            p1_current_agent_obs = self.adapter.create_agent_observation(img_path=p1_img_path, text_representation=p1_txt_rep, background_info=p1_bg_rep)
             
             p1_term_adapter, p1_trunc_adapter = self.adapter.verify_termination(p1_current_agent_obs, p1_terminated_frame, p1_truncated_frame)
             current_terminated_overall = p1_terminated_frame or p1_term_adapter
@@ -741,8 +772,8 @@ class AceAttorneyEnv(RetroEnv):
             
             # For the single observation at the end of phase 2, we will save a screenshot.
             # The previous `skip_screenshot_for_this_noop_frame` is not needed as we only build components once.
-            p2_img_path, p2_txt_rep = self._build_agent_observation_components(p2_agent_facing_info, skip_screenshot=False)
-            p2_final_agent_obs = self.adapter.create_agent_observation(img_path=p2_img_path, text_representation=p2_txt_rep)
+            p2_img_path, p2_txt_rep, p2_bg_rep = self._build_agent_observation_components(p2_agent_facing_info, skip_screenshot=False)
+            p2_final_agent_obs = self.adapter.create_agent_observation(img_path=p2_img_path, text_representation=p2_txt_rep, background_info=p2_bg_rep)
 
             # Verify termination status *after* phase 2, considering stuck states on the final observation
             p2_term_adapter, p2_trunc_adapter = self.adapter.verify_termination(p2_final_agent_obs, phase2_internal_terminated, phase2_internal_truncated)
@@ -851,7 +882,7 @@ class AceAttorneyEnv(RetroEnv):
         original_text = self.last_llm_dialogue_info["text"].strip()
         current_state_name = self.last_llm_dialogue_info["state_name"]
 
-        # print(f"[AceAttorneyEnv get_mapped] Processing: State='{current_state_name}', Speaker='{original_speaker}', Text='{original_text[:60]}...'")
+        # print(f"[AceAttorneyEnv get_mapped] Processing: State='{current_state_name}', Speaker='{original_speaker}', Text='{original_text[:60]}...")
 
         final_speaker_to_use = original_speaker # Default to original speaker
 
@@ -881,16 +912,18 @@ class AceAttorneyEnv(RetroEnv):
         # print(f"[AceAttorneyEnv get_mapped] Generated mapped dialogue: {prompt_context[:100]}...")
         return prompt_context
 
-    def get_comprehensive_memory_string(self) -> str:
+    def get_comprehensive_memory_string(self) -> Tuple[str, str]:
         """
-        Compiles a comprehensive memory string including mapped background transcript
-        and mapped evidence list for the current game state.
+        Compiles and returns separate strings for mapped background transcript and mapped evidence list.
         """
         # print(f"[AceAttorneyEnv DEBUG get_comprehensive_memory_string] Method called for state: {self.current_retro_state_name}")
+        default_background_msg = "Background Transcript: Not available for current state."
+        default_evidence_msg = "Evidence List: Not available for current state."
+
         if not self.current_retro_state_name or not self.game_script_data or \
            self.current_retro_state_name not in self.game_script_data:
-            # print(f"[AceAttorneyEnv get_comprehensive] Essential data missing for state '{self.current_retro_state_name}'. Returning empty context.")
-            return "Comprehensive memory context not available for current state."
+            # print(f"[AceAttorneyEnv get_comprehensive] Essential data missing for state '{self.current_retro_state_name}'. Returning default messages.")
+            return default_background_msg, default_evidence_msg
 
         state_data = self.game_script_data[self.current_retro_state_name]
         name_map = state_data.get("name_mappings", {})
@@ -900,47 +933,38 @@ class AceAttorneyEnv(RetroEnv):
         evidences_orig = state_data.get("evidences", [])
 
         # Process Background Transcript
-        processed_background = []
+        processed_background_lines = []
         if background_transcript_orig:
-            processed_background.append("Background Transcript:")
             for line in background_transcript_orig:
                 parts = line.split(": ", 1)
                 mapped_line = line
                 if len(parts) == 2:
                     speaker, text = parts[0], parts[1]
                     mapped_speaker = name_map.get(speaker.lower(), speaker)
-                    if mapped_speaker != speaker:
-                        # print(f"[AceAttorneyEnv get_comprehensive] BG Speaker '{speaker}' mapped to '{mapped_speaker}'.")
-                        pass # Avoid too much logging here, focus on the final string
                     mapped_line = f"{mapped_speaker}: {text}"
-                processed_background.append(mapped_line)
-        else:
-            processed_background.append("Background Transcript: None available.")
+                processed_background_lines.append(mapped_line)
+        
+        background_section_str = "Background Transcript:\n" + ("\n".join(processed_background_lines) if processed_background_lines else "None available.")
         
         # Process Evidences
-        processed_evidences = []
+        processed_evidences_lines = []
         if evidences_orig:
-            processed_evidences.append("\nEvidence List:")
             for ev_line in evidences_orig:
                 parts = ev_line.split(": ", 1)
                 mapped_ev_line = ev_line
                 if len(parts) == 2:
                     ev_name, ev_desc = parts[0], parts[1]
-                    # Evidence names in evidence_mappings are typically uppercase
-                    short_ev_name = evidence_map.get(ev_name.upper(), None)
+                    short_ev_name = evidence_map.get(ev_name.upper(), None) # Evidence names in map are UPPERCASE keys
                     if short_ev_name:
-                        # MODIFIED: Only use short_ev_name and ev_desc
                         mapped_ev_line = f"{short_ev_name}: {ev_desc}"
                     else:
-                        # If not in map, just use original name and description (no change here)
                         mapped_ev_line = f"{ev_name}: {ev_desc}"
-                processed_evidences.append(mapped_ev_line)
-        else:
-            processed_evidences.append("\nEvidence List: None available.")
+                processed_evidences_lines.append(mapped_ev_line)
+        
+        evidence_section_str = "Evidence List:\n" + ("\n".join(processed_evidences_lines) if processed_evidences_lines else "None available.")
 
-        final_context_string = "\n".join(processed_background) + "\n" + "\n".join(processed_evidences)
-        # print(f"[AceAttorneyEnv get_comprehensive] Generated comprehensive context (first 200 chars): {final_context_string[:200]}...")
-        return final_context_string
+        # print(f"[AceAttorneyEnv get_comprehensive] Generated background: {background_section_str[:100]}..., evidence: {evidence_section_str[:100]}...")
+        return background_section_str, evidence_section_str
 
     def prepare_prompt(self, base_prompt: str) -> Tuple[str, Optional[str]]:
         """
@@ -960,21 +984,10 @@ class AceAttorneyEnv(RetroEnv):
         additional_prefix = None
         dialogue_line = self.get_mapped_dialogue_event_for_prompt()
         if dialogue_line:
-            additional_prefix = f"Previous Dialogue Context: {dialogue_line}\n\n"
+            additional_prefix = f"Previous Dialogue Context: {dialogue_line}\\n\\n"
 
         return prompt_body, additional_prefix
 
-    def handle_llm_result(self, llm_result: Any) -> None:
-        """
-        Let the env capture anything interesting that came back from the LLM.
-        """
-        if (
-            isinstance(llm_result, dict)
-            and llm_result.get("parsed_dialogue")
-            and hasattr(self, "store_llm_extracted_dialogue")
-        ):
-            self.store_llm_extracted_dialogue(llm_result["parsed_dialogue"])
-    
     def close(self):
         """Closes the environment and the adapter's log file."""
         super().close()

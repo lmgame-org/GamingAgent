@@ -7,6 +7,7 @@ import numpy as np
 import yaml
 from typing import Any
 import sys
+import re
 
 import gymnasium as gym
 
@@ -384,12 +385,26 @@ def run_game_episode(agent: BaseAgent, game_env: gym.Env, episode_id: int, args:
         
         thought_process = action_dict.get("thought", "") if action_dict else "No thought process due to API failure."
 
+        # --- MODIFIED: Extract raw LLM output to pass to env.step ---
+        raw_llm_output_for_env = None
+
+        if action_dict:
+            if "raw_response_str" in action_dict and isinstance(action_dict["raw_response_str"], str):
+                raw_llm_output_for_env = action_dict["raw_response_str"]
+        else:
+            print("[Runner DEBUG] action_dict is None") # DEBUG
+        
+        # Conditionally pass raw_llm_output_for_next_obs
+        step_args = {
+            "agent_action_str": action_str_agent,
+            "thought_process": thought_process,
+            "time_taken_s": time_taken_s
+        }
+        if args.game_name == "ace_attorney":
+            step_args["raw_llm_output_for_next_obs"] = raw_llm_output_for_env
+        
         # Step the environment using the new signature, including agent action details
-        agent_observation, reward, terminated, truncated, last_info, current_step_perf_score = game_env.step(
-            agent_action_str=action_str_agent, 
-            thought_process=thought_process, 
-            time_taken_s=time_taken_s
-        )
+        agent_observation, reward, terminated, truncated, last_info, current_step_perf_score = game_env.step(**step_args)
         # Inherit game trajectory
         agent_observation.game_trajectory = processed_agent_observation.game_trajectory
             

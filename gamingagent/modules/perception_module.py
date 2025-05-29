@@ -122,8 +122,10 @@ class PerceptionModule(CoreModule):
                 reasoning_effort=self.reasoning_effort,
                 token_limit=self.token_limit
             )
+            # returned API response should be a tuple
+            actual_processed_visual_description = processed_visual_description[0]
 
-            self.processed_observation.processed_visual_description = processed_visual_description
+            self.processed_observation.processed_visual_description = actual_processed_visual_description
             self.processed_observation.image_path = new_img_path
 
             return self.processed_observation
