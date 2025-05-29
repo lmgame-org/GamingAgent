@@ -394,13 +394,17 @@ def run_game_episode(agent: BaseAgent, game_env: gym.Env, episode_id: int, args:
         else:
             print("[Runner DEBUG] action_dict is None") # DEBUG
         
+        # Conditionally pass raw_llm_output_for_next_obs
+        step_args = {
+            "agent_action_str": action_str_agent,
+            "thought_process": thought_process,
+            "time_taken_s": time_taken_s
+        }
+        if args.game_name == "ace_attorney":
+            step_args["raw_llm_output_for_next_obs"] = raw_llm_output_for_env
+        
         # Step the environment using the new signature, including agent action details
-        agent_observation, reward, terminated, truncated, last_info, current_step_perf_score = game_env.step(
-            agent_action_str=action_str_agent, 
-            thought_process=thought_process, 
-            time_taken_s=time_taken_s,
-            raw_llm_output_for_next_obs=raw_llm_output_for_env
-        )
+        agent_observation, reward, terminated, truncated, last_info, current_step_perf_score = game_env.step(**step_args)
         # Inherit game trajectory
         agent_observation.game_trajectory = processed_agent_observation.game_trajectory
             

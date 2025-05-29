@@ -182,11 +182,21 @@ class GymEnvAdapter:
         Returns:
             Observation: An Observation object suitable for the agent.
         """
-        agent_observation = Observation()
-        agent_observation.set_perception_observation(
+        # Determine if background information should be included in the trajectory
+        trajectory_includes_bg = bool(background_info)
+
+        agent_observation = Observation(
             img_path=img_path,
             textual_representation=text_representation,
-            background=background_info
+            background=background_info,
+            trajectory_includes_background=trajectory_includes_bg
+        )
+        
+        # Now, set perception-specific parts if any, without passing background again
+        agent_observation.set_perception_observation(
+            img_path=img_path, # Pass img_path again as set_perception_observation expects it
+            textual_representation=text_representation # Pass text_representation again as set_perception_observation expects it
+            # processed_visual_description is not handled here, assumed to be set by PerceptionModule if used
         )
         return agent_observation
 

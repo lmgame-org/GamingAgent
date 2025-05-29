@@ -306,15 +306,23 @@ class AceAttorneyEnv(RetroEnv):
         """
         # Vision
         img_path_component: Optional[str] = None
-        if self.adapter.observation_mode in ("vision", "both"):
+        if self.adapter.observation_mode in ("both"):
             if not skip_screenshot and self.current_raw_frame is not None:
                 img_path_component = self._save_frame_to_path(self.current_raw_frame)
-
-        # Current Dialogue Text part (latest dialogue line)
-        current_dialogue_text_component: Optional[str] = None
-        latest_parsed_dialogue_line_for_history: Optional[str] = None
-
+        # Background Observation component
+        background_obs_component: Optional[str] = None
         if self.adapter.observation_mode in ("both"):
+            static_background_transcript, evidence_list_str = self.get_comprehensive_memory_string()
+            background_obs_component = static_background_transcript
+            if not background_obs_component: 
+                background_obs_component = "No background information available."
+
+        # Current Dialogue Text part 
+        dialogue_parts =[]
+        current_dialogue_text_component: Optional[str] = None
+        if self.adapter.observation_mode in ("both"):
+            if evidence_list_str:
+                dialogue_parts.append(evidence_list_str)
             if self.raw_llm_output_from_previous_step:
                 dialogue_match = re.search(r"^[Dd][Ii][Aa][Ll][Oo][Gg]:\s*([^:]+):\s*(.+)$", self.raw_llm_output_from_previous_step, re.MULTILINE)
                 if dialogue_match:
@@ -328,30 +336,6 @@ class AceAttorneyEnv(RetroEnv):
                     parsed_dialogue_data_for_storage = {"speaker": speaker, "text": text}
                     if hasattr(self, "store_llm_extracted_dialogue"):
                         self.store_llm_extracted_dialogue(parsed_dialogue_data_for_storage)
-            
-            if not current_dialogue_text_component:
-                current_dialogue_text_component = "Dialogue: None available for current step."
-        # Background Observation component
-        background_obs_component: Optional[str] = None
-        if self.adapter.observation_mode in ("text", "both"):
-            background_parts = []
-            
-            # 1. Get Static Background Transcript and Evidence List separately
-            static_background_transcript, evidence_list_str = self.get_comprehensive_memory_string()
-            
-            # Add static background transcript to background_obs_component
-            if static_background_transcript:
-                background_parts.append(static_background_transcript)
-            
-            # Combine Evidence List with the current_dialogue_text_component
-            # if current_dialogue_text_component and evidence_list_str:
-            #     current_dialogue_text_component = f"{evidence_list_str}\n\n Current dialogue: {current_dialogue_text_component}"
-            if evidence_list_str: # Only evidence, no current dialogue
-                current_dialogue_text_component = evidence_list_str
-            # If only current_dialogue_text_component, it remains as is.
-            # If both are None, current_dialogue_text_component remains None (or its default message).
-
-            # 2. Dialogue History (excluding the latest line) for background_obs_component
             if self.dialogue_history_for_agent:
                 history_to_display = []
                 if len(self.dialogue_history_for_agent) > 1:
@@ -359,21 +343,20 @@ class AceAttorneyEnv(RetroEnv):
                 
                 if history_to_display:
                     dialogue_history_str = "Previous Dialogue History (older -> newer):\\n" + "\\n".join(history_to_display)
-                    background_parts.append(dialogue_history_str)
+                    dialogue_parts.append(dialogue_history_str)
                 else:
-                    background_parts.append("Previous Dialogue History: None.")
+                    dialogue_parts.append("Previous Dialogue History: None.")
             else:
-                background_parts.append("Previous Dialogue History: None.")
+                dialogue_parts.append("Previous Dialogue History: None.")
             
-            background_obs_component = "\\n\\n".join(background_parts).strip()
+            if not current_dialogue_text_component:
+                current_dialogue_text_component = "Dialogue: None available for current step."
+
+            current_dialogue_text_component = "\n".join(dialogue_parts)
+
+            background_obs_component = static_background_transcript
             if not background_obs_component: 
                 background_obs_component = "No background information available."
-            
-            # Ensure current_dialogue_text_component is not None if it was just evidence.
-            if current_dialogue_text_component is None and self.adapter.observation_mode in ("text", "both"):
-                 current_dialogue_text_component = "Dialogue: None available for current step. Evidence: None available."
-            elif current_dialogue_text_component is None: # Should not happen if mode check passed, but for safety.
-                 current_dialogue_text_component = "No textual information for current step."
 
         return img_path_component, current_dialogue_text_component, background_obs_component
 
