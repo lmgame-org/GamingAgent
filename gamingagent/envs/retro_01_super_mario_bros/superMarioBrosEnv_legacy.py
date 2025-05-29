@@ -8,6 +8,59 @@ from PIL import Image # For saving frames
 
 from gamingagent.envs.gym_env_adapter import GymEnvAdapter # Changed from RetroEnvAdapter
 from gamingagent.modules.core_module import Observation
+# Removed: from tools.utils import convert_int_to_bcd_string, read_ram_fields
+
+# Helper functions previously assumed to be in tools.utils
+
+def _read_ram_value(ram: bytes, address_str: str) -> int:
+    """Reads a single byte from RAM at the given hex address string."""
+    return int(ram[int(address_str, 16)])
+
+def _read_ram_fields(ram: bytes, addresses_config: Dict[str, Any]) -> Dict[str, Any]:
+    """Reads multiple fields from RAM based on the addresses_config dictionary."""
+    if ram is None:
+        return {key: None for key in addresses_config}
+    
+    data = {}
+    for key, addr_info in addresses_config.items():
+        if addr_info is None: # Skip if address is not defined for a key
+            data[key] = None
+            continue
+        try:
+            if isinstance(addr_info, str): # Single address string
+                data[key] = _read_ram_value(ram, addr_info)
+            elif isinstance(addr_info, list): # List of address strings (e.g., for multi-byte score)
+                data[key] = [_read_ram_value(ram, addr) for addr in addr_info]
+            elif isinstance(addr_info, dict): # Nested dictionary of addresses (e.g., for x_position)
+                data[key] = {sub_key: _read_ram_value(ram, sub_addr) for sub_key, sub_addr in addr_info.items()}
+            else:
+                print(f"[RAM Read] Warning: Unknown address format for key '{key}': {addr_info}")
+                data[key] = None
+        except IndexError:
+            print(f"[RAM Read] Error: RAM address out of bounds for key '{key}' with address info '{addr_info}'. RAM size: {len(ram)}.")
+            data[key] = 0 # Default to 0 or None if address is bad
+        except ValueError:
+            print(f"[RAM Read] Error: Invalid hex address string for key '{key}' with address info '{addr_info}'.")
+            data[key] = 0
+        except Exception as e:
+            print(f"[RAM Read] Unexpected error reading RAM for key '{key}': {e}")
+            data[key] = 0
+    return data
+
+def _convert_bcd_bytes_to_int_string(bcd_byte_values: Union[List[int], bytes]) -> str:
+    """Converts a list/bytes of BCD byte values into a string of decimal digits."""
+    if not bcd_byte_values:
+        return "0"
+    # Ensure we are working with integer values if input is bytes
+    int_values = list(bcd_byte_values) if isinstance(bcd_byte_values, bytes) else bcd_byte_values
+    
+    hex_str = "".join([f'{val:02x}' for val in int_values])
+    # Check if the hex_str is composed of valid BCD characters (0-9)
+    # BCD means each nibble is a decimal digit. hex_str directly represents this.
+    # Example: [0x12, 0x34] -> "1234"
+    # No further conversion needed beyond formatting as hex, then it's a decimal string.
+    return hex_str if hex_str else "0"
+
 
 class SuperMarioBrosEnvWrapper:
     """
@@ -40,10 +93,9 @@ class SuperMarioBrosEnvWrapper:
         )
         # print(f"[SuperMarioBrosEnvWrapper DEBUG __init__] Adapter's move_to_action_idx: {self.adapter.move_to_action_idx}") # This will be empty now
         self.current_game_info: Dict[str, Any] = {}
-        #self.current_episode_total_perf_score: float = 0.0
-        #self.accumulated_reward_for_action_sequence: float = 0.0
-        #self.current_meta_episode_accumulated_reward: float = 0.0
-        #self.accumulated_perf_score_for_action_sequence = 0.0
+        self.current_episode_total_perf_score: float = 0.0
+        self.current_episode_max_x_pos: int = 0
+        self.current_meta_episode_accumulated_reward: float = 0.0
         
         # Removed explicit life counting attributes
 
@@ -55,20 +107,25 @@ class SuperMarioBrosEnvWrapper:
                 config = json.load(f)
             self.env_id = config.get("env_id", "SuperMarioBros-Nes")
             self.env_init_kwargs = config.get("env_init_kwargs", {})
+            # Removed loading of initial_lives_per_meta_episode
             
             # Load action mapping directly here
             action_mapping_from_config = config.get("action_mapping", {})
             self.mario_action_mapping: Dict[str, List[int]] = {str(k).lower(): v for k, v in action_mapping_from_config.items()}
             print(f"[SuperMarioBrosEnvWrapper DEBUG _load_wrapper_config] Loaded mario_action_mapping: {self.mario_action_mapping}")
 
-            # Extract custom_game_specific_config
+            # Extract custom_game_specific_config for RAM addresses and other retro specifics
             custom_config = config.get("custom_game_specific_config", {})
-            self.retro_obs_type_str = custom_config.get("observation_type", "IMAGE") # e.g. "IMAGE" or "RAM"
-            
+            self.ram_addresses = {
+                "lives": custom_config.get("lives_ram_address"),
+                "score": custom_config.get("score_ram_address"),
+                "player_state": custom_config.get("player_state_ram_address"),
+                "x_position": custom_config.get("x_position_ram_addresses"),
+                "world": custom_config.get("world_ram_address"),
+                "level": custom_config.get("level_ram_address"),
+            }
             self.render_mode_human = config.get("render_mode_human", False)
-            if self.render_mode_human and not os.environ.get("DISPLAY"):
-                print("[SMB] DISPLAY is not set – switching to head‑less mode.")
-                self.render_mode_human = False
+            self.retro_obs_type_str = custom_config.get("observation_type", "IMAGE") # e.g. "IMAGE" or "RAM"
 
         except FileNotFoundError:
             print(f"[SuperMarioBrosEnvWrapper] ERROR: Config file not found at {self.game_specific_config_json_path}")
@@ -90,8 +147,8 @@ class SuperMarioBrosEnvWrapper:
         if 'obs_type' in effective_env_init_kwargs: 
             print(f"[SuperMarioBrosEnvWrapper] Info: 'obs_type' found in env_init_kwargs from JSON ({effective_env_init_kwargs['obs_type']}), will be overridden by custom_game_specific_config.observation_type ({self.retro_obs_type_str}).")
             del effective_env_init_kwargs['obs_type']
-
-        render_mode_arg = "human" if self.render_mode_human else "rgb_array"
+        
+        render_mode_arg = "human" if self.render_mode_human else None 
         
         # Define path for .bk2 recordings
         # self.adapter.agent_cache_dir should be set up by now if self.adapter is initialized before _initialize_env
@@ -135,29 +192,52 @@ class SuperMarioBrosEnvWrapper:
             print(f"[SuperMarioBrosEnvWrapper] ERROR: Failed to save frame to {img_path if 'img_path' in locals() else 'unknown path'}: {e}")
             return None
 
-    def _extract_game_specific_info(
-        self,
-        retro_info: Dict[str, Any],
-    ) -> Dict[str, Any]:
-        """
-        Return a dict with the fields we care about, preferring the values that the
-        retro core already exposes through *info*.  We only touch RAM as a backup
-        (for older cores that may lack a particular key).
-        """
-        info: Dict[str, Any] = {}
+    def _extract_game_specific_info(self, ram: Optional[bytes]) -> Dict[str, Any]:
+        """Extracts game-specific information from RAM using configured addresses."""
+        if ram is None:
+            print("[SuperMarioBrosEnvWrapper _extract_game_specific_info] RAM is None, returning default info indicating game over.")
+            return {"score": 0, "lives": 0, "x_pos": 0, "world": 0, "level": 0, "player_state": 0, "is_game_over": True, "ram_lives_value": 255}
 
-        # core values
-        # These keys exist in the standard SMB core shipped with gym‑retro
-        info["total_score"]        = retro_info.get("score", 0)
-        info["lives"]        = retro_info.get("lives", 0)
-        info["x_pos"]        = retro_info.get("xscrollLo", 0) + 255 * retro_info.get("xscrollHi", 0)
-        info["world"]        = retro_info.get("levelHi", 0)
-        info["level"]        = retro_info.get("levelLo", 0)
+        info = {}
+        # Use the local helper function _read_ram_fields
+        raw_values = _read_ram_fields(ram, self.ram_addresses)
+        
+        score_bcd_bytes = raw_values.get("score")
+        info["score"] = int(_convert_bcd_bytes_to_int_string(score_bcd_bytes)) if score_bcd_bytes is not None else 0
+        
+        # Lives from RAM (0x075A for SMB) is Player Lives - 1. 
+        # e.g., 2 = 3 lives, 1 = 2 lives, 0 = 1 life. 0xFF (255) = Game Over.
+        ram_lives_value = raw_values.get("lives", 255) # Default to 255 (Game Over) if not found
+        info["ram_lives_value"] = ram_lives_value # Store the raw RAM value for inspection
+        
+        info["player_state"] = raw_values.get("player_state", 0)
+        info["world"] = raw_values.get("world", 0)
+        info["level"] = raw_values.get("level", 0)
+        
+        x_pos_data = raw_values.get("x_position")
+        if isinstance(x_pos_data, dict):
+             page_val = x_pos_data.get("page", 0)
+             fine_val = x_pos_data.get("fine", 0)
+             info["x_pos"] = page_val * 256 + fine_val
+        elif isinstance(x_pos_data, (int, float)):
+             info["x_pos"] = int(x_pos_data)
+        else: 
+            info["x_pos"] = 0
+        
+        # Determine if it's game over based on lives RAM value or specific player states
+        is_game_over = (ram_lives_value == 255) # 0xFF typically means Game Over screen or no lives left.
+        
+        # Player state 0x06 is 'Dead', 0x0B is 'Dying'.
+        # If player is in a 'Dead' or 'Dying' state AND the lives count (ram_lives_value) is 0 (meaning 1 life was left before this death),
+        # it's effectively a game over situation for this attempt.
+        # However, the game might transition through these states and then to a Game Over screen where ram_lives_value becomes 255.
+        # Relying on ram_lives_value == 255 is often the most robust for "final game over".
+        # Some games might also use player_state 0x0C for "Palette cycling, can't move" which might follow death.
+        if info["player_state"] in [0x06, 0x0B] and ram_lives_value == 0: # Dying or Dead on last life (RAM 0)
+             print(f"[SuperMarioBrosEnvWrapper _extract_game_specific_info] Mario state {info['player_state']} on last life (RAM lives 0). Considering game over.")
+             is_game_over = True # This life is lost, and it was the last one.
 
-        # derive “game‑over” flag
-        # In SMB the ‘lives’ counter shows 0 on the Game‑Over screen.
-        info["is_game_over"] = (info["lives"] == 0)
-
+        info["is_game_over"] = is_game_over
         return info
 
     def _build_textual_representation_for_log(self, game_info: Dict[str, Any]) -> Optional[str]:
@@ -181,11 +261,11 @@ class SuperMarioBrosEnvWrapper:
         print(f"[SuperMarioBrosEnvWrapper reset] Starting meta-episode {episode_id}. Calling self.env.reset() ONCE.")
         # Removed initialization of explicit life counters
         
-        # after self.env.reset(...)
-        observation_data, retro_info = self.env.reset(**kwargs)
-        raw_frame = observation_data
-
-        self.current_game_info = self._extract_game_specific_info(retro_info)
+        observation_data, _ = self.env.reset(**kwargs) 
+        raw_frame = observation_data # The actual image data
+        
+        initial_ram = self.env.get_ram()
+        self.current_game_info = self._extract_game_specific_info(initial_ram)
         
         print(f"[SuperMarioBrosEnvWrapper reset] Initial game info: {self._build_textual_representation_for_log(self.current_game_info)}")
 
@@ -198,20 +278,20 @@ class SuperMarioBrosEnvWrapper:
             text_representation="" 
         )
         
-        current_episode_max_x_pos = self.current_game_info.get('x_pos', 0)
-        #self.current_episode_total_perf_score = 0.0
+        self.current_episode_max_x_pos = self.current_game_info.get('x_pos', 0)
+        self.current_episode_total_perf_score = 0.0
+        self.current_meta_episode_accumulated_reward = 0.0
 
         info_to_return = self.current_game_info.copy()
-        info_to_return['current_episode_max_x_pos'] = current_episode_max_x_pos
+        info_to_return['current_episode_max_x_pos'] = self.current_episode_max_x_pos
         # Removed current_lives_remaining_in_meta_episode from info
         
         return agent_observation, info_to_return
 
     def calculate_perf_score(self, current_x_pos_frame: int) -> float:
-        current_episode_max_x_pos = self.current_game_info.get('x_pos', 0)
         step_perf_score = 0.0
-        if current_x_pos_frame > current_episode_max_x_pos:
-            step_perf_score = float(current_x_pos_frame - current_episode_max_x_pos)
+        if current_x_pos_frame > self.current_episode_max_x_pos:
+            step_perf_score = float(current_x_pos_frame - self.current_episode_max_x_pos)
         return step_perf_score
 
     def step(self, agent_action_str: Optional[str], thought_process: str = "", time_taken_s: float = 0.0) -> Tuple[Observation, float, bool, bool, Dict[str, Any], float]:
@@ -238,10 +318,10 @@ class SuperMarioBrosEnvWrapper:
             # print(f"[SuperMarioBrosEnvWrapper] Warning: Action '{base_action_name}' not found. Using NOOP.")
             base_action_name = "noop"
             env_action_buttons = self.mario_action_mapping.get("noop", [0]*len(self.env.buttons if hasattr(self, 'env') and self.env else 9))
-        
-        #self.accumulated_reward_for_action_sequence = 0.0
+
+        accumulated_reward_for_action_sequence = 0.0 
         accumulated_perf_score_for_action_sequence = 0.0
-        current_meta_episode_accumulated_reward = 0.0
+        
         meta_episode_terminated_this_step = False 
         meta_episode_truncated_this_step = False
         
@@ -252,19 +332,19 @@ class SuperMarioBrosEnvWrapper:
             self.adapter.increment_step() 
 
             observation_data_frame, reward_frame, done_from_retro_frame, trunc_from_retro_frame, info_retro_frame = self.env.step(env_action_buttons)
-
-            current_game_info_frame = self._extract_game_specific_info(info_retro_frame)
-
-            current_game_info_frame.update(info_retro_frame) 
-            current_episode_max_x_pos = self.current_game_info.get('x_pos', 0)
-
-            current_x_pos_frame = current_game_info_frame.get('x_pos', current_episode_max_x_pos)
-            current_step_perf_score_frame = self.calculate_perf_score(current_x_pos_frame)
-            current_episode_max_x_pos = max(current_episode_max_x_pos, current_x_pos_frame)
-
-            #self.accumulated_reward_for_action_sequence = float(reward_frame)
-            current_meta_episode_accumulated_reward += float(reward_frame) 
+            current_ram_frame = self.env.get_ram()
             
+            current_game_info_frame = self._extract_game_specific_info(current_ram_frame) 
+            current_game_info_frame.update(info_retro_frame) 
+
+            # Removed explicit life decrementing logic and just_lost_life_flag
+
+            current_x_pos_frame = current_game_info_frame.get('x_pos', self.current_episode_max_x_pos)
+            current_step_perf_score_frame = self.calculate_perf_score(current_x_pos_frame)
+            self.current_episode_max_x_pos = max(self.current_episode_max_x_pos, current_x_pos_frame)
+
+            accumulated_reward_for_action_sequence += float(reward_frame)
+            self.current_meta_episode_accumulated_reward += float(reward_frame) 
             accumulated_perf_score_for_action_sequence += current_step_perf_score_frame
 
             img_path_frame = None
@@ -324,7 +404,7 @@ class SuperMarioBrosEnvWrapper:
 
         return (
             last_agent_observation_in_loop, 
-            current_meta_episode_accumulated_reward, 
+            self.current_meta_episode_accumulated_reward, 
             meta_episode_terminated_this_step, 
             meta_episode_truncated_this_step, 
             self.current_game_info.copy(), 

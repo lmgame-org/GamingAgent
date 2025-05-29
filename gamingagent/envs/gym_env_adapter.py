@@ -147,8 +147,7 @@ class GymEnvAdapter:
         self.current_step_num = 0
         self._last_observation_hash = None
         self._unchanged_obs_count = 0
-
-        
+  
         # Clear results from previous set of runs if adapter is reused.
         if self.current_episode_id == 1 or not self.all_episode_results: # A simple check, or clear if episode_id resets to 1
             self.all_episode_results = []
