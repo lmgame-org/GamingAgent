@@ -77,6 +77,8 @@ setup_env.sh
 custom_integrations/roms/
 *.state
 *.sha
+*.rom
+
 
 perf/
 

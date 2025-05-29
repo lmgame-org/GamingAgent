@@ -4,7 +4,7 @@ import datetime
 from abc import ABC, abstractmethod
 from tools.serving import APIManager
 from dataclasses import dataclass
-from typing import Optional, Any
+from typing import Optional, Dict, Any
 
 from collections import deque
 
@@ -25,7 +25,6 @@ class GameTrajectory:
         if not self.trajectory:
             return None
         return f"Past {self.history_length} turn(s) game trajectory (each turn an unique hash)\n" + "\n".join(self.trajectory)
-
 
 @dataclass
 class Observation:
