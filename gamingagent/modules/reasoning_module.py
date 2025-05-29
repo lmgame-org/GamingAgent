@@ -125,11 +125,11 @@ class ReasoningModule(CoreModule):
         # Create user prompt with context
         user_prompt = self.prompt.replace("{context}", context) if "{context}" in self.prompt else context
 
-        print(f"""
------------------------- VISION API — FINAL USER PROMPT ------------------------
-{user_prompt}
------------------------- END FINAL USER PROMPT ------------------------
-""")
+#         print(f"""
+# ------------------------ VISION API — FINAL USER PROMPT ------------------------
+# {user_prompt}
+# ------------------------ END FINAL USER PROMPT ------------------------
+# """)
         
         # Call the vision-text API
         response = self.api_manager.vision_text_completion(

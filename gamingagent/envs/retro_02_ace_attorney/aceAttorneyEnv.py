@@ -315,25 +315,19 @@ class AceAttorneyEnv(RetroEnv):
         latest_parsed_dialogue_line_for_history: Optional[str] = None
 
         if self.adapter.observation_mode in ("both"):
+            print(f"[AceAttorneyEnv _build_agent_observation_components] raw_llm_output_from_previous_step: {self.raw_llm_output_from_previous_step}")
             if self.raw_llm_output_from_previous_step:
                 dialogue_match = re.search(r"^[Dd][Ii][Aa][Ll][Oo][Gg]:\s*([^:]+):\s*(.+)$", self.raw_llm_output_from_previous_step, re.MULTILINE)
+                print(f"[AceAttorneyEnv _build_agent_observation_components] dialogue_match: {dialogue_match}")
                 if dialogue_match:
                     speaker = dialogue_match.group(1).strip()
                     text = dialogue_match.group(2).strip()
-                    
+                    print(f"[AceAttorneyEnv _build_agent_observation_components] speaker: {speaker}, text: {text}")
                     # This is the most current dialogue line
                     current_dialogue_text_component = f"{speaker}: {text}"
                     
-                    # Map speaker for history storage if needed (consistent with old logic)
-                    mapped_speaker_for_history = speaker
-                    if self.current_level_name_map:
-                        mapped_speaker_for_history = self.current_level_name_map.get(speaker.lower(), speaker)
-                    latest_parsed_dialogue_line_for_history = f"{mapped_speaker_for_history}: {text}"
-
-                    # Add to history (if new)
-                    if not self.dialogue_history_for_agent or self.dialogue_history_for_agent[-1] != latest_parsed_dialogue_line_for_history:
-                        self.dialogue_history_for_agent.append(latest_parsed_dialogue_line_for_history)
-                    
+                    if not self.dialogue_history_for_agent or self.dialogue_history_for_agent[-1] != current_dialogue_text_component:
+                        self.dialogue_history_for_agent.append(current_dialogue_text_component)
                     # Store the raw parsed dialogue for other internal uses (like mapping.json based systems)
                     parsed_dialogue_data_for_storage = {"speaker": speaker, "text": text}
                     if hasattr(self, "store_llm_extracted_dialogue"):
