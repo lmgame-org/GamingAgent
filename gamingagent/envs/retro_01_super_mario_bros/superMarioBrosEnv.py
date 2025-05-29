@@ -40,6 +40,7 @@ class SuperMarioBrosEnvWrapper:
         )
         # print(f"[SuperMarioBrosEnvWrapper DEBUG __init__] Adapter's move_to_action_idx: {self.adapter.move_to_action_idx}") # This will be empty now
         self.current_game_info: Dict[str, Any] = {}
+        self.current_episode_max_x_pos: int = 0
         #self.current_episode_total_perf_score: float = 0.0
         #self.accumulated_reward_for_action_sequence: float = 0.0
         #self.current_meta_episode_accumulated_reward: float = 0.0
@@ -198,20 +199,19 @@ class SuperMarioBrosEnvWrapper:
             text_representation="" 
         )
         
-        current_episode_max_x_pos = self.current_game_info.get('x_pos', 0)
+        self.current_episode_max_x_pos = self.current_game_info.get('x_pos', 0)
         #self.current_episode_total_perf_score = 0.0
 
         info_to_return = self.current_game_info.copy()
-        info_to_return['current_episode_max_x_pos'] = current_episode_max_x_pos
+        info_to_return['current_episode_max_x_pos'] = self.current_episode_max_x_pos
         # Removed current_lives_remaining_in_meta_episode from info
         
         return agent_observation, info_to_return
 
     def calculate_perf_score(self, current_x_pos_frame: int) -> float:
-        current_episode_max_x_pos = self.current_game_info.get('x_pos', 0)
         step_perf_score = 0.0
-        if current_x_pos_frame > current_episode_max_x_pos:
-            step_perf_score = float(current_x_pos_frame - current_episode_max_x_pos)
+        if current_x_pos_frame > self.current_episode_max_x_pos:
+            step_perf_score = float(current_x_pos_frame - self.current_episode_max_x_pos)
         return step_perf_score
 
     def step(self, agent_action_str: Optional[str], thought_process: str = "", time_taken_s: float = 0.0) -> Tuple[Observation, float, bool, bool, Dict[str, Any], float]:
@@ -256,14 +256,13 @@ class SuperMarioBrosEnvWrapper:
             current_game_info_frame = self._extract_game_specific_info(info_retro_frame)
 
             current_game_info_frame.update(info_retro_frame) 
-            current_episode_max_x_pos = self.current_game_info.get('x_pos', 0)
 
-            current_x_pos_frame = current_game_info_frame.get('x_pos', current_episode_max_x_pos)
+            current_x_pos_frame = current_game_info_frame.get('x_pos', self.current_episode_max_x_pos)
             current_step_perf_score_frame = self.calculate_perf_score(current_x_pos_frame)
-            current_episode_max_x_pos = max(current_episode_max_x_pos, current_x_pos_frame)
+            self.current_episode_max_x_pos = max(self.current_episode_max_x_pos, current_x_pos_frame)
 
             #self.accumulated_reward_for_action_sequence = float(reward_frame)
-            current_meta_episode_accumulated_reward += float(reward_frame) 
+            current_meta_episode_accumulated_reward = float(reward_frame) 
             
             accumulated_perf_score_for_action_sequence += current_step_perf_score_frame
 

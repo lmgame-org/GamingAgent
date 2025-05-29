@@ -1,7 +1,7 @@
 # virtual env and running logs
 lmgame-bench/*
 logs/*
-eval/perf/*
+gamingagent/eval/perf/*
 
 # 💾 Cache and Temporary Files
 cache/*
