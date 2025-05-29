@@ -89,7 +89,6 @@ class MemoryModule(CoreModule):
         )
         # returned API response should be a tuple
         actual_raw_text = raw[0]
-        
         # extract "reflection:" section if present
         m = re.search(
             r'(?:^|\n)(?:#\s*)?reflection:(.+?)(?=\n(?:#\s*)?[a-zA-Z]+:|$)',
@@ -121,12 +120,14 @@ class MemoryModule(CoreModule):
         Maybe we can add demonstrations as well
         """
         prev_context = observation.game_trajectory.get() or ""
+        if observation.game_trajectory.background is None and observation.trajectory_includes_background:
+            observation.game_trajectory.set_background(observation.get_background() or "Background not available.")
+
         reflection = self._reflect(
             prev_context=prev_context,
             current_state=str(game_state),
         )
 
-        # build a single printable entry line
         ts = datetime.datetime.now().isoformat(timespec="seconds")
         game_state.pop("img_path")
         

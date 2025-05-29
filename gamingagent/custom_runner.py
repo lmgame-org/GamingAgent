@@ -387,6 +387,7 @@ def run_game_episode(agent: BaseAgent, game_env: gym.Env, episode_id: int, args:
 
         # --- MODIFIED: Extract raw LLM output to pass to env.step ---
         raw_llm_output_for_env = None
+
         if action_dict:
             if "raw_response_str" in action_dict and isinstance(action_dict["raw_response_str"], str):
                 raw_llm_output_for_env = action_dict["raw_response_str"]

@@ -14,17 +14,36 @@ import string
 ########################################################################################
 @dataclass
 class GameTrajectory:
-    def __init__(self, max_length: int = 10):
+    def __init__(self, max_length: int = 10, need_background: bool = False, background_prefix_str: Optional[str] = "Game Background:"):
         self.history_length = max_length
         self.trajectory = deque(maxlen=max_length)
+        self.need_background = need_background
+        self.background: Optional[str] = None
+        self.background_prefix_string: Optional[str] = background_prefix_str
 
     def add(self, entry: str):
         self.trajectory.append(entry)
+    
+    def set_background(self, background_content: str):
+        """Sets the background content for the trajectory, intended to be called once."""
+        if self.background is None: # Only set if not already set
+            self.background = background_content
 
     def get(self) -> Optional[str]:
         if not self.trajectory:
-            return None
-        return f"Past {self.history_length} turn(s) game trajectory (each turn an unique hash)\n" + "\n".join(self.trajectory)
+            history_text_repr = ""
+        else:
+            history_text_repr = f"Past {self.history_length} turn(s) game trajectory (each turn an unique hash)\n" + "\n".join(self.trajectory)
+        
+        if self.need_background and self.background is not None:
+            if history_text_repr: # If there is history, add background before it
+                return f"{self.background_prefix_string}\n{self.background}\n\n{history_text_repr}"
+            else: # If no history, just return the background
+                return f"{self.background_prefix_string}\n{self.background}"
+        elif not self.trajectory: # No background needed and no trajectory
+             return None
+        else: # Background not needed or not set, but trajectory exists
+            return history_text_repr
 
 
 @dataclass
@@ -41,6 +60,7 @@ class Observation:
 
     BASE_ATTR = {
         "textual_representation",
+        "background",
     }
 
     PERCEPTION_ATTR = {
@@ -58,18 +78,22 @@ class Observation:
         game_trajectory: Optional[GameTrajectory] = None,
         reflection: Optional[str] = None,
         processed_visual_description: Optional[str] = None,
-        textual_representation: Optional[str] = None
+        textual_representation: Optional[str] = None,
+        background: Optional[str] = None,
+        trajectory_includes_background: bool = True
     ):
         """
         Initialize an Observation instance.
         """
-        self.game_trajectory = game_trajectory or GameTrajectory(max_length=10)
+        self.game_trajectory = game_trajectory or GameTrajectory(max_length=10, need_background=trajectory_includes_background)
         self.img_path = img_path
         self.reflection = reflection
         self.processed_visual_description = processed_visual_description
         self.textual_representation = textual_representation
+        self.background = background
+        self.trajectory_includes_background = trajectory_includes_background
     
-    def set_perception_observation(self, observation=None, img_path=None, textual_representation=None, processed_visual_description=None):
+    def set_perception_observation(self, observation=None, img_path=None, textual_representation=None, processed_visual_description=None, background=None, trajectory_includes_background=None):
         """
         Set the current observation from raw game states.
         
@@ -78,6 +102,8 @@ class Observation:
             img_path (str, optional): Overrides or sets img_path. For "vision" or "both" modes.
             textual_representation (str, optional): Overrides or sets textual_representation. For "text" or "both" modes.
             processed_visual_description (str, optional): Overrides or sets processed_visual_description. For "text" or "both" modes.
+            background (str, optional): Overrides or sets background.
+            trajectory_includes_background (bool, optional): Overrides or sets trajectory_includes_background flag.
         """
         # If an Observation object is directly provided, copy its relevant attributes to self
         if observation is not None:
@@ -92,6 +118,12 @@ class Observation:
                  self.game_trajectory = observation.game_trajectory
             if hasattr(observation, 'reflection') and observation.reflection is not None:
                  self.reflection = observation.reflection
+            if hasattr(observation, 'background') and observation.background is not None:
+                 self.background = observation.background
+            if hasattr(observation, 'trajectory_includes_background'):
+                 self.trajectory_includes_background = observation.trajectory_includes_background
+                 if hasattr(self.game_trajectory, 'need_background'):
+                    self.game_trajectory.need_background = self.trajectory_includes_background
 
         # Update/override with individual arguments if they are provided.
         # These apply regardless of whether 'observation' (object) was passed, allowing specific overrides.
@@ -103,6 +135,14 @@ class Observation:
         
         if processed_visual_description is not None:
             self.processed_visual_description = processed_visual_description
+        
+        if background is not None:
+            self.background = background
+        
+        if trajectory_includes_background is not None:
+            self.trajectory_includes_background = trajectory_includes_background
+            if hasattr(self.game_trajectory, 'need_background'): 
+                self.game_trajectory.need_background = self.trajectory_includes_background
     
     def set_memory_observation(self, observation=None, game_trajectory=None, reflection=None):
         """
@@ -126,10 +166,17 @@ class Observation:
                 self.textual_representation = observation.textual_representation
             if hasattr(observation, 'processed_visual_description') and observation.processed_visual_description is not None:
                 self.processed_visual_description = observation.processed_visual_description
-                
-        # Update/override with individual arguments if they are provided
+            if hasattr(observation, 'background') and observation.background is not None:
+                self.background = observation.background
+            if hasattr(observation, 'trajectory_includes_background'):
+                self.trajectory_includes_background = observation.trajectory_includes_background
+                if game_trajectory is None and hasattr(self.game_trajectory, 'need_background'):
+                    self.game_trajectory.need_background = self.trajectory_includes_background
+
         if game_trajectory is not None:
             self.game_trajectory = game_trajectory
+            if hasattr(self.game_trajectory, 'need_background') and self.trajectory_includes_background is not None:
+                 self.game_trajectory.need_background = self.trajectory_includes_background
                 
         if reflection is not None:
             self.reflection = reflection
@@ -167,6 +214,15 @@ class Observation:
         """
         return self.textual_representation if self.textual_representation is not None else ""
 
+    def get_background(self) -> str:
+        """
+        Get the static background information for the episode (as a string).
+        
+        Returns:
+            str: The background information or empty string if None
+        """
+        return self.background if self.background is not None else ""
+    
     def get_complete_prompt(
         self,
         observation_mode,
@@ -223,7 +279,8 @@ class Observation:
             "game_trajectory": self.game_trajectory.get() if self.game_trajectory else None,
             "reflection": self.reflection,
             "processed_visual_description": self.processed_visual_description,
-            "textual_representation": self.textual_representation
+            "textual_representation": self.textual_representation,
+            "background": self.background,
         }
         return json.dumps(data)
 

@@ -168,15 +168,16 @@ class GymEnvAdapter:
             print(f"[GymEnvAdapter] ERROR: Could not open episode log file {self.episode_log_file_path}: {e}")
             self.episode_log_file_handle = None
 
-    def create_agent_observation(self, img_path: Optional[str] = None, text_representation: Optional[str] = None) -> Observation:
+    def create_agent_observation(self, img_path: Optional[str] = None, text_representation: Optional[str] = None, background_info: Optional[str] = None) -> Observation:
         """
-        Creates an agent-facing Observation object from pre-defined image path and text representation.
+        Creates an agent-facing Observation object from pre-defined image path, text representation, and background info.
         The environment is responsible for generating these components based on its state and
         the adapter's observation_mode.
 
         Args:
             img_path (Optional[str]): Path to the observation image file.
             text_representation (Optional[str]): Textual representation of the observation.
+            background_info (Optional[str]): Static background information for the episode.
 
         Returns:
             Observation: An Observation object suitable for the agent.
@@ -184,7 +185,8 @@ class GymEnvAdapter:
         agent_observation = Observation()
         agent_observation.set_perception_observation(
             img_path=img_path,
-            textual_representation=text_representation
+            textual_representation=text_representation,
+            background=background_info
         )
         return agent_observation
 
