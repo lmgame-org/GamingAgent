@@ -112,6 +112,7 @@ class NineteenFortyTwoEnvWrapper(gym.Env):
         self.adapter.reset_episode(episode_id)
         self.current_frame, _ = self._raw_env.reset(seed=seed)
         self.current_info = self._extract_info()
+        self.current_info['total_score'] = self.current_info['score']
 
         img_path = None
         if self.adapter.observation_mode in ("vision", "both"):
