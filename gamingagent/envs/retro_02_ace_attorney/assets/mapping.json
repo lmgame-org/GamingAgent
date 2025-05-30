@@ -192,7 +192,8 @@
             "Sahwit: Terribly sorry about the misunderstanding...": "witness 1: My apologies for the confusion...",
             "Sahwit: Actually, I didn't \"hear\" the time... I \"saw\" it!": "witness 1: Actually, I didn't 'hear' the time... I observed it!",
             "Sahwit: There was a table clock in the apartment, wasn't there!": "witness 1: There was a desk clock in the apartment, correct!",
-            "Sahwit: Yeah, the murder weapon! The killer used it to hit the victim!": "witness 1: Yes, the clock is the murder weapon! The killer 1 struck the victim 1 with it!",
+            "Sahwit: Yeah, the murder weapon! The killer used it to": "witness 1: Yes, the clock is the murder weapon! The killer 1 struck",
+            "Sahwit: hit the victim!": "witness 1: the victim 1 with it!",
             "Sahwit: That must have been what I saw.": "witness 1: That must be what I observed."
         }
     },

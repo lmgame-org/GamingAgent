@@ -144,7 +144,7 @@ class AceAttorneyEnv(RetroEnv):
         # Action processing parameters (can be tuned)
         # These were found to be important from previous iterations
         self.num_frames_to_hold_action = 1 # User set this to 1 (previously 5)
-        self.num_frames_for_no_op_pause = 200 # User set this to 200
+        self.num_frames_for_no_op_pause =400 # User set this to 200
 
         # Screenshot skipping during no-op (Phase 2)
         # If true, only the first frame of Phase 2 gets a screenshot.
@@ -323,7 +323,7 @@ class AceAttorneyEnv(RetroEnv):
         if self.adapter.observation_mode in ("both"):
             if evidence_list_str:
                 dialogue_parts.append(evidence_list_str)
-            print(f"[AceAttorneyEnv _build_agent_observation_components] Raw LLM output from previous step: {self.raw_llm_output_from_previous_step}")
+            # print(f"[AceAttorneyEnv _build_agent_observation_components] Raw LLM output from previous step: {self.raw_llm_output_from_previous_step}")
             if self.raw_llm_output_from_previous_step:
                 dialogue_match = re.search(r"^[Dd][Ii][Aa][Ll][Oo][Gg]:\s*([^:]+):\s*(.+)$", self.raw_llm_output_from_previous_step, re.MULTILINE)
                 if dialogue_match:
@@ -334,11 +334,11 @@ class AceAttorneyEnv(RetroEnv):
                     if not self.dialogue_history_for_agent or self.dialogue_history_for_agent[-1] != current_dialogue_text_component:
                         self.dialogue_history_for_agent.append(current_dialogue_text_component)
                         # Store the raw parsed dialogue for other internal uses (like mapping.json based systems)
-                        parsed_dialogue_data_for_storage = {"speaker": speaker, "text": text}
-                        if hasattr(self, "store_llm_extracted_dialogue"):
-                            self.store_llm_extracted_dialogue(parsed_dialogue_data_for_storage)
+                        # parsed_dialogue_data_for_storage = {"speaker": speaker, "text": text}
+                        # if hasattr(self, "store_llm_extracted_dialogue"):
+                        #     self.store_llm_extracted_dialogue(parsed_dialogue_data_for_storage)
 
-            print(f"[AceAttorneyEnv _build_agent_observation_components] Dialogue history for agent: {self.dialogue_history_for_agent}")
+            # print(f"[AceAttorneyEnv _build_agent_observation_components] Dialogue history for agent: {self.dialogue_history_for_agent}")
             if self.dialogue_history_for_agent:
                 displayed_dialogue_lines = []
                 for history_line in self.dialogue_history_for_agent:
