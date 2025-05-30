@@ -351,34 +351,6 @@ def overlay_text_on_image(
         return
 
     try:
-        # img = Image.open(source_image_path).convert("RGB") # No longer needed if just copying
-        # draw = ImageDraw.Draw(img) # No longer needed
-        # img_width, img_height = img.size # No longer needed
-
-        # Font and text drawing logic -- ENTIRE BLOCK TO BE REMOVED
-        # info_font_size = max(10, reference_size_for_font // 2 - 2)
-        # if img_height < 100 : 
-        #     info_font_size = max(8, img_height // 10)
-        # common_font = _load_font(POTENTIAL_FONTS, info_font_size, "Info font for overlay not found.")
-        # shadow_offset = 1
-        # text_margin = 5
-        # if perf_score is not None:
-        #     score_text_content = f"Total Score: {perf_score:.1f}" 
-        #     draw.text((text_margin, text_margin), score_text_content, fill=(0,0,0), font=common_font)
-        # if action_taken_str is not None:
-        #     action_text_content = f"Action: {action_taken_str}"
-        #     text_h = info_font_size
-        #     if hasattr(common_font, 'getbbox'):
-        #         bbox = common_font.getbbox(action_text_content)
-        #         text_h = bbox[3] - bbox[1]
-        #     elif hasattr(common_font, 'getsize'): 
-        #         _, text_h = common_font.getsize(action_text_content)
-        #     text_x_action = text_margin
-        #     text_y_action = img_height - text_h - text_margin
-        #     draw.text((text_x_action + shadow_offset, text_y_action + shadow_offset), action_text_content, fill=(0,0,0), font=common_font)
-        #     draw.text((text_x_action, text_y_action), action_text_content, fill=(255,255,255), font=common_font)
-
-        # Save the modified image - Now just copy
         save_dir = os.path.dirname(output_save_path)
         if save_dir: os.makedirs(save_dir, exist_ok=True)
         # img.save(output_save_path)
