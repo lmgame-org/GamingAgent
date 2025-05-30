@@ -15,17 +15,17 @@ agent:
   reasoning_effort: "high"
   token_limit: 100000
   harness: true
-  observation_mode: "text"
+  observation_mode: "both"
   # Module-specific settings
   modules:
     base_module:
       observation_mode: "vision"
     
     perception_module:
-      observation_mode: "text"
+      observation_mode: "both"
 
     memory_module:
       max_memory: 10  # Maximum number of memory entries to store
     
     reasoning_module:
-      observation_mode: "text"
+      observation_mode: "both"

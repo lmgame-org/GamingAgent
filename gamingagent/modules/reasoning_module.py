@@ -111,19 +111,23 @@ class ReasoningModule(CoreModule):
         
         return parsed_response
     
-    def _call_vision_api(self, context, img_path):
+    def _call_vision_api(self, context, img_path, custom_prompt=None):
         """
         Call the vision API with text context and image.
         
         Args:
             context (str): Formatted context with perception and memory
             img_path (str): Path to the current game image
+            custom_prompt (str, optional): Custom prompt to use
             
         Returns:
             str: Raw response from the API
         """
         # Create user prompt with context
-        user_prompt = context
+        if custom_prompt:
+            user_prompt = context + "\n\n" + custom_prompt
+        else:
+            user_prompt = context
 
         print(f"""
 ------------------------ VISION API — FINAL USER PROMPT ------------------------
