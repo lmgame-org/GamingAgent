@@ -370,6 +370,11 @@ def deepseek_text_reasoning_completion(system_prompt, model_name, prompt, token_
             content += chunk.choices[0].delta.content
     
     # generated_str = response.choices[0].message.content
+
+    print("========== Raw String ==========")
+    print(content)
+    print("========== Raw String ==========")
+    
     return content
     
 
@@ -666,26 +671,30 @@ def together_ai_text_completion(system_prompt, model_name, prompt, temperature=1
         import re
         def extract_move(text):
             """
-            Extracts the content immediately after either 'move:' or '### move' up to the next newline.
+            Extracts the content immediately after the first </think> tag,
+            then extracts the content after either 'move:' or '### move' up to the next newline.
             Strips whitespace.
             Returns None if not found.
             """
-            # Regex:
-            # (?:move:|### move)  -- non-capturing group, matches 'move:' or '### move'
-            # \s*                 -- optional whitespace
-            # (.+?)               -- non-greedy capture group
-            # \s*                 -- optional whitespace before newline
-            # (?:\\n|\n|$)        -- matches '\n', '\\n', or end of string
-            m = re.search(r"(?:move:|### move)\s*(.+?)\s*(?:\\n|\n|$)", text)
-            if m:
-                return m.group(1).strip()
-            return None
+            # Find the first </think>
+            think_match = re.search(r"</think>", text)
+            if think_match:
+                after_think = text[think_match.end():]
+            else:
+                after_think = text  # If </think> not found, search the whole text
+            
+            return after_think.strip()
+            # Now extract move after 'move:' or '### move'
+            #move_match = re.search(r"(?:move:|### move)\s*(.+?)\s*(?:\\n|\n|$)", after_think)
+            #if move_match:
+            #    return move_match.group(1).strip()
+            #return None
 
         print("========== Raw String ==========")
         print(generated_str)
         print("========== Raw String ==========")
 
-        if model_name == "deepseek-ai/DeepSeek-R1-0528":
+        if model_name == "deepseek-ai/DeepSeek-R1":
             generated_str = extract_move(generated_str)
 
         print("========== Processed String ==========")

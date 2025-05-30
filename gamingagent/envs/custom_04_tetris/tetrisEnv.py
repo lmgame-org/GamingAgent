@@ -669,4 +669,4 @@ class TetrisEnv(gym.Env):
     def close(self):
         if self.window_name: cv2.destroyWindow(self.window_name); self.window_name=None
         self.adapter.close_log_file()
-        print("[TetrisEnv] Self-contained env closed.") 
+        print("[TetrisEnv] Self-contained env closed.")
