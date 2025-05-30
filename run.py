@@ -65,7 +65,7 @@ def main():
     parser.add_argument("--model_name", type=str, default="gemini-2.0-flash",
                         help="Name of the model for the agent.")
     parser.add_argument("--game_names", type=str, 
-                        default="sokoban,tetris,candy_crush,twenty_forty_eight,super_mario_bros",
+                        default="sokoban,tetris,candy_crush,twenty_forty_eight",
                         help="Comma-separated list of game names.")
     parser.add_argument("--harness_mode", type=str, default="both",
                         choices=["true", "false", "both"],

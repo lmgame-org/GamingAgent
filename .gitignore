@@ -1,5 +1,5 @@
 # virtual env and running logs
-lmgame-bench/*
+lmgame-bench-env/*
 logs/*
 eval/perf/*
 

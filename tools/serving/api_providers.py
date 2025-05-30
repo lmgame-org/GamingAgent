@@ -661,6 +661,36 @@ def together_ai_text_completion(system_prompt, model_name, prompt, temperature=1
         )
 
         generated_str = response.choices[0].message.content
+
+        # HACK: resolve temporary generation repetition issue for deepseek-ai/DeepSeek-R1-0528
+        import re
+        def extract_move(text):
+            """
+            Extracts the content immediately after either 'move:' or '### move' up to the next newline.
+            Strips whitespace.
+            Returns None if not found.
+            """
+            # Regex:
+            # (?:move:|### move)  -- non-capturing group, matches 'move:' or '### move'
+            # \s*                 -- optional whitespace
+            # (.+?)               -- non-greedy capture group
+            # \s*                 -- optional whitespace before newline
+            # (?:\\n|\n|$)        -- matches '\n', '\\n', or end of string
+            m = re.search(r"(?:move:|### move)\s*(.+?)\s*(?:\\n|\n|$)", text)
+            if m:
+                return m.group(1).strip()
+            return None
+
+        print("========== Raw String ==========")
+        print(generated_str)
+        print("========== Raw String ==========")
+
+        if model_name == "deepseek-ai/DeepSeek-R1-0528":
+            generated_str = extract_move(generated_str)
+
+        print("========== Processed String ==========")
+        print(generated_str)
+        print("========== Processed String ==========")
         return generated_str
     except Exception as e:
         print(f"Error in together_ai_text_completion: {e}")
@@ -717,6 +747,7 @@ def together_ai_multiimage_completion(system_prompt, model_name, prompt, list_co
         )
 
         generated_str = response.choices[0].message.content
+
         return generated_str
     except Exception as e:
         print(f"Error in together_ai_multiimage_completion: {e}")

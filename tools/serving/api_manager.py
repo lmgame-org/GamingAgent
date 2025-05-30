@@ -668,7 +668,7 @@ class APIManager:
                     prompt=prompt,
                     token_limit=token_limit
                 )
-            elif "llama" in model_name.lower() or "meta" in model_name.lower():
+            elif "deepseek" in model_name.lower() or "llama" in model_name.lower() or "meta" in model_name.lower():
                 completion = together_ai_text_completion(
                     system_prompt=system_prompt,
                     model_name=model_name,
