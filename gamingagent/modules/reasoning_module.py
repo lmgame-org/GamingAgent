@@ -2,6 +2,7 @@ from abc import abstractmethod
 from .core_module import CoreModule, Observation
 
 import re
+from tools.utils import scale_image_up
 
 # TODO: 
 # 1.module integration 
@@ -53,7 +54,7 @@ class ReasoningModule(CoreModule):
 
         self.observation_mode = observation_mode
 
-    def plan_action(self, observation):
+    def plan_action(self, observation, custom_prompt=None):
         """
         Plan the next action sequence based on current perception and memory.
         
@@ -84,10 +85,13 @@ class ReasoningModule(CoreModule):
         )
         
         # Choose API call based on whether an image is available
-        if image_path:
-            response = self._call_vision_api(full_context, image_path)
+        if self.observation_mode in ["vision", "both"]:
+            if not image_path:
+                print("Warning: No image path provided for vision API call. Using text-only API.")
+            image_path = scale_image_up(self.observation.get_img_path())
+            response = self._call_vision_api(full_context, image_path, custom_prompt)
         else:
-            response = self._call_text_api(full_context)
+            response = self._call_text_api(full_context, custom_prompt)
 
         #returned API response should be a tuple
         response_string = response[0]

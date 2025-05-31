@@ -694,7 +694,7 @@ def together_ai_text_completion(system_prompt, model_name, prompt, temperature=1
         print(generated_str)
         print("========== Raw String ==========")
 
-        if model_name == "deepseek-ai/DeepSeek-R1":
+        if model_name == "deepseek-ai/DeepSeek-R1" or model_name == "Qwen/Qwen3-235B-A22B-fp8":
             generated_str = extract_move(generated_str)
 
         print("========== Processed String ==========")

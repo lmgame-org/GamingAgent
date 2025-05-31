@@ -50,6 +50,7 @@ def parse_arguments(defaults_map=None, argv_to_parse=None):
                         choices=["vision", "text", "both"], help="Agent's observation mode.")
     parser.add_argument("--max_memory", type=int, default=20, help="Agent's max memory entries.")
     parser.add_argument("--max_steps_per_episode", type=int, default=1000, help="Max steps per episode.")
+    parser.add_argument("--use_custom_prompt", action="store_true", help="If set, will use the custom prompt from module_prompts.json if present.")
     parser.add_argument("--seed", type=int, default=None, help="Random seed for environment.")
     # Env type is fixed to custom gym for this runner
 
@@ -482,6 +483,7 @@ def main():
                             agent_config_yaml = loaded_yaml['agent']
                             defaults_from_yaml['model_name'] = agent_config_yaml.get('model_name')
                             defaults_from_yaml['observation_mode'] = agent_config_yaml.get('observation_mode')
+                            defaults_from_yaml['use_custom_prompt'] = agent_config_yaml.get('observation_mode')
                             
                             # Still load max_memory from its specific module config if present
                             if agent_config_yaml.get('modules'):
@@ -560,6 +562,7 @@ def main():
         model_name=args.model_name,
         config_path=agent_prompts_config_path,
         harness=args.harness,
+        use_custom_prompt=args.use_custom_prompt,
         max_memory=args.max_memory, 
         custom_modules=custom_modules_for_agent,
         observation_mode=args.observation_mode,
