@@ -123,7 +123,7 @@ class ReasoningModule(CoreModule):
             str: Raw response from the API
         """
         # Create user prompt with context
-        user_prompt = self.prompt.replace("{context}", context) if "{context}" in self.prompt else context
+        user_prompt = context
 
         print(f"""
 ------------------------ VISION API — FINAL USER PROMPT ------------------------
@@ -156,8 +156,10 @@ class ReasoningModule(CoreModule):
             str: Raw response from the API
         """
         # Create user prompt
-        user_prompt = custom_prompt if custom_prompt else self.prompt
-        
+        if custom_prompt:
+             user_prompt = context + "\n\n" + custom_prompt
+        else:
+             user_prompt = context
         # Replace context placeholder if it exists
         if "{context}" in user_prompt:
             user_prompt = user_prompt.replace("{context}", context)

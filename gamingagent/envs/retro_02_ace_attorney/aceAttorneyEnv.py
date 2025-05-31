@@ -11,6 +11,7 @@ import os
 import hashlib
 import re # For keyword mapping
 from typing import Optional, Dict, Any, Tuple, List
+import pyglet # ADDED IMPORT
 
 from gamingagent.modules.core_module import Observation
 from gamingagent.envs.gym_env_adapter import GymEnvAdapter
@@ -21,6 +22,8 @@ ASSETS_DIR = os.path.join(os.path.dirname(__file__), "assets")
 DEFAULT_GAME_SCRIPT_PATH = os.path.join(ASSETS_DIR, "mapping.json")
 DEFAULT_SKIP_CONVERSATIONS_PATH = os.path.join(ASSETS_DIR, "skip_conversations.json")
 LIVES_RAM_VARIABLE_NAME = "lives" # Example RAM variable, confirm actual name from .json
+CKPT_FILE_NAME = "ckpt.json" # ADDED
+DIALOGUE_LOG_FILE_NAME = "dialogues.jsonl" # ADDED
 
 # Ensure PIL is imported for image operations if any are done directly here
 # from PIL import Image
@@ -144,10 +147,9 @@ class AceAttorneyEnv(RetroEnv):
         # Action processing parameters (can be tuned)
         # These were found to be important from previous iterations
         self.num_frames_to_hold_action = 1 # User set this to 1 (previously 5)
-        self.num_frames_for_no_op_pause =400 # User set this to 200
+        self.num_frames_for_no_op_pause = 1000 # User set this to 1000
 
         # Screenshot skipping during no-op (Phase 2)
-        # If true, only the first frame of Phase 2 gets a screenshot.
         self.skip_later_noop_screenshots = True # User set this via frame_num_phase2 >= 1 (equivalent to this bool)
         
         # print(f"[AceAttorneyEnv __init__] Initialized with state: {self.initial_retro_state_name}, obs_mode for adapter: {adapter_observation_mode}")
@@ -334,9 +336,9 @@ class AceAttorneyEnv(RetroEnv):
                     if not self.dialogue_history_for_agent or self.dialogue_history_for_agent[-1] != current_dialogue_text_component:
                         self.dialogue_history_for_agent.append(current_dialogue_text_component)
                         # Store the raw parsed dialogue for other internal uses (like mapping.json based systems)
-                        # parsed_dialogue_data_for_storage = {"speaker": speaker, "text": text}
-                        # if hasattr(self, "store_llm_extracted_dialogue"):
-                        #     self.store_llm_extracted_dialogue(parsed_dialogue_data_for_storage)
+                        parsed_dialogue_data_for_storage = {"speaker": speaker, "text": text}
+                        if hasattr(self, "store_llm_extracted_dialogue"):
+                            self.store_llm_extracted_dialogue(parsed_dialogue_data_for_storage)
 
             # print(f"[AceAttorneyEnv _build_agent_observation_components] Dialogue history for agent: {self.dialogue_history_for_agent}")
             if self.dialogue_history_for_agent:
@@ -470,6 +472,19 @@ class AceAttorneyEnv(RetroEnv):
             # Add the dialogue lines that are being skipped to the agent's history
             for skipped_dialogue_line in lines_to_skip:
                 self.dialogue_history_for_agent.append(skipped_dialogue_line)
+                # Attempt to parse and store the skipped dialogue line
+                try:
+                    parts = skipped_dialogue_line.split(": ", 1)
+                    if len(parts) == 2:
+                        speaker, text = parts[0], parts[1]
+                        parsed_dialogue_data_for_storage = {"speaker": speaker, "text": text}
+                        if hasattr(self, "store_llm_extracted_dialogue"):
+                            self.store_llm_extracted_dialogue(parsed_dialogue_data_for_storage)
+                    else:
+                        # Log a warning if the line doesn't conform to "Speaker: Text"
+                        print(f"[AceAttorneyEnv _check_and_trigger_skip_sequence] WARNING: Could not parse skipped dialogue line for storage (expected 'Speaker: Text' format): '{skipped_dialogue_line}'")
+                except Exception as e:
+                    print(f"[AceAttorneyEnv _check_and_trigger_skip_sequence] ERROR storing skipped dialogue line '{skipped_dialogue_line}': {e}")
 
             accumulated_skip_reward: float = 0.0
             skip_terminated: bool = False
@@ -477,7 +492,8 @@ class AceAttorneyEnv(RetroEnv):
             final_skip_obs: Optional[Observation] = None
             final_skip_info: Dict[str, Any] = {}
             
-            num_frames_for_no_op_pause_in_skip = 200 # Define the pause length
+            # num_frames_for_no_op_pause_in_skip = 200 # Define the pause length
+            # Use the class attribute for unified no-op pause duration
             no_op_action_for_skip_pause = np.zeros(self.num_buttons, dtype=bool)
 
             for i in range(num_skips):
@@ -499,7 +515,8 @@ class AceAttorneyEnv(RetroEnv):
 
                 # --- 2. Execute No-Op Pause (e.g., 200 frames) ---
                 # print(f"[AceAttorneyEnv DEBUG _check_and_trigger_skip_sequence] Skip Turn {i+1}/{num_skips}: Starting {num_frames_for_no_op_pause_in_skip}-frame no-op pause.")
-                for _ in range(num_frames_for_no_op_pause_in_skip):
+                # Use self.num_frames_for_no_op_pause here
+                for _ in range(self.num_frames_for_no_op_pause): 
                     ram_obs_noop, reward_noop, term_noop, trunc_noop, self.current_core_info = super().step(no_op_action_for_skip_pause)
                     self.current_raw_frame = self.em.get_screen()
                     accumulated_skip_reward += float(reward_noop)
@@ -519,7 +536,7 @@ class AceAttorneyEnv(RetroEnv):
             
             # After skip loop, build the final observation and info
             final_skip_info = self._get_agent_info()
-            skip_block_perf_score = self.adapter.calculate_perf_score(accumulated_skip_reward, final_skip_info)
+            skip_block_perf_score = 0.0 # MODIFIED
 
             img_path_skip, txt_rep_skip, bg_rep_skip = self._build_agent_observation_components(final_skip_info, skip_screenshot=False)
             final_skip_obs = self.adapter.create_agent_observation(img_path=img_path_skip, text_representation=txt_rep_skip, background_info=bg_rep_skip)
@@ -630,7 +647,7 @@ class AceAttorneyEnv(RetroEnv):
 
         # --- LIVES CHECK (can lead to Game Over) ---
         num_frames_to_hold_action = 1 # User's file had this as 1
-        num_frames_for_no_op_pause = 200
+        num_frames_for_no_op_pause = 500
 
         base_env_action_from_agent = self.adapter.map_agent_action_to_env_action(agent_action_str)
 
@@ -647,7 +664,6 @@ class AceAttorneyEnv(RetroEnv):
             effective_agent_action_str_for_log = agent_action_str
         
         overall_accumulated_reward = 0.0
-        overall_accumulated_perf_score = 0.0
         
         current_observation_to_return = None
         current_agent_facing_info_to_return = {}
@@ -672,8 +688,7 @@ class AceAttorneyEnv(RetroEnv):
             if not p1_terminated_frame and p1_speaker is not None and p1_dialogue is not None: pass
 
             p1_agent_facing_info = self._get_agent_info()
-            p1_step_perf_score = self.adapter.calculate_perf_score(float(p1_step_reward), p1_agent_facing_info)
-            overall_accumulated_perf_score += p1_step_perf_score
+            p1_step_perf_score = 0.0 # ADDED: Ace Attorney per-step perf score is 0
             
             p1_img_path, p1_txt_rep, p1_bg_rep = self._build_agent_observation_components(p1_agent_facing_info) # skip_screenshot is False
             p1_current_agent_obs = self.adapter.create_agent_observation(img_path=p1_img_path, text_representation=p1_txt_rep, background_info=p1_bg_rep)
@@ -701,11 +716,11 @@ class AceAttorneyEnv(RetroEnv):
                         terminated=True, # Game Over
                         truncated=current_truncated_overall, # Keep existing truncation status
                         time_taken_s=current_frame_time_taken,
-                        perf_score=overall_accumulated_perf_score, # Perf score up to this point
+                        perf_score=0.0, # MODIFIED
                         agent_observation=current_observation_to_return
                     )
                 # print(f"[AceAttorneyEnv DEBUG] Phase 1 (Frame {frame_num_phase1+1}): Terminating/Truncating. Skipping Phase 2.")
-                return current_observation_to_return, overall_accumulated_reward, current_terminated_overall, current_truncated_overall, current_agent_facing_info_to_return, overall_accumulated_perf_score
+                return current_observation_to_return, overall_accumulated_reward, current_terminated_overall, current_truncated_overall, current_agent_facing_info_to_return, 0.0 # MODIFIED
 
         # --- Check and Execute Skip Sequence (NEW) ---
         # This occurs after agent's action (Phase 1) and before automatic no-op (Phase 2)
@@ -721,7 +736,6 @@ class AceAttorneyEnv(RetroEnv):
              skip_truncated, current_agent_facing_info_to_return, skip_perf_score) = skip_results
             
             overall_accumulated_reward += skip_reward # Add reward from skip sequence
-            overall_accumulated_perf_score += skip_perf_score
             current_terminated_overall = current_terminated_overall or skip_terminated
             current_truncated_overall = current_truncated_overall or skip_truncated
             
@@ -737,13 +751,13 @@ class AceAttorneyEnv(RetroEnv):
                     terminated=True,
                     truncated=current_truncated_overall,
                     time_taken_s=0.0,
-                    perf_score=overall_accumulated_perf_score,
+                    perf_score=0.0, # MODIFIED
                     agent_observation=current_observation_to_return
                 )
 
             if current_terminated_overall or current_truncated_overall:
                 # print("[AceAttorneyEnv DEBUG Step] Terminated/Truncated after skip sequence. Skipping Phase 2 (no-op).")
-                return current_observation_to_return, overall_accumulated_reward, current_terminated_overall, current_truncated_overall, current_agent_facing_info_to_return, overall_accumulated_perf_score
+                return current_observation_to_return, overall_accumulated_reward, current_terminated_overall, current_truncated_overall, current_agent_facing_info_to_return, 0.0 # MODIFIED
 
         # --- Phase 2: Execute Automatic No-Op Pause ---
         # This phase runs only if Phase 1 (and skip sequence, if any) did not terminate/truncate the episode.
@@ -777,11 +791,8 @@ class AceAttorneyEnv(RetroEnv):
             overall_accumulated_reward += accumulated_reward_phase2
 
             p2_agent_facing_info = self._get_agent_info()
-            p2_block_perf_score = self.adapter.calculate_perf_score(accumulated_reward_phase2, p2_agent_facing_info)
-            overall_accumulated_perf_score += p2_block_perf_score
+            p2_block_perf_score = 0.0 # ADDED: Ace Attorney per-step perf score is 0
             
-            # For the single observation at the end of phase 2, we will save a screenshot.
-            # The previous `skip_screenshot_for_this_noop_frame` is not needed as we only build components once.
             p2_img_path, p2_txt_rep, p2_bg_rep = self._build_agent_observation_components(p2_agent_facing_info, skip_screenshot=False)
             p2_final_agent_obs = self.adapter.create_agent_observation(img_path=p2_img_path, text_representation=p2_txt_rep, background_info=p2_bg_rep)
 
@@ -793,15 +804,7 @@ class AceAttorneyEnv(RetroEnv):
             
             # Check for game over due to lives AFTER Phase 2 (No-Op)
             if self.current_lives <= 0 and not current_terminated_overall:
-                # print(f"[AceAttorneyEnv STEP] GAME OVER. Lives reached 0 after Phase 2 (No-Op).")
                 current_terminated_overall = True
-                # Update the log entry for the no-op block if it's the one causing game over.
-                # This is a bit tricky as the log for no-op is made with its own values.
-                # For simplicity, we'll let the existing no-op log stand, and this game over is an additional state.
-                # The 'terminated' flag in the final return will reflect this.
-                # If precise logging of which block (action, skip, no-op) caused game over is needed,
-                # the log_step_data calls would need to be more conditional or updated.
-
             self.adapter.log_step_data(
                 agent_action_str="<AUTO_NO_OP_BLOCK>", 
                 thought_process=f"Automatic no-op pause for {frame_num_phase2 + 1}/{num_frames_for_no_op_pause} frames.", # Log actual frames executed
@@ -810,14 +813,14 @@ class AceAttorneyEnv(RetroEnv):
                 terminated=current_terminated_overall, 
                 truncated=current_truncated_overall, 
                 time_taken_s=0.0, # Time for this block action
-                perf_score=p2_block_perf_score, 
+                perf_score=0.0, # MODIFIED
                 agent_observation=p2_final_agent_obs
             )
             current_observation_to_return = p2_final_agent_obs
             current_agent_facing_info_to_return = p2_agent_facing_info
         
         # If num_frames_for_no_op_pause was 0, the observation and info from Phase 1 are still the latest.
-        # The overall_accumulated_reward and overall_accumulated_perf_score are also correct.
+        # The overall_accumulated_reward is also correct.
         # current_terminated_overall and current_truncated_overall would be from Phase 1.
 
         if self.wrapper_render_mode == "human": self.render()
@@ -829,7 +832,7 @@ class AceAttorneyEnv(RetroEnv):
             # Potentially log a generic game over event here if not already logged by a specific phase.
             # However, the phase-specific checks should ideally catch it.
 
-        return current_observation_to_return, overall_accumulated_reward, current_terminated_overall, current_truncated_overall, current_agent_facing_info_to_return, overall_accumulated_perf_score
+        return current_observation_to_return, overall_accumulated_reward, current_terminated_overall, current_truncated_overall, current_agent_facing_info_to_return, 0.0 # MODIFIED
 
     def render(self) -> Optional[RenderFrame]:
         if self.wrapper_render_mode == 'human':
@@ -1000,6 +1003,112 @@ class AceAttorneyEnv(RetroEnv):
 
     def close(self):
         """Closes the environment and the adapter's log file."""
-        super().close()
-        self.adapter.close_log_file()
-        # print("[AceAttorneyEnv] Environment closed.")
+        # print(f"[AceAttorneyEnv CLOSE] Closing environment. Render mode: {self.wrapper_render_mode}")
+        try:
+            if self.wrapper_render_mode == 'human' and self.viewer is not None:
+                if hasattr(self.viewer, 'close'):
+                    self.viewer.close()
+                if pyglet.app.event_loop is not None and hasattr(pyglet.app.event_loop, 'running') and pyglet.app.event_loop.running:
+                    try:
+                        pyglet.app.exit()
+                    except Exception as e:
+                        print(f"[AceAttorneyEnv CLOSE] Exception during pyglet.app.exit(): {e}")
+        except Exception as e:
+            print(f"[AceAttorneyEnv CLOSE] Exception during pyglet cleanup: {e}")
+        finally:
+            super().close()
+            self.adapter.close_log_file()
+            # print("[AceAttorneyEnv] Environment and adapter log file closed.")
+
+    def calculate_final_performance_score(self) -> int:
+        """
+        Calculates a final performance score based on matching logged dialogues
+        against predefined checkpoints in ckpt.json.
+        Iterates dialogues from newest to oldest, checking ckpt3, then ckpt2, then ckpt1.
+        """
+        ckpt_file_path = os.path.join(ASSETS_DIR, CKPT_FILE_NAME)
+        dialogue_log_path = os.path.join(self.adapter.agent_cache_dir, DIALOGUE_LOG_FILE_NAME)
+
+        # Load ckpt.json
+        if not os.path.exists(ckpt_file_path):
+            print(f"[AceAttorneyEnv calculate_final_score] Checkpoint file {ckpt_file_path} not found. Score: 0")
+            return 0
+        try:
+            with open(ckpt_file_path, 'r', encoding='utf-8') as f: # Added encoding
+                ckpt_data = json.load(f)
+        except Exception as e:
+            print(f"[AceAttorneyEnv calculate_final_score] Error loading {ckpt_file_path}: {e}. Score: 0")
+            return 0
+
+        ckpt1_dialogues = ckpt_data.get("ckpt1", [])
+        ckpt2_dialogues = ckpt_data.get("ckpt2", [])
+        ckpt3_dialogues = ckpt_data.get("ckpt3", [])
+
+        # Load dialogues.jsonl
+        if not os.path.exists(dialogue_log_path):
+            print(f"[AceAttorneyEnv calculate_final_score] Dialogue log {dialogue_log_path} not found. Score: 0")
+            return 0
+        
+        logged_dialogues_raw = []
+        try:
+            with open(dialogue_log_path, 'r', encoding='utf-8') as f: # Added encoding
+                for line in f:
+                    if line.strip(): # Avoid issues with empty lines
+                        logged_dialogues_raw.append(json.loads(line.strip()))
+        except Exception as e:
+            print(f"[AceAttorneyEnv calculate_final_score] Error loading {dialogue_log_path}: {e}. Score: 0")
+            return 0
+
+        if not logged_dialogues_raw:
+            print(f"[AceAttorneyEnv calculate_final_score] No dialogues in {dialogue_log_path}. Score: 0")
+            return 0
+
+        # Iterate from newest to oldest logged dialogues
+        for logged_entry in reversed(logged_dialogues_raw):
+            speaker_raw = logged_entry.get("speaker")
+            text_raw = logged_entry.get("text")
+            state_name_from_log = logged_entry.get("state_name")
+
+            if not speaker_raw or not text_raw or not state_name_from_log:
+                # print(f"[AceAttorneyEnv calculate_final_score] Skipping incomplete log entry: {logged_entry}")
+                continue 
+            
+            speaker_stripped = speaker_raw.strip()
+            text_stripped = text_raw.strip()
+
+            # Normalize speaker name using name_mappings for the specific state
+            mapped_speaker = speaker_stripped # Default to stripped raw speaker
+            if self.game_script_data and state_name_from_log in self.game_script_data:
+                state_specific_data = self.game_script_data[state_name_from_log]
+                name_map_for_state = state_specific_data.get("name_mappings", {})
+                if name_map_for_state: # Check if name_map is not empty or None
+                    mapped_speaker = name_map_for_state.get(speaker_stripped.lower(), speaker_stripped)
+                # else:
+                    # print(f"[AceAttorneyEnv calculate_final_score] No name_mappings for state '{state_name_from_log}' or map is empty. Using speaker: '{speaker_stripped}'")
+            # else:
+                # print(f"[AceAttorneyEnv calculate_final_score] No game_script_data for state '{state_name_from_log}'. Using speaker: '{speaker_stripped}'")
+
+            current_logged_dialogue_str = f"{mapped_speaker}: {text_stripped}"
+            # print(f"[AceAttorneyEnv calculate_final_score] Comparing: '{current_logged_dialogue_str}'") # DEBUG
+
+            # Check against ckpt3
+            for ckpt_dialogue in ckpt3_dialogues:
+                if current_logged_dialogue_str == ckpt_dialogue:
+                    print(f"[AceAttorneyEnv calculate_final_score] Matched in ckpt3: '{current_logged_dialogue_str}'. Score: 3")
+                    return 3
+            
+            # Check against ckpt2
+            for ckpt_dialogue in ckpt2_dialogues:
+                if current_logged_dialogue_str == ckpt_dialogue:
+                    print(f"[AceAttorneyEnv calculate_final_score] Matched in ckpt2: '{current_logged_dialogue_str}'. Score: 2")
+                    return 2
+
+            # Check against ckpt1
+            for ckpt_dialogue in ckpt1_dialogues:
+                if current_logged_dialogue_str == ckpt_dialogue:
+                    print(f"[AceAttorneyEnv calculate_final_score] Matched in ckpt1: '{current_logged_dialogue_str}'. Score: 1")
+                    return 1
+                    
+        print(f"[AceAttorneyEnv calculate_final_score] No matching dialogue found in checkpoints. Score: 0")
+        return 0
+       
