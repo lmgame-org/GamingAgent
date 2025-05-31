@@ -22,6 +22,9 @@ class ReasoningModule(CoreModule):
                 cache_dir="cache",
                 system_prompt="", 
                 prompt="", 
+                use_perception=True,
+                use_memory=True,
+                use_cot=True,
                 token_limit=100000, 
                 reasoning_effort="high"
         ):
@@ -54,6 +57,10 @@ class ReasoningModule(CoreModule):
 
         self.observation_mode = observation_mode
 
+        self.use_perception = use_perception
+        self.use_memory = use_memory
+        self.use_cot = use_cot   # TODO: make reasoning mode configurable. now default to use reasoning if available for the model seletected
+
     def plan_action(self, observation, custom_prompt=None):
         """
         Plan the next action sequence based on current perception and memory.
@@ -74,8 +81,8 @@ class ReasoningModule(CoreModule):
         # Extract game trajectory and reflection memory module
         game_trajectory = getattr(observation, "game_trajectory", "")
         reflection = getattr(observation, "reflection", "")
-        use_memory = bool(game_trajectory.get() and reflection)
-        use_perception = bool(processed_visual_description)
+        use_memory = bool(game_trajectory.get() and reflection) and self.use_perception
+        use_perception = bool(processed_visual_description) and self.use_memory
 
         full_context = observation.get_complete_prompt(
             observation_mode=self.observation_mode,
@@ -86,9 +93,9 @@ class ReasoningModule(CoreModule):
         
         # Choose API call based on whether an image is available
         if self.observation_mode in ["vision", "both"]:
-            if not image_path:
+            if image_path:
                 print("Warning: No image path provided for vision API call. Using text-only API.")
-            image_path = scale_image_up(self.observation.get_img_path())
+            image_path = scale_image_up(image_path)
             response = self._call_vision_api(full_context, image_path, custom_prompt)
         else:
             response = self._call_text_api(full_context, custom_prompt)

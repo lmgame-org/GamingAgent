@@ -19,13 +19,10 @@ agent:
   # Module-specific settings
   modules:
     base_module:
-      observation_mode: "vision"
     
     perception_module:
-      observation_mode: "both"
 
     memory_module:
       max_memory: 10  # Maximum number of memory entries to store
     
     reasoning_module:
-      observation_mode: "both"

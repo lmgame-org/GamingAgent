@@ -14,13 +14,10 @@ agent:
   observation_mode: "text" 
 modules:
     base_module:
-      observation_mode: "vision"
 
     perception_module:
-      observation_mode: "text"
 
     memory_module:
       max_memory: 10 
 
     reasoning_module:
-      observation_mode: "text"
