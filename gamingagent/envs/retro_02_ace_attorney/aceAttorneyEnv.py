@@ -155,18 +155,6 @@ class AceAttorneyEnv(RetroEnv):
         # print(f"[AceAttorneyEnv __init__] Initialized with state: {self.initial_retro_state_name}, obs_mode for adapter: {adapter_observation_mode}")
         # print(f"[AceAttorneyEnv __init__] Action hold: {self.num_frames_to_hold_action} frames, No-op pause: {self.num_frames_for_no_op_pause} frames.")
 
-    def _load_env_specific_config(self, config_path: str):
-        # This method might become very simple or be removed if all necessary
-        # config (like button names for retro env) is handled by adapter or hardcoded if stable.
-        # For now, let it pass, as adapter loads its own action_mapping directly.
-        if os.path.exists(config_path):
-            # The adapter loads the action_mapping. This env doesn't need to parse it further for itself.
-            # print(f"[AceAttorneyEnv] Env-specific config found at {config_path}. Adapter will handle its contents.")
-            pass
-        else:
-            # print(f"[AceAttorneyEnv] WARNING: Env specific config {config_path} not found.")
-            pass
-
     def _load_game_script_data(self, script_path: str):
         """Loads game script data (dialogue, skips, scene details) from a JSON file."""
         if os.path.exists(script_path):
@@ -177,9 +165,7 @@ class AceAttorneyEnv(RetroEnv):
                 
             except json.JSONDecodeError as e:
                 print(f"[AceAttorneyEnv] Error decoding JSON from game script {script_path}: {e}")
-        else:
-            # print(f"[AceAttorneyEnv] Warning: Game script file {script_path} not found.")
-            self.game_script_data = {}
+        else: self.game_script_data = {}
 
     def _load_skip_conversation_data(self, skip_path: str):
         if os.path.exists(skip_path):
@@ -189,9 +175,7 @@ class AceAttorneyEnv(RetroEnv):
                 # print(f"[AceAttorneyEnv] Loaded skip conversation data: {skip_path}")
             except Exception as e:
                 print(f"[AceAttorneyEnv] ERROR loading skip conversation data {skip_path}: {e}")
-        else:
-            # print(f"[AceAttorneyEnv] WARNING: Skip conversation data file not found: {skip_path}")
-            pass
+        else: pass
 
     def _initialize_level_specific_data(self):
         self.current_level_background = []
@@ -234,19 +218,8 @@ class AceAttorneyEnv(RetroEnv):
         if LIVES_RAM_VARIABLE_NAME and LIVES_RAM_VARIABLE_NAME in core_info:
             new_lives_value = int(core_info[LIVES_RAM_VARIABLE_NAME])
             if new_lives_value != self.current_lives:
-                print(f"[AceAttorneyEnv DEBUG] Lives changed from {self.current_lives} to {new_lives_value}. RAM Variable: '{LIVES_RAM_VARIABLE_NAME}', Value in RAM: {core_info[LIVES_RAM_VARIABLE_NAME]}")
+                #print(f"[AceAttorneyEnv DEBUG] Lives changed from {self.current_lives} to {new_lives_value}. RAM Variable: '{LIVES_RAM_VARIABLE_NAME}', Value in RAM: {core_info[LIVES_RAM_VARIABLE_NAME]}")
                 self.current_lives = new_lives_value
-            # If new_lives_value is the same as self.current_lives, no need to print or update.
-        elif LIVES_RAM_VARIABLE_NAME:
-            # This case means LIVES_RAM_VARIABLE_NAME is defined but not found in core_info.
-            # Could print a one-time warning or handle as needed, for now, it's silent unless it changes.
-            pass
-
-    def _extract_dialogue_from_info(self, core_info: Dict[str, Any]) -> Tuple[Optional[str], Optional[str]]:
-        # Environment no longer extracts dialogue from RAM.
-        # This is now the agent's responsibility (e.g., via PerceptionModule).
-        # self.current_level_dialogue_log will not be populated by the env.
-        return None, None # Return None for speaker and dialogue
 
     def _get_agent_info(self) -> Dict[str, Any]:
         score = self.current_core_info.get("score", 0)
@@ -401,8 +374,7 @@ class AceAttorneyEnv(RetroEnv):
         
         self._initialize_level_specific_data() # Re-initialize dialogue logs, skip maps, etc., for the initial_retro_state_name.
         self._update_internal_game_state(self.current_core_info) # Update lives from RAM if different (should match initial_lives now)
-        # self._extract_dialogue_from_info(self.current_core_info) # Dialogue not extracted by env
-        
+
         agent_facing_info = self._get_agent_info()
         self.adapter.reset_episode(episode_id) # Reset adapter's episode tracking.
 
@@ -682,10 +654,8 @@ class AceAttorneyEnv(RetroEnv):
 
             overall_accumulated_reward += float(p1_step_reward)
             self._update_internal_game_state(self.current_core_info)
-            p1_speaker, p1_dialogue = self._extract_dialogue_from_info(self.current_core_info)
 
             if self.current_lives <= 0: p1_terminated_frame = True
-            if not p1_terminated_frame and p1_speaker is not None and p1_dialogue is not None: pass
 
             p1_agent_facing_info = self._get_agent_info()
             p1_step_perf_score = 0.0 # ADDED: Ace Attorney per-step perf score is 0
@@ -776,8 +746,6 @@ class AceAttorneyEnv(RetroEnv):
 
                 accumulated_reward_phase2 += float(p2_step_reward_frame)
                 self._update_internal_game_state(self.current_core_info)
-                # self._extract_dialogue_from_info(self.current_core_info) # Dialogue not used here currently
-
                 if self.current_lives <= 0: p2_terminated_frame_internal = True
                 
                 phase2_internal_terminated = p2_terminated_frame_internal
@@ -1088,27 +1056,37 @@ class AceAttorneyEnv(RetroEnv):
             # else:
                 # print(f"[AceAttorneyEnv calculate_final_score] No game_script_data for state '{state_name_from_log}'. Using speaker: '{speaker_stripped}'")
 
-            current_logged_dialogue_str = f"{mapped_speaker}: {text_stripped}"
-            # print(f"[AceAttorneyEnv calculate_final_score] Comparing: '{current_logged_dialogue_str}'") # DEBUG
+            # current_logged_dialogue_str = f"{mapped_speaker}: {text_stripped}" # OLD: full string with speaker
+            current_logged_text_only = text_stripped # NEW: only the text part
+            
+            # print(f"[AceAttorneyEnv calculate_final_score] Comparing Logged Text: '{current_logged_text_only}'") # DEBUG
 
             # Check against ckpt3
-            for ckpt_dialogue in ckpt3_dialogues:
-                if current_logged_dialogue_str == ckpt_dialogue:
-                    print(f"[AceAttorneyEnv calculate_final_score] Matched in ckpt3: '{current_logged_dialogue_str}'. Score: 3")
+            for ckpt_dialogue_text in ckpt3_dialogues:
+                ckpt_dialogue_text_stripped = ckpt_dialogue_text.strip()
+                # ---- START DEBUG BLOCK FOR CKPT3 ----
+                # print(f"DEBUG_CKPT3_COMPARE: LoggedText=\"{current_logged_text_only}\" (len {len(current_logged_text_only)}) CKPT_Text=\"{ckpt_dialogue_text_stripped}\" (len {len(ckpt_dialogue_text_stripped)}) Match: {current_logged_text_only == ckpt_dialogue_text_stripped})")
+                # if ckpt_dialogue_text_stripped == "Well, Mr. Wright?": # Example target text for debugging
+                #     print(f"  >>> CKPT3 Target Text Line '{ckpt_dialogue_text_stripped}' is being checked against logged text '{current_logged_text_only}'")
+                # ---- END DEBUG BLOCK FOR CKPT3 ----
+                if current_logged_text_only == ckpt_dialogue_text_stripped:
+                    print(f"[AceAttorneyEnv calculate_final_score] Matched TEXT in ckpt3: '{current_logged_text_only}'. Score: 3")
                     return 3
             
             # Check against ckpt2
-            for ckpt_dialogue in ckpt2_dialogues:
-                if current_logged_dialogue_str == ckpt_dialogue:
-                    print(f"[AceAttorneyEnv calculate_final_score] Matched in ckpt2: '{current_logged_dialogue_str}'. Score: 2")
+            for ckpt_dialogue_text in ckpt2_dialogues:
+                ckpt_dialogue_text_stripped = ckpt_dialogue_text.strip()
+                if current_logged_text_only == ckpt_dialogue_text_stripped:
+                    print(f"[AceAttorneyEnv calculate_final_score] Matched TEXT in ckpt2: '{current_logged_text_only}'. Score: 2")
                     return 2
 
             # Check against ckpt1
-            for ckpt_dialogue in ckpt1_dialogues:
-                if current_logged_dialogue_str == ckpt_dialogue:
-                    print(f"[AceAttorneyEnv calculate_final_score] Matched in ckpt1: '{current_logged_dialogue_str}'. Score: 1")
+            for ckpt_dialogue_text in ckpt1_dialogues:
+                ckpt_dialogue_text_stripped = ckpt_dialogue_text.strip()
+                if current_logged_text_only == ckpt_dialogue_text_stripped:
+                    print(f"[AceAttorneyEnv calculate_final_score] Matched TEXT in ckpt1: '{current_logged_text_only}'. Score: 1")
                     return 1
                     
-        print(f"[AceAttorneyEnv calculate_final_score] No matching dialogue found in checkpoints. Score: 0")
+        print(f"[AceAttorneyEnv calculate_final_score] No matching TEXT dialogue found in checkpoints. Score: 0")
         return 0
        

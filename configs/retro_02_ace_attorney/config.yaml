@@ -10,7 +10,7 @@ agent:
   name: "ace_attorney_retro_agent"
   model_name: "gemini-2.5-flash-preview-04-17"
   cache_dir: "cache/retro_ace_attorney" 
-  harness: false
+  harness: ture
   observation_mode: "both" # "vision", "text", or "both"
   
   modules:
@@ -19,7 +19,7 @@ agent:
     perception_module: 
 
     memory_module:
-      max_memory: 5
+      max_memory: 10
     
     reasoning_module:
       use_perception: True
