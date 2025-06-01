@@ -1,42 +1,51 @@
 {
-    "env_id": "Doom-Snes",
+    "env_id": "VizdoomBasic-v0",
     "doom_scenario_path": "basic.wad",
     "doom_map": "map01",
     "rewards": {
-        "living_reward": -1
+        "living_reward": -1,
+        "kill_monster": 106,
+        "shot_penalty": -5
     },
     "rendering_options": {
-        "screen_resolution": "RES_320X240",
+        "screen_resolution": "RES_640X480",
         "screen_format": "RGB24",
         "render_hud": true,
         "render_crosshair": false,
         "render_weapon": true,
         "render_decals": false,
         "render_particles": false,
+        "render_effects_sprites": false,
+        "render_messages": false,
+        "render_corpses": false,
+        "render_screen_flashes": false,
+        "render_minimal_hud": true,
         "window_visible": true
     },
     "episode_settings": {
         "episode_start_time": 14,
-        "episode_timeout": 300
+        "episode_timeout": 600,
+        "ticrate": 20
     },
     "available_buttons": [
-        "MOVE_UP",
-        "MOVE_DOWN",
         "MOVE_LEFT",
         "MOVE_RIGHT",
         "ATTACK"
     ],
     "available_game_variables": [
-        "AMMO2"
+        "AMMO2",
+        "KILLCOUNT",
+        "POSITION_X",
+        "POSITION_Y",
+        "ANGLE",
+        "HEALTH"
     ],
     "mode": "PLAYER",
-    "doom_skill": 5,
+    "doom_skill": 3,
     "action_mapping": {
-        "move_up": 0,
-        "move_down": 1,
-        "move_left": 2,
-        "move_right": 3,
-        "attack": 4
+        "move_left": 0,
+        "move_right": 1,
+        "attack": 2
     },
     "ram_addresses": {
         "health": "0x10",

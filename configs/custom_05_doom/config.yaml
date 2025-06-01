@@ -3,55 +3,75 @@ game_env:
   description: "Doom game environment"
   env_type: "custom"
   render_mode: "human"
-  max_steps: 300
+  max_steps: 600
   seed: 42
   num_runs: 1
   doom_scenario_path: "basic.wad"
   doom_map: "map01"
-  living_reward: 1
-  screen_resolution: "RES_320X240"
-  screen_format: "CRCGCB"
+  living_reward: -1
+  screen_resolution: "RES_640X480"
+  screen_format: "RGB24"
   render_hud: true
   render_crosshair: false
   render_weapon: true
   render_decals: false
   render_particles: false
+  render_effects_sprites: false
+  render_messages: false
+  render_corpses: false
+  render_screen_flashes: false
+  render_minimal_hud: true
   window_visible: true
   episode_start_time: 14
   available_buttons:
-    - MOVE_UP
-    - MOVE_DOWN
     - MOVE_LEFT
     - MOVE_RIGHT
     - ATTACK
   available_game_variables:
     - AMMO2
+    - KILLCOUNT
+    - POSITION_X
+    - POSITION_Y
+    - ANGLE
+    - HEALTH
   mode: "PLAYER"
-  doom_skill: 5
+  doom_skill: 3
   rewards:
     kill_monster: 106
     shot_penalty: -5
+    living_reward: -1
 
 agent:
   name: "doom_agent"
-  model_name: "gpt-4o"
+  model_name: "gpt-4"
   cache_dir: "cache/doom"
   reasoning_effort: "high"
-  token_limit: 100000
+  token_limit: 16000
   harness: false
-  observation_mode: "vision"
+  observation_mode: "both"
+  record_video: true
+  video_dir: "videos/doom"
+  log_level: "INFO"
 
   modules:
     base_module:
-      observation_mode: "vision"
+      observation_mode: "both"
+      log_level: "INFO"
 
     perception_module:
-      observation_mode: "vision"
+      observation_mode: "both"
+      log_level: "INFO"
+      token_limit: 8000
 
     memory_module:
-      max_memory: 15
+      max_memory: 10
+      log_level: "INFO"
+      token_limit: 4000
 
     reasoning_module:
       use_perception: true
       use_memory: true
       use_cot: true
+      log_level: "INFO"
+      token_limit: 4000
+      observation_mode: "both"
