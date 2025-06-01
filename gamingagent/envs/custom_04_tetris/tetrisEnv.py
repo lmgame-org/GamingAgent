@@ -499,10 +499,7 @@ class TetrisEnv(gym.Env):
                 obs_dict = self._get_obs()
                 self.current_info_dict = self._get_info()
 
-                current_step_perf = self.adapter.calculate_perf_score(
-                    current_step_reward, self.current_info_dict
-                )
-                self.total_perf_score_episode += current_step_perf
+                self.total_perf_score_episode += perf_increment_step
                 self.current_info_dict = self._get_info()
 
                 img_path = txt_rep = None
@@ -519,7 +516,7 @@ class TetrisEnv(gym.Env):
                         lines=self.lines_cleared_total,
                         level=self.level,
                         next_pieces_ids=self.current_info_dict["next_piece_ids"],
-                        perf_score=current_step_perf,
+                        perf_score=perf_increment_step,
                     )
                 if self.adapter.observation_mode in ["text", "both"]:
                     b_str = np.array2string(obs_dict["board"], separator=",")
@@ -543,7 +540,7 @@ class TetrisEnv(gym.Env):
                     terminated=final_term,
                     truncated=final_trunc,
                     time_taken_s=time_taken_s if first_outer and frame_idx == 0 else 0.0,
-                    perf_score=current_step_perf,
+                    perf_score=perf_increment_step,
                     agent_observation=agent_obs,
                 )
                 if self.render_mode == "human":

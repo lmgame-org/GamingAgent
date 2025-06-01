@@ -201,6 +201,7 @@ class BaseAgent(ABC):
                 reasoning_cls = custom_modules["reasoning_module"]
                 modules["reasoning_module"] = reasoning_cls(
                     model_name=self.model_name,
+                    observation_mode=self.observation_mode,
                     cache_dir=self.cache_dir,
                     system_prompt=self.config["reasoning_module"]["system_prompt"],
                     prompt=self.config["reasoning_module"]["prompt"]

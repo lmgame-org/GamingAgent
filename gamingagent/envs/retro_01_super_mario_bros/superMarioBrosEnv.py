@@ -149,7 +149,7 @@ class SuperMarioBrosEnvWrapper:
 
         # core values
         # These keys exist in the standard SMB core shipped with gym‑retro
-        info["total_score"]        = retro_info.get("score", 0)
+        info["total_score"]  = retro_info.get("score", 0)
         info["lives"]        = retro_info.get("lives", 0)
         info["x_pos"]        = retro_info.get("xscrollLo", 0) + 255 * retro_info.get("xscrollHi", 0)
         info["world"]        = retro_info.get("levelHi", 0)
@@ -199,7 +199,7 @@ class SuperMarioBrosEnvWrapper:
             text_representation="" 
         )
         
-        self.current_episode_max_x_pos = self.current_game_info.get('x_pos', 0)
+        self.current_episode_max_x_pos = self.current_game_info.get('x_pos')
         #self.current_episode_total_perf_score = 0.0
 
         info_to_return = self.current_game_info.copy()
