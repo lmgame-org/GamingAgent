@@ -64,7 +64,7 @@ class ReasoningModule(CoreModule):
             dict: A dictionary containing action and thought
         """
         # Get the image path (prefer the passed parameter if available)
-        image_path = getattr(observation, "img_path", None)
+        image_path = getattr(observation, "image_path", None)
         textual_representation = getattr(observation, "textual_representation", "")
         
         # Get the description of visual elements from perception module
@@ -111,13 +111,13 @@ class ReasoningModule(CoreModule):
         
         return parsed_response
     
-    def _call_vision_api(self, context, img_path):
+    def _call_vision_api(self, context, image_path):
         """
         Call the vision API with text context and image.
         
         Args:
             context (str): Formatted context with perception and memory
-            img_path (str): Path to the current game image
+            image_path (str): Path to the current game image
             
         Returns:
             str: Raw response from the API
@@ -136,7 +136,7 @@ class ReasoningModule(CoreModule):
             model_name=self.model_name,
             system_prompt=self.system_prompt,
             prompt=user_prompt,
-            image_path=img_path,
+            image_path=image_path,
             thinking=True,
             reasoning_effort=self.reasoning_effort,
             token_limit=self.token_limit

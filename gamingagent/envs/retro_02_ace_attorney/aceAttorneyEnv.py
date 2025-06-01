@@ -992,25 +992,20 @@ class AceAttorneyEnv(RetroEnv):
         """
         Calculates a final performance score based on matching logged dialogues
         against predefined checkpoints in ckpt.json.
-        Iterates dialogues from newest to oldest, checking ckpt3, then ckpt2, then ckpt1.
+        Iterates dialogues from newest to oldest, checking ckpt8 down to ckpt1.
         """
         ckpt_file_path = os.path.join(ASSETS_DIR, CKPT_FILE_NAME)
         dialogue_log_path = os.path.join(self.adapter.agent_cache_dir, DIALOGUE_LOG_FILE_NAME)
 
-        # Load ckpt.json
         if not os.path.exists(ckpt_file_path):
             print(f"[AceAttorneyEnv calculate_final_score] Checkpoint file {ckpt_file_path} not found. Score: 0")
             return 0
         try:
-            with open(ckpt_file_path, 'r', encoding='utf-8') as f: # Added encoding
+            with open(ckpt_file_path, 'r', encoding='utf-8') as f:
                 ckpt_data = json.load(f)
         except Exception as e:
             print(f"[AceAttorneyEnv calculate_final_score] Error loading {ckpt_file_path}: {e}. Score: 0")
             return 0
-
-        ckpt1_dialogues = ckpt_data.get("ckpt1", [])
-        ckpt2_dialogues = ckpt_data.get("ckpt2", [])
-        ckpt3_dialogues = ckpt_data.get("ckpt3", [])
 
         # Load dialogues.jsonl
         if not os.path.exists(dialogue_log_path):
@@ -1019,9 +1014,9 @@ class AceAttorneyEnv(RetroEnv):
         
         logged_dialogues_raw = []
         try:
-            with open(dialogue_log_path, 'r', encoding='utf-8') as f: # Added encoding
+            with open(dialogue_log_path, 'r', encoding='utf-8') as f:
                 for line in f:
-                    if line.strip(): # Avoid issues with empty lines
+                    if line.strip():
                         logged_dialogues_raw.append(json.loads(line.strip()))
         except Exception as e:
             print(f"[AceAttorneyEnv calculate_final_score] Error loading {dialogue_log_path}: {e}. Score: 0")
@@ -1031,61 +1026,37 @@ class AceAttorneyEnv(RetroEnv):
             print(f"[AceAttorneyEnv calculate_final_score] No dialogues in {dialogue_log_path}. Score: 0")
             return 0
 
+        # Define checkpoint levels in order of score (highest to lowest)
+        checkpoint_definitions = [
+            {"name": "ckpt8", "score": 8, "dialogues": ckpt_data.get("ckpt8", [])},
+            {"name": "ckpt7", "score": 7, "dialogues": ckpt_data.get("ckpt7", [])},
+            {"name": "ckpt6", "score": 6, "dialogues": ckpt_data.get("ckpt6", [])},
+            {"name": "ckpt5", "score": 5, "dialogues": ckpt_data.get("ckpt5", [])},
+            {"name": "ckpt4", "score": 4, "dialogues": ckpt_data.get("ckpt4", [])},
+            {"name": "ckpt3", "score": 3, "dialogues": ckpt_data.get("ckpt3", [])},
+            {"name": "ckpt2", "score": 2, "dialogues": ckpt_data.get("ckpt2", [])},
+            {"name": "ckpt1", "score": 1, "dialogues": ckpt_data.get("ckpt1", [])},
+        ]
+
         # Iterate from newest to oldest logged dialogues
         for logged_entry in reversed(logged_dialogues_raw):
             speaker_raw = logged_entry.get("speaker")
             text_raw = logged_entry.get("text")
             state_name_from_log = logged_entry.get("state_name")
 
-            if not speaker_raw or not text_raw or not state_name_from_log:
-                # print(f"[AceAttorneyEnv calculate_final_score] Skipping incomplete log entry: {logged_entry}")
+            if not text_raw: # Only text is strictly needed for current comparison
                 continue 
             
-            speaker_stripped = speaker_raw.strip()
             text_stripped = text_raw.strip()
+            current_logged_text_only = text_stripped
 
-            # Normalize speaker name using name_mappings for the specific state
-            mapped_speaker = speaker_stripped # Default to stripped raw speaker
-            if self.game_script_data and state_name_from_log in self.game_script_data:
-                state_specific_data = self.game_script_data[state_name_from_log]
-                name_map_for_state = state_specific_data.get("name_mappings", {})
-                if name_map_for_state: # Check if name_map is not empty or None
-                    mapped_speaker = name_map_for_state.get(speaker_stripped.lower(), speaker_stripped)
-                # else:
-                    # print(f"[AceAttorneyEnv calculate_final_score] No name_mappings for state '{state_name_from_log}' or map is empty. Using speaker: '{speaker_stripped}'")
-            # else:
-                # print(f"[AceAttorneyEnv calculate_final_score] No game_script_data for state '{state_name_from_log}'. Using speaker: '{speaker_stripped}'")
-
-            # current_logged_dialogue_str = f"{mapped_speaker}: {text_stripped}" # OLD: full string with speaker
-            current_logged_text_only = text_stripped # NEW: only the text part
-            
-            # print(f"[AceAttorneyEnv calculate_final_score] Comparing Logged Text: '{current_logged_text_only}'") # DEBUG
-
-            # Check against ckpt3
-            for ckpt_dialogue_text in ckpt3_dialogues:
-                ckpt_dialogue_text_stripped = ckpt_dialogue_text.strip()
-                # ---- START DEBUG BLOCK FOR CKPT3 ----
-                # print(f"DEBUG_CKPT3_COMPARE: LoggedText=\"{current_logged_text_only}\" (len {len(current_logged_text_only)}) CKPT_Text=\"{ckpt_dialogue_text_stripped}\" (len {len(ckpt_dialogue_text_stripped)}) Match: {current_logged_text_only == ckpt_dialogue_text_stripped})")
-                # if ckpt_dialogue_text_stripped == "Well, Mr. Wright?": # Example target text for debugging
-                #     print(f"  >>> CKPT3 Target Text Line '{ckpt_dialogue_text_stripped}' is being checked against logged text '{current_logged_text_only}'")
-                # ---- END DEBUG BLOCK FOR CKPT3 ----
-                if current_logged_text_only == ckpt_dialogue_text_stripped:
-                    print(f"[AceAttorneyEnv calculate_final_score] Matched TEXT in ckpt3: '{current_logged_text_only}'. Score: 3")
-                    return 3
-            
-            # Check against ckpt2
-            for ckpt_dialogue_text in ckpt2_dialogues:
-                ckpt_dialogue_text_stripped = ckpt_dialogue_text.strip()
-                if current_logged_text_only == ckpt_dialogue_text_stripped:
-                    print(f"[AceAttorneyEnv calculate_final_score] Matched TEXT in ckpt2: '{current_logged_text_only}'. Score: 2")
-                    return 2
-
-            # Check against ckpt1
-            for ckpt_dialogue_text in ckpt1_dialogues:
-                ckpt_dialogue_text_stripped = ckpt_dialogue_text.strip()
-                if current_logged_text_only == ckpt_dialogue_text_stripped:
-                    print(f"[AceAttorneyEnv calculate_final_score] Matched TEXT in ckpt1: '{current_logged_text_only}'. Score: 1")
-                    return 1
+            # Check against each checkpoint level, from highest score to lowest
+            for checkpoint in checkpoint_definitions:
+                for ckpt_dialogue_text in checkpoint["dialogues"]:
+                    ckpt_dialogue_text_stripped = ckpt_dialogue_text.strip()
+                    if current_logged_text_only == ckpt_dialogue_text_stripped:
+                        print(f"[AceAttorneyEnv calculate_final_score] Matched TEXT in {checkpoint['name']}: '{current_logged_text_only}'. Score: {checkpoint['score']}")
+                        return checkpoint['score']
                     
         print(f"[AceAttorneyEnv calculate_final_score] No matching TEXT dialogue found in checkpoints. Score: 0")
         return 0
