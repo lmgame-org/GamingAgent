@@ -23,6 +23,7 @@ from gamingagent.envs.retro_01_super_mario_bros.superMarioBrosEnv import SuperMa
 from gamingagent.envs.retro_02_ace_attorney.aceAttorneyEnv import AceAttorneyEnv
 from gamingagent.envs.retro_03_1942.NineteenFortyTwo_env import NineteenFortyTwoEnvWrapper
 from gamingagent.envs.custom_04_tetris.tetrisEnv import TetrisEnv
+from gamingagent.envs.custom_05_doom.doomEnv import DoomEnvWrapper
 
 game_config_mapping = {"twenty_forty_eight": "custom_01_2048",
                        "sokoban": "custom_02_sokoban",
@@ -30,7 +31,8 @@ game_config_mapping = {"twenty_forty_eight": "custom_01_2048",
                        "tetris": "custom_04_tetris",
                        "super_mario_bros":"retro_01_super_mario_bros",
                        "ace_attorney":"retro_02_ace_attorney",
-                       "nineteen_forty_two": "retro_03_1942"}
+                       "nineteen_forty_two": "retro_03_1942",
+                       "doom": "custom_05_doom"}
 
 def parse_arguments(defaults_map=None, argv_to_parse=None):
     parser = argparse.ArgumentParser(description="Run GamingAgent for a specified Gym Environment.")
@@ -347,6 +349,26 @@ def create_environment(game_name_arg: str,
         # Import retro here if not already at top level, for retro.STATE_DEFAULT etc.
         # import retro # No longer needed here as DefaultStates, etc. are imported above
         env = AceAttorneyEnv(**env_params_for_constructor)
+        return env
+    elif game_name_arg == "doom":
+        # DoomEnvWrapper loads its specific configs internally.
+        # The runner primarily needs to provide paths and agent/run-level settings.
+        env_wrapper_config_dir = os.path.join("gamingagent/envs", config_dir_name_for_env_cfg)
+        
+        print(f"Initializing environment: {game_name_arg} using DoomEnvWrapper")
+        print(f"  Wrapper config dir: {env_wrapper_config_dir}")
+        print(f"  Model name for adapter: {model_name_arg}")
+        print(f"  Observation mode for adapter: {obs_mode_arg}")
+        print(f"  Base log dir for adapter: {cache_dir_for_adapter}")
+
+        env = DoomEnvWrapper(
+            game_name=game_name_arg,
+            config_dir_path=env_wrapper_config_dir, # e.g., "gamingagent/envs/custom_05_doom"
+            observation_mode=obs_mode_arg,
+            base_log_dir=cache_dir_for_adapter, # This will be like "cache/doom/{model_name}_agent_cache"
+            model_name=model_name_arg, # Pass model name for adapter cache path
+            headless=True # Explicitly set headless mode
+        )
         return env
     else:
         print(f"ERROR: Game '{game_name_arg}' is not defined or implemented in custom_runner.py's create_environment function.")
