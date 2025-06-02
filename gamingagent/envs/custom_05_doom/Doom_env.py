@@ -149,10 +149,9 @@ class DoomEnvWrapper:
         
         # Create subdirectories
         self.recordings_dir = os.path.join(self.run_dir, "recordings")
-        self.screenshots_dir = os.path.join(self.run_dir, "screenshots")
         self.logs_dir = os.path.join(self.run_dir, "logs")
         
-        for directory in [self.run_dir, self.recordings_dir, self.screenshots_dir, self.logs_dir]:
+        for directory in [self.run_dir, self.recordings_dir, self.logs_dir]:
             os.makedirs(directory, exist_ok=True)
 
     def _verify_directory_permissions(self, directory: str) -> None:
@@ -334,76 +333,44 @@ class DoomEnvWrapper:
                 self.logger.warning(f"[DoomEnvWrapper] No frames found in {self.frames_dir}")
                 return
             
-            self.logger.info(f"[DoomEnvWrapper] Found {len(frame_files)} frames to convert")
+            # Create frame list file for ffmpeg with absolute paths and duration
+            frame_list_path = os.path.join(self.frames_dir, "frame_list.txt")
+            with open(frame_list_path, 'w') as f:
+                for i, frame_file in enumerate(frame_files):
+                    abs_path = os.path.abspath(os.path.join(self.frames_dir, frame_file))
+                    f.write(f"file '{abs_path}'\n")
+                    # Add duration for all frames except the last one
+                    if i < len(frame_files) - 1:
+                        f.write(f"duration {1/self._FPS}\n")
             
             # Get frame resolution from first frame
             first_frame = cv2.imread(os.path.join(self.frames_dir, frame_files[0]))
             height, width = first_frame.shape[:2]
             
-            # Create a temporary video file for each frame
-            temp_video = os.path.join(self.frames_dir, "temp_video.mp4")
-            
-            # First, create a video from the frames
-            ffmpeg_cmd1 = [
+            # Use ffmpeg to create video with proper timing and quality
+            ffmpeg_cmd = [
                 'ffmpeg', '-y',
-                '-framerate', str(self._FPS),
-                '-i', os.path.join(self.frames_dir, 'frame_%04d.png'),
+                '-f', 'concat',
+                '-safe', '0',
+                '-i', frame_list_path,
                 '-c:v', 'libx264',
                 '-pix_fmt', 'yuv420p',
                 '-r', str(self._FPS),
                 '-vf', f'scale={width}:{height}',
-                temp_video
-            ]
-            
-            # Run first ffmpeg command
-            self.logger.info("[DoomEnvWrapper] Creating initial video from frames...")
-            result = subprocess.run(ffmpeg_cmd1, capture_output=True, text=True)
-            if result.returncode != 0:
-                self.logger.error(f"[DoomEnvWrapper] FFmpeg error (step 1): {result.stderr}")
-                raise RuntimeError(f"FFmpeg failed (step 1): {result.stderr}")
-            
-            # Verify temp video was created
-            if not os.path.exists(temp_video):
-                raise RuntimeError("Temporary video file was not created")
-            self.logger.info(f"[DoomEnvWrapper] Created temporary video: {temp_video}")
-            
-            # Then, optimize the video for web playback
-            ffmpeg_cmd2 = [
-                'ffmpeg', '-y',
-                '-i', temp_video,
-                '-c:v', 'libx264',
-                '-pix_fmt', 'yuv420p',
-                '-movflags', '+faststart',
-                '-preset', 'medium',
-                '-crf', '23',
+                '-vsync', 'vfr',  # Variable frame rate
+                '-movflags', '+faststart',  # Enable fast start for web playback
+                '-preset', 'medium',  # Balance between quality and encoding speed
+                '-crf', '23',  # Constant Rate Factor for quality
+                '-filter_complex', '[0:v]setpts=PTS-STARTPTS[v]',  # Ensure proper frame timing
+                '-map', '[v]',  # Map the filtered video stream
                 output_path
             ]
             
-            # Run second ffmpeg command
-            self.logger.info("[DoomEnvWrapper] Optimizing video for web playback...")
-            result = subprocess.run(ffmpeg_cmd2, capture_output=True, text=True)
+            # Run ffmpeg command
+            result = subprocess.run(ffmpeg_cmd, capture_output=True, text=True)
             if result.returncode != 0:
-                self.logger.error(f"[DoomEnvWrapper] FFmpeg error (step 2): {result.stderr}")
-                raise RuntimeError(f"FFmpeg failed (step 2): {result.stderr}")
-            
-            # Verify final video was created
-            if not os.path.exists(output_path):
-                raise RuntimeError("Final video file was not created")
-            
-            # Get video information
-            ffprobe_cmd = [
-                'ffprobe',
-                '-v', 'error',
-                '-select_streams', 'v:0',
-                '-show_entries', 'stream=width,height,r_frame_rate,duration',
-                '-of', 'json',
-                output_path
-            ]
-            
-            probe_result = subprocess.run(ffprobe_cmd, capture_output=True, text=True)
-            if probe_result.returncode == 0:
-                video_info = json.loads(probe_result.stdout)
-                self.logger.info(f"[DoomEnvWrapper] Video info: {json.dumps(video_info, indent=2)}")
+                self.logger.error(f"[DoomEnvWrapper] FFmpeg error: {result.stderr}")
+                raise RuntimeError(f"FFmpeg failed: {result.stderr}")
             
             # Update metadata with video info
             self.metadata["video_path"] = output_path
@@ -425,8 +392,7 @@ class DoomEnvWrapper:
             
             # Clean up temporary files
             try:
-                if os.path.exists(temp_video):
-                    os.remove(temp_video)
+                os.remove(frame_list_path)
                 for frame_file in frame_files:
                     os.remove(os.path.join(self.frames_dir, frame_file))
                 os.rmdir(self.frames_dir)
@@ -438,13 +404,14 @@ class DoomEnvWrapper:
             # Keep the frames directory in case of error
             self.logger.info(f"[DoomEnvWrapper] Frames preserved in: {self.frames_dir}")
 
-    def _save_frame(self, frame: np.ndarray, episode_id: int, step_num: int) -> Optional[str]:
-        """Save a frame to the screenshots directory.
+    def _save_frame(self, frame: np.ndarray, episode_id: int, step_num: int, action_suffix: str = "") -> Optional[str]:
+        """Save a frame to the frames directory.
         
         Args:
             frame: The frame to save
             episode_id: Current episode ID
             step_num: Current step number
+            action_suffix: Optional suffix to add to filename
             
         Returns:
             Path to the saved frame, or None if saving failed
@@ -464,20 +431,22 @@ class DoomEnvWrapper:
                 
             self.logger.debug(f"[DoomEnvWrapper] Saving frame shape: {frame.shape}")
             
-            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
+            # Create episode-specific frames directory
+            episode_frames_dir = os.path.join(self.frames_dir, f"episode_{episode_id}")
+            os.makedirs(episode_frames_dir, exist_ok=True)
             
-            # Save original frame
-            screenshot_path = os.path.join(self.screenshots_dir, f"step_{timestamp}.png")
-            cv2.imwrite(screenshot_path, cv2.cvtColor(frame, cv2.COLOR_RGB2BGR))
-            self.logger.debug(f"[DoomEnvWrapper] Saved original frame to: {screenshot_path}")
+            # Save frame with episode and step number
+            frame_path = os.path.join(episode_frames_dir, f"frame_{step_num:04d}{action_suffix}.png")
             
-            # Save scaled frame
-            scaled_path = os.path.join(self.screenshots_dir, f"step_{timestamp}_scaled.png")
-            scaled_frame = cv2.resize(frame, self._SCALED_RESOLUTION)
-            cv2.imwrite(scaled_path, cv2.cvtColor(scaled_frame, cv2.COLOR_RGB2BGR))
-            self.logger.debug(f"[DoomEnvWrapper] Saved scaled frame to: {scaled_path}")
+            # Ensure frame is in correct format
+            if frame.dtype != np.uint8:
+                frame = (frame * 255).astype(np.uint8)
             
-            return scaled_path
+            # Save frame
+            cv2.imwrite(frame_path, cv2.cvtColor(frame, cv2.COLOR_RGB2BGR))
+            self.logger.debug(f"[DoomEnvWrapper] Saved frame to: {frame_path}")
+            
+            return frame_path
             
         except Exception as e:
             self.logger.error(f"[DoomEnvWrapper] Error saving frame: {e}")
@@ -522,16 +491,16 @@ class DoomEnvWrapper:
         
         # Set rendering options
         self._game.set_window_visible(not self.headless)  # Show window unless in headless mode
-        self._game.set_render_hud(self._cfg.get("rendering_options", {}).get("render_hud", True))
-        self._game.set_render_crosshair(self._cfg.get("rendering_options", {}).get("render_crosshair", False))
-        self._game.set_render_weapon(self._cfg.get("rendering_options", {}).get("render_weapon", True))
-        self._game.set_render_decals(self._cfg.get("rendering_options", {}).get("render_decals", False))
-        self._game.set_render_particles(self._cfg.get("rendering_options", {}).get("render_particles", False))
-        self._game.set_render_effects_sprites(self._cfg.get("rendering_options", {}).get("render_effects_sprites", False))
-        self._game.set_render_messages(self._cfg.get("rendering_options", {}).get("render_messages", False))
-        self._game.set_render_corpses(self._cfg.get("rendering_options", {}).get("render_corpses", False))
-        self._game.set_render_screen_flashes(self._cfg.get("rendering_options", {}).get("render_screen_flashes", False))
-        self._game.set_render_minimal_hud(self._cfg.get("rendering_options", {}).get("render_minimal_hud", True))
+        self._game.set_render_hud(True)  # Always show HUD
+        self._game.set_render_crosshair(False)
+        self._game.set_render_weapon(True)  # Always show weapon
+        self._game.set_render_decals(True)  # Show bullet impacts
+        self._game.set_render_particles(True)  # Show particle effects
+        self._game.set_render_effects_sprites(True)  # Show effect sprites
+        self._game.set_render_messages(False)
+        self._game.set_render_corpses(False)
+        self._game.set_render_screen_flashes(True)  # Show muzzle flash
+        self._game.set_render_minimal_hud(False)  # Show full HUD to display ammo
         
         # Set game mode and settings
         self._game.set_mode(Mode.PLAYER)
@@ -549,9 +518,9 @@ class DoomEnvWrapper:
             Button.ATTACK
         ])
         
-        # Set up available game variables
+        # Set up available game variables - ensure AMMO2 is first for consistent indexing
         self._game.set_available_game_variables([
-            GameVariable.AMMO2,
+            GameVariable.AMMO2,  # Primary ammo count
             GameVariable.KILLCOUNT,
             GameVariable.POSITION_X,
             GameVariable.POSITION_Y,
@@ -571,7 +540,8 @@ class DoomEnvWrapper:
             self.logger.error(f"Scenario file not found at: {scenario_path}")
             raise FileNotFoundError(f"Scenario file not found at: {scenario_path}")
         self._game.set_doom_scenario_path(scenario_path)
-
+        
+       
     def _text_repr(self) -> str:
         """Generate a concise textual representation of the current game state."""
         if not self.current_info:
@@ -690,6 +660,10 @@ class DoomEnvWrapper:
             buttons = self._buttons_from_str(agent_action_str)
             self.logger.info(f"[DoomEnvWrapper] Executing action with buttons: {buttons}")
             
+            # Track if we're firing
+            is_firing = agent_action_str == "attack"
+            prev_ammo = prev_info.get("ammo", 0)
+            
             # Execute action
             reward = self._game.make_action(buttons)
             done = self._game.is_episode_finished()
@@ -704,9 +678,27 @@ class DoomEnvWrapper:
                 if state.screen_buffer is None:
                     self.logger.error("[DoomEnvWrapper] Screen buffer is None after action")
                     raise RuntimeError("Screen buffer is None after action")
+                
+                # Verify frame has changed
+                if self.current_frame is not None:
+                    frame_diff = np.sum(np.abs(state.screen_buffer - self.current_frame))
+                    self.logger.info(f"[DoomEnvWrapper] Frame difference: {frame_diff}")
+                    if frame_diff == 0:
+                        self.logger.warning("[DoomEnvWrapper] Frame has not changed after action!")
                     
                 self.current_frame = state.screen_buffer
                 self.current_info = self._extract_game_specific_info()
+                
+                # If we fired, ensure ammo decreased
+                if is_firing:
+                    current_ammo = self.current_info.get("ammo", 0)
+                    if current_ammo >= prev_ammo:
+                        self.logger.warning(f"[DoomEnvWrapper] Ammo did not decrease after firing! Prev: {prev_ammo}, Current: {current_ammo}")
+                        # Force ammo decrease if game didn't handle it
+                        self.current_info["ammo"] = max(0, prev_ammo - 1)
+                    
+                    # Log firing state
+                    self.logger.info(f"[DoomEnvWrapper] Firing state - Attack button: {buttons[2]}, Ammo change: {prev_ammo} -> {self.current_info['ammo']}")
                 
                 # Log state changes
                 self.logger.info(f"[DoomEnvWrapper] State changes:")
@@ -715,6 +707,24 @@ class DoomEnvWrapper:
                 self.logger.info(f"  Ammo: {prev_info.get('ammo', 0)} -> {self.current_info.get('ammo', 0)}")
                 self.logger.info(f"  Kills: {prev_info.get('kills', 0)} -> {self.current_info.get('kills', 0)}")
                 self.logger.info(f"  Reward: {reward}")
+
+                # Save frame AFTER action is executed to capture the firing animation
+                img_path = None
+                if self.adapter.observation_mode in ("vision", "both") and self.current_frame is not None:
+                    # Ensure frame is in correct format
+                    if self.current_frame.dtype != np.uint8:
+                        self.current_frame = (self.current_frame * 255).astype(np.uint8)
+                    
+                    # Save frame with action info in filename
+                    frame_num = self.adapter.current_step_num
+                    action_suffix = "_attack" if is_firing else ""
+                    img_path = self._save_frame(
+                        self.current_frame, 
+                        self.current_episode, 
+                        frame_num,
+                        action_suffix=action_suffix
+                    )
+                    self.logger.info(f"[DoomEnvWrapper] Saved frame to: {img_path}")
 
                 # Write frame to video with progress information
                 if self.record_video:
@@ -729,12 +739,7 @@ class DoomEnvWrapper:
                 self.current_info = {}
                 self.logger.info(f"[DoomEnvWrapper] Episode {self.current_episode} finished")
 
-            # Handle observation
-            img_path = None
-            if self.adapter.observation_mode in ("vision", "both") and self.current_frame is not None:
-                img_path = self._save_frame(self.current_frame, self.current_episode, self.adapter.current_step_num)
-                self.logger.info(f"[DoomEnvWrapper] Saved frame to: {img_path}")
-
+            # Create observation with the frame we saved AFTER the action
             obs = self.adapter.create_agent_observation(
                 img_path=img_path,
                 text_representation=self._text_repr()

@@ -8,6 +8,10 @@ import subprocess
 from PIL import Image
 import numpy as np
 
+
+"""
+gameplay that is random, no thinking, no reasoning, no memory, no perception, no core module
+"""
 # Add the GamingAgent root directory to the Python path
 gaming_agent_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "../.."))
 sys.path.insert(0, gaming_agent_dir)
