@@ -231,13 +231,13 @@ class DoomEnvWrapper:
             os.makedirs(self.recordings_dir, exist_ok=True)
             os.chmod(self.recordings_dir, 0o777)  # Ensure full permissions
             
-            # Create temporary frames directory
-            self.frames_dir = os.path.join(self.recordings_dir, f"episode_{self.current_episode}_frames")
+            # Create frames directory with consistent naming
+            self.frames_dir = os.path.join(self.recordings_dir, "frames")
             os.makedirs(self.frames_dir, exist_ok=True)
             os.chmod(self.frames_dir, 0o777)  # Ensure full permissions
             
             # Create metadata file
-            metadata_path = os.path.join(self.recordings_dir, f"episode_{self.current_episode}_metadata.json")
+            metadata_path = os.path.join(self.recordings_dir, "metadata.json")
             self.metadata = {
                 "start_time": datetime.now().isoformat(),
                 "model_name": self.model_name,
@@ -247,6 +247,9 @@ class DoomEnvWrapper:
                 "frames": [],
                 "video_path": None
             }
+            
+            # Initialize frame counter
+            self.frame_counter = 0
             
             with open(metadata_path, 'w') as f:
                 json.dump(self.metadata, f, indent=2)
@@ -276,9 +279,8 @@ class DoomEnvWrapper:
             return
             
         try:
-            # Save frame with sequential number instead of timestamp
-            frame_num = len(self.metadata["frames"])
-            frame_path = os.path.join(self.frames_dir, f"frame_{frame_num:04d}.png")
+            # Use the shared frame counter
+            frame_path = os.path.join(self.frames_dir, f"frame_{self.frame_counter:04d}.png")
             
             # Ensure frame is in correct format
             if frame.dtype != np.uint8:
@@ -289,7 +291,7 @@ class DoomEnvWrapper:
             
             # Update metadata with additional info
             frame_info = {
-                "frame_number": frame_num,
+                "frame_number": self.frame_counter,
                 "frame_path": frame_path,
                 "timestamp": datetime.now().isoformat()
             }
@@ -305,11 +307,14 @@ class DoomEnvWrapper:
             self.metadata["frames"].append(frame_info)
             
             # Update metadata file
-            metadata_path = os.path.join(self.recordings_dir, f"episode_{self.current_episode}_metadata.json")
+            metadata_path = os.path.join(self.recordings_dir, "metadata.json")
             with open(metadata_path, 'w') as f:
                 json.dump(self.metadata, f, indent=2)
             
-            self.logger.info(f"[DoomEnvWrapper] Wrote frame {frame_num} to video")
+            # Increment frame counter
+            self.frame_counter += 1
+            
+            self.logger.info(f"[DoomEnvWrapper] Wrote frame {self.frame_counter-1} to video")
             
         except Exception as e:
             self.logger.error(f"[DoomEnvWrapper] Error writing frame to video: {e}", exc_info=True)
@@ -380,7 +385,7 @@ class DoomEnvWrapper:
             self.metadata["fps"] = self._FPS
             self.metadata["duration"] = len(frame_files) / self._FPS
             
-            metadata_path = os.path.join(self.recordings_dir, f"episode_{self.current_episode}_metadata.json")
+            metadata_path = os.path.join(self.recordings_dir, "metadata.json")
             with open(metadata_path, 'w') as f:
                 json.dump(self.metadata, f, indent=2)
             
@@ -404,14 +409,13 @@ class DoomEnvWrapper:
             # Keep the frames directory in case of error
             self.logger.info(f"[DoomEnvWrapper] Frames preserved in: {self.frames_dir}")
 
-    def _save_frame(self, frame: np.ndarray, episode_id: int, step_num: int, action_suffix: str = "") -> Optional[str]:
+    def _save_frame(self, frame: np.ndarray, episode_id: int, step_num: int) -> Optional[str]:
         """Save a frame to the frames directory.
         
         Args:
             frame: The frame to save
             episode_id: Current episode ID
             step_num: Current step number
-            action_suffix: Optional suffix to add to filename
             
         Returns:
             Path to the saved frame, or None if saving failed
@@ -431,12 +435,8 @@ class DoomEnvWrapper:
                 
             self.logger.debug(f"[DoomEnvWrapper] Saving frame shape: {frame.shape}")
             
-            # Create episode-specific frames directory
-            episode_frames_dir = os.path.join(self.frames_dir, f"episode_{episode_id}")
-            os.makedirs(episode_frames_dir, exist_ok=True)
-            
-            # Save frame with episode and step number
-            frame_path = os.path.join(episode_frames_dir, f"frame_{step_num:04d}{action_suffix}.png")
+            # Use the shared frame counter
+            frame_path = os.path.join(self.frames_dir, f"frame_{self.frame_counter:04d}.png")
             
             # Ensure frame is in correct format
             if frame.dtype != np.uint8:
@@ -445,6 +445,22 @@ class DoomEnvWrapper:
             # Save frame
             cv2.imwrite(frame_path, cv2.cvtColor(frame, cv2.COLOR_RGB2BGR))
             self.logger.debug(f"[DoomEnvWrapper] Saved frame to: {frame_path}")
+            
+            # Update metadata
+            frame_info = {
+                "frame_number": self.frame_counter,
+                "frame_path": frame_path,
+                "timestamp": datetime.now().isoformat()
+            }
+            self.metadata["frames"].append(frame_info)
+            
+            # Update metadata file
+            metadata_path = os.path.join(self.recordings_dir, "metadata.json")
+            with open(metadata_path, 'w') as f:
+                json.dump(self.metadata, f, indent=2)
+            
+            # Increment frame counter
+            self.frame_counter += 1
             
             return frame_path
             
@@ -484,32 +500,34 @@ class DoomEnvWrapper:
             raise
 
     def _configure_game_settings(self) -> None:
-        """Configure game settings."""
+        """Configure game settings with minimal setup."""
         # Set screen resolution and format
         self._game.set_screen_resolution(ScreenResolution.RES_640X480)
         self._game.set_screen_format(ScreenFormat.RGB24)
         
         # Set rendering options
         self._game.set_window_visible(not self.headless)  # Show window unless in headless mode
-        self._game.set_render_hud(True)  # Always show HUD
-        self._game.set_render_crosshair(False)
-        self._game.set_render_weapon(True)  # Always show weapon
-        self._game.set_render_decals(True)  # Show bullet impacts
-        self._game.set_render_particles(True)  # Show particle effects
-        self._game.set_render_effects_sprites(True)  # Show effect sprites
-        self._game.set_render_messages(False)
-        self._game.set_render_corpses(False)
-        self._game.set_render_screen_flashes(True)  # Show muzzle flash
-        self._game.set_render_minimal_hud(False)  # Show full HUD to display ammo
+        self._game.set_render_hud(self._cfg.get("rendering_options", {}).get("render_hud", True))
+        self._game.set_render_crosshair(self._cfg.get("rendering_options", {}).get("render_crosshair", False))
+        self._game.set_render_weapon(self._cfg.get("rendering_options", {}).get("render_weapon", True))
+        self._game.set_render_decals(self._cfg.get("rendering_options", {}).get("render_decals", False))
+        self._game.set_render_particles(self._cfg.get("rendering_options", {}).get("render_particles", False))
+        self._game.set_render_effects_sprites(self._cfg.get("rendering_options", {}).get("render_effects_sprites", False))
+        self._game.set_render_messages(self._cfg.get("rendering_options", {}).get("render_messages", False))
+        self._game.set_render_corpses(self._cfg.get("rendering_options", {}).get("render_corpses", False))
+        self._game.set_render_screen_flashes(self._cfg.get("rendering_options", {}).get("render_screen_flashes", False))
+        self._game.set_render_minimal_hud(self._cfg.get("rendering_options", {}).get("render_minimal_hud", True))
         
         # Set game mode and settings
         self._game.set_mode(Mode.PLAYER)
         self._game.set_living_reward(self._cfg.get("rewards", {}).get("living_reward", -1))
         self._game.set_doom_skill(self._cfg.get("doom_skill", 3))  # Lower difficulty
+
         
         # Set episode settings
         self._game.set_episode_start_time(self._cfg.get("episode_settings", {}).get("episode_start_time", 14))
         self._game.set_episode_timeout(self._cfg.get("episode_settings", {}).get("episode_timeout", 600))
+        
         
         # Set up available buttons - only basic actions
         self._game.set_available_buttons([
@@ -518,7 +536,7 @@ class DoomEnvWrapper:
             Button.ATTACK
         ])
         
-        # Set up available game variables - ensure AMMO2 is first for consistent indexing
+        # Set up available game variables - minimal set
         self._game.set_available_game_variables([
             GameVariable.AMMO2,  # Primary ammo count
             GameVariable.KILLCOUNT,
@@ -529,7 +547,7 @@ class DoomEnvWrapper:
         ])
         
         # Set up action repeat for more consistent movement
-        self._game.set_ticrate(self._cfg.get("episode_settings", {}).get("ticrate", 20))
+        self._game.set_ticrate(20)
         
         # Set up enemy spawning
         self._game.set_doom_map("map01")  # Use the first map
@@ -540,8 +558,7 @@ class DoomEnvWrapper:
             self.logger.error(f"Scenario file not found at: {scenario_path}")
             raise FileNotFoundError(f"Scenario file not found at: {scenario_path}")
         self._game.set_doom_scenario_path(scenario_path)
-        
-       
+
     def _text_repr(self) -> str:
         """Generate a concise textual representation of the current game state."""
         if not self.current_info:
@@ -564,23 +581,46 @@ class DoomEnvWrapper:
             f"Goal: Kill monster or timeout (600 tics)"
         ])
 
+    def _verify_state_change(self, prev_info: Dict[str, Any], current_info: Dict[str, Any], action: str) -> bool:
+        """Verify that the state changed as expected after an action."""
+        if action == "attack":
+            # Verify ammo decreased
+            if current_info["ammo"] >= prev_info["ammo"]:
+                self.logger.warning(f"[DoomEnvWrapper] Ammo did not decrease after attack: {prev_info['ammo']} -> {current_info['ammo']}")
+                return False
+        elif action in ["move_left", "move_right"]:
+            # Verify position or angle changed
+            if (current_info["position_x"] == prev_info["position_x"] and 
+                current_info["position_y"] == prev_info["position_y"] and
+                current_info["angle"] == prev_info["angle"]):
+                self.logger.warning(f"[DoomEnvWrapper] Position/angle did not change after {action}")
+                return False
+        return True
+
     def _buttons_from_str(self, action_str: Optional[str]) -> List[int]:
         """Convert action string to button presses."""
         if action_str is None:
             self.logger.warning("[DoomEnvWrapper] Received None action, using no-op")
-            return [0] * 3  # Only 3 buttons: move_left, move_right, attack
-            
+            return [0] * 3
+        
+        # Strict validation of action string
+        if not isinstance(action_str, str):
+            self.logger.error(f"[DoomEnvWrapper] Invalid action type: {type(action_str)}")
+            return [0] * 3
+        
+        action_str = action_str.strip().lower()
+        if action_str not in ["move_left", "move_right", "attack"]:
+            self.logger.error(f"[DoomEnvWrapper] Invalid action: {action_str}")
+            return [0] * 3
+        
         action_map = {
             "move_left": [1, 0, 0],
             "move_right": [0, 1, 0],
             "attack": [0, 0, 1]
         }
         
-        # Log the action mapping
-        self.logger.info(f"[DoomEnvWrapper] Converting action '{action_str}' to buttons")
-        buttons = action_map.get(action_str.lower(), [0] * 3)
-        self.logger.info(f"[DoomEnvWrapper] Mapped to buttons: {buttons}")
-        
+        buttons = action_map[action_str]
+        self.logger.info(f"[DoomEnvWrapper] Converting action '{action_str}' to buttons: {buttons}")
         return buttons
 
     def _extract_game_specific_info(self) -> Dict[str, Any]:
@@ -653,16 +693,9 @@ class DoomEnvWrapper:
     def step(self, agent_action_str: Optional[str]) -> Tuple[Observation, float, bool, Dict[str, Any]]:
         """Execute an action and return the next observation."""
         try:
-            # Get previous state for comparison
-            prev_info = self.current_info.copy()
-            
-            # Convert action string to button presses
+            # Convert action string to button presses with validation
             buttons = self._buttons_from_str(agent_action_str)
             self.logger.info(f"[DoomEnvWrapper] Executing action with buttons: {buttons}")
-            
-            # Track if we're firing
-            is_firing = agent_action_str == "attack"
-            prev_ammo = prev_info.get("ammo", 0)
             
             # Execute action
             reward = self._game.make_action(buttons)
@@ -679,67 +712,40 @@ class DoomEnvWrapper:
                     self.logger.error("[DoomEnvWrapper] Screen buffer is None after action")
                     raise RuntimeError("Screen buffer is None after action")
                 
-                # Verify frame has changed
-                if self.current_frame is not None:
-                    frame_diff = np.sum(np.abs(state.screen_buffer - self.current_frame))
-                    self.logger.info(f"[DoomEnvWrapper] Frame difference: {frame_diff}")
-                    if frame_diff == 0:
-                        self.logger.warning("[DoomEnvWrapper] Frame has not changed after action!")
-                    
+                # Get the frame AFTER the action is executed
                 self.current_frame = state.screen_buffer
                 self.current_info = self._extract_game_specific_info()
                 
-                # If we fired, ensure ammo decreased
-                if is_firing:
-                    current_ammo = self.current_info.get("ammo", 0)
-                    if current_ammo >= prev_ammo:
-                        self.logger.warning(f"[DoomEnvWrapper] Ammo did not decrease after firing! Prev: {prev_ammo}, Current: {current_ammo}")
-                        # Force ammo decrease if game didn't handle it
-                        self.current_info["ammo"] = max(0, prev_ammo - 1)
-                    
-                    # Log firing state
-                    self.logger.info(f"[DoomEnvWrapper] Firing state - Attack button: {buttons[2]}, Ammo change: {prev_ammo} -> {self.current_info['ammo']}")
-                
-                # Log state changes
-                self.logger.info(f"[DoomEnvWrapper] State changes:")
-                self.logger.info(f"  Position: ({prev_info.get('position_x', 0)}, {prev_info.get('position_y', 0)}) -> ({self.current_info.get('position_x', 0)}, {self.current_info.get('position_y', 0)})")
-                self.logger.info(f"  Angle: {prev_info.get('angle', 0)} -> {self.current_info.get('angle', 0)}")
-                self.logger.info(f"  Ammo: {prev_info.get('ammo', 0)} -> {self.current_info.get('ammo', 0)}")
-                self.logger.info(f"  Kills: {prev_info.get('kills', 0)} -> {self.current_info.get('kills', 0)}")
-                self.logger.info(f"  Reward: {reward}")
-
-                # Save frame AFTER action is executed to capture the firing animation
+                # Save frame immediately after action
                 img_path = None
                 if self.adapter.observation_mode in ("vision", "both") and self.current_frame is not None:
                     # Ensure frame is in correct format
                     if self.current_frame.dtype != np.uint8:
                         self.current_frame = (self.current_frame * 255).astype(np.uint8)
                     
-                    # Save frame with action info in filename
+                    # Save frame with sequential numbering
                     frame_num = self.adapter.current_step_num
-                    action_suffix = "_attack" if is_firing else ""
                     img_path = self._save_frame(
                         self.current_frame, 
                         self.current_episode, 
-                        frame_num,
-                        action_suffix=action_suffix
+                        frame_num
                     )
                     self.logger.info(f"[DoomEnvWrapper] Saved frame to: {img_path}")
 
-                # Write frame to video with progress information
-                if self.record_video:
-                    self._write_frame_to_video(
-                        self.current_frame,
-                        action=agent_action_str,
-                        reward=reward,
-                        info=self.current_info
-                    )
+                    # Write frame to video
+                    if self.record_video:
+                        self._write_frame_to_video(
+                            self.current_frame,
+                            action=agent_action_str,
+                            reward=reward,
+                            info=self.current_info
+                        )
             else:
                 self.current_frame = None
                 self.current_info = {}
                 self.logger.info(f"[DoomEnvWrapper] Episode {self.current_episode} finished")
 
-            # Create observation with the frame we saved AFTER the action
+            # Create observation with the frame we saved
             obs = self.adapter.create_agent_observation(
                 img_path=img_path,
                 text_representation=self._text_repr()
@@ -777,8 +783,7 @@ class DoomEnvWrapper:
             self.logger.info("Environment closed successfully")
             
         except Exception as e:
-            self.logger.error(f"Error during environment cleanup: {e}")
-            # Try to ensure video is saved even if there's an error
+            self.logger.error(f"Error during environment cleanup: {e}")            # Try to ensure video is saved even if there's an error
             if hasattr(self, 'record_video') and self.record_video:
                 try:
                     self._cleanup_video_writer()

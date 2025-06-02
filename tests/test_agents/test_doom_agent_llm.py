@@ -202,83 +202,9 @@ class DoomAgentLLM:
     async def get_action(self, observation, info):
         """Get action from LLM based on current state."""
         try:
-            # Get current game state
-            game_state = {
-                "health": info.get("health", 0),
-                "ammo": info.get("ammo", 0),
-                "kills": info.get("kills", 0),
-                "position_x": info.get("position_x", 0),
-                "position_y": info.get("position_y", 0),
-                "angle": info.get("angle", 0),
-                "is_episode_finished": info.get("is_episode_finished", False),
-                "is_player_dead": info.get("is_player_dead", False)
-            }
-            
-            # Load module prompts
-            module_prompts = load_module_prompts()
-            base_module = module_prompts.get("base_module", {})
-            
-            # Get system message and prompt template
-            system_message = base_module.get("system_prompt", "")
-            prompt_template = base_module.get("prompt", "")
-            
-            # Format user message with game state
-            user_message = prompt_template.format(
-                textual_representation=f"""Health: {game_state['health']}
-Ammo: {game_state['ammo']}
-Kills: {game_state['kills']}
-Position: ({game_state['position_x']}, {game_state['position_y']})
-Angle: {game_state['angle']}
-Status: {'Finished' if game_state['is_episode_finished'] else 'In Progress'}"""
-            )
-            
-            # Get action from LLM
-            response = self.api_manager.text_only_completion(
-                model_name=self.model_name,
-                system_prompt=system_message,
-                prompt=user_message,
-                temperature=0.7
-            )
-            
-            # Parse response to get action and thought
-            try:
-                # Split response into lines and find action line
-                lines = response.strip().split('\n')
-                action_line = next((line for line in lines if line.startswith('action:')), None)
-                thought_line = next((line for line in lines if line.startswith('thought:')), None)
-                
-                if action_line:
-                    action = action_line.split('action:')[1].strip().lower()
-                else:
-                    self.logger.warning("No action found in response, defaulting to attack")
-                    action = "attack"
-                
-                if thought_line:
-                    thought = thought_line.split('thought:')[1].strip()
-                else:
-                    thought = "No reasoning provided"
-                
-            except Exception as e:
-                self.logger.error(f"Error parsing LLM response: {e}")
-                action = "attack"
-                thought = f"Error parsing response: {str(e)}"
-            
-            # Validate action
-            valid_actions = ["move_left", "move_right", "attack"]
-            if action not in valid_actions:
-                self.logger.warning(f"Invalid action received: {action}. Defaulting to attack.")
-                action = "attack"
-                thought = f"Invalid action received: {action}. Defaulting to attack."
-            
-            # Log action details
-            self.logger.info(f"Action selected: {action}")
-            self.logger.info(f"Thought: {thought}")
-            self.logger.info(f"Game state at action: {game_state}")
-            
-            return {
-                "action": action,
-                "thought": thought
-            }
+            # Process observation and get action
+            action_result = await self.base.get_action(observation, info)
+            return action_result
             
         except Exception as e:
             self.logger.error(f"Error in get_action: {str(e)}")
@@ -287,94 +213,6 @@ Status: {'Finished' if game_state['is_episode_finished'] else 'In Progress'}"""
                 "thought": f"Error occurred: {str(e)}. Defaulting to attack."
             }
     
-    def _reconstruct_video(self):
-        """Reconstruct video from saved frames using ffmpeg."""
-        try:
-            # Find the frames directory in the recordings folder
-            # The path structure is: doom_agent_output/{timestamp}/{model_name}/{timestamp}/recordings/episode_1_frames
-            model_dir = os.path.join(self.output_dir, self.model_name, self.timestamp)
-            recordings_dir = os.path.join(model_dir, "recordings")
-            self.logger.info(f"Looking for frames in recordings directory: {recordings_dir}")
-            
-            frames_dir = os.path.join(recordings_dir, "episode_1_frames")
-            if not os.path.exists(frames_dir):
-                self.logger.warning(f"Frames directory not found: {frames_dir}")
-                return
-            self.logger.info(f"Found frames directory: {frames_dir}")
-
-            # Get all frame files
-            frame_files = sorted([f for f in os.listdir(frames_dir) if f.startswith('frame_') and f.endswith('.png')])
-            self.logger.info(f"Found {len(frame_files)} frame files in {frames_dir}")
-            if not frame_files:
-                self.logger.warning("No frames found for video reconstruction")
-                return
-
-            # Create frame list file for ffmpeg
-            frame_list_path = os.path.join(frames_dir, "frame_list.txt")
-            with open(frame_list_path, 'w') as f:
-                for frame_file in frame_files:
-                    frame_path = os.path.join(frames_dir, frame_file)
-                    f.write(f"file '{frame_path}'\n")
-                    self.logger.debug(f"Added frame to list: {frame_path}")
-
-            # Set output video path
-            output_video = os.path.join(model_dir, f"episode_{self.timestamp}.mp4")
-            self.logger.info(f"Will create video at: {output_video}")
-
-            # Get frame resolution from first frame
-            first_frame_path = os.path.join(frames_dir, frame_files[0])
-            self.logger.info(f"Reading first frame from: {first_frame_path}")
-            first_frame = Image.open(first_frame_path)
-            width, height = first_frame.size
-            self.logger.info(f"Frame resolution: {width}x{height}")
-
-            # Run ffmpeg to create video
-            ffmpeg_cmd = [
-                'ffmpeg', '-y',
-                '-f', 'concat',
-                '-safe', '0',
-                '-i', frame_list_path,
-                '-c:v', 'libx264',
-                '-pix_fmt', 'yuv420p',
-                '-r', '30',
-                '-vf', f'scale={width}:{height}',
-                output_video
-            ]
-            self.logger.info(f"Running ffmpeg command: {' '.join(ffmpeg_cmd)}")
-
-            # Execute ffmpeg command
-            result = subprocess.run(ffmpeg_cmd, capture_output=True, text=True)
-            if result.returncode != 0:
-                self.logger.error(f"FFmpeg error: {result.stderr}")
-                raise RuntimeError(f"FFmpeg failed: {result.stderr}")
-            
-            self.logger.info(f"Video reconstructed successfully: {output_video}")
-
-            # Save video metadata
-            metadata = {
-                "timestamp": self.timestamp,
-                "total_frames": len(frame_files),
-                "resolution": f"{width}x{height}",
-                "video_path": output_video
-            }
-            metadata_path = os.path.join(model_dir, "video_metadata.json")
-            with open(metadata_path, 'w') as f:
-                json.dump(metadata, f, indent=2)
-            self.logger.info(f"Saved video metadata to: {metadata_path}")
-
-            # Clean up temporary files
-            try:
-                os.remove(frame_list_path)
-                for frame_file in frame_files:
-                    os.remove(os.path.join(frames_dir, frame_file))
-                os.rmdir(frames_dir)
-                self.logger.info("Cleaned up temporary frame files")
-            except Exception as e:
-                self.logger.warning(f"Error cleaning up temporary files: {e}")
-
-        except Exception as e:
-            self.logger.error(f"Error reconstructing video: {e}", exc_info=True)
-
     async def run_episode(self, max_steps=100):
         """Run a single episode of the game."""
         try:
@@ -388,44 +226,31 @@ Status: {'Finished' if game_state['is_episode_finished'] else 'In Progress'}"""
             self.logger.info(f"Initial state - Health: {info.get('health')}, Ammo: {info.get('ammo')}, Kills: {info.get('kills')}")
             
             while not done and step < max_steps:
-                try:
-                    # Get action from agent
-                    action_plan = await self.get_action(observation, info)
-                    
-                    # Log pre-action state
-                    self.logger.info(f"Pre-action state - Health: {info.get('health')}, Ammo: {info.get('ammo')}, Kills: {info.get('kills')}")
-                    self.logger.info(f"Executing action: {action_plan['action']}")
-                    
-                    # Execute action
-                    observation, reward, done, info = self.env.step(action_plan["action"])
-                    total_reward += reward
-                    
-                    # Log post-action state
-                    self.logger.info(f"Post-action state - Health: {info.get('health')}, Ammo: {info.get('ammo')}, Kills: {info.get('kills')}")
-                    self.logger.info(f"Action: {action_plan['action']}")
-                    self.logger.info(f"Thought: {action_plan['thought']}")
-                    self.logger.info(f"Reward: {reward}")
-                    
-                    step += 1
-                    
-                except Exception as e:
-                    self.logger.error(f"Error during step {step}: {str(e)}")
-                    raise
+                # Get action from LLM
+                action_result = await self.get_action(observation, info)
+                action = action_result["action"]
                 
-            self.logger.info(f"Episode finished after {step} steps")
-            self.logger.info(f"Total reward: {total_reward}")
+                # Execute action
+                observation, reward, done, info = self.env.step(action)
+                total_reward += reward
+                step += 1
+                
+                # Log step results
+                self.logger.info(f"Step {step} - Action: {action}, Reward: {reward}")
+                self.logger.info(f"State - Health: {info.get('health')}, Ammo: {info.get('ammo')}, Kills: {info.get('kills')}")
+                
+            self.logger.info(f"Episode finished after {step} steps with total reward {total_reward}")
             
         except Exception as e:
-            self.logger.error(f"Error in run_episode: {str(e)}")
+            self.logger.error(f"Error in run_episode: {e}", exc_info=True)
+            
         finally:
-            # Clean up environment and reconstruct video
+            # Clean up environment
             if self.env:
                 try:
-                    self.logger.info("Closing environment and reconstructing video...")
+                    self.logger.info("Closing environment...")
                     self.env.close()
                     self.logger.info("Environment closed successfully")
-                    # Reconstruct video from saved frames
-                    self._reconstruct_video()
                 except Exception as e:
                     self.logger.error(f"Error during environment cleanup: {e}", exc_info=True)
 
