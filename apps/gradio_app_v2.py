@@ -724,7 +724,7 @@ def build_app():
             margin-top: 40px !important;
         }
     """) as demo:
-        gr.Markdown("# 🎮 Game Arena: Gaming Agent 🎲")
+        gr.Markdown("# 🎮 Lmgame Bench: Leaderboard 🎲")
         
         # Add custom JavaScript for table header line breaks
         gr.HTML("""
