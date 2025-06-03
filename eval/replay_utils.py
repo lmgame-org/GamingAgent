@@ -351,7 +351,7 @@ def visualize_2048_frame(board: np.ndarray, extra_info: str = "", config_info: D
     
     # Draw info panel on the right
     info_x_start = board_size + 60
-    info_y_start = 30
+    info_y_start = board_y_offset  # Align with board position instead of fixed 30
     
     try:
         # Load fonts for info panel
