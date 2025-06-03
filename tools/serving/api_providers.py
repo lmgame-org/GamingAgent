@@ -370,10 +370,6 @@ def deepseek_text_reasoning_completion(system_prompt, model_name, prompt, token_
             content += chunk.choices[0].delta.content
     
     # generated_str = response.choices[0].message.content
-
-    print("========== Raw String ==========")
-    print(content)
-    print("========== Raw String ==========")
     
     return content
     
@@ -690,16 +686,9 @@ def together_ai_text_completion(system_prompt, model_name, prompt, temperature=1
             #    return move_match.group(1).strip()
             #return None
 
-        print("========== Raw String ==========")
-        print(generated_str)
-        print("========== Raw String ==========")
-
         if model_name == "deepseek-ai/DeepSeek-R1" or model_name == "Qwen/Qwen3-235B-A22B-fp8":
             generated_str = extract_move(generated_str)
-
-        print("========== Processed String ==========")
-        print(generated_str)
-        print("========== Processed String ==========")
+        
         return generated_str
     except Exception as e:
         print(f"Error in together_ai_text_completion: {e}")

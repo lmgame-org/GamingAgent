@@ -78,17 +78,7 @@ class BaseModule(CoreModule):
         
         # Create the full prompt with the text-based game state
         full_context = observation.get_complete_prompt(observation_mode=self.observation_mode, prompt_template=self.prompt)
-        
-        print(f"""
------------------------- BASE MODULE VISION API — SYSTEM PROMPT ------------------------
-{self.system_prompt}
------------------------- END SYSTEM PROMPT ------------------------
-""")
-        print(f"""
------------------------- BASE MODULE VISION API — USER PROMPT ------------------------
-{full_context}
------------------------- END USER PROMPT ------------------------
-""")
+
         response = None
         if self.observation_mode in ["vision", "both"]:
             if not image_path:
