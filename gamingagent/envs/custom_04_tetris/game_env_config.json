@@ -1,0 +1,15 @@
+{
+    "env_id": "tetris_gymnasium:tetris_gymnasium/Tetris-v0",
+    "env_init_kwargs": {},
+    "action_mapping": {
+        "no_op": 0,
+        "left": 1,
+        "right": 2,
+        "rotate_left": 3,
+        "rotate_right": 4,
+        "soft_drop": 5,
+        "hard_drop": 6
+    },
+    "render_mode_gym_make": "human",
+    "max_unchanged_steps_for_termination": 30
+} 

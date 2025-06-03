@@ -1,0 +1,38 @@
+# Configuration for the evaluation script (eval.py)
+
+# List of game names to process
+# Example: ["twenty_forty_eight", "sokoban"]
+game_list: ["sokoban", "candy_crush", "tetris", "twenty_forty_eight", "super_mario_bros"]
+
+# List of model names/prefixes to process
+# Example: ["claude-3-5-sonnet-20241022", "gpt-4o"]
+model_list: ["gemini-2.0-flash"]
+
+# Force update existing entries in model_perf_rank.json (boolean)
+force_model_perf_rank: false
+
+# Force update existing entries in game_perf.json (boolean)
+force_game_perf: true
+
+# Generate bar plot (boolean)
+generate_bar_plot: true
+
+# Generate radar chart (boolean)
+generate_radar_chart: true
+
+# Generate video replays for supported games (boolean)
+# Currently supports "twenty_forty_eight" median score replay from game_perf.json step_infos.
+generate_replays: true
+
+# Polynomial Model Configuration
+run_polynomial_model: false # Set to true to run the polynomial model analysis using its internal defaults
+
+# File paths (can be overridden if necessary, defaults are usually fine)
+# model_perf_rank_file: "eval/perf/model_perf_rank.json"
+# detailed_game_perf_file: "eval/perf/game_perf.json"
+# other_task_rank_file: "eval/perf/other_task_rank.json" # For polynomial model
+# polynomial_model_results_file: "eval/perf/polynomial_model.json" # For polynomial model
+# plot_output_dir: "eval/perf/plots"
+# video_output_base_dir: "eval/perf/video"
+# model_colors_file: "eval/assets/model_colors.json"
+# game_specific_config_file_path: "eval/configs/game_eval_config.yaml"

@@ -1,0 +1,14 @@
+{
+    "env_init_kwargs": {
+        "size": 4,
+        "max_pow": 16
+    },
+    "action_mapping": {
+        "up": 0,
+        "right": 1,
+        "down": 2,
+        "left": 3
+    },
+    "render_mode_gym_make": "human",
+    "max_unchanged_steps_for_termination": 10 
+} 

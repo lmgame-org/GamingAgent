@@ -1,0 +1,28 @@
+{
+    "env_id": "SuperMarioBros-Nes",
+    "env_init_kwargs": {
+        "state": "Level1-1",
+        "scenario": "scenario",
+        "obs_type": "IMAGE"
+    },
+    "render_mode_human": true,
+    "max_unchanged_steps_for_termination": 100,
+    "action_mapping": {
+        "noop":       [0, 0, 0, 0, 0, 0, 0, 0, 0],
+        "right":      [0, 0, 0, 0, 0, 0, 0, 1, 0],
+        "right_a":    [0, 0, 0, 0, 0, 0, 0, 1, 1],
+        "right_b":    [1, 0, 0, 0, 0, 0, 0, 1, 0],
+        "right_a_b":  [1, 0, 0, 0, 0, 0, 0, 1, 1],
+        "a":          [0, 0, 0, 0, 0, 0, 0, 0, 1],
+        "b":          [1, 0, 0, 0, 0, 0, 0, 0, 0],
+        "left":       [0, 0, 0, 0, 0, 0, 1, 0, 0],
+        "left_a":     [0, 0, 0, 0, 0, 0, 1, 0, 1],
+        "left_b":     [1, 0, 0, 0, 0, 0, 1, 0, 0],
+        "left_a_b":   [1, 0, 0, 0, 0, 0, 1, 0, 1],
+        "down":       [0, 0, 0, 0, 0, 1, 0, 0, 0],
+        "up":         [0, 0, 0, 0, 1, 0, 0, 0, 0]
+    },
+    "custom_game_specific_config": {
+        "observation_type": "IMAGE"
+    }
+}

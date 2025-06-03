@@ -1,5 +1,11 @@
+# virtual env and running logs
+lmgame-bench-env/*
+logs/*
+eval/perf/*
+
 # 💾 Cache and Temporary Files
 cache/*
+*/cache
 __pycache__/
 */__pycache__
 *.pyc
@@ -54,3 +60,29 @@ pip-delete-this-directory.txt
 .DS_Store
 Thumbs.db
 desktop.ini
+
+# 📝 Environment Variables
+setup_env.sh
+
+# 🎮 ROM and Game Files
+*.sfc
+*.nes
+*.a26
+*.gb
+*.gba
+*.gbc
+*.gg
+*.pce
+*.sms
+*.bk2
+custom_integrations/roms/
+*.state
+*.sha
+*.rom
+
+
+perf/
+
+logs/
+
+eval/video_samples/*

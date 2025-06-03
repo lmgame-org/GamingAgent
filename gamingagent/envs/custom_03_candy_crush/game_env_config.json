@@ -1,0 +1,15 @@
+{
+    "env_id": "TileMatchEnv-CandyCrush-v0",
+    "env_init_kwargs": {
+        "num_rows": 8,
+        "num_cols": 8,
+        "num_colours": 4,
+        "num_moves": 50,
+        "colourless_specials": [],
+        "colour_specials": [],
+        "seed": 42
+    },
+    "render_mode_for_make": "human",
+    "max_unchanged_steps_for_termination": 50,
+    "action_mapping": {}
+}

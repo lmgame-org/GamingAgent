@@ -1,0 +1,27 @@
+game_env:
+  name: "tetris"
+  description: "Tetris game environment via tetris-gymnasium"
+  env_type: "custom"
+  render_mode: "human"  # Use "human" to watch, "rgb_array" for vision agent processing
+  max_steps: 2000           # Max steps per Tetris game episode
+  seed: 42             # Set a specific seed for reproducibility, e.g., 42, or null for random
+  num_runs: 3               # Number of game episodes to run
+
+agent:
+  name: "tetris_agent"
+  model_name: "gemini-2.0-flash" # Or your preferred model like gemini-2.0-flash
+  cache_dir: "cache/tetris" # Base cache directory for this agent/game
+  reasoning_effort: "high" # Example, if your agent uses this
+  token_limit: 8000        # Example token limit
+  harness: false        # Default to non-harness mode, set to true to use perception/reasoning modules
+  observation_mode: "text" 
+  
+  modules:
+    base_module:
+    
+    perception_module: 
+
+    memory_module:
+      max_memory: 10  # Maximum number of memory entries to store
+    
+    reasoning_module:

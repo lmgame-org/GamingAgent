@@ -1,0 +1,26 @@
+{
+  "env_init_kwargs": {
+    "retro_game_name": "AceAttorney-GbAdvance",
+    "retro_state_name": "level1_1_5",
+    "scenario": null, 
+    "info": null,
+    "use_restricted_actions": 0, 
+    "record": false,
+    "inttype": "DEFAULT", 
+    "players": 1,
+    "obs_type": "IMAGE" 
+  },
+  "action_mapping": {
+    "a":       [0,0,0,0,0,0,0,0,1,0,0,0],
+    "b":       [1,0,0,0,0,0,0,0,0,0,0,0],
+    "l":       [0,0,0,0,0,0,0,0,0,0,1,0],
+    "r":       [0,0,0,0,0,0,0,0,0,0,0,1],
+    "up":      [0,0,0,0,1,0,0,0,0,0,0,0],
+    "down":    [0,0,0,0,0,1,0,0,0,0,0,0],
+    "left":    [0,0,0,0,0,0,1,0,0,0,0,0],
+    "right":   [0,0,0,0,0,0,0,1,0,0,0,0],
+    "no_op":   [0,0,0,0,0,0,0,0,0,0,0,0]
+  },
+  "max_unchanged_steps_for_termination": 30,
+  "render_mode_gym_adapter": "human"
+} 
