@@ -41,7 +41,7 @@
       ]
     }
   },
-  "deepSeek-r1-0528": {
+  "deepseek-r1-0528": {
     "harness_true": {
       "sokoban": [
         4,
@@ -206,7 +206,7 @@
       ]
     }
   },
-  "deepseek-r1-01-20": {
+  "deepseek-r1-0120": {
     "harness_true": {
       "sokoban": [
         2,
