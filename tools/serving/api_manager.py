@@ -444,7 +444,7 @@ class APIManager:
                     prompt=prompt,
                     token_limit=token_limit
                 )
-            elif "llama" in model_name.lower() or "meta" in model_name.lower():
+            elif (model_name == "deepseek-ai/DeepSeek-R1") or ("llama" in model_name.lower()) or ("meta" in model_name.lower()):
                 completion = together_ai_completion(
                     system_prompt=system_prompt,
                     model_name=model_name,
@@ -668,7 +668,10 @@ class APIManager:
                     prompt=prompt,
                     token_limit=token_limit
                 )
-            elif "llama" in model_name.lower() or "meta" in model_name.lower():
+            elif (model_name == "Qwen/Qwen3-235B-A22B-fp8") or (model_name == "deepseek-ai/DeepSeek-R1") or ("llama" in model_name.lower()) or ("meta" in model_name.lower()):
+                # TODO: make token limit settings configurable
+                if model_name == "Qwen/Qwen3-235B-A22B-fp8" and token_limit > 40960:
+                    token_limit = 30720
                 completion = together_ai_text_completion(
                     system_prompt=system_prompt,
                     model_name=model_name,

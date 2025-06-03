@@ -25,6 +25,7 @@ class BaseAgent(ABC):
             model_name,
             config_path=None,
             harness=True,
+            use_custom_prompt=False,
             max_memory=10,
             cache_dir=None,
             custom_modules=None, 
@@ -47,6 +48,7 @@ class BaseAgent(ABC):
         self.game_name = game_name
         self.model_name = model_name
         self.harness = harness
+        self.use_custom_prompt = use_custom_prompt
         self.max_memory = max_memory
         self.observation_mode = observation_mode
         
@@ -65,7 +67,8 @@ class BaseAgent(ABC):
         os.makedirs(self.observations_dir, exist_ok=True)
         
         # Load configuration
-        self.config = self._load_config(config_path)
+        # Load custom prompt if specified
+        self.config, self.custom_prompt = self._load_config(config_path, self.use_custom_prompt)
         
         # Initialize modules
         self.modules = self._initialize_modules(custom_modules)
@@ -93,50 +96,42 @@ class BaseAgent(ABC):
         # Save agent configuration
         self._save_agent_config()
     
-    def _load_config(self, config_path):
+    def _load_config(self, config_path, use_custom_prompt=False):
         """
         Load configuration from file or use defaults.
-        
+
         Args:
             config_path (str): Path to config file
-            
+            use_custom_prompt (bool): Whether to extract custom_prompt
+
         Returns:
-            dict: Configuration dictionary
+            Tuple[dict, Optional[str]]: (Configuration dictionary, custom_prompt or None)
         """
         config = {
-            "base_module": {
-                "system_prompt": "",
-                "prompt": ""
-            },
-            "perception_module": {
-                "system_prompt": "",
-                "prompt": ""
-            },
-            "memory_module": {
-                "system_prompt": "",
-                "prompt": ""
-            },
-            "reasoning_module": {
-                "system_prompt": "",
-                "prompt": ""
-            }
+            "base_module": {"system_prompt": "", "prompt": ""},
+            "perception_module": {"system_prompt": "", "prompt": ""},
+            "memory_module": {"system_prompt": "", "prompt": ""},
+            "reasoning_module": {"system_prompt": "", "prompt": ""}
         }
-        
+        custom_prompt = None
+
         if config_path and os.path.exists(config_path):
             try:
                 with open(config_path, 'r') as f:
                     file_config = json.load(f)
-                    
                 # Update config with file values
                 for module in config:
                     if module in file_config:
                         config[module].update(file_config[module])
-                        
+                # Only extract custom_prompt if requested
+                if use_custom_prompt and "custom_prompt" in file_config:
+                    custom_prompt = file_config["custom_prompt"]
+                    print(f"Loaded custom_prompt from config: {str(custom_prompt)[:40]}...")
                 print(f"Loaded configuration from {config_path}")
             except Exception as e:
                 print(f"Error loading config from {config_path}: {e}")
-        
-        return config
+        return config, custom_prompt
+
     
     def _initialize_modules(self, custom_modules=None):
         """
@@ -206,6 +201,7 @@ class BaseAgent(ABC):
                 reasoning_cls = custom_modules["reasoning_module"]
                 modules["reasoning_module"] = reasoning_cls(
                     model_name=self.model_name,
+                    observation_mode=self.observation_mode,
                     cache_dir=self.cache_dir,
                     system_prompt=self.config["reasoning_module"]["system_prompt"],
                     prompt=self.config["reasoning_module"]["prompt"]
@@ -293,6 +289,8 @@ class BaseAgent(ABC):
             Action to take in the environment
             Updated Observation
         """
+        custom_prompt = self.custom_prompt
+
         # Ensure observation is an Observation object
         if not isinstance(observation, Observation):
             img_path_for_observation = None
@@ -336,7 +334,7 @@ class BaseAgent(ABC):
             # Unharness mode: Use base module directly with the Observation object
             print("Invoking WITHOUT HARNESS mode.")
 
-            action_plan = self.modules["base_module"].plan_action(observation=observation)
+            action_plan = self.modules["base_module"].plan_action(observation=observation, custom_prompt=custom_prompt)
             return action_plan, observation 
         else:
             # Harness mode: Perception -> Memory -> Reasoning
@@ -370,9 +368,7 @@ class BaseAgent(ABC):
             # print(memory_summary)
             
             # 3. Plan action with reasoning module
-            action_plan = reasoning_module.plan_action(
-                observation=processed_observation
-            )
+            action_plan = reasoning_module.plan_action(observation=processed_observation, custom_prompt=custom_prompt)
 
             # 4. record action and thought
             processed_observation = memory_module.update_action_memory(

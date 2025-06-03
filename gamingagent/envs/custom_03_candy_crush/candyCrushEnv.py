@@ -458,8 +458,8 @@ class CandyCrushEnvWrapper(gym.Env):
             if match:
                 try:
                     r1, c1, r2, c2 = map(int, match.groups())
-                    coord1 = tuple(sorted((r1, c1))) # Ensure consistent inner tuple order
-                    coord2 = tuple(sorted((r2, c2)))
+                    coord1 = (r1, c1)
+                    coord2 = (r2, c2)
                     
                     # Canonical key for env_move_to_action_idx (which sorts the two coordinate pairs)
                     coords_pair_sorted_for_key = tuple(sorted((coord1, coord2)))
@@ -526,8 +526,10 @@ class CandyCrushEnvWrapper(gym.Env):
                 "score": 0.0, # Step reward
                 "cumulative_raw_score": self.current_score,
                 "total_score": self.current_score,
-                "is_combination_match": False, "num_new_specials": 0,
-                "num_specials_activated": 0, "shuffled": False,
+                "is_combination_match": False, 
+                "num_new_specials": 0,
+                "num_specials_activated": 0, 
+                "shuffled": False,
                 "effective_actions": self._get_effective_actions(), 
                 "num_moves_left": raw_obs_dict.get("num_moves_left", 0),
                 "invalid_action_taken": True, 

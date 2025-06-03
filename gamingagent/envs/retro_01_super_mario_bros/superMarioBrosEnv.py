@@ -149,7 +149,7 @@ class SuperMarioBrosEnvWrapper:
 
         # core values
         # These keys exist in the standard SMB core shipped with gym‑retro
-        info["total_score"]        = retro_info.get("score", 0)
+        info["total_score"]  = retro_info.get("score", 0)
         info["lives"]        = retro_info.get("lives", 0)
         info["x_pos"]        = retro_info.get("xscrollLo", 0) + 255 * retro_info.get("xscrollHi", 0)
         info["world"]        = retro_info.get("levelHi", 0)
@@ -199,7 +199,7 @@ class SuperMarioBrosEnvWrapper:
             text_representation="" 
         )
         
-        self.current_episode_max_x_pos = self.current_game_info.get('x_pos', 0)
+        self.current_episode_max_x_pos = self.current_game_info.get('x_pos')
         #self.current_episode_total_perf_score = 0.0
 
         info_to_return = self.current_game_info.copy()
@@ -214,193 +214,120 @@ class SuperMarioBrosEnvWrapper:
             step_perf_score = float(current_x_pos_frame - self.current_episode_max_x_pos)
         return step_perf_score
 
-    def step(
-        self,
-        agent_action_str: Optional[str],
-        thought_process: str = "",
-        time_taken_s: float = 0.0,
-    ) -> Tuple[Observation, float, bool, bool, Dict[str, Any], float]:
-        """
-        Execute `frame_count` physics steps for the given action, where the
-        action string may be either:
-
-            "move_left"               → 1 frame
-            "(move_left,3)"           → 3 frames
-            "hard_drop,1"             → 1 frame   (commas / spaces allowed)
-        """
-
-        import re  # local import to mirror Mario code
-
-        # ---------------------------------------------------- #
-        # 1)  Parse the incoming action string                 #
-        # ---------------------------------------------------- #
-        base_action_name = "noop"
-        frame_count = 1
+    def step(self, agent_action_str: Optional[str], thought_process: str = "", time_taken_s: float = 0.0) -> Tuple[Observation, float, bool, bool, Dict[str, Any], float]:
+        import re
+        base_action_name = "noop" 
+        frame_count = 1       
 
         if agent_action_str:
-            # pattern matches:  action_name [,| )  integer]   with or w/out ()
-            m = re.match(r"\(?'?(\w+(?:_\w+)*)'?[),\s]*([0-9]+)?\)?", agent_action_str)
-            if m:
-                base_action_name = m.group(1)
-                if m.group(2):
-                    try:
-                        fc = int(m.group(2))
-                        if fc > 0:
-                            frame_count = fc
-                    except ValueError:
-                        pass
-            else:
-                base_action_name = agent_action_str.strip("()'\" ").lower()
-
-        # Resolve to internal action index once (like Mario)
-        env_action_idx = self.adapter.map_agent_action_to_env_action(base_action_name)
-        if env_action_idx is None:
+            match = re.match(r"\(?'?(\w+(?:_\w+)*)'?,\s*(\d+)\)?", agent_action_str)
+            if match:
+                base_action_name = match.group(1)
+                try:
+                    parsed_frame_count = int(match.group(2))
+                    if parsed_frame_count > 0: frame_count = parsed_frame_count
+                except ValueError: 
+                    # print(f"[SuperMarioBrosEnvWrapper] Warning: Could not parse frame_count for {base_action_name}. Defaulting to 1.")
+                    pass 
+            else: # Assume it's just the action name if no frame count
+                base_action_name = agent_action_str.strip("()\\\' ")
+                # print(f"[SuperMarioBrosEnvWrapper] Action string '{agent_action_str}' -> simple action '{base_action_name}', 1 frame.")
+        
+        env_action_buttons = self.mario_action_mapping.get(base_action_name.lower())
+        if env_action_buttons is None:
+            # print(f"[SuperMarioBrosEnvWrapper] Warning: Action '{base_action_name}' not found. Using NOOP.")
             base_action_name = "noop"
-            env_action_idx = self.ACTION_NO_OP
-
-        # ---------------------------------------------------- #
-        # 2)  Run the original single‑frame body frame_count   #
-        # ---------------------------------------------------- #
-        total_reward = 0.0
-        total_perf_score = 0.0
-        terminated_final = False
-        truncated_final = False
-        last_agent_observation: Optional[Observation] = None
+            env_action_buttons = self.mario_action_mapping.get("noop", [0]*len(self.env.buttons if hasattr(self, 'env') and self.env else 9))
+        
+        #self.accumulated_reward_for_action_sequence = 0.0
+        accumulated_perf_score_for_action_sequence = 0.0
+        current_meta_episode_accumulated_reward = 0.0
+        meta_episode_terminated_this_step = False 
+        meta_episode_truncated_this_step = False
+        
+        last_agent_observation_in_loop = None
+        current_game_info_frame = self.current_game_info 
 
         for frame_num in range(frame_count):
-            self.adapter.increment_step()
+            self.adapter.increment_step() 
 
-            # ---------------- SINGLE‑FRAME LOGIC ---------------
-            current_step_reward = 0.0
+            observation_data_frame, reward_frame, done_from_retro_frame, trunc_from_retro_frame, info_retro_frame = self.env.step(env_action_buttons)
 
-            if not self.game_over:
-                # --- handle player input ---
-                if env_action_idx == self.ACTION_MOVE_LEFT:
-                    if self.active_tetromino and not self._collision(
-                        self.active_tetromino, self.x - 1, self.y
-                    ):
-                        self.x -= 1
+            current_game_info_frame = self._extract_game_specific_info(info_retro_frame)
 
-                elif env_action_idx == self.ACTION_MOVE_RIGHT:
-                    if self.active_tetromino and not self._collision(
-                        self.active_tetromino, self.x + 1, self.y
-                    ):
-                        self.x += 1
+            current_game_info_frame.update(info_retro_frame) 
 
-                elif env_action_idx == self.ACTION_ROTATE_CLOCKWISE:
-                    if self.active_tetromino:
-                        rotated = self._rotate_tetromino(self.active_tetromino, True)
-                        if not self._collision(rotated, self.x, self.y):
-                            self.active_tetromino = rotated
+            current_x_pos_frame = current_game_info_frame.get('x_pos', self.current_episode_max_x_pos)
+            current_step_perf_score_frame = self.calculate_perf_score(current_x_pos_frame)
+            self.current_episode_max_x_pos = max(self.current_episode_max_x_pos, current_x_pos_frame)
 
-                elif env_action_idx == self.ACTION_ROTATE_COUNTERCLOCKWISE:
-                    if self.active_tetromino:
-                        rotated = self._rotate_tetromino(self.active_tetromino, False)
-                        if not self._collision(rotated, self.x, self.y):
-                            self.active_tetromino = rotated
+            #self.accumulated_reward_for_action_sequence = float(reward_frame)
+            current_meta_episode_accumulated_reward = float(reward_frame) 
+            
+            accumulated_perf_score_for_action_sequence += current_step_perf_score_frame
 
-                elif env_action_idx == self.ACTION_SOFT_DROP:
-                    if self.active_tetromino and not self._collision(
-                        self.active_tetromino, self.x, self.y + 1
-                    ):
-                        self.y += 1
-                    elif self.active_tetromino:
-                        current_step_reward = self._commit_active_tetromino()
+            img_path_frame = None
+            if self.observation_mode in ["vision", "both"]:
+                img_path_frame = self._save_frame_get_path(observation_data_frame, self.adapter.current_episode_id, self.adapter.current_step_num)
 
-                elif env_action_idx == self.ACTION_HARD_DROP:
-                    if self.active_tetromino:
-                        while not self._collision(
-                            self.active_tetromino, self.x, self.y + 1
-                        ):
-                            self.y += 1
-                        current_step_reward = self._commit_active_tetromino()
-
-                # --- gravity ---
-                if (
-                    self.gravity_enabled
-                    and self.active_tetromino
-                    and env_action_idx != self.ACTION_HARD_DROP
-                    and not (
-                        env_action_idx == self.ACTION_SOFT_DROP
-                        and self.active_tetromino is None
-                    )
-                ):
-                    if not self._collision(self.active_tetromino, self.x, self.y + 1):
-                        self.y += 1
-                    else:
-                        if self.active_tetromino is not None:
-                            current_step_reward = self._commit_active_tetromino()
-
-            # ---------- bookkeeping & logging ----------
-            terminated_flag = self.game_over
-            obs_dict = self._get_obs()
-            self.current_info_dict = self._get_info()
-
-            current_step_perf_score = self.adapter.calculate_perf_score(
-                current_step_reward, self.current_info_dict
+            agent_observation_frame = self.adapter.create_agent_observation(
+                img_path=img_path_frame, text_representation="" 
             )
-            self.total_perf_score_episode += current_step_perf_score
-
-            img_path = txt_rep = None
-            if self.adapter.observation_mode in ["vision", "both"]:
-                img_path = self.adapter._create_agent_observation_path(
-                    self.adapter.current_episode_id, self.adapter.current_step_num
-                )
-                create_board_image_tetris(
-                    board=obs_dict["board"],
-                    save_path=img_path,
-                    pixel_color_mapping=self.pixel_id_to_color_map,
-                    all_tetromino_objects=self.tetrominoes,
-                    score=int(self.current_score),
-                    lines=self.lines_cleared_total,
-                    level=self.level,
-                    next_pieces_ids=self.current_info_dict["next_piece_ids"],
-                    perf_score=current_step_perf_score,
-                )
-            if self.adapter.observation_mode in ["text", "both"]:
-                b_str = np.array2string(obs_dict["board"], separator=",")
-                n_str = f"N:{self.current_info_dict['next_piece_ids']}"
-                i_str = f"S:{self.current_score} L:{self.lines_cleared_total} V:{self.level}"
-                txt_rep = f"{b_str}\n{n_str} {i_str}"
-
-            agent_obs = self.adapter.create_agent_observation(img_path, txt_rep)
-
-            final_term, final_trunc = self.adapter.verify_termination(
-                agent_obs, terminated_flag, False
+            last_agent_observation_in_loop = agent_observation_frame
+            
+            # Stuck detection is not used for meta-episode termination anymore
+            terminated_by_stuck_frame, _ = self.adapter.verify_termination(
+                agent_observation=agent_observation_frame,
+                current_terminated=done_from_retro_frame, 
+                current_truncated=trunc_from_retro_frame 
             )
+
             self.adapter.log_step_data(
-                agent_action_str=base_action_name,
-                thought_process=thought_process,
-                reward=current_step_reward,
-                info=self.current_info_dict,
-                terminated=final_term,
-                truncated=final_trunc,
+                agent_action_str=base_action_name, 
+                thought_process=thought_process,  
+                reward=float(reward_frame),
+                info=current_game_info_frame, 
+                terminated=(done_from_retro_frame or terminated_by_stuck_frame), 
+                truncated=trunc_from_retro_frame,
                 time_taken_s=time_taken_s if frame_num == 0 else 0.0,
-                perf_score=current_step_perf_score,
-                agent_observation=agent_obs,
+                perf_score=current_step_perf_score_frame,
+                agent_observation=agent_observation_frame
             )
-            if self.render_mode == "human":
-                self.render()
-            # -----------------------------------------------------
+            
+            if current_game_info_frame.get("is_game_over", False):
+                print(f"[SuperMarioBrosEnvWrapper step] Meta-episode terminated: RAM indicates Game Over. Info: {self._build_textual_representation_for_log(current_game_info_frame)}")
+                meta_episode_terminated_this_step = True
+            
+            if trunc_from_retro_frame:
+                print(f"[SuperMarioBrosEnvWrapper step] Meta-episode truncated by retro env.")
+                meta_episode_truncated_this_step = True 
 
-            total_reward += current_step_reward
-            total_perf_score += current_step_perf_score
-            last_agent_observation = agent_obs
-            terminated_final, truncated_final = final_term, final_trunc
+            if meta_episode_terminated_this_step or meta_episode_truncated_this_step:
+                break 
+        
+        self.current_game_info = current_game_info_frame 
+        # Removed current_lives_remaining_in_meta_episode from self.current_game_info update
 
-            if terminated_final or truncated_final:
-                break  # stop executing further frames
-
-        # ensure info dict reflects final state
-        self.current_info_dict = self._get_info()
+        if last_agent_observation_in_loop is None:
+            # print(\"[SuperMarioBrosEnvWrapper] Warning: Loop for frames did not produce an observation. Getting current state.\")
+            current_ram_now = self.env.get_ram()
+            self.current_game_info = self._extract_game_specific_info(current_ram_now)
+            obs_data_now, _, _, _, _ = self.env.step(self.mario_action_mapping.get("noop", [0]*len(self.env.buttons if hasattr(self, 'env') and self.env else 9)))
+            img_path_now = None
+            if self.observation_mode in ["vision", "both"] and obs_data_now is not None:
+                img_path_now = self._save_frame_get_path(obs_data_now, self.adapter.current_episode_id, self.adapter.current_step_num)
+            last_agent_observation_in_loop = self.adapter.create_agent_observation(img_path=img_path_now, text_representation="")
+            if obs_data_now is not None: 
+                self.current_game_info = self._extract_game_specific_info(self.env.get_ram())
+            # Removed current_lives_remaining_in_meta_episode from info in this block
 
         return (
-            last_agent_observation,
-            total_reward,
-            terminated_final,
-            truncated_final,
-            self.current_info_dict,
-            total_perf_score,
+            last_agent_observation_in_loop, 
+            current_meta_episode_accumulated_reward, 
+            meta_episode_terminated_this_step, 
+            meta_episode_truncated_this_step, 
+            self.current_game_info.copy(), 
+            accumulated_perf_score_for_action_sequence 
         )
 
     def render(self) -> None:
