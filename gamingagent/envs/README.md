@@ -54,7 +54,7 @@ Currently we support the following envrionments using gym:
    d. other key arguments to determine termination conditions or game settings.
 5. Add your agent configuration to [configs](configs) so that a gaming agent can interface properly the envrionment.
 
-**Step-by-Step Instructions (Add Existing games from Retro)**
+**Step-by-Step Instructions (Add new games to Retro)**
 
 To integrate additional Retro environments that are not included in stable-retro, follow instructions in [Gym Retro](https://retro.readthedocs.io/en/latest/integration.html). For such games no `retro.import` is required. Check our ace_attorney implementation as an example.
 
