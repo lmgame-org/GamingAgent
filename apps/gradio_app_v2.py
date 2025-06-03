@@ -940,7 +940,7 @@ def build_app():
                 
                 # Add reference to Jupyter notebook
                 with gr.Row():
-                    gr.Markdown("*All data analysis can be replicated by checking [this Jupyter notebook](https://colab.research.google.com/drive/1yoa3nZpAtmzZqPD6V-rnPQG7wI4nbt40#scrollTo=ac7EVIaJTxpp)*")
+                    gr.Markdown("*All data analysis can be replicated by checking [this Jupyter notebook](https://colab.research.google.com/drive/1CYFiJGm3EoBXXI8vICPVR82J9qrmmRvc#scrollTo=qft1Oald-21J)*")
                 
                 # Get initial leaderboard dataframe
                 initial_df = get_combined_leaderboard(rank_data, {
