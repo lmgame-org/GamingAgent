@@ -62,6 +62,11 @@ class TetrisEnv(gym.Env):
     REWARD_PIECE_PLACED = 1.0
     REWARD_PER_LINE_CLEARED = 10.0
 
+    # Symbols for text representation
+    EMPTY_SYMBOL = '.'
+    BEDROCK_SYMBOL = '#'
+    TETROMINO_SYMBOLS = ['I', 'O', 'T', 'S', 'Z', 'J', 'L']
+
     def __init__(
         self,
         render_mode: Optional[str] = None,
@@ -126,6 +131,7 @@ class TetrisEnv(gym.Env):
         
         self.board = self._create_board()
         self.active_tetromino: Optional[Tetromino] = None
+        self.active_tetromino_original_idx: Optional[int] = None
         self.x: int = 0; self.y: int = 0
         self.game_over = False
         self.current_score = 0.0 
@@ -195,6 +201,7 @@ class TetrisEnv(gym.Env):
 
     def _spawn_tetromino(self) -> bool:
         tetromino_original_idx = self._pop_from_piece_queue() 
+        self.active_tetromino_original_idx = tetromino_original_idx
         self.active_tetromino = copy.deepcopy(self.tetrominoes[tetromino_original_idx])
         
         self.x = self.width_padded // 2 - self.active_tetromino.matrix.shape[1] // 2
@@ -253,9 +260,9 @@ class TetrisEnv(gym.Env):
 
             (tetris_reward , perf_increment)
 
-        * tetris_reward   – +1 for piece +10 per line
+        * tetris_reward   – +1 for piece +10 per line
         * perf_increment  – +1 for the commit itself, plus +1 for every
-                            line cleared (so a T‑Spin Triple would add 4).
+                            line cleared (so a T-Spin Triple would add 4).
         """
         if self.active_tetromino is None:
             return 0.0, 0
@@ -330,6 +337,95 @@ class TetrisEnv(gym.Env):
             "next_piece_ids": next_actual_ids, 
         }
 
+    def _get_symbol_for_id(self, piece_id: int) -> str:
+        if piece_id == self.base_pixels[0].value:
+            return self.EMPTY_SYMBOL
+        elif piece_id == self.base_pixels[1].value:
+            return self.BEDROCK_SYMBOL
+        else:
+            # Tetromino IDs are offset by len(self.base_pixels)
+            original_idx = piece_id - len(self.base_pixels)
+            if 0 <= original_idx < len(self.TETROMINO_SYMBOLS):
+                return self.TETROMINO_SYMBOLS[original_idx]
+            return '?' # Unknown piece
+
+    def _get_board_text_representation(self, board_array: np.ndarray) -> str:
+        # Crop to the actual game area (height x width), excluding padding used for mechanics
+        game_area = board_array[0:self.height, self.padding : self.padding + self.width]
+        
+        symbolic_rows = []
+        for row in game_area:
+            symbolic_rows.append("".join([self._get_symbol_for_id(cell_id) for cell_id in row]))
+        return "\n".join(symbolic_rows)
+
+    def _get_next_pieces_symbols_list(self, next_piece_ids: List[int]) -> List[str]:
+        return [self._get_symbol_for_id(pid) for pid in next_piece_ids]
+
+    def _get_all_rotations_text_representations(self) -> str:
+        if self.active_tetromino is None or self.active_tetromino_original_idx is None:
+            return "Rotations: (No active piece)\n"
+
+        original_tetromino_def = self.TETROMINOES[self.active_tetromino_original_idx]
+        # We need to use the offset ID for the piece on the board, but the original matrix for rotation logic
+        current_piece_board_id = self.active_tetromino.id 
+
+        # Determine max unique rotations (I,S,Z have 2; O has 1; T,L,J have 4)
+        # This logic mirrors tetris_modules.py's TetrisPerceptionModule
+        # Assuming original_tetromino_def.id is 0 for I, 1 for O, etc.
+        og_id = original_tetromino_def.id
+        max_rotations = 1
+        if og_id == 0: # I
+            max_rotations = 2
+        elif og_id == 1: # O
+            max_rotations = 1
+        elif og_id == 2: # T
+            max_rotations = 4
+        elif og_id == 3: # S
+            max_rotations = 2
+        elif og_id == 4: # Z
+            max_rotations = 2
+        elif og_id == 5: # J
+            max_rotations = 4
+        elif og_id == 6: # L
+            max_rotations = 4
+
+        rotations_text = "Potential Clockwise Rotations (from canonical base, at current x,y - if valid):\n"
+        temp_piece_matrix = original_tetromino_def.matrix.copy()
+
+        for r_idx in range(max_rotations):
+            if r_idx == 0:
+                rotations_text += f"Rotation 0 (Canonical Base):\n"
+            else:
+                rotations_text += f"Rotation {r_idx} (Base + {r_idx} clockwise):\n"
+            
+            # Create a temporary Tetromino object for collision checking with the correct ID
+            # The matrix needs to be non-offset for rotation, then values changed to board ID
+            rotated_matrix_with_board_id = temp_piece_matrix.copy()
+            rotated_matrix_with_board_id[rotated_matrix_with_board_id > 0] = current_piece_board_id
+            temp_tetromino_for_collision = Tetromino(id_val=current_piece_board_id, 
+                                                   color_rgb=original_tetromino_def.color_rgb, # Color doesn't matter for text
+                                                   matrix=rotated_matrix_with_board_id)
+
+            if not self._collision(temp_tetromino_for_collision, self.x, self.y):
+                # Create a temporary board and place the piece
+                temp_board = self.board.copy()
+                t_h, t_w = temp_tetromino_for_collision.matrix.shape
+                for row_idx in range(t_h):
+                    for col_idx in range(t_w):
+                        if temp_tetromino_for_collision.matrix[row_idx, col_idx] != 0:
+                            board_r, board_c = self.y + row_idx, self.x + col_idx
+                            if 0 <= board_r < self.height_padded and 0 <= board_c < self.width_padded:
+                                temp_board[board_r, board_c] = temp_tetromino_for_collision.matrix[row_idx, col_idx]
+                rotations_text += self._get_board_text_representation(temp_board) + "\n"
+            else:
+                rotations_text += "(Collision at current x,y)\n"
+            
+            if r_idx < max_rotations -1: # Don't rotate beyond the last needed view
+                 # Rotate the original definition's matrix (which has 1s)
+                temp_piece_matrix = np.rot90(temp_piece_matrix, k=-1) # k=-1 for clockwise
+        
+        return rotations_text
+
     def reset(self, *, seed: Optional[int]=None, options: Optional[Dict[str,Any]]=None, episode_id:int=1) -> Tuple[Observation, Dict[str,Any]]:
         super().reset(seed=seed)
         if seed is not None: self.rng = np.random.default_rng(seed)
@@ -343,6 +439,7 @@ class TetrisEnv(gym.Env):
         self.current_score=0.0; 
         self.total_perf_score_episode = 0.0 # NEW: Reset total perf score for the episode
         self.lines_cleared_total=0; self.level=1; self.x=0; self.y=0
+        self.active_tetromino_original_idx = None
         if not self._spawn_tetromino(): self.game_over = True
         
         self.adapter.reset_episode(episode_id)
@@ -366,8 +463,19 @@ class TetrisEnv(gym.Env):
                 perf_score=initial_step_perf_score
             )
         if self.adapter.observation_mode in ["text", "both"]:
-            b_str=np.array2string(obs_dict_for_adapter["board"],separator=","); n_str=f"N:{self.current_info_dict['next_piece_ids']}"; i_str=f"S:{self.current_score} L:{self.lines_cleared_total} V:{self.level}"
-            txt_rep = f"{b_str}\n{n_str} {i_str}"
+            board_text_rep = self._get_board_text_representation(obs_dict_for_adapter["board"])
+            next_symbols = self._get_next_pieces_symbols_list(self.current_info_dict['next_piece_ids'])
+            stats_str = f"PerfS:{initial_step_perf_score:.0f} S:{self.current_score:.0f} L:{self.lines_cleared_total} Lv:{self.level}"
+            rotations_viz = self._get_all_rotations_text_representations()
+            txt_rep = (
+                f"Board:\n{board_text_rep}\n"
+                f"( '.' = empty, {''.join(self.TETROMINO_SYMBOLS)} = tetrominoes. Active piece is rendered on board.)\n"
+                f"Next Pieces: {','.join(next_symbols)}\n"
+                f"Game Stats: {stats_str}\n"
+                f"\n{rotations_viz}"
+                f"^ These show how your piece would look after rotating right to that orientation. "
+                f"Use 'rotate_right' or 'rotate_left' actions to achieve a rotation.\n"
+            )
         
         agent_obs = self.adapter.create_agent_observation(img_path, txt_rep)
         if self.render_mode == "human": self.render()
@@ -416,11 +524,15 @@ class TetrisEnv(gym.Env):
         last_obs: Optional[Observation] = None
         # to propagate user‑supplied time_taken_s
         first_outer = True 
+        executed_any_action = False  # Track if we executed any actions
 
         for action_name, frames in actions_sequence:
             env_action_idx = self.adapter.map_agent_action_to_env_action(action_name)
             if env_action_idx is None:
                 env_action_idx = self.ACTION_NO_OP
+                continue
+
+            executed_any_action = True
 
             for frame_idx in range(frames):
                 self.adapter.increment_step()
@@ -522,14 +634,19 @@ class TetrisEnv(gym.Env):
                         perf_score=current_step_perf,
                     )
                 if self.adapter.observation_mode in ["text", "both"]:
-                    b_str = np.array2string(obs_dict["board"], separator=",")
-                    n_str = f"N:{self.current_info_dict['next_piece_ids']}"
-                    i_str = (
-                        f"S:{self.current_score} "
-                        f"L:{self.lines_cleared_total} "
-                        f"V:{self.level}"
+                    board_text_rep = self._get_board_text_representation(obs_dict["board"])
+                    next_symbols = self._get_next_pieces_symbols_list(self.current_info_dict['next_piece_ids'])
+                    stats_str = f"PerfS:{current_step_perf:.0f} S:{self.current_score:.0f} L:{self.lines_cleared_total} Lv:{self.level}"
+                    rotations_viz = self._get_all_rotations_text_representations()
+                    txt_rep = (
+                        f"Board:\n{board_text_rep}\n"
+                        f"( '.' = empty, {''.join(self.TETROMINO_SYMBOLS)} = tetrominoes. Active piece is rendered on board.)\n"
+                        f"Next Pieces: {','.join(next_symbols)}\n"
+                        f"Game Stats: {stats_str}\n"
+                        f"\n{rotations_viz}"
+                        f"^ These show how your piece would look after rotating right to that orientation. "
+                        f"Use 'rotate_right' or 'rotate_left' actions to achieve a rotation.\n"
                     )
-                    txt_rep = f"{b_str}\n{n_str} {i_str}"
                 agent_obs = self.adapter.create_agent_observation(img_path, txt_rep)
 
                 final_term, final_trunc = self.adapter.verify_termination(
@@ -551,7 +668,7 @@ class TetrisEnv(gym.Env):
 
                 # accumulate & maybe early‑exit
                 total_reward += current_step_reward
-                total_perf += perf_increment_step # our customized performance metrics
+                total_perf += current_step_perf # our customized performance metrics
                 last_obs = agent_obs
                 terminated, truncated = final_term, final_trunc
                 if terminated or truncated:
@@ -560,6 +677,67 @@ class TetrisEnv(gym.Env):
             first_outer = False
             if terminated or truncated:
                 break
+
+        # If no valid actions were executed, run one NO_OP
+        # Here current_step_perf is 0.0, it should be perf_increment_step but here we use current_step_perf instead
+        if not executed_any_action:
+            env_action_idx = self.ACTION_NO_OP
+            self.adapter.increment_step()
+            # Execute the NO_OP logic (which is essentially do nothing, just update observations)
+            obs_dict = self._get_obs()
+            self.current_info_dict = self._get_info()
+            
+            current_step_perf = self.adapter.calculate_perf_score(0.0, self.current_info_dict)
+            self.total_perf_score_episode += current_step_perf
+            self.current_info_dict = self._get_info()
+
+            img_path = txt_rep = None
+            if self.adapter.observation_mode in ["vision", "both"]:
+                img_path = self.adapter._create_agent_observation_path(
+                    self.adapter.current_episode_id, self.adapter.current_step_num
+                )
+                create_board_image_tetris(
+                    board=obs_dict["board"],
+                    save_path=img_path,
+                    pixel_color_mapping=self.pixel_id_to_color_map,
+                    all_tetromino_objects=self.tetrominoes,
+                    score=int(self.current_score),
+                    lines=self.lines_cleared_total,
+                    level=self.level,
+                    next_pieces_ids=self.current_info_dict["next_piece_ids"],
+                    perf_score=current_step_perf,
+                )
+            if self.adapter.observation_mode in ["text", "both"]:
+                board_text_rep = self._get_board_text_representation(obs_dict["board"])
+                next_symbols = self._get_next_pieces_symbols_list(self.current_info_dict['next_piece_ids'])
+                stats_str = f"PerfS:{current_step_perf:.0f} S:{self.current_score:.0f} L:{self.lines_cleared_total} Lv:{self.level}"
+                rotations_viz = self._get_all_rotations_text_representations()
+                txt_rep = (
+                    f"Board:\n{board_text_rep}\n"
+                    f"( '.' = empty, {''.join(self.TETROMINO_SYMBOLS)} = tetrominoes. Active piece is rendered on board.)\n"
+                    f"Next Pieces: {','.join(next_symbols)}\n"
+                    f"Game Stats: {stats_str}\n"
+                    f"\n{rotations_viz}"
+                    f"^ These show how your piece would look after rotating right to that orientation. "
+                    f"Use 'rotate_right' or 'rotate_left' actions to achieve a rotation.\n"
+                )
+            last_obs = self.adapter.create_agent_observation(img_path, txt_rep)
+
+            final_term, final_trunc = self.adapter.verify_termination(
+                last_obs, self.game_over, False
+            )
+            self.adapter.log_step_data(
+                agent_action_str="no_op",
+                thought_process=thought_process,
+                reward=0.0,
+                info=self.current_info_dict,
+                terminated=final_term,
+                truncated=final_trunc,
+                time_taken_s=time_taken_s,
+                perf_score=current_step_perf,
+                agent_observation=last_obs,
+            )
+            terminated, truncated = final_term, final_trunc
 
         return (
             last_obs,
