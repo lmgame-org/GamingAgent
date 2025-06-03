@@ -1,5 +1,5 @@
 { 
-  "Qwen3-235B-A22B-fp8-tput": {
+  "qwen3-235B-A22B-fp8": {
     "harness_true": {
       "sokoban": [
         1,
