@@ -1,4 +1,4 @@
-<div align="center"> <h1>GamingAgent - Personal Computer Gaming Agent</h1> </div> 
+<div align="center"> <h1>Personal Computer Gaming Agent</h1> </div> 
 
 ## Contents
 - [Gallery](#gallery)
