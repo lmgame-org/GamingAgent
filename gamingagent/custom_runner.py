@@ -375,11 +375,15 @@ def create_environment(game_name_arg: str,
         return None
 
 def run_game_episode(agent: BaseAgent, game_env: gym.Env, episode_id: int, args: argparse.Namespace):
-    print(f"Starting Episode {episode_id} for {args.game_name} with seed {args.seed if args.seed is not None else 'default'}...")
-
+    """Run a single episode of the game."""
     # Pass episode_id to env.reset
     agent_observation, last_info = game_env.reset(seed=args.seed, episode_id=episode_id)
     if args.seed is not None: args.seed += 1 # Increment seed for next potential run
+
+    # Initialize game trajectory if not present
+    if not hasattr(agent_observation, 'game_trajectory'):
+        from gamingagent.modules.core_module import GameTrajectory
+        agent_observation.game_trajectory = GameTrajectory(max_length=args.max_memory)
 
     total_reward_for_episode = 0.0
     total_perf_score_for_episode = 0.0
@@ -412,8 +416,13 @@ def run_game_episode(agent: BaseAgent, game_env: gym.Env, episode_id: int, args:
             thought_process=thought_process, 
             time_taken_s=time_taken_s
         )
-        # Inherit game trajectory
-        agent_observation.game_trajectory = processed_agent_observation.game_trajectory
+        
+        # Ensure game trajectory is maintained
+        if hasattr(processed_agent_observation, 'game_trajectory'):
+            agent_observation.game_trajectory = processed_agent_observation.game_trajectory
+        elif not hasattr(agent_observation, 'game_trajectory'):
+            from gamingagent.modules.core_module import GameTrajectory
+            agent_observation.game_trajectory = GameTrajectory(max_length=args.max_memory)
             
         total_reward_for_episode += reward
         total_perf_score_for_episode += current_step_perf_score

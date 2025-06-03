@@ -7,6 +7,7 @@ import sys
 import time
 import faulthandler
 from typing import Any, Dict, List, Tuple, Optional
+import datetime
 
 import numpy as np
 import vizdoom as vzd
@@ -256,6 +257,18 @@ class DoomEnvWrapper(gym.Env):
                 
                 # Set game mode - exactly as in basic example
                 self.game.set_mode(vzd.Mode.PLAYER)
+
+                # Set rendering options
+                self.game.set_render_hud(True)  # Always show HUD
+                self.game.set_render_crosshair(False)
+                self.game.set_render_weapon(True)  # Always show weapon
+                self.game.set_render_decals(True)  # Show bullet impacts
+                self.game.set_render_particles(True)  # Show particle effects
+                self.game.set_render_effects_sprites(True)  # Show effect sprites
+                self.game.set_render_messages(False)
+                self.game.set_render_corpses(False)
+                self.game.set_render_screen_flashes(True)  # Show muzzle flash
+                self.game.set_render_minimal_hud(False)  # Show full HUD to display ammo
                 
             except vzd.ViZDoomErrorException as e:
                 print(f"[{time.time()}] VizDoom error in settings: {e}", file=sys.stderr)
@@ -368,41 +381,70 @@ class DoomEnvWrapper(gym.Env):
         ])
 
     def reset(self, *, seed: int | None = None, episode_id: int = 1, **kwargs) -> Tuple[Observation, Dict[str, Any]]:
-        """Reset the environment.
+        """Reset the environment to start a new episode.
         
         Args:
-            seed: Random seed
-            episode_id: Episode ID
+            seed: Random seed for reproducibility
+            episode_id: ID of the current episode
             **kwargs: Additional arguments
             
         Returns:
-            Tuple of (observation, info)
-            
-        Raises:
-            RuntimeError: If reset fails
+            Tuple containing:
+                - Observation object with game state
+                - Dictionary with additional information
         """
         try:
+            print(f"[{time.time()}] Resetting environment for episode {episode_id}...", file=sys.stderr)
+            
+            # Reset the game
             self.game.new_episode()
             
             # Get initial state
             state = self.game.get_state()
-            self.current_frame = state.screen_buffer if state else None
-            self.current_info = self._extract_game_specific_info()
+            if state is None:
+                raise RuntimeError("Failed to get initial game state")
+            
+            # Save current frame
+            self.current_frame = state.screen_buffer
             
             # Create observation
-            img_path = None
-            if self.observation_mode in ("vision", "both") and self.current_frame is not None:
+            obs = Observation()
+            obs.raw_observation = self.current_frame
+            obs.textual_representation = self._text_repr()
+            obs.processed_visual_description = ""  # Will be filled by perception module
+            
+            # Save frame and set image path
+            if self.observation_mode in ("vision", "both"):
                 img_path = self.adapter.save_frame_and_get_path(self.current_frame)
+                obs.img_path = img_path
             
-            obs = self.adapter.create_agent_observation(
-                img_path=img_path,
-                text_representation=self._text_repr()
+            # Initialize game trajectory
+            from gamingagent.modules.core_module import GameTrajectory
+            obs.game_trajectory = GameTrajectory(max_length=100)
+            
+            # Add initial state to trajectory
+            ts = datetime.datetime.now().isoformat(timespec="seconds")
+            initial_entry = (
+                f"##Turn Hash\n[{ts}]\n"
+                f"###Obs\n{obs.textual_representation}\n"
+                f"###Action\nreset\n"
+                f"###Thought\nInitializing new episode\n"
             )
+            obs.game_trajectory.add(initial_entry)
             
-            return obs, self.current_info.copy()
+            # Extract game info
+            self.current_info = self._extract_game_specific_info()
+            self.current_info['episode_id'] = episode_id
+            
+            # Store current observation for next step
+            self.last_observation = obs
+            
+            print(f"[{time.time()}] Environment reset complete.", file=sys.stderr)
+            return obs, self.current_info
             
         except Exception as e:
-            self.logger.error(f"Error in reset: {e}")
+            print(f"[{time.time()}] Error during reset: {e}", file=sys.stderr)
+            self.logger.error(f"Failed to reset environment: {e}")
             raise
 
     def step(
@@ -411,19 +453,7 @@ class DoomEnvWrapper(gym.Env):
         thought_process: str = "",
         time_taken_s: float = 0.0
     ) -> Tuple[Observation, float, bool, bool, Dict[str, Any], float]:
-        """Execute an action and return the next observation.
-        
-        Args:
-            agent_action_str: Action string from the agent
-            thought_process: Agent's thought process (unused)
-            time_taken_s: Time taken by agent to decide (unused)
-            
-        Returns:
-            Tuple of (observation, reward, terminated, truncated, info, performance_score)
-            
-        Raises:
-            RuntimeError: If step execution fails
-        """
+        """Execute an action and return the next observation."""
         try:
             # Convert action to buttons
             buttons = self._buttons_from_str(agent_action_str)
@@ -435,22 +465,65 @@ class DoomEnvWrapper(gym.Env):
             # Get new state
             if not done:
                 state = self.game.get_state()
-                self.current_frame = state.screen_buffer if state else None
+                if state is None:
+                    raise RuntimeError("Failed to get game state after action")
+                self.current_frame = state.screen_buffer
                 self.current_info = self._extract_game_specific_info()
             
             # Create observation
-            img_path = None
+            obs = Observation()
+            obs.raw_observation = self.current_frame if not done else None
+            obs.textual_representation = self._text_repr()
+            obs.processed_visual_description = ""  # Will be filled by perception module
+            
+            # Save frame and set image path
             if self.observation_mode in ("vision", "both") and self.current_frame is not None:
                 img_path = self.adapter.save_frame_and_get_path(self.current_frame)
+                obs.img_path = img_path
             
-            obs = self.adapter.create_agent_observation(
-                img_path=img_path,
-                text_representation=self._text_repr()
+            # Maintain game trajectory
+            if hasattr(self, 'last_observation') and hasattr(self.last_observation, 'game_trajectory'):
+                obs.game_trajectory = self.last_observation.game_trajectory
+            else:
+                from gamingagent.modules.core_module import GameTrajectory
+                obs.game_trajectory = GameTrajectory(max_length=100)
+            
+            # Add current step to trajectory
+            ts = datetime.datetime.now().isoformat(timespec="seconds")
+            step_entry = (
+                f"##Turn Hash\n[{ts}]\n"
+                f"###Obs\n{obs.textual_representation}\n"
+                f"###Action\n{agent_action_str if agent_action_str else 'no_action'}\n"
+                f"###Thought\n{thought_process if thought_process else 'No thought provided'}\n"
             )
+            obs.game_trajectory.add(step_entry)
+            
+            # Store current observation for next step
+            self.last_observation = obs
+            
+            # Create game state dict for memory module
+            game_state = {
+                "textual_representation": obs.textual_representation,
+                "processed_visual_description": obs.processed_visual_description,
+                "img_path": obs.img_path,
+                "action": agent_action_str,
+                "thought": thought_process,
+                "reward": reward,
+                "done": done,
+                "game_trajectory": obs.game_trajectory,
+                "prev_context": self.last_observation.textual_representation if hasattr(self, 'last_observation') else "",
+                "current_observation": obs.textual_representation,
+                "perception_data": "",  # Will be filled by perception module
+                "memory_summary": ""    # Will be filled by memory module
+            }
+            
+            # Update current info with game state
+            self.current_info.update(game_state)
             
             return obs, reward, done, False, self.current_info.copy(), 0.0
             
         except Exception as e:
+            print(f"[{time.time()}] Error in step: {e}", file=sys.stderr)
             self.logger.error(f"Error in step: {e}")
             raise
 
