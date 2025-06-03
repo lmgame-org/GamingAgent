@@ -212,9 +212,13 @@ class ReasoningModule(CoreModule):
             result["thought"] = thought_match.group(1).strip()
         
         # Find action section using regex (case insensitive)
-        action_match = re.search(action_pattern, response, re.DOTALL | re.IGNORECASE)
-        if action_match:
-            result["action"] = action_match.group(1).strip()
+        # action_match = re.search(action_pattern, response, re.DOTALL | re.IGNORECASE)
+        action_matches = re.findall(action_pattern, response.replace('#', '').replace('`', '').replace('\"', '').replace('*',''), re.DOTALL | re.IGNORECASE)
+        if action_matches:
+            last_action = action_matches[-1].strip()
+            result["action"] = last_action
+            print(f"Last action extracted: {last_action}")
+        #     result["action"] = action_match.group(1).strip()
         
         # If no structured format was found, treat the whole response as thought
         if not result["thought"] and not result["action"]:
