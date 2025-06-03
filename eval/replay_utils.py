@@ -581,7 +581,7 @@ def visualize_sokoban_frame(elements: Dict[str, List[Tuple[int, int]]], extra_in
     
     # Draw info panel on the right
     info_x_start = board_width + 80  # Increased spacing from board
-    info_y_start = 50
+    info_y_start = board_y_offset  # Align with board position instead of fixed 50
     
     try:
         font_large = ImageFont.load_default()
@@ -728,7 +728,7 @@ def visualize_candy_crush_frame(board: List[List[str]], extra_info: str = "", co
     
     # Draw info panel on the right
     info_x_start = board_width + 40
-    info_y_start = 30
+    info_y_start = board_y_offset  # Align with board position instead of fixed 30
     
     try:
         font_large = ImageFont.load_default()
