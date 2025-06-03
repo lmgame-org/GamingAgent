@@ -503,18 +503,24 @@ class DoomEnvWrapper(gym.Env):
             
             # Create game state dict for memory module
             game_state = {
+                # Base module fields
                 "textual_representation": obs.textual_representation,
-                "processed_visual_description": obs.processed_visual_description,
+                
+                # Perception module fields
                 "img_path": obs.img_path,
-                "action": agent_action_str,
-                "thought": thought_process,
-                "reward": reward,
-                "done": done,
-                "game_trajectory": obs.game_trajectory,
+                
+                # Memory module fields
                 "prev_context": self.last_observation.textual_representation if hasattr(self, 'last_observation') else "",
                 "current_observation": obs.textual_representation,
-                "perception_data": "",  # Will be filled by perception module
-                "memory_summary": ""    # Will be filled by memory module
+                "perception_data": obs.processed_visual_description,
+                
+                # Reasoning module fields
+                "processed_visual_description": obs.processed_visual_description,
+                "game_trajectory": obs.game_trajectory,
+                "reflection": "",  # Will be filled by memory module
+                
+                # Environment state tracking
+                "done": done
             }
             
             # Update current info with game state
