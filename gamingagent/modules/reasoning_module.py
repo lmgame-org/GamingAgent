@@ -223,7 +223,7 @@ class ReasoningModule(CoreModule):
             result["thought"] = thought_match.group(1).strip()
         
         # Find action section using regex (case insensitive)
-        action_match = re.search(action_pattern, response, re.DOTALL | re.IGNORECASE)
+        action_match = re.search(action_pattern, response.replace('#', "").replace('`', '').replace('\"', '').replace('*', ''), re.DOTALL | re.IGNORECASE)
         if action_match:
             result["action"] = action_match.group(1).strip()
         

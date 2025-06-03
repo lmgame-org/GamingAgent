@@ -38,6 +38,10 @@ def anthropic_completion(system_prompt, model_name, base64_image, prompt, thinki
         print("claude-3-7 supports 64000 tokens")
         token_limit = 64000
 
+    if "claude-opus-4" in model_name.lower() and token_limit > 32000:
+        print("claude-opus-4 supports 32000 tokens")
+        token_limit = 32000
+
     if thinking:
         with client.messages.stream(
                 max_tokens=token_limit,
@@ -92,6 +96,10 @@ def anthropic_text_completion(system_prompt, model_name, prompt, thinking=False,
         thinking = False
         token_limit = 8192
 
+    if "claude-opus-4" in model_name.lower() and token_limit > 32000:
+        print("claude-opus-4 supports 32000 tokens")
+        token_limit = 32000
+
     if thinking:
         with client.messages.stream(
                 max_tokens=token_limit,
@@ -126,6 +134,10 @@ def anthropic_text_completion(system_prompt, model_name, prompt, thinking=False,
 
 def anthropic_multiimage_completion(system_prompt, model_name, prompt, list_content, list_image_base64, token_limit=30000):
     client = anthropic.Anthropic(api_key=os.getenv("ANTHROPIC_API_KEY"))
+
+    if "claude-opus-4" in model_name.lower() and token_limit > 32000:
+        print("claude-opus-4 supports 32000 tokens")
+        token_limit = 32000
     
     content_blocks = [] 
     for text_item, base64_image in zip(list_content, list_image_base64):
@@ -588,6 +600,10 @@ def together_ai_completion(system_prompt, model_name, prompt, base64_image=None,
         # Initialize client without explicitly passing API key
         # It will automatically use TOGETHER_API_KEY environment variable
         client = Together()
+
+        if "qwen3" in model_name.lower() and token_limit > 25000:
+            token_limit = 25000
+            print(f"qwen3 only supports 40960 tokens, setting token_limit={token_limit} safely excluding input tokens")
         
         if base64_image is not None:
             response = client.chat.completions.create(
@@ -640,6 +656,10 @@ def together_ai_text_completion(system_prompt, model_name, prompt, temperature=1
         # Initialize client without explicitly passing API key
         # It will automatically use TOGETHER_API_KEY environment variable
         client = Together()
+
+        if "qwen3" in model_name.lower() and token_limit > 25000:
+            token_limit = 25000
+            print(f"qwen3 only supports 40960 tokens, setting token_limit={token_limit} safely excluding input tokens")
         
         # Format messages with system prompt if provided
         messages = []
@@ -703,6 +723,10 @@ def together_ai_multiimage_completion(system_prompt, model_name, prompt, list_co
         
         # Prepare message with multiple images and text
         content_blocks = []
+
+        if "qwen3" in model_name.lower() and token_limit > 25000:
+            token_limit = 25000
+            print(f"qwen3 only supports 40960 tokens, setting token_limit={token_limit} safely excluding input tokens")
         
         # Add text content
         joined_text = "\n\n".join(list_content)
