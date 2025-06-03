@@ -1,0 +1,84 @@
+{
+  "models": [
+    {
+      "name": "o4-mini 2025-04-16",
+      "scores": {
+        "sokoban": {
+          "memory": [1, 2, 1],
+          "vision": [3, 7, 6]
+        },
+        "2048": {
+          "memory": [5584, 3016, 1464],
+          "vision": [5500, 2732, 2440]
+        }
+      }
+    },
+    {
+      "name": "Gemini-2.5 Pro (03-25)",
+      "scores": {
+        "sokoban": {
+          "memory": [1, 1, 1],
+          "vision": [4, 6, 8]
+        },
+        "2048": {
+          "memory": [3152, 6756, 2136],
+          "vision": [2520, 5392, 2968]
+        }
+      }
+    },
+    {
+      "name": "Claude-3.7 Sonnet Thinking",
+      "scores": {
+        "sokoban": {
+          "memory": [0, 1, 0],
+          "vision": [0, 1, 1]
+        },
+        "2048": {
+          "memory": [1324, 2516, 1424],
+          "vision": [2468, 3504, 2996]
+        }
+      }
+    },
+    {
+      "name": "llama-4-maverick",
+      "scores": {
+        "sokoban": {
+          "memory": [0, 0, 0],
+          "vision": [0, 0, 0]
+        },
+        "2048": {
+          "memory": [1052, 1036, 664],
+          "vision": [56, 488, 164]
+        }
+      }
+    },
+    {
+      "name": "claude-3-5-sonnet-20241022",
+      "scores": {
+        "sokoban": {
+          "memory": [0, 0, 0],
+          "vision": [0, 0, 0]
+        },
+        "2048": {
+          "basic": 84,
+          "harness": 1914.67,
+          "memory": [1372, 1092, 1216],
+          "vision": [196, 96, 52]
+        }
+      }
+    },
+    {
+      "name": "gpt-4o",
+      "scores": {
+        "sokoban": {
+          "memory": [0, 0, 0],
+          "vision": [0, 0, 0]
+        },
+        "2048": {
+          "memory": [2760, 1300, 1284],
+          "vision": [168, 108, 228]
+        }
+      }
+    }
+  ]
+}

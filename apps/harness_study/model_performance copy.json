@@ -1,0 +1,328 @@
+{
+  "models": [
+    {
+      "name": "claude-3-5-sonnet-20241022",
+      "with_harness": false,
+      "scores": {
+        "Sokoban": [0, 0, 0],
+        "Super Mario Bros": [1551, 1515, 1554],
+        "Tetris": [10, 15, 12],
+        "2048": [188, 20, 44],
+        "Candy Crush": [15, 36, 0],
+        "Ace Attorney": [1]
+      }
+    },
+    {
+      "name": "claude-3-5-sonnet-20241022",
+      "with_harness": true,
+      "scores": {
+        "Sokoban": [0, 0, 0],
+        "Super Mario Bros": [709, 1532, 1562],
+        "Tetris": [16, 14, 14],
+        "2048": [1352, 2860, 1532],
+        "Candy Crush": [92, 165, 61],
+        "Ace Attorney": [2]
+      }
+    },
+    {
+      "name": "claude-3-7-sonnet-20250219 (thinking)",
+      "with_harness": false,
+      "scores": {
+        "Sokoban": [0, 0, 0],
+        "Super Mario Bros": [1532, 1515, 1243],
+        "Tetris": [13, 13, 13],
+        "2048": [1596, 4256, 3008],
+        "Candy Crush": [148, 182, 49],
+        "Ace Attorney": [3]
+      }
+    },
+    {
+      "name": "claude-3-7-sonnet-20250219 (thinking)",
+      "with_harness": true,
+      "scores": {
+        "Sokoban": [2, 4, 1],
+        "Super Mario Bros": [2015, 709, 1532],
+        "Tetris": [19, 15, 15],
+        "2048": [2560, 3224, 2088],
+        "Candy Crush": [535, 428, 489],
+        "Ace Attorney": [7]
+      }
+    },
+    {
+      "name": "deepseek-r1",
+      "with_harness": false,
+      "scores": {
+        "Sokoban": null,
+        "Super Mario Bros": null,
+        "Tetris": null,
+        "2048": null,
+        "Candy Crush": null,
+        "Ace Attorney": null
+      }
+    },
+    {
+      "name": "deepseek-r1",
+      "with_harness": true,
+      "scores": {
+        "Sokoban": [2, 0, 2],
+        "Super Mario Bros": null,
+        "Tetris": [15, 14, 14],
+        "2048": [700, 1240, 3680],
+        "Candy Crush": [409, 436, 497],
+        "Ace Attorney": [0]
+      }
+    },
+    {
+      "name": "gemini-2.5-flash-preview-04-17",
+      "with_harness": false,
+      "scores": {
+        "Sokoban": [0, 0, 0],
+        "Super Mario Bros": [1794, 1270, 1558],
+        "Tetris": [15, 18, 24],
+        "2048": [2228, 1424, 1564],
+        "Candy Crush": [60, 101, 132],
+        "Ace Attorney": [1]
+      }
+    },
+    {
+      "name": "gemini-2.5-flash-preview-04-17",
+      "with_harness": true,
+      "scores": {
+        "Sokoban": [3, 0, 2],
+        "Super Mario Bros": [1672, 1266, 1247],
+        "Tetris": [20, 14, 15],
+        "2048": [1304, 1316, 2472],
+        "Candy Crush": [259, 372, 373],
+        "Ace Attorney": [4]
+      }
+    },
+    {
+      "name": "gemini-2.5-pro-preview-05-06",
+      "with_harness": false,
+      "scores": {
+        "Sokoban": [1, 1, 1],
+        "Super Mario Bros": [820,1534,722],
+        "Tetris": [15, 9, 13],
+        "2048": [5784, 3544, 3704],
+        "Candy Crush": [117, 169, 246],
+        "Ace Attorney": [8]
+      }
+    },
+    {
+      "name": "gemini-2.5-pro-preview-05-06",
+      "with_harness": true,
+      "scores": {
+        "Sokoban": [4, 4, 5],
+        "Super Mario Bros": [1561, 1271, 1663],
+        "Tetris": [23, 23, 24],
+        "2048": [5300, 2400, 3060],
+        "Candy Crush": [411, 414, 424],
+        "Ace Attorney": [7]
+      }
+    },
+    {
+      "name": "grok-3-mini-beta (thinking)",
+      "with_harness": false,
+      "scores": {
+        "Sokoban": null,
+        "Super Mario Bros": null,
+        "Tetris": null,
+        "2048": null,
+        "Candy Crush": null,
+        "Ace Attorney": null
+      }
+    },
+    {
+      "name": "grok-3-mini-beta (thinking)",
+      "with_harness": true,
+      "scores": {
+        "Sokoban": [5, 6, 6],
+        "Super Mario Bros": null,
+        "Tetris": [20, 15, 29],
+        "2048": [6412, 2492, 3204],
+        "Candy Crush": [299, 332, 131],
+        "Ace Attorney": [0]
+      }
+    },
+    {
+      "name": "llama-4-maverick-17b-128e-instruct-fp8",
+      "with_harness": false,
+      "scores": {
+        "Sokoban": [0, 0, 0],
+        "Super Mario Bros": [837, 300, 1221],
+        "Tetris": [13, 11, 11],
+        "2048": [16, 56, 12],
+        "Candy Crush": [18, 79, 0],
+        "Ace Attorney": [0]
+      }
+    },
+    {
+      "name": "llama-4-maverick-17b-128e-instruct-fp8",
+      "with_harness": true,
+      "scores": {
+        "Sokoban": [0, 0, 0],
+        "Super Mario Bros": [898, 2008, 1500],
+        "Tetris": [9, 10, 12],
+        "2048": [1404, 1272, 2084],
+        "Candy Crush": [67, 139, 180],
+        "Ace Attorney": [0]
+      }
+    },
+    {
+      "name": "gpt-4.1-2025-04-14",
+      "with_harness": false,
+      "scores": {
+        "Sokoban": [0, 0, 0],
+        "Super Mario Bros": [1563, 1257, 3154],
+        "Tetris": [11, 14, 14],
+        "2048": [264, 500, 2576],
+        "Candy Crush": [13, 238, 52],
+        "Ace Attorney": [0]
+      }
+    },
+    {
+      "name": "gpt-4.1-2025-04-14",
+      "with_harness": true,
+      "scores": {
+        "Sokoban": [0, 0, 0],
+        "Super Mario Bros": [1531, 722, 4126],
+        "Tetris": [13, 14, 14],
+        "2048": [1156, 2664, 1148],
+        "Candy Crush": [163, 215, 168],
+        "Ace Attorney": [2]
+      }
+    },
+    {
+      "name": "gpt-4o-2024-11-20",
+      "with_harness": false,
+      "scores": {
+        "Sokoban": [0, 0, 0],
+        "Super Mario Bros": [1565, 297, 1223],
+        "Tetris": [14, 17, 13],
+        "2048": [292, 196, 40],
+        "Candy Crush": [29, 122, 26],
+        "Ace Attorney": [0]
+      }
+    },
+    {
+      "name": "gpt-4o-2024-11-20",
+      "with_harness": true,
+      "scores": {
+        "Sokoban": [0, 0, 0],
+        "Super Mario Bros": [2017, 2590, 1535],
+        "Tetris": [18, 11, 13],
+        "2048": [1604, 1284, 2080],
+        "Candy Crush": [131, 104, 207],
+        "Ace Attorney": [0]
+      }
+    },
+    {
+      "name": "o1-2024-12-17",
+      "with_harness": false,
+      "scores": {
+        "Sokoban": [0],
+        "Super Mario Bros": [1434],
+        "Tetris": [13],
+        "2048": [7176],
+        "Candy Crush": [90],
+        "Ace Attorney": [3]
+      }
+    },
+    {
+      "name": "o1-2024-12-17",
+      "with_harness": true,
+      "scores": {
+        "Sokoban": [2, 2, 3],
+        "Super Mario Bros": [855],
+        "Tetris": [35],
+        "2048": [7580],
+        "Candy Crush": [159],
+        "Ace Attorney": [16]
+      }
+    },
+    {
+      "name": "o1-mini-2024-09-12",
+      "with_harness": false,
+      "scores": {
+        "Sokoban": null,
+        "Super Mario Bros": null,
+        "Tetris": null,
+        "2048": null,
+        "Candy Crush": null,
+        "Ace Attorney": null
+      }
+    },
+    {
+      "name": "o1-mini-2024-09-12",
+      "with_harness": true,
+      "scores": {
+        "Sokoban": [1, 2, 1],
+        "Super Mario Bros": null,
+        "Tetris": [11, 11, 13],
+        "2048": [3132, 2004, 3136],
+        "Candy Crush": [21, 86, 37],
+        "Ace Attorney": [0]
+      }
+    },
+    {
+      "name": "o3-2025-04-16",
+      "with_harness": false,
+      "scores": {
+        "Sokoban": [2],
+        "Super Mario Bros": [1955],
+        "Tetris": [31],
+        "2048": [7220],
+        "Candy Crush": [106],
+        "Ace Attorney": [8]
+      }
+    },
+    {
+      "name": "o3-2025-04-16",
+      "with_harness": true,
+      "scores": {
+        "Sokoban": [10, 6],
+        "Super Mario Bros": [3445],
+        "Tetris": [42],
+        "2048": [7120],
+        "Candy Crush": [647],
+        "Ace Attorney": [16]
+      }
+    },
+    {
+      "name": "o4-mini-2025-04-16",
+      "with_harness": false,
+      "scores": {
+        "Sokoban": [1, 2, 1],
+        "Super Mario Bros": [1554, 1245, 1246],
+        "Tetris": [14, 12, 19],
+        "2048": [3004, 84, 2560],
+        "Candy Crush": [82, 82, 168],
+        "Ace Attorney": [2]
+      }
+    },
+    {
+      "name": "o4-mini-2025-04-16",
+      "with_harness": true,
+      "scores": {
+        "Sokoban": [4, 6, 6],
+        "Super Mario Bros": [1525, 1263, 1556],
+        "Tetris": [22, 35, 19],
+        "2048": [4928, 5456, 2912],
+        "Candy Crush": [259, 591, 612],
+        "Ace Attorney": [4]
+      }
+    },
+    {
+      "name": "Random",
+      "with_harness": null,
+      "scores": {
+        "Sokoban": [0, 0, 0],
+        "Super Mario Bros": [722, 712, 305],
+        "Tetris": [9, 10, 10],
+        "2048": [1424, 1052, 1208],
+        "Candy Crush": [59, 59, 59],
+        "Ace Attorney": [0, 0, 0]
+      }
+    }
+  ]
+} 
