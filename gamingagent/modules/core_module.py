@@ -4,7 +4,7 @@ import datetime
 from abc import ABC, abstractmethod
 from tools.serving import APIManager
 from dataclasses import dataclass
-from typing import Optional, Any
+from typing import Optional, Dict, Any
 
 from collections import deque
 
@@ -14,18 +14,36 @@ import string
 ########################################################################################
 @dataclass
 class GameTrajectory:
-    def __init__(self, max_length: int = 10):
+    def __init__(self, max_length: int = 10, need_background: bool = False, background_prefix_str: Optional[str] = "Game Background:"):
         self.history_length = max_length
         self.trajectory = deque(maxlen=max_length)
+        self.need_background = need_background
+        self.background: Optional[str] = None
+        self.background_prefix_string: Optional[str] = background_prefix_str
 
     def add(self, entry: str):
         self.trajectory.append(entry)
+    
+    def set_background(self, background_content: str):
+        """Sets the background content for the trajectory, intended to be called once."""
+        if self.background is None: # Only set if not already set
+            self.background = background_content
 
     def get(self) -> Optional[str]:
         if not self.trajectory:
-            return None
-        return f"Past {self.history_length} turn(s) game trajectory (each turn an unique hash)\n" + "\n".join(self.trajectory)
-
+            history_text_repr = ""
+        else:
+            history_text_repr = f"Past {self.history_length} turn(s) game trajectory (each turn an unique hash)\n" + "\n".join(self.trajectory)
+        
+        if self.need_background and self.background is not None:
+            if history_text_repr: # If there is history, add background before it
+                return f"{self.background_prefix_string}\n{self.background}\n\n{history_text_repr}"
+            else: # If no history, just return the background
+                return f"{self.background_prefix_string}\n{self.background}"
+        elif not self.trajectory: # No background needed and no trajectory
+             return None
+        else: # Background not needed or not set, but trajectory exists
+            return history_text_repr
 
 @dataclass
 class Observation:
@@ -52,22 +70,30 @@ class Observation:
         "reflection",
     }
 
+    EPISODICAL_ATTR = {
+        "background",
+    }
+
     def __init__(
         self,
         img_path: Optional[str] = None,
         game_trajectory: Optional[GameTrajectory] = None,
         reflection: Optional[str] = None,
         processed_visual_description: Optional[str] = None,
-        textual_representation: Optional[str] = None
+        textual_representation: Optional[str] = None,
+        background: Optional[str] = None,
+        trajectory_includes_background: bool = True
     ):
         """
         Initialize an Observation instance.
         """
-        self.game_trajectory = game_trajectory or GameTrajectory(max_length=10)
+        self.game_trajectory = game_trajectory or GameTrajectory(max_length=10, need_background=trajectory_includes_background)
         self.img_path = img_path
         self.reflection = reflection
         self.processed_visual_description = processed_visual_description
         self.textual_representation = textual_representation
+        self.background = background
+        self.trajectory_includes_background = trajectory_includes_background
     
     def set_perception_observation(self, observation=None, img_path=None, textual_representation=None, processed_visual_description=None):
         """
@@ -94,7 +120,6 @@ class Observation:
                  self.reflection = observation.reflection
 
         # Update/override with individual arguments if they are provided.
-        # These apply regardless of whether 'observation' (object) was passed, allowing specific overrides.
         if img_path is not None:
             self.img_path = img_path
                 
@@ -126,7 +151,7 @@ class Observation:
                 self.textual_representation = observation.textual_representation
             if hasattr(observation, 'processed_visual_description') and observation.processed_visual_description is not None:
                 self.processed_visual_description = observation.processed_visual_description
-                
+
         # Update/override with individual arguments if they are provided
         if game_trajectory is not None:
             self.game_trajectory = game_trajectory
@@ -167,6 +192,15 @@ class Observation:
         """
         return self.textual_representation if self.textual_representation is not None else ""
 
+    def get_background(self) -> str:
+        """
+        Get the static background information for the episode (as a string).
+        
+        Returns:
+            str: The background information or empty string if None
+        """
+        return self.background if self.background is not None else ""
+    
     def get_complete_prompt(
         self,
         observation_mode,
@@ -190,24 +224,38 @@ class Observation:
         harness_content_map = {name: "N/A" for name in var_names}
         # Fill in existing values
         for name in var_names:
-            attr = getattr(self, name, None)
             if name == "game_trajectory":
-                harness_content_map[name] = attr.get() if attr else "N/A"
+                gt_instance = getattr(self, name, None)
+                harness_content_map[name] = gt_instance.get() if gt_instance else "N/A"
+            elif name == "background":
+                # If 'background' is explicitly requested by the template,
+                # provide it only if trajectory_includes_background is true and background has content.
+                if self.trajectory_includes_background and self.background is not None:
+                    harness_content_map[name] = self.background
+                else:
+                    harness_content_map[name] = "N/A" # Explicitly N/A if not applicable or not set
             else:
-                harness_content_map[name] = attr if attr is not None else "N/A"
+                # For other attributes like textual_representation, reflection, processed_visual_description
+                attr_val = getattr(self, name, None)
+                harness_content_map[name] = attr_val if attr_val is not None else "N/A"
         
         # Determine allowed variables
         # TODO: make the code segment debug-use only
         allowed_vars = set()
-        if observation_mode in ["text", "both"]:
-            allowed_vars |= self.BASE_ATTR
+        # textual_representation is always a possibility
+        if "textual_representation" in self.BASE_ATTR: # Check if it's defined in BASE_ATTR
+            allowed_vars.add("textual_representation")
+
+        if self.trajectory_includes_background: # The flag on Observation determines if background is "allowed"
+            allowed_vars |= self.EPISODICAL_ATTR 
+
         if use_perception_module:
             allowed_vars |= self.PERCEPTION_ATTR
         if use_memory_module:
             allowed_vars |= self.MEMORY_ATTR
 
-        print("allowed variables:")
-        print(allowed_vars)
+        # print("allowed variables:")
+        # print(allowed_vars)
 
         return prompt_template.format(**harness_content_map)
 
@@ -223,7 +271,8 @@ class Observation:
             "game_trajectory": self.game_trajectory.get() if self.game_trajectory else None,
             "reflection": self.reflection,
             "processed_visual_description": self.processed_visual_description,
-            "textual_representation": self.textual_representation
+            "textual_representation": self.textual_representation,
+            "background": self.background if self.trajectory_includes_background else None,
         }
         return json.dumps(data)
 

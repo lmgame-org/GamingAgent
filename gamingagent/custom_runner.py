@@ -7,8 +7,9 @@ import numpy as np
 import yaml
 from typing import Any
 import sys
+import re
 
-import gym
+import gymnasium as gym
 
 import retro
 from retro.enums import Actions, Observations, State # retro.data will be used directly for Integrations
@@ -169,7 +170,7 @@ def create_environment(game_name_arg: str,
             env_init_params['max_stuck_steps_for_adapter'] = 20
 
         print(f"Initializing environment: {game_name_arg} with params: {env_init_params}")
-        env = CandyCrushEnv(
+        env = CandyCrushEnvWrapper(
             # Parameters for CandyCrushEnv -> TileMatchEnv core
             num_rows_override=env_init_params.get('num_rows'),
             num_cols_override=env_init_params.get('num_cols'),
@@ -410,12 +411,26 @@ def run_game_episode(agent: BaseAgent, game_env: gym.Env, episode_id: int, args:
         
         thought_process = action_dict.get("thought", "") if action_dict else "No thought process due to API failure."
 
+        # --- MODIFIED: Extract raw LLM output to pass to env.step ---
+        raw_llm_output_for_env = None
+
+        if action_dict:
+            if "raw_response_str" in action_dict and isinstance(action_dict["raw_response_str"], str):
+                raw_llm_output_for_env = action_dict["raw_response_str"]
+        else:
+            print("[Runner DEBUG] action_dict is None") # DEBUG
+        
+        # Conditionally pass raw_llm_output_for_next_obs
+        step_args = {
+            "agent_action_str": action_str_agent,
+            "thought_process": thought_process,
+            "time_taken_s": time_taken_s
+        }
+        if args.game_name == "ace_attorney":
+            step_args["raw_llm_output_for_next_obs"] = raw_llm_output_for_env
+        
         # Step the environment using the new signature, including agent action details
-        agent_observation, reward, terminated, truncated, last_info, current_step_perf_score = game_env.step(
-            agent_action_str=action_str_agent, 
-            thought_process=thought_process, 
-            time_taken_s=time_taken_s
-        )
+        agent_observation, reward, terminated, truncated, last_info, current_step_perf_score = game_env.step(**step_args)
         
         # Ensure game trajectory is maintained
         if hasattr(processed_agent_observation, 'game_trajectory'):
@@ -497,7 +512,6 @@ def main():
                         if loaded_yaml.get('agent'):
                             agent_config_yaml = loaded_yaml['agent']
                             defaults_from_yaml['model_name'] = agent_config_yaml.get('model_name')
-                            defaults_from_yaml['harness'] = agent_config_yaml.get('harness')
                             defaults_from_yaml['observation_mode'] = agent_config_yaml.get('observation_mode')
                             
                             # Still load max_memory from its specific module config if present
@@ -510,12 +524,7 @@ def main():
         else:
             # This print is for when the specific game's config.yaml is not found
             print(f"Info: Game-specific config file {config_file_path} not found. Using command-line args and built-in defaults.")
-    # If config_dir_name was None (e.g. game_name not passed to prelim_parser), 
-    # config_file_path remains None, and we skip loading YAML defaults.
 
-    # DEBUG PRINT 2: Remaining argv and defaults_map
-    # print(f"DEBUG: remaining_argv before parse_arguments: {remaining_argv}")
-    # print(f"DEBUG: defaults_from_yaml before parse_arguments: {defaults_from_yaml}")
 
     args = parse_arguments(defaults_map=defaults_from_yaml, argv_to_parse=remaining_argv)
 

@@ -239,126 +239,161 @@ def log_raw_data(step, action, reward, info, observation, run_id=1):
 class CandyCrushAgent:
     """A Candy Crush agent that uses either base module or perception+memory+reasoning modules."""
     
-    def __init__(self, model_name="claude-3-7-sonnet-latest", use_base_module=False):
+    def __init__(self, model_name="claude-3-7-sonnet-latest", agent_mode="full"):
         """Initialize the agent with either base module or full pipeline."""
         self.model_name = model_name
-        self.use_base_module = use_base_module
+        self.agent_mode = agent_mode
         self.last_action = None
         
-        if use_base_module:
-            print(f"Using Base Module with model: {model_name}")
+        self.base_module = None
+        self.perception_module = None
+        self.memory_module = None
+        self.reasoning_module = None
+
+        print(f"Initializing CandyCrushAgent with mode: {self.agent_mode}, model: {self.model_name}")
+
+        if self.agent_mode == "base":
             self.base_module = CandyCrushBaseModule(model_name=model_name)
-        else:
-            print(f"Using full pipeline (Perception + Memory + Reasoning) with model: {model_name}")
+            print("Base Module initialized.")
+        elif self.agent_mode == "memory_reasoning": # Base + Memory
+            self.base_module = CandyCrushBaseModule(model_name=model_name)
+            self.memory_module = CandyCrushMemoryModule(
+                model_name=model_name,
+                memory_file=MEMORY_FILE
+            )
+            print("Base Module and Memory Module initialized for Memory+Reasoning (Base+Memory) mode.")
+        elif self.agent_mode == "full":
             self.perception_module = CandyCrushPerceptionModule(model_name=model_name)
             self.memory_module = CandyCrushMemoryModule(
                 model_name=model_name,
                 memory_file=MEMORY_FILE
             )
             self.reasoning_module = CandyCrushReasoningModule(model_name=model_name)
+            print("Full pipeline (Perception, Memory, Reasoning) initialized.")
+        elif self.agent_mode == "perception_reasoning":
+            self.perception_module = CandyCrushPerceptionModule(model_name=model_name)
+            self.reasoning_module = CandyCrushReasoningModule(model_name=model_name)
+            print("Perception and Reasoning modules initialized.")
+        else:
+            raise ValueError(f"Unknown agent_mode: {self.agent_mode}")
     
     async def get_action(self, observation, info=None, max_retries_const=1):
         """Get the next action from the agent."""
         try:
-            if self.use_base_module:
-                # Base module: Use RGB image directly if available, otherwise use info
-                print("\n" + "="*80)
-                action_plan = self.base_module.process_observation(observation, info)
-                print("\nACTION PLAN:")
-                print(f"Action: {action_plan['move']}")
-                print(f"Thought: {action_plan['thought']}")
-                print("="*80 + "\n")
-                self.last_action = action_plan["move"]
-                return action_plan, None, None
-            else:
-                # Full pipeline approach
-                # Step 1: Perception - Analyze the game board
-                perception_data = self.perception_module.analyze_board(observation, info)
-                
-                # Print perception data
-                print("\n" + "="*80)
-                print("PERCEPTION DATA:")
-                print(f"Potential matches: {len(perception_data.get('potential_matches', []))}")
-                print(f"Highest color: {perception_data.get('highest_color', 'Unknown')}")
-                print(f"Empty spaces: {len(perception_data.get('empty_spaces', []))}")
-                
+            action_plan = None
+            perception_data_for_log = None # What the agent perceived for the current state decision
+            memory_summary_for_log = None  # What memory was used for the current state decision
 
-                # Step 2: Memory - Add to memory and generate reflection with retry logic
-                max_retries = max_retries_const
-                retry_count = 0
-                memory_summary = None
-                self.memory_module.add_game_state(perception_data, self.last_action)
+            if self.agent_mode == "base":
+                # Observation for base is the frame, info is the original obs dict + img_path
+                print("\n" + "="*80)
+                action_plan = self.base_module.process_observation(observation, info, memory_summary=None) # No memory for pure base
+                print("\nACTION PLAN (Base):")
+                print(f"Action: {action_plan.get('move')}")
+                print(f"Thought: {action_plan.get('thought', '')}")
+                print("="*80 + "\n")
+                self.last_action = action_plan.get("move")
+                # perception_data_for_log and memory_summary_for_log remain None for pure base
+                return action_plan, None, None
+            
+            elif self.agent_mode == "memory_reasoning": # Now Base + Memory
+                # Observation is frame (image), info is enriched_env_obs_dict (contains raw obs + img_path)
+                print("\n" + "="*80)
+                print(f"ENTERING AGENT MODE: {self.agent_mode}")
+
+                # Step 1: Retrieve Memory Summary (history *before* this current observation)
+                memory_summary = self.memory_module.get_memory_summary()
+                memory_summary_for_log = memory_summary
+
+                # Step 2: Decision Making using BaseModule + Memory
+                action_plan = self.base_module.process_observation(
+                    observation,  # This is the frame_image
+                    info,         # This is the enriched_env_obs_dict
+                    memory_summary=memory_summary
+                )
+
+                # Step 3: Prepare current state's textual representation for logging (perception_data_for_log)
+                # This textual form represents the state upon which the vision-based decision was made.
+                # `info` (enriched_env_obs_dict) contains the raw `obs` data needed for this.
+                if not isinstance(info, dict) or 'board' not in info:
+                    print("Critical Error: `info` dictionary or `info['board']` is missing for memory_reasoning state logging.")
+                    current_state_textual_for_log = {"error": "Missing info for perception log"}
+                else:
+                    # Use CandyCrushPerceptionModule to get a structured textual representation of the current state from `info`
+                    # (info is the enriched version of the raw obs dict)
+                    temp_perception_module = CandyCrushPerceptionModule(model_name=self.model_name)
+                    # analyze_board expects obs["board"] as first arg, and full obs dict as second for other info like num_moves
+                    current_state_textual_for_log = temp_perception_module.analyze_board(info['board'], info)
+                perception_data_for_log = current_state_textual_for_log
                 
-                while memory_summary is None and retry_count < max_retries:
-                    memory_summary = self.memory_module.get_memory_summary()
-                    
-                    if memory_summary is None or len(memory_summary) == 0:
-                        retry_count += 1
-                        print(f"Memory retrieval attempt {retry_count}/{max_retries} failed. Retrying...")
-                        await asyncio.sleep(1)  # Short delay before retry
-                
- 
-                # Print memory summary and reflection
-                if memory_summary:
-                    print("\nMEMORY SUMMARY:")
-                    print(f"Memory entries: {len(memory_summary)}")
-                    if len(memory_summary) > 0 and 'reflection' in memory_summary[-1]:
-                        print(f"Latest reflection: {memory_summary[-1]['reflection']}")
-                
-                # Step 3: Reasoning - Plan the next action with retry logic
+                print("ACTION PLAN (Memory+Reasoning - Base Module):")
+                print(f"Action: {action_plan.get('move')}")
+                print(f"Thought: {action_plan.get('thought', '')}")
+                if memory_summary_for_log:
+                    print(f"Memory entries used for decision: {len(memory_summary_for_log)}")
+                print("="*80 + "\n")
+                self.last_action = action_plan.get("move")
+                return action_plan, perception_data_for_log, memory_summary_for_log
+
+            # --- Modes using ReasoningModule --- 
+            current_perception_data = None
+            if self.agent_mode == "full" or self.agent_mode == "perception_reasoning":
+                # For these modes, `observation` is obs["board"], `info` is the full obs dict
+                print("\n" + "="*80)
+                print(f"ENTERING AGENT MODE: {self.agent_mode}")
+                current_perception_data = self.perception_module.analyze_board(observation, info)
+                perception_data_for_log = current_perception_data
+                print(f"PERCEPTION DATA ({self.agent_mode}):")
+                print(f"  Potential matches: {current_perception_data.get('num_potential_matches', 0)}")
+                print(f"  Highest color: {current_perception_data.get('highest_color', 'N/A')}")
+
+            retrieved_memory_summary = None
+            if self.agent_mode == "full": # Only full mode uses memory with ReasoningModule now
+                retrieved_memory_summary = self.memory_module.get_memory_summary()
+                memory_summary_for_log = retrieved_memory_summary
+                if memory_summary_for_log:
+                    print(f"MEMORY SUMMARY ({self.agent_mode}):")
+                    print(f"  Memory entries: {len(memory_summary_for_log)}")
+                    if len(memory_summary_for_log) > 0 and 'reflection' in memory_summary_for_log[-1]:
+                        print(f"  Latest reflection: {memory_summary_for_log[-1].get('reflection','N/A')}")
+            
+            # Reasoning step for "full" and "perception_reasoning"
+            if self.agent_mode == "full" or self.agent_mode == "perception_reasoning":
                 max_retries = max_retries_const
                 retry_count = 0
                 action_plan = None
-                
                 while action_plan is None and retry_count < max_retries:
-                    # Call the async plan_action method
                     action_plan = await self.reasoning_module.plan_action(
-                        current_perception=perception_data,
-                        memory_summary=memory_summary,
-                        img_path=BOARD_IMG_PATH,
-                        max_retries=3  # Handle retries at this level, not inside plan_action
+                        current_perception=current_perception_data,
+                        memory_summary=retrieved_memory_summary, # This will be None for perception_reasoning
+                        img_path=info.get('img_path', BOARD_IMG_PATH) if isinstance(info, dict) else BOARD_IMG_PATH,
+                        max_retries=3
                     )
-                    
                     if action_plan is None or 'move' not in action_plan:
                         retry_count += 1
-                        print(f"Action planning attempt {retry_count}/{max_retries} failed. Retrying...")
-                        await asyncio.sleep(1)  # Short delay before retry
+                        print(f"Action planning attempt {retry_count}/{max_retries} failed for {self.agent_mode}. Retrying...")
+                        await asyncio.sleep(1)
                 
-                # If still no valid action plan after retries, create a fallback
-                if action_plan is None or 'move' not in action_plan:
-                    print("All reasoning attempts failed. Using fallback action.")
-                    # Try to get a match from perception module if available
-                    if perception_data and 'potential_matches' in perception_data and perception_data['potential_matches']:
-                        match = perception_data['potential_matches'][0]
-                        fallback_move = (match['coord1'], match['coord2'])
-                    else:
-                        # Default fallback
-                        fallback_move = ((0, 0), (0, 1))
-                    
-                    action_plan = {
-                        "move": fallback_move,
-                        "thought": "Fallback action after failed reasoning attempts"
-                    }
-                
-                # Print action plan
-                print("\nACTION PLAN:")
-                print(f"Action: {action_plan['move']}")
-                print(f"Thought: {action_plan['thought']}")
+                print(f"ACTION PLAN ({self.agent_mode} - Reasoning Module):")
+                print(f"Action: {action_plan.get('move') if action_plan else 'N/A'}")
+                print(f"Thought: {action_plan.get('thought', '') if action_plan else 'N/A'}")
                 print("="*80 + "\n")
-                
-                # Store this action for the next iteration
-                self.last_action = action_plan["move"]
-                
-                return action_plan, perception_data, memory_summary
-        
+                if action_plan: self.last_action = action_plan.get("move")
+                return action_plan, perception_data_for_log, memory_summary_for_log
+            
+            # Fallback if mode not matched, though constructor should prevent this
+            print(f"Error: Agent mode {self.agent_mode} not handled in get_action logic after initial checks.")
+            self.last_action = ((0,0),(0,1)) # Fallback
+            return {"move": ((0,0),(0,1)), "thought": f"Unknown agent mode error: {self.agent_mode}"}, None, None
+
         except Exception as e:
-            print(f"Error in get_action: {e}")
+            print(f"Error in get_action for mode {self.agent_mode}: {e}")
             # Return a fallback action on error
             fallback_move = ((0, 0), (0, 1))
             self.last_action = fallback_move
             return {
                 "move": fallback_move, 
-                "thought": f"Error occurred: {str(e)}"
+                "thought": f"Error occurred in {self.agent_mode}: {str(e)}"
             }, None, None
     
     def parse_move_to_action(self, move, env):
@@ -390,7 +425,7 @@ async def run_agent(args):
         json.dump({
             "timestamp": datetime.now().isoformat(),
             "model": args.model,
-            "use_base_module": args.base,
+            "agent_mode": args.agent_mode,
             "use_random": args.random,
             "num_runs": args.num_runs,
             "cache_dir": CACHE_DIR
@@ -405,15 +440,21 @@ async def run_agent(args):
     if not args.random:
         agent = CandyCrushAgent(
             model_name=args.model,
-            use_base_module=args.base
+            agent_mode=args.agent_mode
         )
         print(f"\n{'*' * 80}")
-        if args.base:
+        if args.agent_mode == "base":
             print(f"RUNNING IN BASE MODULE MODE - Using model: {args.model}")
             print("Base module uses vision API to analyze rendered game images")
-        else:
+        elif args.agent_mode == "full":
             print(f"RUNNING IN FULL PIPELINE MODE - Using model: {args.model}")
             print("Full pipeline uses Perception → Memory → Reasoning modules")
+        elif args.agent_mode == "memory_reasoning":
+            print(f"RUNNING IN MEMORY + REASONING MODE - Using model: {args.model}")
+            print("Memory and Reasoning modules with simplified perception")
+        elif args.agent_mode == "perception_reasoning":
+            print(f"RUNNING IN PERCEPTION + REASONING MODE - Using model: {args.model}")
+            print("Perception and Reasoning modules, no memory module")
         print(f"{'*' * 80}\n")
     else:
         print("\n" + "*" * 80)
@@ -424,7 +465,17 @@ async def run_agent(args):
     for run_id in range(1, args.num_runs + 1):
         print(f"\n========== STARTING RUN {run_id}/{args.num_runs} ==========\n")
         
-        # Create the Candy Crush environment with appropriate render mode
+        # For Candy Crush, render_mode="human" is often used for visualization,
+        # but base/memory_reasoning (Base+Memory) needs an array if it uses env.render() for the frame.
+        # However, CandyCrushBaseModule is designed to take a frame passed to it.
+        # The main loop in Candy Crush already has logic to generate a frame if args.agent_mode == "base".
+        # We will adapt this for memory_reasoning (Base+Memory) as well.
+        
+        current_render_mode = "human"
+        if not args.random and (args.agent_mode == "base" or args.agent_mode == "memory_reasoning"):
+            current_render_mode = "rgb_array"
+            print(f"Using render_mode='rgb_array' for {args.agent_mode} mode.")
+
         env = TileMatchEnv(
             num_rows=8, 
             num_cols=8, 
@@ -433,161 +484,149 @@ async def run_agent(args):
             colourless_specials=[], 
             colour_specials=[], 
             seed=run_id,
-            render_mode="human"
+            render_mode=current_render_mode # Use determined render_mode
         )
         
-        # Create the observation wrapper
         wrapped_env = CandyCrushObservationWrapper(env)
-        
-        # Reset the environment
         obs, _ = env.reset()
-        wrapped_obs = wrapped_env.observation(obs)
+        # wrapped_obs = wrapped_env.observation(obs) # Not used directly in agent.get_action logic
         
-        # Make sure rendering window appears
-        env.render()
+        env.render() # Initial render
         
-        # Print initial board state
         print("Initial board state:")
         board_2d = convert_obs_to_2d_array(obs)
         print_board(board_2d)
         
-        # Run the game loop
         done = False
         terminated = False
         truncated = False
         total_reward = 0
         step = 0
-        
-        # Max attempts to get a valid action
         max_retries = 3
-        
-        # Track when game is stuck
         stuck_count = 0
-        max_stuck_actions = 50  # Maximum number of unchanged board states before terminating
+        max_stuck_actions = 50
         
         while not done:
-            # For random actions
+            frame_for_agent = None
+            info_for_agent = obs # Default for full, P+R modes; obs is the raw dict from env
+
+            if not args.random and (args.agent_mode == "base" or args.agent_mode == "memory_reasoning"):
+                try:
+                    rendered_frame = env.render() # Attempt to get frame
+                    if rendered_frame is None or not isinstance(rendered_frame, np.ndarray):
+                        board_2d_fallback = convert_obs_to_2d_array(obs)
+                        h_fb, w_fb = board_2d_fallback.shape
+                        frame_for_agent = np.zeros((h_fb*50, w_fb*50, 3), dtype=np.uint8)
+                        colors_fb = {0:(200,200,200),1:(0,255,0),2:(0,255,255),3:(255,0,255),4:(255,0,0)}
+                        for r_fb in range(h_fb):
+                            for c_fb in range(w_fb):
+                                color_idx_fb = int(board_2d_fallback[r_fb,c_fb])
+                                frame_for_agent[r_fb*50:(r_fb+1)*50, c_fb*50:(c_fb+1)*50] = colors_fb.get(color_idx_fb, (128,128,128))
+                        print("Warning: env.render() did not return valid frame, using fallback image.")
+                    else:
+                        frame_for_agent = rendered_frame
+                    
+                    os.makedirs(os.path.dirname(BOARD_IMG_PATH), exist_ok=True)
+                    Image.fromarray(frame_for_agent).save(BOARD_IMG_PATH)
+                    # print(f"Saved board image to {BOARD_IMG_PATH} for {args.agent_mode} mode")
+
+                    info_for_agent = dict(obs) # Create enriched info for base/M+R
+                    info_for_agent['img_path'] = BOARD_IMG_PATH
+                    # Add any other textual info useful for BaseModule prompt if needed, e.g., from obs
+                    # For Candy Crush, num_moves_left is in obs, which is already part of info_for_agent
+
+                except Exception as e:
+                    print(f"Error preparing frame/info for {args.agent_mode} mode: {e}")
+                    if frame_for_agent is None: # Ensure a fallback frame exists if error occurred early
+                        board_2d_fallback = convert_obs_to_2d_array(obs)
+                        h_fb, w_fb = board_2d_fallback.shape
+                        frame_for_agent = np.zeros((h_fb*50, w_fb*50, 3), dtype=np.uint8)
+                    if not isinstance(info_for_agent, dict) or 'img_path' not in info_for_agent:
+                        info_for_agent = dict(obs) # Fallback info
+                        info_for_agent['img_path'] = BOARD_IMG_PATH
+
             if args.random:
-                # Sample a random action
                 action = env.action_space.sample()
-                # Create a basic action plan for logging
-                action_plan = {
-                    "move": env._action_to_coords[action],
-                    "thought": "Random action"
-                }
-                perception_data = None
-                memory_summary = None
+                action_plan = {"move": env._action_to_coords[action], "thought": "Random action"}
+                perception_data, memory_summary_for_decision = None, None
             else:
-                # Get action from agent with retry logic
                 retry_count = 0
-                valid_action = False
-                
-                while not valid_action and retry_count < max_retries:
-                    # Get action from the agent
-                    if args.base:
-                        # For base agent, we need a rendered frame image
-                        try:
-                            # Render the game to get the frame
-                            frame = env.render()
-                            
-                            # If we didn't get a valid frame, use a fallback
-                            if frame is None or not isinstance(frame, np.ndarray):
-                                # Create a basic color representation of the board
-                                board_2d = convert_obs_to_2d_array(obs)
-                                height, width = board_2d.shape
-                                frame = np.zeros((height*50, width*50, 3), dtype=np.uint8)
-                                
-                                # Fill with colors based on board values
-                                colors = {
-                                    0: (200, 200, 200),  # Empty - gray
-                                    1: (0, 255, 0),      # Green
-                                    2: (0, 255, 255),    # Cyan
-                                    3: (255, 0, 255),    # Purple
-                                    4: (255, 0, 0),      # Red
-                                }
-                                
-                                for r in range(height):
-                                    for c in range(width):
-                                        color_idx = int(board_2d[r, c])
-                                        color = colors.get(color_idx, (128, 128, 128))
-                                        # Fill a square
-                                        frame[r*50:(r+1)*50, c*50:(c+1)*50] = color
-                            
-                            # Pass the frame along with the image path in info
-                            modified_info = dict(obs)
-                            modified_info['img_path'] = BOARD_IMG_PATH
-                            
-                            # Ensure the image is saved before passing to the base module
-                            os.makedirs(os.path.dirname(BOARD_IMG_PATH), exist_ok=True)
-                            Image.fromarray(frame).save(BOARD_IMG_PATH)
-                            print(f"Saved board image to {BOARD_IMG_PATH}")
-                            
-                            action_plan, perception_data, memory_summary = await agent.get_action(frame, modified_info)
-                        except Exception as e:
-                            print(f"Error getting frame for base module: {e}")
-                            # Fallback to default action
-                            action_plan = {
-                                "move": ((0, 0), (0, 1)),
-                                "thought": f"Error getting frame: {str(e)}"
-                            }
-                            perception_data = None
-                            memory_summary = None
-                    else:
-                        # For full pipeline, pass the observation
-                        action_plan, perception_data, memory_summary = await agent.get_action(obs["board"], obs)
+                valid_action_found = False
+                current_obs_for_agent_call = None
+                current_info_for_agent_call = None
+
+                if args.agent_mode == "base" or args.agent_mode == "memory_reasoning":
+                    current_obs_for_agent_call = frame_for_agent
+                    current_info_for_agent_call = info_for_agent
+                else: # full, perception_reasoning
+                    current_obs_for_agent_call = obs["board"] # Pass the board numpy array
+                    current_info_for_agent_call = obs       # Pass the full obs dict
+
+                while not valid_action_found and retry_count < max_retries:
+                    action_plan, perception_data, memory_summary_for_decision = await agent.get_action(
+                        current_obs_for_agent_call, 
+                        current_info_for_agent_call, 
+                        max_retries_const=1 # Outer loop handles retries
+                    )
                     
-                    # Convert move to action index
-                    action = agent.parse_move_to_action(action_plan["move"], env)
-                    
-                    # Check if we got a valid action
-                    if action is not None:
-                        valid_action = True
+                    if action_plan and isinstance(action_plan.get("move"), tuple) and len(action_plan.get("move")) == 2:
+                        valid_action_found = True
                     else:
-                        print(f"Skipping action attempt {retry_count + 1}/{max_retries}")
+                        print(f"Agent returned invalid action plan. Attempt {retry_count + 1}/{max_retries}")
                         retry_count += 1
-                        # Wait a moment before trying again
                         await asyncio.sleep(1)
                 
-                # If we still don't have a valid action after retries, use a random action
-                if not valid_action:
-                    print("Exhausted retry attempts, using random action")
+                if not valid_action_found:
+                    print("Exhausted retry attempts for agent, using fallback random action.")
                     action = env.action_space.sample()
-                    # Update action_plan for logging
-                    action_plan["move"] = env._action_to_coords[action]
-                    action_plan["thought"] += " (Random action after retries)"
+                    action_plan = {"move": env._action_to_coords[action], "thought": "Fallback (random) after retries"}
+                    perception_data, memory_summary_for_decision = None, None # No specific perception/memory for this random fallback
             
-            # Store the current board state before taking action
-            current_board = None
-            if 'board' in obs:
-                current_board = obs['board'][0].copy()  # First channel is tile colors
+            # Parse move and take step
+            agent_move = action_plan.get("move")
+            action = agent.parse_move_to_action(agent_move, env) if not args.random else env.action_space.sample()
+            if action is None: # If parse_move_to_action failed for AI agent
+                print(f"Failed to parse agent move {agent_move}, using random action as fallback.")
+                action = env.action_space.sample()
+                action_plan["move"] = env._action_to_coords[action] # Update plan for logging
+                action_plan["thought"] += " (Used random due to parse failure)"
+
+            current_board_for_stuck_check = obs['board'][0].copy() if 'board' in obs and obs['board'].ndim > 1 else None
             
-            # Take the action in the environment
-            next_obs, reward, terminated, truncated, info = env.step(action)
-            
-            # Explicitly render the environment to ensure the window is shown
+            next_obs, reward, terminated, truncated, info_after_step = env.step(action)
             env.render()
+            # wrapped_next_obs = wrapped_env.observation(next_obs) # Not directly used by agent.get_action
+
+            # After the step, update memory for modes that use it
+            if not args.random and (args.agent_mode == "full" or args.agent_mode == "memory_reasoning"):
+                state_to_log_in_memory = None
+                if args.agent_mode == "full":
+                    # For full mode, perception module analyzes the new board state
+                    state_to_log_in_memory = agent.perception_module.analyze_board(next_obs['board'], next_obs)
+                elif args.agent_mode == "memory_reasoning":
+                    # For Base+Memory, we need a textual representation of next_obs for memory storage.
+                    # Use CandyCrushPerceptionModule to get this.
+                    temp_perception_for_memory_update = CandyCrushPerceptionModule(model_name=agent.model_name)
+                    state_to_log_in_memory = temp_perception_for_memory_update.analyze_board(next_obs['board'], next_obs)
+                
+                if state_to_log_in_memory and agent.memory_module:
+                    agent.memory_module.add_game_state(state_to_log_in_memory, action_plan.get("move"))
             
-            # Convert to wrapped observation
-            wrapped_next_obs = wrapped_env.observation(next_obs)
-            
-            # Check if the board state changed after the action
-            if 'board' in next_obs and current_board is not None:
-                new_board = next_obs['board'][0]
-                if np.array_equal(current_board, new_board) and reward == 0:
+            # Stuck check
+            if current_board_for_stuck_check is not None and 'board' in next_obs and next_obs['board'].ndim > 1:
+                new_board_for_stuck_check = next_obs['board'][0]
+                if np.array_equal(current_board_for_stuck_check, new_board_for_stuck_check) and reward == 0:
                     stuck_count += 1
-                    print(f"Board unchanged after action. Stuck count: {stuck_count}/{max_stuck_actions}")
                     if stuck_count >= max_stuck_actions:
-                        print(f"Board hasn't changed for {max_stuck_actions} consecutive actions. Terminating run.")
+                        print(f"Board stuck for {max_stuck_actions} steps. Terminating.")
                         done = True
                 else:
-                    # Reset stuck counter if board has changed
                     stuck_count = 0
             
-            # Log comprehensive information with run_id
-            log_step(step, action_plan, perception_data, memory_summary, action, reward, info, next_obs, run_id)
-            
-            # Log raw data to separate file with run_id
-            log_raw_data(step, action, reward, info, next_obs, run_id)
+            # `perception_data` here is from get_action (perception of state *before* action)
+            # `memory_summary_for_decision` is from get_action (memory used *for* action)
+            log_step(step, action_plan, perception_data, memory_summary_for_decision, action, reward, info_after_step, next_obs, run_id)
+            log_raw_data(step, action, reward, info_after_step, next_obs, run_id)
             
             total_reward += reward
             step += 1
@@ -649,8 +688,9 @@ def parse_args():
     parser.add_argument('--model', type=str, default="claude-3-5-sonnet-latest",
                         help='Model name to use (default: claude-3-7-sonnet-latest)')
     
-    parser.add_argument('--base', action='store_true',
-                        help='Use the simplified Base_module (default: False)')
+    parser.add_argument('--agent_mode', type=str, default="full",
+                        choices=["full", "base", "memory_reasoning", "perception_reasoning"],
+                        help='Agent mode to use (default: full)')
     
     parser.add_argument('--random', action='store_true',
                         help='Use random actions instead of AI agent (default: False)')

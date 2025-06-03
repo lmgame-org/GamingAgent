@@ -119,7 +119,7 @@ def main():
             future = executor.submit(run_single_game_config, *task_args)
             future_to_task_args[future] = task_args
             # print(f"Submitted task: {task_args[:3]}...") # Optional: for seeing submission order
-            time.sleep(1) # Add 1-second delay between submissions
+            time.sleep(2) # Add 1-second delay between submissions
         
         print(f"All {len(tasks_to_run)} tasks submitted. Waiting for completion...")
         for future in as_completed(future_to_task_args):
@@ -152,25 +152,7 @@ def main():
     if failed_runs > 0:
         print("Some runs failed. Check the logs in the 'logs' directory.")
 
-    # Run evaluation
-    print("\n----- Running evaluation script -----")
-    eval_command = [sys.executable, "-m", "eval.eval"]
-    try:
-        # Run eval script and print its output directly
-        eval_process = subprocess.run(eval_command, check=True, text=True, capture_output=False) # stdout/stderr go to console
-        print("Evaluation script completed successfully.")
-    except subprocess.CalledProcessError as e:
-        print(f"ERROR during evaluation script:")
-        print(f"  Command: {' '.join(e.cmd)}")
-        print(f"  Return code: {e.returncode}")
-        # If capture_output was True:
-        # print(f"  Output (stdout):\n{e.stdout}")
-        # print(f"  Output (stderr):\n{e.stderr}")
-        print("Evaluation script failed. Check its output above.")
-    except Exception as ex:
-        print(f"An unexpected error occurred while trying to run eval.eval: {ex}")
-
-    print("\n----- Main script finished. Check 'logs/' and 'eval/perf/' for details. -----")
+    print("\n----- Main script finished. Check 'logs/' for details. -----")
 
 if __name__ == "__main__":
     main()
