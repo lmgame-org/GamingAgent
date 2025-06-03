@@ -121,8 +121,6 @@ To run classical games implemented on Retro, you need to legally obtain the game
 python3 -m retro.import /path/to/your/ROMs/directory/
 ```
 
-Notes: Access stable Retro ROMs from the No-Intro Collection on Archive.org (import script auto-searches ZIPs)—[No-Intro Collection](https://archive.org/details/No-Intro-Collection_2016-01-03_Fixed)
-
 
 Currently, our evaluation suite includes the following games from Retro environments:
 - Super Mario Bros 1985
@@ -212,7 +210,7 @@ We support computer-use gaming agents to run state-of-the-art models live on you
 
 #### Gym and Retro Interface
 
-1. You can follow instructions from [Gymnasium](https://gymnasium.farama.org/introduction/create_custom_env/) (for your own game implementation) or [Gym Retro](https://retro.readthedocs.io/en/latest/integration.html) (for existing classical games) to integrate a gaming environment with standarized interface. 
+1. You can follow instructions from [Gymnasium](https://gymnasium.farama.org/introduction/create_custom_env/) (for your own game implementation) or [Stable Retro](https://retro.readthedocs.io/en/latest/integration.html) (for existing classical games) to integrate a gaming environment with standarized interface. 
 
 2. Navigate to [gamingagent/envs](gamingagent/envs). Set up your gaming environment to connect with an LLM/VLM gaming agent by implementing observation making and agent action processing methods.
 
