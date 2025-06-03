@@ -120,9 +120,19 @@ To run classical games implemented on Retro, you need to legally obtain the game
 python3 -m retro.import /path/to/your/ROMs/directory/
 ```
 
-Currently our evaluation suite composes of the following games using retro envrionments:
-
+Currently, our evaluation suite includes the following games using Retro environments:
 - Super Mario Bros 1985
+
+
+We have also manually integrated additional Retro environments that are not included in stable-retro.
+For these, no manual retro.import is required. To enable them, simply place the ROM file into the designated directory.
+
+For example, for Ace Attorney: Phoenix Wright, place the ROM file into:
+```
+gamingagent/envs/retro_02_ace_attorney/AceAttorney-GbAdvance
+```
+
+Currently manually integrated games:
 - Ace Attorney: Phoenix Wright
 
 #### UI-only Interface
