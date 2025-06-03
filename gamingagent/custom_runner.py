@@ -510,7 +510,6 @@ def main():
         'num_runs', 
         'max_steps_per_episode',
         'seed',
-        'observation_mode',
         'max_memory'
     }
 

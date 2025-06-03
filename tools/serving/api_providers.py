@@ -38,6 +38,10 @@ def anthropic_completion(system_prompt, model_name, base64_image, prompt, thinki
         print("claude-3-7 supports 64000 tokens")
         token_limit = 64000
 
+    if "claude-opus-4" in model_name.lower() and token_limit > 32000:
+        print("claude-opus-4 supports 32000 tokens")
+        token_limit = 32000
+
     if thinking:
         with client.messages.stream(
                 max_tokens=token_limit,
@@ -92,6 +96,10 @@ def anthropic_text_completion(system_prompt, model_name, prompt, thinking=False,
         thinking = False
         token_limit = 8192
 
+    if "claude-opus-4" in model_name.lower() and token_limit > 32000:
+        print("claude-opus-4 supports 32000 tokens")
+        token_limit = 32000
+
     if thinking:
         with client.messages.stream(
                 max_tokens=token_limit,
@@ -126,6 +134,10 @@ def anthropic_text_completion(system_prompt, model_name, prompt, thinking=False,
 
 def anthropic_multiimage_completion(system_prompt, model_name, prompt, list_content, list_image_base64, token_limit=30000):
     client = anthropic.Anthropic(api_key=os.getenv("ANTHROPIC_API_KEY"))
+
+    if "claude-opus-4" in model_name.lower() and token_limit > 32000:
+        print("claude-opus-4 supports 32000 tokens")
+        token_limit = 32000
     
     content_blocks = [] 
     for text_item, base64_image in zip(list_content, list_image_base64):
@@ -587,6 +599,10 @@ def together_ai_completion(system_prompt, model_name, prompt, base64_image=None,
         # Initialize client without explicitly passing API key
         # It will automatically use TOGETHER_API_KEY environment variable
         client = Together()
+
+        if "qwen3" in model_name.lower() and token_limit > 25000:
+            token_limit = 25000
+            print(f"qwen3 only supports 40960 tokens, setting token_limit={token_limit} safely excluding input tokens")
         
         if base64_image is not None:
             response = client.chat.completions.create(
@@ -639,6 +655,10 @@ def together_ai_text_completion(system_prompt, model_name, prompt, temperature=1
         # Initialize client without explicitly passing API key
         # It will automatically use TOGETHER_API_KEY environment variable
         client = Together()
+
+        if "qwen3" in model_name.lower() and token_limit > 25000:
+            token_limit = 25000
+            print(f"qwen3 only supports 40960 tokens, setting token_limit={token_limit} safely excluding input tokens")
         
         # Format messages with system prompt if provided
         messages = []
@@ -661,6 +681,39 @@ def together_ai_text_completion(system_prompt, model_name, prompt, temperature=1
         )
 
         generated_str = response.choices[0].message.content
+    # HACK: resolve temporary generation repetition issue for deepseek-ai/DeepSeek-R1-0528
+        import re
+        def extract_move(text):
+            """
+            Extracts the content immediately after the first </think> tag,
+            then extracts the content after either 'move:' or '### move' up to the next newline.
+            Strips whitespace.
+            Returns None if not found.
+            """
+            # Find the first </think>
+            think_match = re.search(r"</think>", text)
+            if think_match:
+                after_think = text[think_match.end():]
+            else:
+                after_think = text  # If </think> not found, search the whole text
+            
+            return after_think.strip()
+            # Now extract move after 'move:' or '### move'
+            #move_match = re.search(r"(?:move:|### move)\s*(.+?)\s*(?:\\n|\n|$)", after_think)
+            #if move_match:
+            #    return move_match.group(1).strip()
+            #return None
+
+        print("========== Raw String ==========")
+        print(generated_str)
+        print("========== Raw String ==========")
+
+        if model_name == "deepseek-ai/DeepSeek-R1" or "qwen3" in model_name.lower():
+            generated_str = extract_move(generated_str)
+
+        print("========== Processed String ==========")
+        print(generated_str)
+        print("========== Processed String ==========")
         return generated_str
     except Exception as e:
         print(f"Error in together_ai_text_completion: {e}")
@@ -675,6 +728,10 @@ def together_ai_multiimage_completion(system_prompt, model_name, prompt, list_co
         
         # Prepare message with multiple images and text
         content_blocks = []
+
+        if "qwen3" in model_name.lower() and token_limit > 25000:
+            token_limit = 25000
+            print(f"qwen3 only supports 40960 tokens, setting token_limit={token_limit} safely excluding input tokens")
         
         # Add text content
         joined_text = "\n\n".join(list_content)
