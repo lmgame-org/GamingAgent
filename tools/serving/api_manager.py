@@ -444,7 +444,7 @@ class APIManager:
                     prompt=prompt,
                     token_limit=token_limit
                 )
-            elif "llama" in model_name.lower() or "meta" in model_name.lower():
+            elif "llama" in model_name.lower() or "meta" in model_name.lower() or (model_name == "deepseek-ai/DeepSeek-R1") or (model_name == "Qwen/Qwen3-235B-A22B-fp8-turbo"):
                 completion = together_ai_completion(
                     system_prompt=system_prompt,
                     model_name=model_name,
@@ -668,7 +668,7 @@ class APIManager:
                     prompt=prompt,
                     token_limit=token_limit
                 )
-            elif "llama" in model_name.lower() or "meta" in model_name.lower():
+            elif "llama" in model_name.lower() or "meta" in model_name.lower() or (model_name == "Qwen/Qwen3-235B-A22B-fp8") or (model_name == "deepseek-ai/DeepSeek-R1"):
                 completion = together_ai_text_completion(
                     system_prompt=system_prompt,
                     model_name=model_name,
@@ -899,7 +899,7 @@ class APIManager:
                     list_content=list_content,
                     list_image_base64=list_image_base64
                 )
-            elif "llama" in model_name.lower() or "meta" in model_name.lower():
+            elif "llama" in model_name.lower() or "meta" in model_name.lower() or (model_name == "Qwen/Qwen3-235B-A22B-fp8") or (model_name == "deepseek-ai/DeepSeek-R1"):
                 completion = together_ai_multiimage_completion(
                     system_prompt=system_prompt,
                     model_name=model_name,
