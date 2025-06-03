@@ -112,13 +112,17 @@ all runnable out-of-the-box with no additional setup.
 
 ##### Retro Envrionments
 
-Gym [Retro](https://github.com/Farama-Foundation/stable-retro) is a library that enables classic video game emulation through a wide range of supported systems, providing a standardized interface via Gymnasium.
+Stable [Retro](https://github.com/Farama-Foundation/stable-retro) is a library that enables classic video game emulation through a wide range of supported systems, providing a standardized interface via Gymnasium.
 
-To run classical games implemented on Retro, you need to legally obtain the games files and import them with [this instruction](https://retro.readthedocs.io/en/latest/getting_started.html#importing-roms):
+To run classical games implemented on Retro, you need to legally obtain the games files and import them with [this instruction](https://stable-retro.farama.org/getting_started/):
+
 
 ```
 python3 -m retro.import /path/to/your/ROMs/directory/
 ```
+
+Notes: Access stable Retro ROMs from the No-Intro Collection on Archive.org (import script auto-searches ZIPs)—[No-Intro Collection](https://archive.org/details/No-Intro-Collection_2016-01-03_Fixed)
+
 
 Currently, our evaluation suite includes the following games from Retro environments:
 - Super Mario Bros 1985
@@ -190,11 +194,11 @@ Propmts can be found in `gamingagent/configs/{game_env_dir}/module_prompts.json`
 
 Access the [lmgame_bench_evaluation colab](https://colab.research.google.com/drive/1CYFiJGm3EoBXXI8vICPVR82J9qrmmRvc#scrollTo=6ICtS7MjUMNG) or use the [evaluation notebook](eval/lmgame_Bench_Evaluation_Pipeline.ipynb) to reproduce performance analysis from the paper.
 
-Upload your generated cache directory to the colab workspace to visualize your model's performance compared to benchmark results.
+Optional: Upload your generated cache directory to the colab workspace to visualize your model's performance compared to benchmark results.
 
-#### Game Video Generation
+#### Game replay Video Generation
 
-Generate videos for Sokoban, 2048, Tetris, and Candy Crush games using agent config files and episode logs from your performance cache.
+Generate replay videos for Sokoban, 2048, Tetris, and Candy Crush games using agent config files and episode logs from your performance cache by using textual representation
 
 ```bash
 python eval/video_generation_script.py --agent_config_path [CONFIG_PATH] --episode_log_path [LOG_PATH] --method text --output_path [OUTPUT_NAME] --fps 2
