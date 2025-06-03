@@ -39,7 +39,7 @@ def parse_arguments(defaults_map=None, argv_to_parse=None):
     # A check after parsing will ensure it has a value.
     parser.add_argument("--game_name", type=str, default=None, 
                         help="Name of the game (e.g., twenty_forty_eight, sokoban). Set by prelim parser.")
-    parser.add_argument("--config_root_dir", type=str, default="configs",
+    parser.add_argument("--config_root_dir", type=str, default="gamingagent/configs",
                         help="Root directory for agent configurations.")
     parser.add_argument("--model_name", type=str, default="claude-3-haiku-20240307",
                         help="Name of the model for the agent.")
@@ -443,7 +443,7 @@ def main():
     prelim_parser = argparse.ArgumentParser(add_help=False)
     # No default for game_name here; it must be passed for prelim_parser to find the correct config.yaml
     prelim_parser.add_argument("--game_name", type=str, required=True, help="Game name needs to be passed to identify correct config.")
-    prelim_parser.add_argument("--config_root_dir", type=str, default="configs", help="Root path config files.")
+    prelim_parser.add_argument("--config_root_dir", type=str, default="gamingagent/configs", help="Root path config files.")
     pre_args, remaining_argv = prelim_parser.parse_known_args()
 
     if not pre_args.game_name:
