@@ -1,5 +1,5 @@
 <p align="center">
-<img src="assets/img/logo.png" alt="lmgame-bench" width="220" align="center">
+<img src="assets/img/logo.png" alt="lmgame-bench" width="100%" align="center">
 </p>
 
 <div align="center"> <h1>LMGame Bench and Gaming Agent</h1> </div> 
