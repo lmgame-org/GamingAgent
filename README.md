@@ -195,3 +195,14 @@ We support computer-use gaming agents to run state-of-the-art models live on you
 #### UI-only Interface
 
 Coming Soon!
+
+## Citation
+If you find this repository helpful, Please kindly cite:
+```
+@article{hu2025lmgame,
+  title={lmgame-Bench: How Good are LLMs at Playing Games?},
+  author={Hu, Lanxiang and Huo, Mingjia and Zhang, Yuxuan and Yu, Haoyang and Xing, Eric P and Stoica, Ion and Rosing, Tajana and Jin, Haojian and Zhang, Hao},
+  journal={arXiv preprint arXiv:2505.15146},
+  year={2025}
+}
+```
