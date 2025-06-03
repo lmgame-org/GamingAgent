@@ -28,6 +28,7 @@ Our repo also provides an easy solution of deploying computer use agents (CUAs) 
   - [Setup](#setup)
   - [Single-Model Performance](#single-model-performance)
   - [Agentic Performance](#agentic-performance)
+  - [Understanding Game Performance](#understanding-game-performance)
 - [Computer-Use Gaming Agents](#computer-use-gaming-agents)
 - [Add Your Own Games](#add-your-own-games)
 
@@ -112,13 +113,15 @@ all runnable out-of-the-box with no additional setup.
 
 ##### Retro Envrionments
 
-Gym [Retro](https://github.com/Farama-Foundation/stable-retro) is a library that enables classic video game emulation through a wide range of supported systems, providing a standardized interface via Gymnasium.
+Stable [Retro](https://github.com/Farama-Foundation/stable-retro) is a library that enables classic video game emulation through a wide range of supported systems, providing a standardized interface via Gymnasium.
 
-To run classical games implemented on Retro, you need to legally obtain the games files and import them with [this instruction](https://retro.readthedocs.io/en/latest/getting_started.html#importing-roms):
+To run classical games implemented on Retro, you need to legally obtain the games files and import them with [this instruction](https://stable-retro.farama.org/getting_started/):
+
 
 ```
 python3 -m retro.import /path/to/your/ROMs/directory/
 ```
+
 
 Currently, our evaluation suite includes the following games from Retro environments:
 - Super Mario Bros 1985
@@ -186,6 +189,20 @@ Adjust gaming-agent related configurations in `gamingagent/configs/{game_env_dir
 
 Propmts can be found in `gamingagent/configs/{game_env_dir}/module_prompts.json`.
 
+### Understanding Game Performance
+
+Access the [lmgame_bench_evaluation colab](https://colab.research.google.com/drive/1CYFiJGm3EoBXXI8vICPVR82J9qrmmRvc#scrollTo=6ICtS7MjUMNG) or use the [evaluation notebook](eval/lmgame_Bench_Evaluation_Pipeline.ipynb) to reproduce performance analysis from the paper.
+
+Optional: Upload your generated cache directory to the colab workspace to visualize your model's performance compared to benchmark results.
+
+#### Game replay Video Generation
+
+Generate replay videos for Sokoban, 2048, Tetris, and Candy Crush games using agent config files and episode logs from your performance cache by using textual representation
+
+```bash
+python eval/video_generation_script.py --agent_config_path [CONFIG_PATH] --episode_log_path [LOG_PATH] --method text --output_path [OUTPUT_NAME] --fps 2
+```
+
 ## Computer-Use Gaming Agents
 
 We support computer-use gaming agents to run state-of-the-art models live on your local PCs and laptops! Check out [computer_use](computer_use) for detailed instructions!
@@ -194,7 +211,7 @@ We support computer-use gaming agents to run state-of-the-art models live on you
 
 #### Gym and Retro Interface
 
-1. You can follow instructions from [Gymnasium](https://gymnasium.farama.org/introduction/create_custom_env/) (for your own game implementation) or [Gym Retro](https://retro.readthedocs.io/en/latest/integration.html) (for existing classical games) to integrate a gaming environment with standarized interface. 
+1. You can follow instructions from [Gymnasium](https://gymnasium.farama.org/introduction/create_custom_env/) (for your own game implementation) or [Stable Retro](https://retro.readthedocs.io/en/latest/integration.html) (for existing classical games) to integrate a gaming environment with standarized interface. 
 
 2. Navigate to [gamingagent/envs](gamingagent/envs). Set up your gaming environment to connect with an LLM/VLM gaming agent by implementing observation making and agent action processing methods.
 

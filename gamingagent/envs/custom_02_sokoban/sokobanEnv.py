@@ -391,14 +391,17 @@ class SokobanEnv(gym.Env):
         
         # Calculate initial perf score using the overridden method
         initial_perf_score = self.calculate_perf_score(0, info_dict) 
-
+    
+        img_path_for_adapter = None
+        text_representation_for_adapter = None
         if self.adapter.observation_mode in ["vision", "both"]:
             img_path_for_adapter = self.adapter._create_agent_observation_path(self.adapter.current_episode_id, self.adapter.current_step_num)
             create_board_image_sokoban(raw_board_obs, img_path_for_adapter, tile_size=self.tile_size_for_render, perf_score=initial_perf_score)
         
         if self.adapter.observation_mode in ["text", "both"]:
             char_board_2d_list = [[ROOM_STATE_TO_CHAR.get(tile, '?') for tile in row] for row in raw_board_obs.tolist()]
-            text_representation_for_adapter = str(char_board_2d_list)
+            # text_representation_for_adapter = str(char_board_2d_list)
+            text_representation_for_adapter = self.matrix_to_text_table(char_board_2d_list)
 
         agent_observation = self.adapter.create_agent_observation(
             img_path=img_path_for_adapter,
@@ -505,6 +508,30 @@ class SokobanEnv(gym.Env):
         
         return moved_player, moved_box
 
+    def matrix_to_text_table(self, matrix: List[List[str]]) -> str:
+        """Convert a 2D list matrix into a structured text table."""
+        header = "ID  | Item Type    | Position"
+        line_separator = "-" * len(header)
+        
+        item_map = {
+            '#': 'Wall',
+            '@': 'Worker',
+            '$': 'Box',
+            '?': 'Dock',
+            '*': 'Box on Dock',
+            ' ': 'Empty'
+        }
+        
+        table_rows = [header, line_separator]
+        item_id = 1
+        
+        for row_idx, row in enumerate(matrix):
+            for col_idx, cell in enumerate(row):
+                item_type = item_map.get(cell, 'Unknown')
+                table_rows.append(f"{item_id:<3} | {item_type:<12} | ({col_idx}, {row_idx})")
+                item_id += 1
+        
+        return "\n".join(table_rows)
 
     def step(self, agent_action_str: Optional[str], thought_process: str = "", time_taken_s: float = 0.0) -> Tuple[Observation, float, bool, bool, Dict[str, Any], float]:
         self.adapter.increment_step()
@@ -543,7 +570,8 @@ class SokobanEnv(gym.Env):
         
         if self.adapter.observation_mode in ["text", "both"]:
             char_board_2d_list = [[ROOM_STATE_TO_CHAR.get(tile, '?') for tile in row] for row in raw_board_obs.tolist()]
-            text_representation_for_adapter = str(char_board_2d_list)
+            # text_representation_for_adapter = str(char_board_2d_list)
+            text_representation_for_adapter = self.matrix_to_text_table(char_board_2d_list)
 
         agent_observation = self.adapter.create_agent_observation(
             img_path=img_path_for_adapter,
