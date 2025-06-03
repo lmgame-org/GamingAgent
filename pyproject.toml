@@ -32,7 +32,8 @@ dependencies = [
     "together",
     "gymnasium",
     "gymnasium_2048",
-    "tile_match_gym"
+    "tile_match_gym",
+    "tiktoken"
 ]
 license = {text = "MIT"}
 repository = "https://github.com/lmgame-org/GamingAgent"

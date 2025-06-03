@@ -2,6 +2,7 @@ from abc import abstractmethod
 from .core_module import CoreModule, Observation
 
 import re
+from tools.utils import scale_image_up
 
 # TODO: 
 # 1.module integration 
@@ -21,6 +22,9 @@ class ReasoningModule(CoreModule):
                 cache_dir="cache",
                 system_prompt="", 
                 prompt="", 
+                use_perception=True,
+                use_memory=True,
+                use_cot=True,
                 token_limit=100000, 
                 reasoning_effort="high"
         ):
@@ -53,7 +57,11 @@ class ReasoningModule(CoreModule):
 
         self.observation_mode = observation_mode
 
-    def plan_action(self, observation):
+        self.use_perception = use_perception
+        self.use_memory = use_memory
+        self.use_cot = use_cot   # TODO: make reasoning mode configurable. now default to use reasoning if available for the model seletected
+
+    def plan_action(self, observation, custom_prompt=None):
         """
         Plan the next action sequence based on current perception and memory.
         
@@ -64,7 +72,7 @@ class ReasoningModule(CoreModule):
             dict: A dictionary containing action and thought
         """
         # Get the image path (prefer the passed parameter if available)
-        image_path = getattr(observation, "img_path", None)
+        image_path = getattr(observation, "image_path", None)
         textual_representation = getattr(observation, "textual_representation", "")
         
         # Get the description of visual elements from perception module
@@ -73,8 +81,8 @@ class ReasoningModule(CoreModule):
         # Extract game trajectory and reflection memory module
         game_trajectory = getattr(observation, "game_trajectory", "")
         reflection = getattr(observation, "reflection", "")
-        use_memory = bool(game_trajectory.get() and reflection)
-        use_perception = bool(processed_visual_description)
+        use_memory = bool(game_trajectory.get() and reflection) and self.use_perception
+        use_perception = bool(processed_visual_description) and self.use_memory
 
         full_context = observation.get_complete_prompt(
             observation_mode=self.observation_mode,
@@ -84,10 +92,13 @@ class ReasoningModule(CoreModule):
         )
         
         # Choose API call based on whether an image is available
-        if image_path:
-            response = self._call_vision_api(full_context, image_path)
+        if self.observation_mode in ["vision", "both"]:
+            if image_path:
+                print("Warning: No image path provided for vision API call. Using text-only API.")
+            image_path = scale_image_up(image_path)
+            response = self._call_vision_api(full_context, image_path, custom_prompt)
         else:
-            response = self._call_text_api(full_context)
+            response = self._call_text_api(full_context, custom_prompt)
 
         #returned API response should be a tuple
         response_string = response[0]
@@ -111,19 +122,23 @@ class ReasoningModule(CoreModule):
         
         return parsed_response
     
-    def _call_vision_api(self, context, img_path):
+    def _call_vision_api(self, context, image_path, custom_prompt=None):
         """
         Call the vision API with text context and image.
         
         Args:
             context (str): Formatted context with perception and memory
-            img_path (str): Path to the current game image
+            image_path (str): Path to the current game image
+            custom_prompt (str, optional): Custom prompt to use
             
         Returns:
             str: Raw response from the API
         """
         # Create user prompt with context
-        user_prompt = context
+        if custom_prompt:
+            user_prompt = context + "\n\n" + custom_prompt
+        else:
+            user_prompt = context
 
         print(f"""
 ------------------------ VISION API — FINAL USER PROMPT ------------------------
@@ -136,7 +151,7 @@ class ReasoningModule(CoreModule):
             model_name=self.model_name,
             system_prompt=self.system_prompt,
             prompt=user_prompt,
-            image_path=img_path,
+            image_path=image_path,
             thinking=True,
             reasoning_effort=self.reasoning_effort,
             token_limit=self.token_limit
@@ -156,13 +171,10 @@ class ReasoningModule(CoreModule):
             str: Raw response from the API
         """
         # Create user prompt
-        user_prompt = custom_prompt if custom_prompt else self.prompt
-        
-        # Replace context placeholder if it exists
         if custom_prompt:
-             user_prompt = context + "\n\n" + custom_prompt
+            user_prompt = context + "\n\n" + custom_prompt
         else:
-             user_prompt = context
+            user_prompt = context
         
         print(f"""
 ------------------------ TEXT API - FINAL USER PROMPT ------------------------

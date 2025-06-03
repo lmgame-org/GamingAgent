@@ -1,10 +1,11 @@
 # virtual env and running logs
-lmgame-bench/*
+lmgame-bench-env/*
 logs/*
 eval/perf/*
 
 # 💾 Cache and Temporary Files
 cache/*
+*/cache
 __pycache__/
 */__pycache__
 *.pyc
