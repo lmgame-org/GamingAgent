@@ -145,13 +145,13 @@ Coming Soon!
 Launch multiple evaluation instances (in parallel) for a model on different games with the following commands:
 
 ```
-python3 run.py --model_name {model_name} --game_names {list_of_games} --harness_mode false
+python3 lmgame-bench/run.py --model_name {model_name} --game_names {list_of_games} --harness_mode false
 ```
 
 To multiple models in parallel, run the following script:
 
 ```
-bash evaluate_all.sh
+bash lmgame-bench/evaluate_all.sh
 ```
 
 ### Agentic Performance
@@ -159,7 +159,7 @@ bash evaluate_all.sh
 Evaluate a model's performance in gaming agent (with gaming harness support), run the following command:
 
 ```
-python3 run.py --model_name {model_name} --game_names {list_of_games} --harness_mode true
+python3 lmgame-bench/run.py --model_name {model_name} --game_names {list_of_games} --harness_mode true
 ```
 
 ##### Command options
@@ -178,6 +178,14 @@ Currently supported games:
 - ace_attorney
 ```
 
+### Customize Your Settings
+
+`run.py` launches multiple instances of `custom_runner.py`. To run single model in a single game setting, run `python3 lmgame-bench/custom_runner.py --game_name {game_name} --model_name {model_name} --config_root_dir {path_to_gaming_agent_config} (--harness)`. 
+
+Adjust gaming-agent related configurations in `gamingagent/configs/{game_env_dir}/config.yaml`. 
+
+Propmts can be found in `gamingagent/configs/{game_env_dir}/module_prompts.json`.
+
 ## Computer-Use Gaming Agents
 
 We support computer-use gaming agents to run state-of-the-art models live on your local PCs and laptops! Check out [computer_use](computer_use) for detailed instructions!
@@ -191,6 +199,8 @@ We support computer-use gaming agents to run state-of-the-art models live on you
 2. Navigate to [gamingagent/envs](gamingagent/envs). Set up your gaming environment to connect with an LLM/VLM gaming agent by implementing observation making and agent action processing methods.
 
 3. Add your agent configuration to [configs](configs) so that a gaming agent can interface properly the envrionment.
+
+More detailed instructions are provided in [gamingagent/envs](gamingagent/envs).
 
 #### UI-only Interface
 
