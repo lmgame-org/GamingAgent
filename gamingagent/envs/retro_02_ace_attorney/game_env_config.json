@@ -21,6 +21,6 @@
     "right":   [0,0,0,0,0,0,0,1,0,0,0,0],
     "no_op":   [0,0,0,0,0,0,0,0,0,0,0,0]
   },
-  "max_unchanged_steps_for_termination": 50,
+  "max_unchanged_steps_for_termination": 30,
   "render_mode_gym_adapter": "human"
 } 

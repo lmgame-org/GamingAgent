@@ -603,6 +603,17 @@ def main():
 
     game_env.close() # Close environment after all runs
 
+    # --- Calculate and Print Ace Attorney Specific Final Score ---
+    ace_attorney_checkpoint_score = None
+    if isinstance(game_env, AceAttorneyEnv):
+        if hasattr(game_env, 'calculate_final_performance_score'):
+            try:
+                ace_attorney_checkpoint_score = game_env.calculate_final_performance_score()
+            except Exception as e:
+                print(f"[Runner] Error calling calculate_final_performance_score for AceAttorneyEnv: {e}")
+        else:
+            print("[Runner] AceAttorneyEnv instance does not have calculate_final_performance_score method.")
+
     print("\n" + "="*30 + " Overall Summary " + "="*30)
     print(f"Game: {args.game_name}, Model: {args.model_name}, Mode: {'Harness' if args.harness else 'BaseOnly'}, ObsMode: {args.observation_mode}")
     print(f"Number of runs: {args.num_runs}")
@@ -617,6 +628,9 @@ def main():
                 print(f"Average {key_title}: N/A (no data)")
     else:
         print("No runs were completed or summary data is unavailable.")
+
+    if ace_attorney_checkpoint_score is not None:
+        print(f"Ace Attorney Checkpoint Score: {ace_attorney_checkpoint_score}")
 
 if __name__ == "__main__":
     main() 

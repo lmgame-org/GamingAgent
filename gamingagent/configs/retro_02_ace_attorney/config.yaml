@@ -2,15 +2,15 @@ game_env:
   name: "ace_attorney"
   description: "Ace Attorney game environment using retro.Env and GymEnvAdapter."
   env_type: "retro"
-  max_steps: 3000
+  max_steps: 500
   seed: null
   num_runs: 1
 
 agent:
   name: "ace_attorney_retro_agent"
-  model_name: "gemini-2.5-pro-preview-03-25"
+  model_name: "gemini-2.5-flash-preview-04-17"
   cache_dir: "cache/retro_ace_attorney" 
-  harness: true
+  harness: ture
   observation_mode: "both" # "vision", "text", or "both"
   
   modules:
@@ -19,7 +19,7 @@ agent:
     perception_module: 
 
     memory_module:
-      max_memory: 5
+      max_memory: 10
     
     reasoning_module:
       use_perception: True
