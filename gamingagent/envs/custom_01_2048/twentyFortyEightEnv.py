@@ -156,12 +156,11 @@ class TwentyFortyEightEnv(gym.Env):
             create_board_image_2048(self.current_raw_board, img_path_for_adapter, perf_score=initial_perf_score)
         
         if self.adapter.observation_mode in ["text", "both"]:
-            if isinstance(self.current_raw_board, list):
-                text_representation_for_adapter = str(self.current_raw_board)
-            elif hasattr(self.current_raw_board, 'tolist'): # For numpy arrays
-                text_representation_for_adapter = str(self.current_raw_board.tolist())
-            else:
-                text_representation_for_adapter = str(self.current_raw_board)
+            board = {}
+            board['board'] = [[2 ** entry if entry != 0 else 0 for entry in row] for row in self.current_raw_board]
+            board['highest_tile'] = np.max(board['board'])
+            board['analysis'] = f"Board has {16 - np.count_nonzero(self.current_raw_board)} empty spaces"
+            text_representation_for_adapter = str(board)
 
         agent_observation = self.adapter.create_agent_observation(
             img_path=img_path_for_adapter,
@@ -311,12 +310,11 @@ class TwentyFortyEightEnv(gym.Env):
             create_board_image_2048(self.current_raw_board, img_path_for_adapter, perf_score=current_perf_score)
 
         if self.adapter.observation_mode in ["text", "both"]:
-            if isinstance(self.current_raw_board, list):
-                text_representation_for_adapter = str(self.current_raw_board)
-            elif hasattr(self.current_raw_board, 'tolist'): # For numpy arrays
-                text_representation_for_adapter = str(self.current_raw_board.tolist())
-            else:
-                text_representation_for_adapter = str(self.current_raw_board)
+            board = {}
+            board['board'] = [[2 ** entry if entry != 0 else 0 for entry in row] for row in self.current_raw_board]
+            board['highest_tile'] = np.max(board['board'])
+            board['analysis'] = f"Board has {16 - np.count_nonzero(self.current_raw_board)} empty spaces"
+            text_representation_for_adapter = str(board)
         
         agent_observation = self.adapter.create_agent_observation(
             img_path=img_path_for_adapter,

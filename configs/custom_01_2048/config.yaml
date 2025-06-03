@@ -4,8 +4,8 @@ game_env:
   env_type: "custom"
   render_mode: "human"
   max_steps: 1000
-  seed: 42
-  num_runs: 3
+  seed: 0
+  num_runs: 1
 
 agent:
   # Global agent settings
@@ -14,20 +14,15 @@ agent:
   cache_dir: "cache/twenty_forty_eight"
   reasoning_effort: "high"
   token_limit: 100000
-  harness: false # Whether to use the perception-memory-reasoning pipeline
-  observation_mode: "both"
+  harness: true # Whether to use the perception-memory-reasoning pipeline
+  observation_mode: "text"
   # Module-specific settings
   modules:
     base_module:
-      observation_mode: "both"
     
     perception_module:
-      observation_mode: "both"
 
     memory_module:
       max_memory: 10  # Maximum number of memory entries to store
     
     reasoning_module:
-      use_perception: True
-      use_memory: True
-      use_cot: True
