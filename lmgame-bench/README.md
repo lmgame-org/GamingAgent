@@ -2,8 +2,7 @@
 <img src="assets/img/lmgame-bench.png" alt="lmgame-bench" width="220" align="center">
 </p>
 
-<div align="center"> <h1>LMGame Bench and Gaming Agent</h1> </div> 
-<p align="center"> <a href="https://arxiv.org/pdf/2505.15146"><b>📜 Paper</b></a> | <a href="https://huggingface.co/spaces/lmgame/game_arena_bench"><b>🏆 Leaderboard</b></a> | <a href="https://www.youtube.com/channel/UCmuHTmXPhmqYlzNySc6woFw"><b>📺 Gallery</b></a> | <a href="https://lmgame.org/#/gaming_agent"><b>🌐 Website</b></a></p>
+<div align="center"> <h1>LMGame Bench</h1> </div> 
 
 ## Introduction
 
@@ -19,80 +18,13 @@ This repo consists of two main features:
 
 
 ## Contents
-- [Installation](#installation)
-- [APIs](#apis)
-- [Lmgame Bench](#lmgame-bench)
-  - [Setup](#setup)
-  - [Single-Model Performance](#single-model-performance)
-  - [Agentic Performance](#agentic-performance)
-- [Computer-Use Gaming Agents](#computer-use-gaming-agents)
-- [Add Your Own Games](#add-your-own-games)
+- [Setup](#setup)
+- [Single-Model Performance](#single-model-performance)
+- [Agentic Performance](#agentic-performance)
 
-## News 🔥
+## Setup
 
-- [2025/6] Lmgame bench is officially released! Check out our [paper](https://arxiv.org/pdf/2505.15146) and [leaderboard](https://huggingface.co/spaces/lmgame/game_arena_bench) for more details.
-- [2025/3] We built gaming agents and tested different models on classical video games. See our [Youtube Channel](https://www.youtube.com/channel/UCmuHTmXPhmqYlzNySc6woFw) for side-by-side comparisons!
-
-## Installation
-
-1. Clone this repository:
-```
-git clone https://github.com/lmgame-org/GamingAgent.git
-cd GamingAgent
-```
-2. Install dependency:
-```
-conda create -n lmgame python==3.10 -y
-conda activate lmgame
-pip install -e .
-```
-
-## APIs
-
-Currently we support gaming agents based on the following models:
-
-- OpenAI:
-  - o4-mini
-  - o3-mini, o3
-  - o1
-  - gpt-4o
-  - gpt-4o-mini
-- Anthropic:
-  - claude-4-opus, claude-4-sonnet (with thinking mode)
-  - claude-3-7-sonnet (with thinking mode)
-  - claude-3-5-haiku, claude-3-5-sonnet
-- Gemini:
-  - gemini-2.5-pro, gemini-2.5-flash
-  - gemini-2.0-flash-thinking-exp
-  - gemini-2.0-pro, gemini-2.0-flash
-  - gemini-1.5-pro
-- xAI:
-  - grok-3-mini
-- Deepseek:
-  - reasoner (R1)
-  - chat (V3)
-- Qwen:
-  - Qwen3
- 
-Check out our [leaderboard](https://huggingface.co/spaces/lmgame/game_arena_bench) to see how their performances compare with each other!
-
-To test the models yourself, set your API keys with:
-
-```
-export OPENAI_API_KEY={YOUR_OPENAI_API_KEY}
-export ANTHROPIC_API_KEY={YOUR_ANTHROPIC_API_KEY}
-export GEMINI_API_KEY={YOUR_GEMINI_API_KEY}
-export XAI_API_KEY={YOUR_XAI_API_KEY}
-export DEEPSEEK_API_KEY={YOUR_DEEPSEEK_API_KEY}
-```
-
-⚠️ **Evaluating or deploying the agents with high-end models could incur higher costs!**
-
-## Lmgame Bench
-
-### Setup
-
-#### Gym and Retro Interface
+### Gym and Retro Interface
 
 ##### Gymnasium Envrionments
 
@@ -122,39 +54,39 @@ Currently our evaluation suite composes of the following games using retro envri
 - Super Mario Bros 1985
 - Ace Attorney: Phoenix Wright
 
-#### UI-only Interface
+### UI-only Interface
 
 Coming Soon!
 
 
-### Single-Model Performance
+## Single-Model Performance
 
 Launch multiple evaluation instances (in parallel) for a model on different games with the following commands:
 
 ```
-bash gamingagent/run.py --model_name {model_name} --game_names {list_of_games} --harness_mode false
+python3 run.py --model_name {model_name} --game_names {list_of_games} --harness_mode false
 ```
 
 To multiple models in parallel, run the following script:
 
 ```
-bash gamingagent/evaluate_all.sh
+bash evaluate_all.sh
 ```
 
-### Agentic Performance
+## Agentic Performance
 
 Evaluate a model's performance in gaming agent (with gaming harness support), run the following command:
 
 ```
-bash gamingagent/run.py --model_name {model_name} --game_names {list_of_games} --harness_mode true
+python3 run.py --model_name {model_name} --game_names {list_of_games} --harness_mode true
 ```
 
 ##### Command options
 
 ```
---harness_mode if to evaluate the model using agentic workflow, choice of ["true", "false", "both"].
---max_parallel_procs max parallel instances to run.
--- game_names list of games to evaluated on, e.g. "sokoban,tetris,candy_crush,twenty_forty_eight".
+--harness_mode: if to evaluate the model using agentic workflow, choice of ["true", "false", "both"].
+--max_parallel_procs: max parallel instances to run.
+--game_names: list of games to evaluated on, e.g. "sokoban,tetris,candy_crush,twenty_forty_eight".
 
 Currently supported games:
 - sokoban

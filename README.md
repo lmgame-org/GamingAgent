@@ -133,13 +133,13 @@ Coming Soon!
 Launch multiple evaluation instances (in parallel) for a model on different games with the following commands:
 
 ```
-bash gamingagent/run.py --model_name {model_name} --game_names {list_of_games} --harness_mode false
+python3 run.py --model_name {model_name} --game_names {list_of_games} --harness_mode false
 ```
 
 To multiple models in parallel, run the following script:
 
 ```
-bash gamingagent/evaluate_all.sh
+bash evaluate_all.sh
 ```
 
 ### Agentic Performance
@@ -147,15 +147,15 @@ bash gamingagent/evaluate_all.sh
 Evaluate a model's performance in gaming agent (with gaming harness support), run the following command:
 
 ```
-bash gamingagent/run.py --model_name {model_name} --game_names {list_of_games} --harness_mode true
+python3 run.py --model_name {model_name} --game_names {list_of_games} --harness_mode true
 ```
 
 ##### Command options
 
 ```
---harness_mode if to evaluate the model using agentic workflow, choice of ["true", "false", "both"].
---max_parallel_procs max parallel instances to run.
--- game_names list of games to evaluated on, e.g. "sokoban,tetris,candy_crush,twenty_forty_eight".
+--harness_mode: if to evaluate the model using agentic workflow, choice of ["true", "false", "both"].
+--max_parallel_procs: max parallel instances to run.
+--game_names: list of games to evaluated on, e.g. "sokoban,tetris,candy_crush,twenty_forty_eight".
 
 Currently supported games:
 - sokoban
