@@ -28,6 +28,7 @@ Our repo also provides an easy solution of deploying computer use agents (CUAs) 
   - [Setup](#setup)
   - [Single-Model Performance](#single-model-performance)
   - [Agentic Performance](#agentic-performance)
+  - [Understanding Game Performance](#understanding-game-performance)
 - [Computer-Use Gaming Agents](#computer-use-gaming-agents)
 - [Add Your Own Games](#add-your-own-games)
 
