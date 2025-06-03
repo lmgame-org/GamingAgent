@@ -7,9 +7,11 @@
 
 ## Introduction
 
-This repo consists of two main features:
-1. Evaluating state-of-the-art models with a suite of diverse video games in both single-model VLM (without gaming harness) setting.
-2. Deploying and evaluating models with GamingAgent workflow (gaming harness) to improve model gaming performance.
+This repo enables and tests LLM/VLM-based agents in standardized interctive gaming envrionments. It consists of two main features:
+1. Evaluating state-of-the-art models with a suite of diverse video games in vanilla single-model VLM setting (without gaming harness).
+2. Deploying and evaluating models with our customized GamingAgent workflow (gaming harness) to improve model gaming performance.
+
+Our repo also provides an easy solution of deploying computer use agents (CUAs) for gaming that run on your PC and laptops. 
 
 <p align="center">
   <picture>

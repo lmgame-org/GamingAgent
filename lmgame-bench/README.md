@@ -1,26 +1,8 @@
 <p align="center">
-<img src="assets/img/lmgame-bench.png" alt="lmgame-bench" width="220" align="center">
+<img src="../assets/img/lmgame-bench.png" alt="lmgame-bench" width="220" align="center">
 </p>
 
 <div align="center"> <h1>LMGame Bench</h1> </div> 
-
-## Introduction
-
-This repo consists of two main features:
-1. Evaluating state-of-the-art models with a suite of diverse video games in both single-model VLM (without gaming harness) setting.
-2. Deploying and evaluating models with GamingAgent workflow (gaming harness) to improve model gaming performance.
-
-<p align="center">
-  <picture>
-  <img src="assets/img/game_coverage_and_benchmark_overview.png" width="45%">
-  </picture>
-</p>
-
-
-## Contents
-- [Setup](#setup)
-- [Single-Model Performance](#single-model-performance)
-- [Agentic Performance](#agentic-performance)
 
 ## Setup
 
