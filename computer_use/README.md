@@ -24,7 +24,7 @@
     </tr>
     <tr>
       <td>
-        <img src="assets/super_mario_bros/mario-side-by-side-demo.gif" width="400" height="400">
+        <img src="../assets/super_mario_bros/mario-side-by-side-demo.gif" width="400" height="400">
       </td>
     </tr>
   </table>
@@ -39,7 +39,7 @@
     </tr>
     <tr>
       <td>
-        <img src="assets/sokoban/reasoning.gif" width="400" height="400">
+        <img src="../assets/sokoban/reasoning.gif" width="400" height="400">
       </td>
     </tr>
   </table>
@@ -55,10 +55,10 @@
     </tr>
     <tr>
       <td>
-        <img src="assets/2048/gpt-4o.gif" width="300" height="300">
+        <img src="../assets/2048/gpt-4o.gif" width="300" height="300">
       </td>
       <td>
-        <img src="assets/2048/claude-3.7.gif" width="300" height="300">
+        <img src="../assets/2048/claude-3.7.gif" width="300" height="300">
       </td>
     </tr>
   </table>
@@ -73,7 +73,7 @@
     </tr>
     <tr>
       <td>
-        <img src="assets/tetris/tetris-demo.gif" width="400" height="400">
+        <img src="../assets/tetris/tetris-demo.gif" width="400" height="400">
       </td>
     </tr>
   </table>
@@ -87,7 +87,7 @@
     </tr>
     <tr>
       <td>
-        <img src="assets/candy/candy_crush_o3_mini.gif" width="500" height="300">
+        <img src="../assets/candy/candy_crush_o3_mini.gif" width="500" height="300">
       </td>
     </tr>
   </table>
@@ -102,7 +102,7 @@
     </tr>
     <tr>
       <td>
-        <img src="assets/ace_attorney/ace_attorney_side_by_side.gif" width="600" height="400">
+        <img src="../assets/ace_attorney/ace_attorney_side_by_side.gif" width="600" height="400">
       </td>
     </tr>
   </table>
@@ -145,7 +145,7 @@ cd $YOUR_WORKPLACE/SuperMarioBros-C/build
 3. Full screen the game by pressing `F`. You should be able to see:
 
 <p align="center">
-<img src="assets/super_mario_bros/home.png" alt="super_mario" width="400" align="center">
+<img src="../assets/super_mario_bros/home.png" alt="super_mario" width="400" align="center">
 </p>
 
 4. Open another screen, launch your agent in terminal with
@@ -157,7 +157,7 @@ python games/superMario/mario_agent.py --api_provider {your_favorite_api_provide
 5. Due to concurrency issue, sometimes the agent will temporarily pause your game by pressing `Enter`. To avoid the issue, you can launch the agent only after entering the game upon seeing:
 
 <p align="center">
-<img src="assets/super_mario_bros/level_1.png" alt="super_mario_level_1" width="400" align="center">
+<img src="../assets/super_mario_bros/level_1.png" alt="super_mario_level_1" width="400" align="center">
 </p>
 
 ⚠️ Due to concurrency, deploying the agent with high-end models (and a large number of workers) could incur higher cost.
@@ -197,7 +197,7 @@ python games/sokoban/sokoban.py
 You should be able to see the first level:
 
 <p align="center">
-<img src="assets/sokoban/level1.png" alt="sokoban_level1" width="400" align="center">
+<img src="../assets/sokoban/level1.png" alt="sokoban_level1" width="400" align="center">
 </p>
 
 
@@ -232,7 +232,7 @@ Run the 2048 game with a defined window size:
 python games/game_2048/game_logic.py -wd 600 -ht 600
 ```
 <p align="center">
-<img src="assets/2048/2048_sample.png" alt="2048" width="400" align="center">
+<img src="../assets/2048/2048_sample.png" alt="2048" width="400" align="center">
 </p>
 
 Use **Ctrl** to restart the game and the **arrow keys** to move tiles strategically.
@@ -278,7 +278,7 @@ python main.py
 You should be able to see:
 
 <p align="center">
-<img src="assets/tetris/gameplay.png" alt="tetris_game" width="400" align="center">
+<img src="../assets/tetris/gameplay.png" alt="tetris_game" width="400" align="center">
 </p>
 
 2. Adjust Agent's Field of Vision. Either full screen your game or adjust screen region in `/games/tetris/workers.py`, line 67 to capture only the gameplay window. For example, in `Python-Tetris-Game-Pygame` with MacBook Pro, change the line to `region = (0, 0, screen_width // 32 * 9, screen_height // 32 * 20)`.
@@ -317,7 +317,7 @@ You can freely test the game agent on the [online version of Candy Crush](https:
 The example below demonstrates Level 1 gameplay on the online version of Candy Crush.
 
 <p align="center">
-  <img src="assets/candy/candy_game.png" alt="Candy Crush Game" width="400">
+  <img src="../assets/candy/candy_game.png" alt="Candy Crush Game" width="400">
 </p>
 
 #### Setup Instructions
