@@ -31,9 +31,19 @@ To run classical games implemented on Retro, you need to legally obtain the game
 python3 -m retro.import /path/to/your/ROMs/directory/
 ```
 
-Currently our evaluation suite composes of the following games using retro envrionments:
-
+Currently, our evaluation suite includes the following games from Retro environments:
 - Super Mario Bros 1985
+
+
+We have also integrated additional Retro environments that are not included in stable-retro.
+For these games, no `retro.import` is required. To enable the envrionments, simply place the ROM file into the designated directory.
+
+For example, for Ace Attorney: Phoenix Wright, place the ROM file into:
+```
+gamingagent/envs/retro_02_ace_attorney/AceAttorney-GbAdvance
+```
+
+Additional games we integrated:
 - Ace Attorney: Phoenix Wright
 
 ### UI-only Interface
@@ -46,13 +56,13 @@ Coming Soon!
 Launch multiple evaluation instances (in parallel) for a model on different games with the following commands:
 
 ```
-python3 run.py --model_name {model_name} --game_names {list_of_games} --harness_mode false
+python3 lmgame-bench/run.py --model_name {model_name} --game_names {list_of_games} --harness_mode false
 ```
 
 To multiple models in parallel, run the following script:
 
 ```
-bash evaluate_all.sh
+bash lmgame-bench/evaluate_all.sh
 ```
 
 ## Agentic Performance
@@ -60,7 +70,7 @@ bash evaluate_all.sh
 Evaluate a model's performance in gaming agent (with gaming harness support), run the following command:
 
 ```
-python3 run.py --model_name {model_name} --game_names {list_of_games} --harness_mode true
+python3 lmgame-bench/run.py --model_name {model_name} --game_names {list_of_games} --harness_mode true
 ```
 
 ##### Command options
@@ -79,20 +89,10 @@ Currently supported games:
 - ace_attorney
 ```
 
-## Computer-Use Gaming Agents
+## Customize Your Settings
 
-We support computer-use gaming agents to run state-of-the-art models live on your local PCs and laptops! Check out [computer_use](computer_use). for detailed instructions!
+`run.py` launches multiple instances of `custom_runner.py`. To run single model in a single game setting, run `python3 lmgame-bench/custom_runner.py --game_name {game_name} --model_name {model_name} --config_root_dir {path_to_gaming_agent_config} (--harness)`. 
 
-## Add Your own Games
+Adjust gaming-agent related configurations in `gamingagent/configs/{game_env_dir}/config.yaml`. 
 
-#### Gym and Retro Interface
-
-1. You can follow instructions from [Gymnasium](https://gymnasium.farama.org/introduction/create_custom_env/) (for your own game implementation) or [Gym Retro](https://retro.readthedocs.io/en/latest/integration.html) (for existing classical games) to integrate a gaming environment with standarized interface. 
-
-2. Navigate to [gamingagent/envs](gamingagent/envs). Set up your gaming environment to connect with an LLM/VLM gaming agent by implementing observation making and agent action processing methods.
-
-3. Add your agent configuration to [configs](configs) so that a gaming agent can interface properly the envrionment.
-
-#### UI-only Interface
-
-Coming Soon!
+Propmts can be found in `gamingagent/configs/{game_env_dir}/module_prompts.json`.
