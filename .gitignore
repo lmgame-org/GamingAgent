@@ -84,3 +84,5 @@ custom_integrations/roms/
 perf/
 
 logs/
+
+eval/video_samples/*
