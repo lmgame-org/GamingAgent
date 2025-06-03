@@ -18,3 +18,4 @@ pyyaml==6.0.2
 gymnasium
 gymnasium_2048
 tile_match_gym
+tiktoken

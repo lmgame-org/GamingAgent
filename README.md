@@ -1,5 +1,5 @@
 <p align="center">
-<img src="assets/img/lmgame-bench.png" alt="lmgame-bench" width="220" align="center">
+<img src="assets/img/logo.png" alt="lmgame-bench" width="220" align="center">
 </p>
 
 <div align="center"> <h1>LMGame Bench and Gaming Agent</h1> </div> 
@@ -13,12 +13,13 @@ This repo consists of two main features:
 
 <p align="center">
   <picture>
-  <img src="assets/img/game_coverage_and_benchmark_overview.png" width="45%">
+  <img src="assets/img/workflow.png" width="90%">
   </picture>
 </p>
 
 
 ## Contents
+- [News](#News)
 - [Installation](#installation)
 - [APIs](#apis)
 - [Lmgame Bench](#lmgame-bench)
@@ -30,7 +31,7 @@ This repo consists of two main features:
 
 ## News 🔥
 
-- [2025/6] Lmgame bench is officially released! Check out our [paper](https://arxiv.org/pdf/2505.15146) and [leaderboard](https://huggingface.co/spaces/lmgame/game_arena_bench) for more details.
+- [2025/6] Lmgame Bench is officially released! Check out our [paper](https://arxiv.org/pdf/2505.15146) and [leaderboard](https://huggingface.co/spaces/lmgame/game_arena_bench) for more details.
 - [2025/3] We built gaming agents and tested different models on classical video games. See our [Youtube Channel](https://www.youtube.com/channel/UCmuHTmXPhmqYlzNySc6woFw) for side-by-side comparisons!
 
 ## Installation
@@ -76,7 +77,7 @@ Currently we support gaming agents based on the following models:
  
 Check out our [leaderboard](https://huggingface.co/spaces/lmgame/game_arena_bench) to see how their performances compare with each other!
 
-To test the models yourself, set your API keys with:
+To test the models yourself, set your API keys in `credentials.sh` with:
 
 ```
 export OPENAI_API_KEY={YOUR_OPENAI_API_KEY}
@@ -167,7 +168,7 @@ Currently supported games:
 
 ## Computer-Use Gaming Agents
 
-We support computer-use gaming agents to run state-of-the-art models live on your local PCs and laptops! Check out [computer_use](computer_use). for detailed instructions!
+We support computer-use gaming agents to run state-of-the-art models live on your local PCs and laptops! Check out [computer_use](computer_use) for detailed instructions!
 
 ## Add Your own Games
 

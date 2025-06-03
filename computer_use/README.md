@@ -1,11 +1,8 @@
 <div align="center"> <h1>GamingAgent - Personal Computer Gaming Agent</h1> </div> 
-<p align="center"> <a href="https://x.com/largemodelgame"><b>📺 Demos on X</b></a> | <a href="https://huggingface.co/spaces/lmgame/game_arena_bench"><b>🏆 Leaderboard</b></a> | <a href="https://lmgame.org/#/blog/gaming_agent_intro"><b>📝 Blog</b></a> | <a href="https://lmgame.org/#/gaming_agent"><b>🌐 Web</b></a></p>
 
 ## Contents
 - [Gallery](#gallery)
 - [Introduction](#introduction)
-- [Installation](#installation)
-- [APIs](#apis)
 - [Games](#games)
   - [Super Mario Bros 1985](#super-mario-bros-1985-by-nintendo)
   - [Sokoban](#sokoban-1989-modified)
@@ -114,57 +111,13 @@
 
 ## Introduction
 
-The goal of this repo is to provide an easy solution of deploying computer use agents (CUAs) that run on your PC and laptops. As part of LMGames, our current focus is on building local gaming agents.
+As part of LMGame initiative, this repo provides an easy solution of deploying computer use gaming agents (CUAs) that run on your PC and laptops.
 
 Current features:
 
-- Gaming agents for Platformer and Atari games.
-
-## Installation
-
-1. Clone this repository:
-```
-git clone https://github.com/lmgame-org/GamingAgent.git
-cd GamingAgent
-```
-2. Install dependency:
-```
-conda create -n game_cua python==3.10 -y
-conda activate game_cua
-pip install -e .
-```
-
-## APIs
-
-Currently we support gaming agents based on the following models:
-
-- OpenAI:
-  - gpt-4o
-  - gpt-4o-mini
-  - o1
-  - o3-mini (low, medium, high)
-- Anthropic:
-  - claude-3-5-haiku-20241022
-  - claude-3-5-sonnet-20241022
-  - claude-3-7-sonnet-20250219 (thinking mode: True or False)
-- Gemini:
-  - gemini-1.5-pro
-  - gemini-2.0-pro
-  - gemini-2.0-flash
-  - gemini-2.0-flash-thinking-exp
-- Deepseek:
-  - chat (V3)
-  - reasoner (R1)
-
-Set your API keys with:
-
-```
-export OPENAI_API_KEY={YOUR_OPENAI_API_KEY}
-export ANTHROPIC_API_KEY={YOUR_ANTHROPIC_API_KEY}
-export GEMINI_API_KEY={your_GEMINI_API_KEY}
-```
-
-⚠️ Due to concurrency, deploying the agent with high-end models (and a large number of workers) could incur higher cost.
+- Gaming agents for grid-based games (2048, Candy Crush, Sokoban, Tetris).
+- Gaming agents for Platformer and Atari games (Super Mario Bros).
+- Gaming agents for visual novel detective games (Ace Attorney).
 
 ## Games
 
@@ -206,6 +159,8 @@ python games/superMario/mario_agent.py --api_provider {your_favorite_api_provide
 <p align="center">
 <img src="assets/super_mario_bros/level_1.png" alt="super_mario_level_1" width="400" align="center">
 </p>
+
+⚠️ Due to concurrency, deploying the agent with high-end models (and a large number of workers) could incur higher cost.
 
 #### Other command options
 ```
