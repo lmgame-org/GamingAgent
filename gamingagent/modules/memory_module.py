@@ -130,7 +130,9 @@ class MemoryModule(CoreModule):
 
         ts = datetime.datetime.now().isoformat(timespec="seconds")
         game_state.pop("img_path")
-        
+        if "processed_visual_description" in game_state and game_state["processed_visual_description"] is None:
+            game_state.pop("processed_visual_description")
+
         # reflection excluded from game trajectory
         # reflection will be extracted by the reasoning module
         line = (
