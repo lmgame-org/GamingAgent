@@ -186,6 +186,20 @@ Adjust gaming-agent related configurations in `gamingagent/configs/{game_env_dir
 
 Propmts can be found in `gamingagent/configs/{game_env_dir}/module_prompts.json`.
 
+### Understanding Game Performance
+
+Access the [lmgame_bench_evaluation colab](https://colab.research.google.com/drive/1CYFiJGm3EoBXXI8vICPVR82J9qrmmRvc#scrollTo=6ICtS7MjUMNG) or use the [evaluation notebook](eval/lmgame_Bench_Evaluation_Pipeline.ipynb) to reproduce performance analysis from the paper.
+
+Upload your generated cache directory to the colab workspace to visualize your model's performance compared to benchmark results.
+
+#### Game Video Generation
+
+Generate videos for Sokoban, 2048, Tetris, and Candy Crush games using agent config files and episode logs from your performance cache.
+
+```bash
+python eval/video_generation_script.py --agent_config_path [CONFIG_PATH] --episode_log_path [LOG_PATH] --method text --output_path [OUTPUT_NAME] --fps 2
+```
+
 ## Computer-Use Gaming Agents
 
 We support computer-use gaming agents to run state-of-the-art models live on your local PCs and laptops! Check out [computer_use](computer_use) for detailed instructions!
