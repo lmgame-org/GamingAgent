@@ -245,15 +245,23 @@ class DoomEnvWrapper(gym.Env):
                 self.game.set_available_buttons([getattr(vzd.Button, btn) for btn in available_buttons])
                 
                 # Set available game variables - exactly as in basic example
-                available_vars = self._cfg.get("available_game_variables", ["AMMO2"])
+                available_vars = self._cfg.get("available_game_variables", [
+                    "AMMO2",
+                    "KILLCOUNT",
+                    "POSITION_X",
+                    "POSITION_Y",
+                    "ANGLE",
+                    "HEALTH"
+                ])
                 self.game.set_available_game_variables([getattr(vzd.GameVariable, var) for var in available_vars])
                 
                 # Set episode settings - exactly as in basic example
-                self.game.set_episode_timeout(200)  # Use basic example's timeout
-                self.game.set_episode_start_time(10)  # Use basic example's start time
+                self.game.set_episode_timeout(self._cfg.get("episode_settings", {}).get("episode_timeout", 600))
+                self.game.set_episode_start_time(self._cfg.get("episode_settings", {}).get("episode_start_time", 14))
                 
                 # Set rewards - exactly as in basic example
-                self.game.set_living_reward(-1)
+                rewards = self._cfg.get("rewards", {})
+                self.game.set_living_reward(rewards.get("living_reward", -1))
                 
                 # Set game mode - exactly as in basic example
                 self.game.set_mode(vzd.Mode.PLAYER)
@@ -311,17 +319,22 @@ class DoomEnvWrapper(gym.Env):
         Returns:
             List of button states (0 or 1)
         """
-        if not action_str:
+        if not action_str or action_str.lower() == "none":
+            self.logger.info("No valid action string provided, returning all zeros")
             return [0] * 3
             
         action_str = action_str.strip().lower()
         action_map = {
-            "move_left": [1, 0, 0],
-            "move_right": [0, 1, 0],
-            "attack": [0, 0, 1]
+            "move_left": [1, 0, 0],  # First button
+            "move_right": [0, 1, 0],  # Second button
+            "attack": [0, 0, 1]  # Third button
         }
         
-        return action_map.get(action_str, [0, 0, 0])
+        # Log the action for debugging
+        self.logger.info(f"Converting action '{action_str}' to buttons")
+        buttons = action_map.get(action_str, [0, 0, 0])
+        self.logger.info(f"Resulting buttons: {buttons}")
+        return buttons
 
     def _extract_game_specific_info(self) -> Dict[str, Any]:
         """Extract game-specific information from the current state.
@@ -330,10 +343,15 @@ class DoomEnvWrapper(gym.Env):
             Dict containing game state information
         """
         if not self.game:
+            self.logger.error("Game instance is None")
             return {}
             
         state = self.game.get_state()
-        if state is None or state.game_variables is None or len(state.game_variables) == 0:
+        if state is None:
+            self.logger.error("Game state is None")
+            return {}
+        if state.game_variables is None or len(state.game_variables) == 0:
+            self.logger.error("Game variables not available")
             return {}
             
         # Extract all available game variables
@@ -352,6 +370,7 @@ class DoomEnvWrapper(gym.Env):
             "is_player_dead": self.game.is_player_dead()
         })
         
+        self.logger.info(f"Extracted game info: {info}")
         return info
 
     def _text_repr(self) -> str:
@@ -457,6 +476,7 @@ class DoomEnvWrapper(gym.Env):
         try:
             # Convert action to buttons
             buttons = self._buttons_from_str(agent_action_str)
+            self.logger.info(f"Executing action with buttons: {buttons}")
             
             # Execute action
             reward = self.game.make_action(buttons)
@@ -467,8 +487,14 @@ class DoomEnvWrapper(gym.Env):
                 state = self.game.get_state()
                 if state is None:
                     raise RuntimeError("Failed to get game state after action")
+                if state.game_variables is None or len(state.game_variables) == 0:
+                    raise RuntimeError("Game variables not available after action")
+                    
                 self.current_frame = state.screen_buffer
                 self.current_info = self._extract_game_specific_info()
+                
+                # Log state changes
+                self.logger.info(f"State after action: {self.current_info}")
             
             # Create observation
             obs = Observation()
@@ -529,7 +555,6 @@ class DoomEnvWrapper(gym.Env):
             return obs, reward, done, False, self.current_info.copy(), 0.0
             
         except Exception as e:
-            print(f"[{time.time()}] Error in step: {e}", file=sys.stderr)
             self.logger.error(f"Error in step: {e}")
             raise
 

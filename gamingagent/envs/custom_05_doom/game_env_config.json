@@ -10,17 +10,17 @@
     "rendering_options": {
         "screen_resolution": "RES_320X240",
         "screen_format": "RGB24",
-        "render_hud": false,
+        "render_hud": true,
         "render_crosshair": false,
-        "render_weapon": false,
-        "render_decals": false,
-        "render_particles": false,
-        "render_effects_sprites": false,
+        "render_weapon": true,
+        "render_decals": true,
+        "render_particles": true,
+        "render_effects_sprites": true,
         "render_messages": false,
         "render_corpses": false,
-        "render_screen_flashes": false,
+        "render_screen_flashes": true,
         "render_minimal_hud": false,
-        "window_visible": false
+        "window_visible": true
     },
     "episode_settings": {
         "episode_start_time": 14,
