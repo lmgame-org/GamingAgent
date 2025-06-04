@@ -43,9 +43,9 @@
     "mode": "PLAYER",
     "doom_skill": 3,
     "action_mapping": {
-        "move_left": 0,
-        "move_right": 1,
-        "attack": 2
+        "move_left": [true, false, false],
+        "move_right": [false, true, false],
+        "attack": [false, false, true]
     },
     "ram_addresses": {
         "health": "0x10",
