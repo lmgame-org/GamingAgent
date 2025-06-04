@@ -412,7 +412,7 @@ class DoomEnvWrapper(gym.Env):
             f"Position: ({pos_x}, {pos_y}), Angle={angle}",
             f"Status: {'Finished' if is_episode_finished else 'In Progress'}",
             f"Actions: move_left, move_right, attack",
-            f"Rewards: +106 kill, -5 shot, +1 alive",
+            f"Rewards: +106 kill, -5 shot, -1 alive",
             f"Goal: Kill monster or timeout (600 tics)"
         ])
 
