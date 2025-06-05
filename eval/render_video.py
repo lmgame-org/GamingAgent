@@ -17,11 +17,16 @@ def render_to_video(bk2_file_path):
     try:
         # Get absolute paths
         script_dir = os.path.dirname(os.path.abspath(__file__))
+        GAMING_AGENT_DIR = os.path.dirname(script_dir)  # Go up one level to get to GamingAgent root
+        ACE_ATTORNEY_DIR = os.path.join(GAMING_AGENT_DIR, "gamingagent", "envs", "retro_02_ace_attorney")
         bk2_abs_path = os.path.abspath(bk2_file_path)
         
-        # Add custom integration path
-        print(f"Adding custom integration path: {script_dir}")
+        # Add custom integration paths
+        print(f"Adding custom integration paths:")
+        print(f"1. {script_dir}")
+        print(f"2. {ACE_ATTORNEY_DIR}")
         retro.data.Integrations.add_custom_path(script_dir)
+        retro.data.Integrations.add_custom_path(ACE_ATTORNEY_DIR)
         
         # Load movie
         print("Loading movie...")
