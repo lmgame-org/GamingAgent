@@ -103,6 +103,13 @@ class AceAttorneyEnv(RetroEnv):
         os.makedirs(record_path_bk2, exist_ok=True)
         print(f"[AceAttorneyEnv] Saving .bk2 recordings to: {record_path_bk2}")
         
+        # Ensure the recording path is absolute
+        record_path_bk2 = os.path.abspath(record_path_bk2)
+        print(f"[AceAttorneyEnv] Absolute recording path: {record_path_bk2}")
+        
+        # Store the recording path as an instance variable
+        self.record_path_bk2 = record_path_bk2
+        
         super().__init__(
             game=game,
             state=state, # The initial .state file name
@@ -496,7 +503,7 @@ class AceAttorneyEnv(RetroEnv):
                 for _ in range(self.num_frames_for_no_op_pause): 
                     ram_obs_noop, reward_noop, term_noop, trunc_noop, self.current_core_info = super().step(no_op_action_for_skip_pause)
                     self.current_raw_frame = self.em.get_screen()
-                    accumulated_skip_reward += float(reward_noop)
+                    accumulated_reward_phase2 += float(reward_noop)
                     self._update_internal_game_state(self.current_core_info)
                     if self.current_lives <= 0: term_noop = True
                     
@@ -986,8 +993,20 @@ class AceAttorneyEnv(RetroEnv):
                         pyglet.app.exit()
                     except Exception as e:
                         print(f"[AceAttorneyEnv CLOSE] Exception during pyglet.app.exit(): {e}")
+            
+            # Check if recording was enabled and if files were created
+            if hasattr(self, 'record_path_bk2') and self.record_path_bk2:
+                record_dir = os.path.dirname(self.record_path_bk2)
+                if os.path.exists(record_dir):
+                    files = os.listdir(record_dir)
+                    bk2_files = [f for f in files if f.endswith('.bk2')]
+                    print(f"[AceAttorneyEnv CLOSE] Found {len(bk2_files)} .bk2 files in {record_dir}")
+                    for bk2_file in bk2_files:
+                        print(f"[AceAttorneyEnv CLOSE] Recording file: {bk2_file}")
+                else:
+                    print(f"[AceAttorneyEnv CLOSE] Recording directory {record_dir} does not exist")
         except Exception as e:
-            print(f"[AceAttorneyEnv CLOSE] Exception during pyglet cleanup: {e}")
+            print(f"[AceAttorneyEnv CLOSE] Exception during cleanup: {e}")
         finally:
             super().close()
             self.adapter.close_log_file()

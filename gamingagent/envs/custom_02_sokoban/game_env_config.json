@@ -5,7 +5,7 @@
         "num_boxes": 3,
         "num_gen_steps": null
     },
-    "level_to_load": 1, 
+    "level_to_load": 1,
     "action_mapping": {
         "no_op": 0,
         "push up": 1,
