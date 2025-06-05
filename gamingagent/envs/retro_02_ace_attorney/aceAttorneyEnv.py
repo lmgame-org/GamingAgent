@@ -50,7 +50,7 @@ class AceAttorneyEnv(RetroEnv):
         scenario: Optional[str] = None,
         info: Optional[str] = None,
         use_restricted_actions: int = Actions.FILTERED, # Defaulting to FILTERED
-        record: bool = False,
+        record: bool = True, 
         players: int = 1,
         inttype: int = retro.data.Integrations.ALL, # For accessing RAM variables if needed
         obs_type: int = Observations.RAM, # Essential for LIVES_RAM_VARIABLE_NAME
@@ -78,7 +78,7 @@ class AceAttorneyEnv(RetroEnv):
                                     retro.Actions.FILTERED: uses "valid_actions" from scenario.json.
                                     retro.Actions.DISCRETE: maps to a discrete set of button combinations.
                                     retro.Actions.MULTI_BINARY: one button per action.
-            record: Whether to record gameplay.
+            record: Whether to record gameplay to a .bk2 file. Defaults to True.
             players: Number of players.
             inttype: Integration type for gym-retro.
             obs_type: Observation type (RAM, IMAGE, etc.). RAM is needed for lives.
@@ -98,13 +98,18 @@ class AceAttorneyEnv(RetroEnv):
         self.num_buttons = 12
         self.NO_OP_ACTION_ARRAY = np.zeros(self.num_buttons, dtype=bool)
         
+        # Create a dedicated directory for .bk2 recordings
+        record_path_bk2 = os.path.join(adapter_agent_cache_dir, "bk2_recordings")
+        os.makedirs(record_path_bk2, exist_ok=True)
+        print(f"[AceAttorneyEnv] Saving .bk2 recordings to: {record_path_bk2}")
+        
         super().__init__(
             game=game,
             state=state, # The initial .state file name
             scenario=scenario,
             info=info, # Should point to a data.json for RAM variables like 'lives'
             use_restricted_actions=use_restricted_actions,
-            record=record,
+            record=record_path_bk2 if record else False, # Use the dedicated directory for recordings
             players=players,
             inttype=inttype,
             obs_type=obs_type
