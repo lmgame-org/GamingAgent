@@ -180,7 +180,12 @@ class DoomEnvWrapper(gym.Env):
         )
         
         # Define action space based on available buttons
-        available_buttons = self._cfg.get("available_buttons", ["MOVE_LEFT", "MOVE_RIGHT", "ATTACK"])
+        available_buttons = self._cfg.get("available_buttons", [
+            "move_left",
+            "move_right",
+            "attack"
+        ])
+        print(f"[{time.time()}] Setting available buttons: {available_buttons}", file=sys.stderr)
         self.action_space = spaces.Discrete(len(available_buttons))
         
         print("[DoomEnvWrapper] Initialization complete.", file=sys.stderr)
@@ -217,13 +222,17 @@ class DoomEnvWrapper(gym.Env):
     def _init_game_components(self) -> None:
         """Initialize the Doom game components."""
         try:
+            # Set environment variables for headless mode
+            os.environ["SDL_VIDEODRIVER"] = "dummy"
+            os.environ["SDL_AUDIODRIVER"] = "dummy"
+            
             print(f"[{time.time()}] Creating game instance...", file=sys.stderr)
             self.game = vzd.DoomGame()
             
             print(f"[{time.time()}] Setting basic settings...", file=sys.stderr)
             try:
                 # Basic settings - following basic example
-                self.game.set_window_visible(not self.headless)
+                self.game.set_window_visible(False)  # Always false for headless mode
                 self.game.set_sound_enabled(False)  # Keep sound disabled as in basic example
                 
                 # Set scenario path first - exactly as in basic example
@@ -245,46 +254,54 @@ class DoomEnvWrapper(gym.Env):
                 self.game.set_screen_format(vzd.ScreenFormat.RGB24)
                 
                 # Set available buttons - exactly as in basic example
-                available_buttons = self._cfg.get("available_buttons", ["MOVE_LEFT", "MOVE_RIGHT", "ATTACK"])
-                self.game.set_available_buttons([getattr(vzd.Button, btn) for btn in available_buttons])
+                available_buttons = self._cfg.get("available_buttons", [
+                    "move_left",
+                    "move_right",
+                    "attack"
+                ])
+                print(f"[{time.time()}] Setting available buttons: {available_buttons}", file=sys.stderr)
+                self.game.set_available_buttons([getattr(vzd.Button, btn.upper()) for btn in available_buttons])
                 
                 # Set available game variables - exactly as in basic example
                 available_vars = self._cfg.get("available_game_variables", [
-                    "AMMO2",
-                    "KILLCOUNT",
-                    "POSITION_X",
-                    "POSITION_Y",
-                    "ANGLE",
-                    "HEALTH"
+                    "ammo2",
+                    "position_x",
+                    "position_y",
+                    "angle",
+                    "health"
                 ])
-                # Store the mapping of variable names to their indices for later use
+                print(f"[{time.time()}] Setting available game variables: {available_vars}", file=sys.stderr)
                 self.game_variable_indices = {
-                    var: idx for idx, var in enumerate(available_vars)
+                    var.lower(): idx for idx, var in enumerate(available_vars)
                 }
-                self.game.set_available_game_variables([getattr(vzd.GameVariable, var) for var in available_vars])
+                self.game.set_available_game_variables([getattr(vzd.GameVariable, var.upper()) for var in available_vars])
                 
-                # Set episode settings - exactly as in basic example
-                self.game.set_episode_timeout(self._cfg.get("episode_settings", {}).get("episode_timeout", 600))
-                self.game.set_episode_start_time(self._cfg.get("episode_settings", {}).get("episode_start_time", 14))
+                # Set episode settings
+                episode_settings = self._cfg.get("episode_settings", {})
+                self.game.set_episode_timeout(episode_settings.get("episode_timeout", 600))
+                self.game.set_episode_start_time(episode_settings.get("episode_start_time", 14))
+                self.game.set_ticrate(episode_settings.get("ticrate", 20))
                 
-                # Set rewards - exactly as in basic example
+                # Set rewards
                 rewards = self._cfg.get("rewards", {})
                 self.game.set_living_reward(rewards.get("living_reward", -1))
+                self.game.set_death_penalty(rewards.get("death_penalty", 0))
                 
                 # Set game mode - exactly as in basic example
                 self.game.set_mode(vzd.Mode.PLAYER)
 
                 # Set rendering options
-                self.game.set_render_hud(True)  # Always show HUD
-                self.game.set_render_crosshair(False)
-                self.game.set_render_weapon(True)  # Always show weapon
-                self.game.set_render_decals(True)  # Show bullet impacts
-                self.game.set_render_particles(True)  # Show particle effects
-                self.game.set_render_effects_sprites(True)  # Show effect sprites
-                self.game.set_render_messages(False)
-                self.game.set_render_corpses(False)
-                self.game.set_render_screen_flashes(True)  # Show muzzle flash
-                self.game.set_render_minimal_hud(False)  # Show full HUD to display ammo
+                rendering_options = self._cfg.get("rendering_options", {})
+                self.game.set_render_hud(rendering_options.get("render_hud", True))
+                self.game.set_render_crosshair(rendering_options.get("render_crosshair", False))
+                self.game.set_render_weapon(rendering_options.get("render_weapon", True))
+                self.game.set_render_decals(rendering_options.get("render_decals", True))
+                self.game.set_render_particles(rendering_options.get("render_particles", True))
+                self.game.set_render_effects_sprites(rendering_options.get("render_effects_sprites", True))
+                self.game.set_render_messages(rendering_options.get("render_messages", False))
+                self.game.set_render_corpses(rendering_options.get("render_corpses", False))
+                self.game.set_render_screen_flashes(rendering_options.get("render_screen_flashes", True))
+                self.game.set_render_minimal_hud(rendering_options.get("render_minimal_hud", False))
                 
             except vzd.ViZDoomErrorException as e:
                 print(f"[{time.time()}] VizDoom error in settings: {e}", file=sys.stderr)
@@ -318,102 +335,91 @@ class DoomEnvWrapper(gym.Env):
                     pass
             raise
 
-    def _buttons_from_str(self, action_str: Optional[str]) -> List[bool]:
-        """Convert action string to button presses.
+    def _buttons_from_str(self, action_str: str) -> List[bool]:
+        """Convert action string to button presses."""
+        if action_str == "none":
+            return [False] * len(self._cfg.get("available_buttons", []))
         
-        Args:
-            action_str: Action string to convert
-            
-        Returns:
-            List of button states (True or False)
-        """
-        if not action_str or action_str.lower() == "none":
-            self.logger.info("No action provided, using no-op")
-            return [False, False, False]  # No action
-            
-        action_str = action_str.strip().lower()
+        # Normalize the action string
+        action_str = action_str.strip()
         
-        # Map actions to button combinations exactly as in the VizDoom example
-        # [MOVE_LEFT, MOVE_RIGHT, ATTACK]
+        # Map action strings to button presses
         action_map = {
             "move_left": [True, False, False],
             "move_right": [False, True, False],
             "attack": [False, False, True]
         }
         
-        buttons = action_map.get(action_str, [False, False, False])
-        self.logger.info(f"Converting action '{action_str}' to buttons: {buttons}")
-        self.logger.info(f"Button meanings: [MOVE_LEFT, MOVE_RIGHT, ATTACK]")
+        if action_str not in action_map:
+            self.logger.warning(f"Unknown action: {action_str}, using none")
+            return [False] * len(self._cfg.get("available_buttons", []))
         
-        return buttons
+        return action_map[action_str]
 
     def _extract_game_specific_info(self) -> Dict[str, Any]:
-        """Extract game-specific information from the current state.
+        """Extract game-specific information from the current state."""
+        info = {}
         
-        Returns:
-            Dict containing game state information
-        """
-        if not self.game:
-            self.logger.error("Game instance is None")
-            return {}
-            
-        state = self.game.get_state()
-        if state is None:
-            self.logger.error("Game state is None")
-            return {}
-        if state.game_variables is None or len(state.game_variables) == 0:
-            self.logger.error("Game variables not available")
-            return {}
-            
-        # Use the stored mapping to get variable values
+        # Get game variables
         try:
-            info = {
-                "ammo": int(state.game_variables[self.game_variable_indices["AMMO2"]]),
-                "kills": int(state.game_variables[self.game_variable_indices["KILLCOUNT"]]),
-                "position_x": float(state.game_variables[self.game_variable_indices["POSITION_X"]]),
-                "position_y": float(state.game_variables[self.game_variable_indices["POSITION_Y"]]),
-                "angle": float(state.game_variables[self.game_variable_indices["ANGLE"]]),
-                "health": int(state.game_variables[self.game_variable_indices["HEALTH"]])
+            game_vars = {
+                "ammo2": self.game.get_game_variable(vzd.GameVariable.AMMO2),
+                "health": self.game.get_game_variable(vzd.GameVariable.HEALTH),
+                "position_x": self.game.get_game_variable(vzd.GameVariable.POSITION_X),
+                "position_y": self.game.get_game_variable(vzd.GameVariable.POSITION_Y),
+                "angle": self.game.get_game_variable(vzd.GameVariable.ANGLE)
             }
-        except (KeyError, IndexError) as e:
-            self.logger.error(f"Error accessing game variables: {e}")
-            self.logger.error(f"Available variables: {self.game_variable_indices}")
-            self.logger.error(f"Game variables array length: {len(state.game_variables)}")
-            return {}
+            
+            # Check for state changes
+            for key in ['ammo2', 'position_x', 'position_y', 'angle', 'health']:
+                if key in game_vars and key in self.current_info:
+                    if game_vars[key] != self.current_info[key]:
+                        state_changed = True
+                        break
+            
+            # Map game variables to their values
+            for var_name in self._cfg.get("available_game_variables", []):
+                var_idx = self.game_variable_indices.get(var_name.lower())
+                if var_idx is not None:
+                    info[var_name.lower()] = game_vars[var_name.lower()]
+            
+            # Add episode status
+            info['is_episode_finished'] = self.game.is_episode_finished()
+            
+        except Exception as e:
+            self.logger.error(f"Error extracting game info: {e}")
+            info = {
+                'ammo2': 0,
+                'health': 0,
+                'position_x': 0,
+                'position_y': 0,
+                'angle': 0,
+                'is_episode_finished': True
+            }
         
-        # Add additional state information
-        info.update({
-            "is_episode_finished": self.game.is_episode_finished(),
-            "is_player_dead": self.game.is_player_dead()
-        })
-        
-        self.logger.info(f"Extracted game info: {info}")
         return info
 
     def _text_repr(self) -> str:
-        """Generate a concise textual representation of the current game state.
-        
-        Returns:
-            String representation of the game state
-        """
+        """Get text representation of the current state."""
         if not self.current_info:
-            return "No game state available."
-
-        ammo = self.current_info.get('ammo', 'N/A')
-        kills = self.current_info.get('kills', 'N/A')
+            return "No game state available"
+            
+        # Extract basic info
+        ammo = self.current_info.get('ammo2', 'N/A')
         health = self.current_info.get('health', 'N/A')
         pos_x = self.current_info.get('position_x', 'N/A')
         pos_y = self.current_info.get('position_y', 'N/A')
         angle = self.current_info.get('angle', 'N/A')
-        is_episode_finished = self.current_info.get('is_episode_finished', True)
-
+        is_episode_finished = self.current_info.get('is_episode_finished', False)
+        
+        # Get the last action if available
+        last_action = self.current_info.get('last_action', 'None')
+        
         return "\n".join([
-            f"State: Health={health}, Ammo={ammo}, Kills={kills}",
-            f"Position: ({pos_x}, {pos_y}), Angle={angle}",
-            f"Status: {'Finished' if is_episode_finished else 'In Progress'}",
-            f"Actions: move_left, move_right, attack",
-            f"Rewards: +106 kill, -5 shot, -1 alive",
-            f"Goal: Kill monster or timeout (600 tics)"
+            f"State: health={health}, ammo2={ammo}",
+            f"Position: (position_x={pos_x}, position_y={pos_y}), angle={angle}",
+            f"Last Action: {last_action}",
+            f"Status: {'Finished' if is_episode_finished else 'In Progress'}"
         ])
 
     def reset(self, *, seed: int | None = None, episode_id: int = 1, **kwargs) -> Tuple[Observation, Dict[str, Any]]:
@@ -487,29 +493,34 @@ class DoomEnvWrapper(gym.Env):
             raise
 
     def _save_game_frame(self, frame: np.ndarray, episode_id: int, step_num: int) -> str:
-        """
-        Save a game frame to the game_frames directory with episode and step information.
+        """Save a game frame to disk.
         
         Args:
-            frame: The frame to save as a numpy array
+            frame: The frame to save
             episode_id: Current episode ID
             step_num: Current step number
             
         Returns:
-            str: Path to the saved frame
+            Path to the saved frame
         """
-        # Create a separate game_frames directory under base_log_dir
-        game_frames_dir = os.path.join(self.base_log_dir, "game_frames")
-        os.makedirs(game_frames_dir, exist_ok=True)
-        
-        # Create episode-specific directory under game_frames
-        episode_dir = os.path.join(game_frames_dir, f"episode_{episode_id:03d}")
-        os.makedirs(episode_dir, exist_ok=True)
-        
-        # Create path with episode and step numbers
-        path = os.path.join(episode_dir, f"step_{step_num:04d}.png")
-        
         try:
+            # Create base directory if it doesn't exist
+            if not self.video_dir:
+                self.video_dir = os.path.join(self.base_log_dir, "frames")
+            os.makedirs(self.video_dir, exist_ok=True)
+            
+            # Create episode directory
+            episode_dir = os.path.join(self.video_dir, f"episode_{episode_id:04d}")
+            os.makedirs(episode_dir, exist_ok=True)
+            
+            # Save frame
+            path = os.path.join(episode_dir, f"step_{step_num:04d}.png")
+            
+            # Ensure frame is in correct format
+            if frame.dtype != np.uint8:
+                frame = (frame * 255).astype(np.uint8)
+            
+            # Save frame using PIL
             from PIL import Image
             Image.fromarray(frame).save(path)
             
@@ -521,7 +532,7 @@ class DoomEnvWrapper(gym.Env):
                 "timestamp": datetime.datetime.now().isoformat(),
                 "frame_path": path,
                 "game_state": {
-                    "ammo": self.game.get_game_variable(vzd.GameVariable.AMMO2),
+                    "ammo2": self.game.get_game_variable(vzd.GameVariable.AMMO2),
                     "health": self.game.get_game_variable(vzd.GameVariable.HEALTH),
                     "position_x": self.game.get_game_variable(vzd.GameVariable.POSITION_X),
                     "position_y": self.game.get_game_variable(vzd.GameVariable.POSITION_Y),
@@ -531,10 +542,12 @@ class DoomEnvWrapper(gym.Env):
             with open(metadata_path, 'w') as f:
                 json.dump(metadata, f, indent=2)
                 
+            self.logger.info(f"[DoomEnvWrapper] Saved frame to: {path}")
+            return path
+                
         except Exception as e:
-            print(f"[DoomEnvWrapper] Warning: could not save game frame to {path}: {e}")
-            
-        return path
+            self.logger.error(f"[DoomEnvWrapper] Error saving game frame: {e}")
+            return ""
 
     def step(
         self,
@@ -544,57 +557,85 @@ class DoomEnvWrapper(gym.Env):
     ) -> Tuple[Observation, float, bool, bool, Dict[str, Any], float]:
         """Execute an action and return the next observation."""
         try:
-            # Store previous state for comparison
-            prev_state = self._extract_game_specific_info()
+            # Store previous frame for comparison
+            prev_frame = self.current_frame.copy() if self.current_frame is not None else None
             
-            # Convert action to buttons
+            # Convert action string to button presses with validation
             buttons = self._buttons_from_str(agent_action_str)
-            self.logger.info(f"Executing action with buttons: {buttons}")
+            self.logger.info(f"[DoomEnvWrapper] Executing action with buttons: {buttons}")
             
-            # Execute action and get reward
+            # Execute action
             reward = self.game.make_action(buttons)
-            
-            # Get new state
-            state = self.game.get_state()
-            if state is None:
-                raise RuntimeError("Failed to get game state after action")
-                
-            # Update current state
-            self.current_frame = state.screen_buffer
-            self.current_info = self._extract_game_specific_info()
-            self.current_info['episode_id'] = self.current_episode_id
-            
-            # Verify state changed
-            if prev_state:
-                changes = []
-                for key in ['ammo', 'kills', 'position_x', 'position_y', 'angle', 'health']:
-                    if key in prev_state and key in self.current_info:
-                        if prev_state[key] != self.current_info[key]:
-                            changes.append(f"{key}: {prev_state[key]} -> {self.current_info[key]}")
-                if changes:
-                    self.logger.info(f"State changes detected: {', '.join(changes)}")
-                else:
-                    self.logger.warning("No state changes detected after action")
-            
-            # Check if episode is finished
             done = self.game.is_episode_finished()
             
-            # Log state changes
-            self.logger.info(f"State #{state.number}")
-            self.logger.info(f"Game variables: {state.game_variables}")
-            self.logger.info(f"Reward: {reward}")
-            
-            # Create observation
+            # Update state
+            if not done:
+                state = self.game.get_state()
+                if state is None:
+                    self.logger.error("[DoomEnvWrapper] Game state is None after action")
+                    raise RuntimeError("Game state is None after action")
+                    
+                if state.screen_buffer is None:
+                    self.logger.error("[DoomEnvWrapper] Screen buffer is None after action")
+                    raise RuntimeError("Screen buffer is None after action")
+                
+                # Get the frame AFTER the action is executed
+                self.current_frame = state.screen_buffer
+                self.current_info = self._extract_game_specific_info()
+                
+                # Store the last action
+                self.current_info['last_action'] = agent_action_str if agent_action_str else 'None'
+                
+                # Verify frame has changed
+                if prev_frame is not None:
+                    frame_diff = np.mean(np.abs(self.current_frame.astype(float) - prev_frame.astype(float)))
+                    self.logger.info(f"[DoomEnvWrapper] Frame difference: {frame_diff:.2f}")
+                    if frame_diff < 1.0:  # Arbitrary threshold
+                        self.logger.warning("[DoomEnvWrapper] Frame content appears unchanged")
+                
+                # Save frame immediately after action
+                img_path = ""
+                if self.observation_mode in ("vision", "both") and self.current_frame is not None:
+                    # Ensure frame is in correct format
+                    if self.current_frame.dtype != np.uint8:
+                        self.current_frame = (self.current_frame * 255).astype(np.uint8)
+                    
+                    # Log frame properties
+                    self.logger.info(f"[DoomEnvWrapper] Frame shape: {self.current_frame.shape}")
+                    self.logger.info(f"[DoomEnvWrapper] Frame dtype: {self.current_frame.dtype}")
+                    self.logger.info(f"[DoomEnvWrapper] Frame min/max: {self.current_frame.min()}/{self.current_frame.max()}")
+                    
+                    # Save frame with our own step counter
+                    img_path = self._save_game_frame(
+                        self.current_frame, 
+                        self.current_episode_id, 
+                        self.current_step_num
+                    )
+                    if img_path:
+                        self.logger.info(f"[DoomEnvWrapper] Saved frame to: {img_path}")
+                    else:
+                        self.logger.warning("[DoomEnvWrapper] Failed to save frame")
+
+                    # Write frame to video if recording
+                    if self.record_video and img_path:
+                        self._write_frame_to_video(
+                            self.current_frame,
+                            action=agent_action_str,
+                            reward=reward,
+                            info=self.current_info
+                        )
+            else:
+                self.current_frame = None
+                self.current_info = {}
+                self.logger.info(f"[DoomEnvWrapper] Episode {self.current_episode_id} finished")
+
+            # Create observation with the frame we saved
             obs = Observation()
             obs.raw_observation = self.current_frame
             obs.textual_representation = self._text_repr()
             obs.processed_visual_description = ""  # Will be filled by perception module
-            
-            # Save frame and set image path
-            if self.observation_mode in ("vision", "both") and self.current_frame is not None:
-                img_path = self._save_game_frame(self.current_frame, self.current_episode_id, self.current_step_num)
-                obs.img_path = img_path
-            
+            obs.img_path = img_path
+
             # Maintain game trajectory
             if hasattr(self, 'last_observation') and hasattr(self.last_observation, 'game_trajectory'):
                 obs.game_trajectory = self.last_observation.game_trajectory
@@ -612,7 +653,7 @@ class DoomEnvWrapper(gym.Env):
             )
             obs.game_trajectory.add(step_entry)
             
-            # Store current observation for next step
+            # Store current observation
             self.last_observation = obs
             
             # Create game state dict for memory module
@@ -646,7 +687,8 @@ class DoomEnvWrapper(gym.Env):
             return obs, reward, done, False, self.current_info.copy(), 0.0
             
         except Exception as e:
-            self.logger.error(f"Error in step: {e}")
+            self.logger.error(f"[DoomEnvWrapper] Error in step: {e}", exc_info=True)
+            self.close()
             raise
 
     def render(self) -> None:
@@ -664,3 +706,43 @@ class DoomEnvWrapper(gym.Env):
         """
         if hasattr(self, 'game'):
             self.game.close()
+
+    def _get_game_state(self) -> Dict[str, Any]:
+        """Get the current game state."""
+        try:
+            return {
+                "ammo2": self.game.get_game_variable(vzd.GameVariable.AMMO2),
+                "health": self.game.get_game_variable(vzd.GameVariable.HEALTH),
+                "position_x": self.game.get_game_variable(vzd.GameVariable.POSITION_X),
+                "position_y": self.game.get_game_variable(vzd.GameVariable.POSITION_Y),
+                "angle": self.game.get_game_variable(vzd.GameVariable.ANGLE)
+            }
+        except Exception as e:
+            self.logger.error(f"Error getting game state: {e}")
+            return {
+                "ammo2": 0,
+                "health": 0,
+                "position_x": 0,
+                "position_y": 0,
+                "angle": 0
+            }
+
+    def _verify_state_changes(self, prev_info: Dict[str, Any], current_info: Dict[str, Any], action: str) -> bool:
+        """Verify that the state changed appropriately after an action."""
+        try:
+            if action == "attack":
+                # Verify ammo decreased
+                if current_info['ammo2'] >= prev_info['ammo2']:
+                    self.logger.warning(f"[DoomEnvWrapper] Ammo did not decrease after attack: {prev_info['ammo2']} -> {current_info['ammo2']}")
+                    return False
+            elif action in ["move_left", "move_right"]:
+                # Verify position or angle changed
+                if (current_info["position_x"] == prev_info["position_x"] and
+                    current_info["position_y"] == prev_info["position_y"] and
+                    current_info["angle"] == prev_info["angle"]):
+                    self.logger.warning(f"[DoomEnvWrapper] Position/angle did not change after {action}")
+                    return False
+            return True
+        except Exception as e:
+            self.logger.error(f"Error verifying state changes: {e}")
+            return False

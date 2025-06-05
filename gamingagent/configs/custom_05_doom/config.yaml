@@ -24,17 +24,16 @@ game_env:
   window_visible: true
   episode_start_time: 14
   available_buttons:
-    - MOVE_LEFT
-    - MOVE_RIGHT
-    - ATTACK
+    - move_left
+    - move_right
+    - attack
   available_game_variables:
-    - AMMO2
-    - KILLCOUNT
-    - POSITION_X
-    - POSITION_Y
-    - ANGLE
-    - HEALTH
-  mode: "PLAYER"
+    - ammo2
+    - position_x
+    - position_y
+    - angle
+    - health
+  mode: "player"
   doom_skill: 3
   rewards:
     kill_monster: 106
