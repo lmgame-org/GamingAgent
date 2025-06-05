@@ -81,9 +81,9 @@ class BaseModule(CoreModule):
 
         response = None
         if self.observation_mode in ["vision", "both"]:
+            image_path = scale_image_up(self.observation.get_img_path())
             if not image_path:
                 print("Warning: No image path provided for vision API call. Using text-only API.")
-            image_path = scale_image_up(self.observation.get_img_path())
             response = self._call_vision_api(full_context, image_path, custom_prompt)
         else:
             response = self._call_text_api(full_context, custom_prompt)
