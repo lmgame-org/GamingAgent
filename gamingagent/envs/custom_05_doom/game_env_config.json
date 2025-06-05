@@ -39,7 +39,7 @@
         "angle",
         "health"
     ],
-    "mode": "PLAYER",
+    "mode": "player",
     "doom_skill": 3,
     "action_mapping": {
         "move_left": [true, false, false],
