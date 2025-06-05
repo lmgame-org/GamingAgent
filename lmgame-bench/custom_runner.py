@@ -423,16 +423,37 @@ def run_game_episode(agent: BaseAgent, game_env: gym.Env, episode_id: int, args:
 
     final_score_from_env = float(last_info.get('total_score', 0.0)) 
 
-    print(f"Episode {episode_id} finished after {final_step_num} steps. Final Env Score: {final_score_from_env}, Total Reward: {total_reward_for_episode:.2f}, Total Perf Score: {total_perf_score_for_episode:.2f}")
+    # Updated print statement to show original values
+    print(f"Episode {episode_id} finished after {final_step_num} steps. Original Final Env Score: {final_score_from_env}, Original Total Reward: {total_reward_for_episode:.2f}, Original Total Perf Score: {total_perf_score_for_episode:.2f}")
     
-    # Record results with the adapter
+    # Overwrite scores for Ace Attorney episodes
+    effective_total_reward = total_reward_for_episode
+    effective_total_perf_score = total_perf_score_for_episode
+    effective_final_score_from_env = final_score_from_env
+
+    if isinstance(game_env, AceAttorneyEnv):
+        current_checkpoint_score = 0
+        if hasattr(game_env, 'calculate_final_performance_score'):
+            try:
+                # This will read the cumulative dialogue log up to this point in this execution of custom_runner.py
+                current_checkpoint_score = game_env.calculate_final_performance_score()
+                print(f"[Runner] Ace Attorney Episode {episode_id}: Checkpoint score calculated: {current_checkpoint_score}. Overwriting episode summary values.")
+                effective_total_reward = float(current_checkpoint_score)
+                effective_total_perf_score = float(current_checkpoint_score)
+                effective_final_score_from_env = float(current_checkpoint_score) # Also use checkpoint score for the primary 'score' field
+            except Exception as e:
+                print(f"[Runner] Error calling calculate_final_performance_score for AceAttorneyEnv episode {episode_id}: {e}. Using original scores.")
+        else:
+            print("[Runner] AceAttorneyEnv instance does not have calculate_final_performance_score method. Using original scores.")
+
+    # Record results with the adapter, using potentially overwritten values
     if hasattr(game_env, 'adapter') and game_env.adapter:
         game_env.adapter.record_episode_result(
             episode_id=episode_id,
-            score=final_score_from_env,
+            score=effective_final_score_from_env,       # Potentially overwritten
             steps=final_step_num,
-            total_reward=total_reward_for_episode,
-            total_perf_score=total_perf_score_for_episode
+            total_reward=effective_total_reward,        # Potentially overwritten
+            total_perf_score=effective_total_perf_score # Potentially overwritten
         )
     else:
         print("Warning: game_env.adapter not found. Cannot record episode result for summary.")

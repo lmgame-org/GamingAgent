@@ -662,7 +662,15 @@ class SokobanEnv(gym.Env):
             pygame.init()
             pygame.display.init()
             self.window = pygame.display.set_mode((img_rgb_array.shape[1], img_rgb_array.shape[0])) # W, H
-            pygame.display.set_caption("Sokoban")
+            pygame.display.set_caption(f"Sokoban - Level {self.current_level}")
+        else:
+            # Check if window size needs to be updated for new level
+            current_size = self.window.get_size()
+            new_size = (img_rgb_array.shape[1], img_rgb_array.shape[0])
+            if current_size != new_size:
+                self.window = pygame.display.set_mode(new_size)
+            pygame.display.set_caption(f"Sokoban - Level {self.current_level}")
+
         if self.clock is None:
             self.clock = pygame.time.Clock()
 
