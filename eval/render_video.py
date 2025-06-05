@@ -23,8 +23,6 @@ def render_to_video(bk2_file_path):
         
         # Add custom integration paths
         print(f"Adding custom integration paths:")
-        print(f"1. {script_dir}")
-        print(f"2. {ACE_ATTORNEY_DIR}")
         retro.data.Integrations.add_custom_path(script_dir)
         retro.data.Integrations.add_custom_path(ACE_ATTORNEY_DIR)
         
