@@ -2,6 +2,7 @@ import os
 import time
 import functools
 import anthropic
+import httpx
 
 from openai import OpenAI
 import google.generativeai as genai
@@ -31,6 +32,14 @@ def retry_on_overload(func):
                         raise
                 else:
                     # Re-raise if it's not an overload error
+                    raise
+            except httpx.RemoteProtocolError as e:
+                if attempt < max_retries - 1:
+                    delay = base_delay * (2 ** attempt) + (os.urandom(1)[0] / 255.0)
+                    print(f"Streaming connection closed unexpectedly. Retrying in {delay:.2f} seconds... (Attempt {attempt + 1}/{max_retries})")
+                    time.sleep(delay)
+                else:
+                    print(f"Streaming connection failed after {max_retries} attempts. Raising the error.")
                     raise
     return wrapper
 
@@ -88,8 +97,13 @@ def anthropic_completion(system_prompt, model_name, base64_image, prompt, thinki
                 model=model_name, # claude-3-5-sonnet-20241022 # claude-3-7-sonnet-20250219
             ) as stream:
                 partial_chunks = []
-                for chunk in stream.text_stream:
-                    partial_chunks.append(chunk)
+                try:
+                    for chunk in stream.text_stream:
+                        partial_chunks.append(chunk)
+                except httpx.RemoteProtocolError as e:
+                    print(f"Streaming connection closed unexpectedly: {e}")
+                    # Return what we have so far
+                    return "".join(partial_chunks)
     else:
          
         with client.messages.stream(
@@ -100,8 +114,13 @@ def anthropic_completion(system_prompt, model_name, base64_image, prompt, thinki
                 model=model_name, # claude-3-5-sonnet-20241022 # claude-3-7-sonnet-20250219
             ) as stream:
                 partial_chunks = []
-                for chunk in stream.text_stream:
-                    partial_chunks.append(chunk)
+                try:
+                    for chunk in stream.text_stream:
+                        partial_chunks.append(chunk)
+                except httpx.RemoteProtocolError as e:
+                    print(f"Streaming connection closed unexpectedly: {e}")
+                    # Return what we have so far
+                    return "".join(partial_chunks)
         
     generated_code_str = "".join(partial_chunks)
     
@@ -151,8 +170,13 @@ def anthropic_text_completion(system_prompt, model_name, prompt, thinking=False,
                 model=model_name, # claude-3-5-sonnet-20241022 # claude-3-7-sonnet-20250219
             ) as stream:
                 partial_chunks = []
-                for chunk in stream.text_stream:
-                    partial_chunks.append(chunk)
+                try:
+                    for chunk in stream.text_stream:
+                        partial_chunks.append(chunk)
+                except httpx.RemoteProtocolError as e:
+                    print(f"Streaming connection closed unexpectedly: {e}")
+                    # Return what we have so far
+                    return "".join(partial_chunks)
     else:    
         with client.messages.stream(
                 max_tokens=token_limit,
@@ -162,8 +186,13 @@ def anthropic_text_completion(system_prompt, model_name, prompt, thinking=False,
                 model=model_name, # claude-3-5-sonnet-20241022 # claude-3-7-sonnet-20250219
             ) as stream:
                 partial_chunks = []
-                for chunk in stream.text_stream:
-                    partial_chunks.append(chunk)
+                try:
+                    for chunk in stream.text_stream:
+                        partial_chunks.append(chunk)
+                except httpx.RemoteProtocolError as e:
+                    print(f"Streaming connection closed unexpectedly: {e}")
+                    # Return what we have so far
+                    return "".join(partial_chunks)
         
     generated_str = "".join(partial_chunks)
     
@@ -225,9 +254,14 @@ def anthropic_multiimage_completion(system_prompt, model_name, prompt, list_cont
             model=model_name, # claude-3-5-sonnet-20241022 # claude-3-7-sonnet-20250219
         ) as stream:
             partial_chunks = []
-            for chunk in stream.text_stream:
-                print(chunk)
-                partial_chunks.append(chunk)
+            try:
+                for chunk in stream.text_stream:
+                    print(chunk)
+                    partial_chunks.append(chunk)
+            except httpx.RemoteProtocolError as e:
+                print(f"Streaming connection closed unexpectedly: {e}")
+                # Return what we have so far
+                return "".join(partial_chunks)
         
     generated_str = "".join(partial_chunks)
     
