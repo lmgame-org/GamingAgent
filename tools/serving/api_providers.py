@@ -42,7 +42,7 @@ def anthropic_completion(system_prompt, model_name, base64_image, prompt, thinki
         print("claude-opus-4 supports 32000 tokens")
         token_limit = 32000
 
-    if "claude-sonnet-4" in model_name.lower():
+    if "claude-sonnet-4" in model_name.lower() and token_limit > 64000:
         print("claude-sonnet-4 supports 64000 tokens")
         token_limit = 64000
 
@@ -104,7 +104,7 @@ def anthropic_text_completion(system_prompt, model_name, prompt, thinking=False,
         print("claude-opus-4 supports 32000 tokens")
         token_limit = 32000
 
-    if "claude-sonnet-4" in model_name.lower():
+    if "claude-sonnet-4" in model_name.lower() and token_limit > 64000:
         print("claude-sonnet-4 supports 64000 tokens")
         token_limit = 64000
 
@@ -146,7 +146,8 @@ def anthropic_multiimage_completion(system_prompt, model_name, prompt, list_cont
     if "claude-opus-4" in model_name.lower() and token_limit > 32000:
         print("claude-opus-4 supports 32000 tokens")
         token_limit = 32000
-    if "claude-sonnet-4" in model_name.lower():
+    
+    if "claude-sonnet-4" in model_name.lower() and token_limit > 64000:
         print("claude-sonnet-4 supports 64000 tokens")
         token_limit = 64000
     
