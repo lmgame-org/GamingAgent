@@ -534,25 +534,53 @@ class DoomEnvWrapper(gym.Env):
         buttons = self._buttons_from_str(action_str)
         self.logger.info(f"[DoomEnvWrapper] Executing action '{action_str}' with buttons: {buttons}")
 
-        if action_str == "attack":
-            # Execute attack; engine will handle ammo consumption
-            reward = self.game.make_action(buttons)
+        # Get the game's ticrate from config
+        ticrate = self._cfg.get("episode_settings", {}).get("ticrate", 20)
+        frame_time = 1.0 / ticrate
 
-            # Small delay to allow firing animation
-            time.sleep(0.1)
+        # Maximum attempts to get state changes
+        max_attempts = 3
+        state_changed = False
+        reward = 0
+        current_info = None
 
-            # Capture frame during firing animation
-            frame_path = self._capture_frame()
-
-            # Get new state after action; engine should have decreased ammo automatically
+        for attempt in range(max_attempts):
+            # Execute action with multiple tics to ensure state updates
+            reward = self.game.make_action(buttons, tics=8)  # Advance 8 tics per action
+            
+            # Longer delay to allow action to process
+            time.sleep(frame_time * 2)  # Wait 2 frames worth of time
+            
+            # Get new state
+            state = self.game.get_state()
+            if state is None:
+                self.logger.error(f"Failed to get game state after action (attempt {attempt + 1}/{max_attempts})")
+                continue
+                
+            # Update current state
             current_info = self._get_game_state()
-            self.current_ammo = current_info.get('ammo2', 0)
-        else:
-            # For non-attack actions, proceed normally
-            reward = self.game.make_action(buttons)
-            frame_path = self._capture_frame()
-            current_info = self._get_game_state()
-            self.current_ammo = current_info.get('ammo2', 0)
+            
+            # Verify state changed
+            if prev_info:
+                changes = []
+                for key in ['ammo2', 'health', 'position_x', 'position_y', 'angle']:
+                    if key in prev_info and key in current_info:
+                        if prev_info[key] != current_info[key]:
+                            changes.append(f"{key}: {prev_info[key]} -> {current_info[key]}")
+                if changes:
+                    self.logger.info(f"State changes detected: {', '.join(changes)}")
+                    state_changed = True
+                    break
+                else:
+                    self.logger.warning(f"No state changes detected after action (attempt {attempt + 1}/{max_attempts})")
+                    time.sleep(frame_time * 2)  # Wait longer before next attempt
+
+        if not state_changed:
+            self.logger.error("Failed to detect state changes after maximum attempts")
+            current_info = prev_info  # Use previous state if no changes detected
+
+        # Capture frame after state update
+        frame_path = self._capture_frame()
 
         # Update game trajectory
         ts = datetime.datetime.now().isoformat(timespec="seconds")
@@ -587,10 +615,41 @@ class DoomEnvWrapper(gym.Env):
     def render(self) -> None:
         """Render the game.
         
-        This method renders the game if not in headless mode.
+        This method renders the game by getting the current game state and displaying it.
+        For human viewing, it uses pygame to display the screen buffer.
         """
-        if not self.headless and self.game:
-            self.game.render()
+        if not self.game:
+            return
+            
+        state = self.game.get_state()
+        if state is None:
+            return
+            
+        # Get screen buffer
+        screen = state.screen_buffer
+        if screen is None:
+            return
+            
+        # Convert from BGR to RGB
+        screen = cv2.cvtColor(screen, cv2.COLOR_BGR2RGB)
+        
+        # For human viewing, display using pygame
+        if self.render_mode == "human":
+            import pygame
+            
+            # Initialize pygame if needed
+            if not hasattr(self, 'window_surface'):
+                pygame.init()
+                pygame.display.set_caption("ViZDoom")
+                self.window_surface = pygame.display.set_mode(screen.shape[:2][::-1])
+                self.clock = pygame.time.Clock()
+            
+            # Convert screen buffer to pygame surface and display
+            surf = pygame.surfarray.make_surface(screen.transpose(1, 0, 2))
+            self.window_surface.blit(surf, (0, 0))
+            pygame.display.update()
+            pygame.event.pump()
+            self.clock.tick(self.metadata["render_fps"])
 
     def close(self) -> None:
         """Clean up resources.
