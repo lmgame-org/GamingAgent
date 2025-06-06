@@ -86,7 +86,7 @@ def main():
         print("Error: Model name must be provided.")
         sys.exit(1)
 
-    custom_runner_script_path = os.path.join("gamingagent", "custom_runner.py")
+    custom_runner_script_path = os.path.join("lmgame-bench", "custom_runner.py")
     if not os.path.exists(custom_runner_script_path):
         print(f"Error: custom_runner.py not found at {custom_runner_script_path}")
         sys.exit(1)
