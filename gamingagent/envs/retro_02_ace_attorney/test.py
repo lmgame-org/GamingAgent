@@ -27,7 +27,52 @@ KEY_TO_GBA_BUTTON = {
 }
 NUM_GBA_BUTTONS = 12 # Total number of buttons in the GBA array for this integration
 
+def test_recording():
+    """Test function to demonstrate recording functionality."""
+    print("\nTesting recording functionality...")
+    retro.data.Integrations.add_custom_path(SCRIPT_DIR)
+    game_name = "AceAttorney-GbAdvance"  # Make sure this matches the directory name exactly
+    
+    # Create a directory for recordings
+    record_dir = os.path.join(SCRIPT_DIR, "recordings")
+    os.makedirs(record_dir, exist_ok=True)
+    print(f"Recording will be saved to: {record_dir}")
+    
+    try:
+        # Create environment with recording enabled
+        env = retro.make(
+            game=game_name,
+            state="level1_1_5",
+            record=record_dir,
+            render_mode='human',
+            use_restricted_actions=retro.Actions.FILTERED,
+            inttype=retro.data.Integrations.ALL  # Add this to ensure all integrations are checked
+        )
+        
+        print("Environment created successfully. Starting recording test...")
+        env.reset()
+        
+        # Run for 1000 steps or until termination
+        for step in range(1000):
+            _, _, terminate, truncate, _ = env.step(env.action_space.sample())
+            if terminate or truncate:
+                print(f"Episode ended after {step + 1} steps")
+                break
+                
+        print("Recording test completed.")
+        env.close()
+        
+    except Exception as e:
+        print(f"Error during recording test: {e}")
+        print(f"Current directory contents: {os.listdir(SCRIPT_DIR)}")  # Add this to debug
+
 def main():
+    # Add command line argument parsing to choose between interactive and recording test
+    import sys
+    if len(sys.argv) > 1 and sys.argv[1] == "--record":
+        test_recording()
+        return
+
     retro.data.Integrations.add_custom_path(SCRIPT_DIR)
     game_name = "AceAttorney-GbAdvance"
 
