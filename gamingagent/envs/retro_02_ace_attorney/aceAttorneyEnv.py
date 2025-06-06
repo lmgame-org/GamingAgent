@@ -1,5 +1,4 @@
 import retro
-from retro.retro_env import RetroEnv
 from retro.enums import Actions, Observations # type: ignore
 import gymnasium as gym # type: ignore
 from gymnasium.core import SupportsFloat, RenderFrame # type: ignore
@@ -12,6 +11,7 @@ import hashlib
 import re # For keyword mapping
 from typing import Optional, Dict, Any, Tuple, List
 import pyglet # ADDED IMPORT
+import atexit # ADDED IMPORT
 
 from gamingagent.modules.core_module import Observation
 from gamingagent.envs.gym_env_adapter import GymEnvAdapter
@@ -28,18 +28,17 @@ DIALOGUE_LOG_FILE_NAME = "dialogues.jsonl" # ADDED
 # Ensure PIL is imported for image operations if any are done directly here
 # from PIL import Image
 
-class AceAttorneyEnv(RetroEnv):
+class AceAttorneyEnv(gym.Env):
     """
     Ace Attorney environment integrated with GamingAgent framework.
-    Inherits from retro.retro_env.RetroEnv and uses GymEnvAdapter for agent interaction.
+    This environment wraps the gym-retro environment.
     Only 'lives' is reliably extracted from RAM. Dialogue and other game state
     elements are intended to be perceived by the agent from visual input.
     Level progression based on dialogue end statements is currently non-functional
     due to lack of direct dialogue extraction by the environment.
     """
     metadata = {
-        # render_modes from retro.Env are typically ['human', 'rgb_array']
-        # render_fps from retro.Env is usually based on the game's native FPS
+        'render.modes': ['human', 'rgb_array'],
     }
 
     def __init__(
@@ -92,39 +91,43 @@ class AceAttorneyEnv(RetroEnv):
             skip_conversations_path: Path to JSON file for skipping known dialogue sequences.
             initial_lives: The starting number of lives/penalties.
         """
+        # Register the close method to be called upon script exit.
+        # This is more robust than a signal handler for ensuring recordings are saved.
+        atexit.register(self.close)
+        
         custom_integration_path = os.path.dirname(os.path.abspath(__file__))
         retro.data.Integrations.add_custom_path(custom_integration_path)
         # For GBA, it's typically 10 or 12 (B, SELECT, START, UP, DOWN, LEFT, RIGHT, A, L, R, + 2 Nones for 12)
-        self.num_buttons = 12
-        self.NO_OP_ACTION_ARRAY = np.zeros(self.num_buttons, dtype=bool)
         
         # Create a dedicated directory for .bk2 recordings
         record_path_bk2 = os.path.join(adapter_agent_cache_dir, "bk2_recordings")
         os.makedirs(record_path_bk2, exist_ok=True)
         print(f"[AceAttorneyEnv] Saving .bk2 recordings to: {record_path_bk2}")
         
-        # Ensure the recording path is absolute
-        record_path_bk2 = os.path.abspath(record_path_bk2)
-        
-        # Initialize recording path for RetroEnv
-        self.recording_path = record_path_bk2 if record else None
-        
-        super().__init__(
+        self.env = retro.make(
             game=game,
             state=state, # The initial .state file name
             scenario=scenario,
             info=info, # Should point to a data.json for RAM variables like 'lives'
             use_restricted_actions=use_restricted_actions,
-            record=self.recording_path, # Use the absolute path
+            record=record_path_bk2, # Use the absolute path or False
             players=players,
             inttype=inttype,
-            obs_type=obs_type
+            obs_type=obs_type,
+            render_mode=wrapper_render_mode,
         )
+
+        self.action_space = self.env.action_space
+        self.observation_space = self.env.observation_space
+        self.buttons = self.env.buttons
+        self.num_buttons = len(self.buttons)
+        self.NO_OP_ACTION_ARRAY = np.zeros(self.num_buttons, dtype=bool)
+        
         # print(f"[AceAttorneyEnv __init__] RetroEnv initialized. Action space: {self.action_space}, Buttons: {self.buttons}")
 
         # --- Game Specific Variables & Configs ---
         self.initial_retro_state_name: str = state if state is not None else "level1_1_5" # Default if None
-        self.current_retro_state_name: str = self.initial_retro_state_name
+        self.current_retro_state_name = self.initial_retro_state_name
         self.retro_inttype = inttype # Store for state loading
 
         self.game_script_data: Dict[str, Any] = {}
@@ -363,11 +366,11 @@ class AceAttorneyEnv(RetroEnv):
         
         # Load the initial state defined for this environment instance.
         # This ensures that a general reset always brings us back to the very start state of this env config.
-        if self.current_retro_state_name != self.initial_retro_state_name or not self.data:
+        if self.current_retro_state_name != self.initial_retro_state_name or not self.env.data:
             # self.data check is to ensure core retro env is properly initialized if it's the first reset.
             # print(f"[AceAttorneyEnv RESET] Current state ('{self.current_retro_state_name}') differs from initial or core data missing. Loading initial state: '{self.initial_retro_state_name}'.")
             try:
-                self.load_state(self.initial_retro_state_name, self.retro_inttype)
+                self.env.load_state(self.initial_retro_state_name, self.retro_inttype)
             except Exception as e:
                 print(f"[AceAttorneyEnv RESET] CRITICAL ERROR loading initial state '{self.initial_retro_state_name}': {e}. Attempting to proceed with super().reset() but state might be inconsistent.")
                 # If load_state fails, super().reset() might reset to a default or last valid state, which could be problematic.
@@ -375,8 +378,8 @@ class AceAttorneyEnv(RetroEnv):
         self.current_retro_state_name = self.initial_retro_state_name # Ensure this is set before super().reset()
         
         # super().reset() handles the core emulator reset, provides initial RAM observation and info.
-        ram_observation, self.current_core_info = super().reset(seed=seed, options=options)
-        self.current_raw_frame = self.em.get_screen() # Get screen pixels after core reset
+        ram_observation, self.current_core_info = self.env.reset(seed=seed, options=options)
+        self.current_raw_frame = self.env.em.get_screen() # Get screen pixels after core reset
 
         # Reset internal game logic state variables to their initial values for this env instance.
         self.current_lives = self.initial_lives 
@@ -482,9 +485,8 @@ class AceAttorneyEnv(RetroEnv):
             for i in range(num_skips):
                 # --- 1. Press 'A' (1 frame) ---
                 # print(f"[AceAttorneyEnv DEBUG _check_and_trigger_skip_sequence] Skip Turn {i+1}/{num_skips}: Pressing 'A'.")
-                ram_obs_A, reward_A, term_A, trunc_A, self.current_core_info = super().step(action_A_array)
-                self.current_raw_frame = self.em.get_screen()
-                accumulated_skip_reward += float(reward_A)
+                ram_obs_A, reward_A, term_A, trunc_A, self.current_core_info = self.env.step(action_A_array)
+                self.current_raw_frame = self.env.em.get_screen()
                 self._update_internal_game_state(self.current_core_info)
                 if self.current_lives <= 0: term_A = True
                 
@@ -500,9 +502,8 @@ class AceAttorneyEnv(RetroEnv):
                 # print(f"[AceAttorneyEnv DEBUG _check_and_trigger_skip_sequence] Skip Turn {i+1}/{num_skips}: Starting {num_frames_for_no_op_pause_in_skip}-frame no-op pause.")
                 # Use self.num_frames_for_no_op_pause here
                 for _ in range(self.num_frames_for_no_op_pause): 
-                    ram_obs_noop, reward_noop, term_noop, trunc_noop, self.current_core_info = super().step(no_op_action_for_skip_pause)
-                    self.current_raw_frame = self.em.get_screen()
-                    accumulated_skip_reward += float(reward_noop)
+                    ram_obs_noop, reward_noop, term_noop, trunc_noop, self.current_core_info = self.env.step(no_op_action_for_skip_pause)
+                    self.current_raw_frame = self.env.em.get_screen()
                     self._update_internal_game_state(self.current_core_info)
                     if self.current_lives <= 0: term_noop = True
                     
@@ -529,7 +530,7 @@ class AceAttorneyEnv(RetroEnv):
             self.adapter.log_step_data(
                 agent_action_str=f"<AUTO_SKIP_BLOCK_{num_skips}_FRAMES>",
                 thought_process=f"Auto-skipped {num_skips} dialogue lines triggered by: {trigger_key}",
-                reward=accumulated_skip_reward,
+                reward=0,
                 info=final_skip_info.copy(),
                 terminated=skip_terminated,
                 truncated=skip_truncated,
@@ -573,14 +574,14 @@ class AceAttorneyEnv(RetroEnv):
             if next_level_state_name:
                 try:
                     # Load the new state into the retro emulator
-                    self.load_state(next_level_state_name, self.retro_inttype) # This effectively resets the core game to the new state
+                    self.env.load_state(next_level_state_name, self.retro_inttype) # This effectively resets the core game to the new state
                     self.current_retro_state_name = next_level_state_name
                     self.current_lives = self.initial_lives # Reset lives for the new level
                     self._initialize_level_specific_data() # Reload scripts, skip maps for the new level
                     
                     # The core game is reset to the new level. Get its initial observation.
-                    ram_observation_new_level, self.current_core_info = super().reset(seed=None, options=None) # Perform a soft reset of the core for new level's initial info
-                    self.current_raw_frame = self.em.get_screen()
+                    ram_observation_new_level, self.current_core_info = self.env.reset(seed=None, options=None) # Perform a soft reset of the core for new level's initial info
+                    self.current_raw_frame = self.env.em.get_screen()
                     self._update_internal_game_state(self.current_core_info)
 
                     # print(f"[AceAttorneyEnv STEP] Successfully loaded new level: {self.current_retro_state_name}. Lives set to {self.current_lives}.")
@@ -646,6 +647,10 @@ class AceAttorneyEnv(RetroEnv):
             agent_intended_action_for_phase1 = base_env_action_from_agent
             effective_agent_action_str_for_log = agent_action_str
         
+        # FOR BK2 RECORDING TEST: Use random actions.
+        # agent_intended_action_for_phase1 = self.action_space.sample()
+        # effective_agent_action_str_for_log = "<RANDOM_ACTION>"
+
         overall_accumulated_reward = 0.0
         
         current_observation_to_return = None
@@ -660,10 +665,8 @@ class AceAttorneyEnv(RetroEnv):
             current_frame_time_taken = original_time_taken_s_for_agent_action if frame_num_phase1 == 0 else 0.0
             
             # super().step() returns obs (RAM data if obs_type=RAM), reward, terminated, truncated, info
-            ram_obs_frame_p1, p1_step_reward, p1_terminated_frame, p1_truncated_frame, self.current_core_info = super().step(agent_intended_action_for_phase1)
-            self.current_raw_frame = self.em.get_screen() # Explicitly get screen pixels for phase 1 via self.em
-
-            overall_accumulated_reward += float(p1_step_reward)
+            ram_obs_frame_p1, p1_step_reward, p1_terminated_frame, p1_truncated_frame, self.current_core_info = self.env.step(agent_intended_action_for_phase1)
+            self.current_raw_frame = self.env.em.get_screen() # Explicitly get screen pixels for phase 1 via self.em
             self._update_internal_game_state(self.current_core_info)
 
             if self.current_lives <= 0: p1_terminated_frame = True
@@ -692,7 +695,7 @@ class AceAttorneyEnv(RetroEnv):
                     self.adapter.log_step_data(
                         agent_action_str=effective_agent_action_str_for_log, # Action that led to game over
                         thought_process=thought_process + " (Resulted in Game Over - Lives 0)",
-                        reward=overall_accumulated_reward, # Reward up to this point
+                        reward=0,
                         info=current_agent_facing_info_to_return.copy(),
                         terminated=True, # Game Over
                         truncated=current_truncated_overall, # Keep existing truncation status
@@ -716,7 +719,6 @@ class AceAttorneyEnv(RetroEnv):
             (current_observation_to_return, skip_reward, skip_terminated, 
              skip_truncated, current_agent_facing_info_to_return, skip_perf_score) = skip_results
             
-            overall_accumulated_reward += skip_reward # Add reward from skip sequence
             current_terminated_overall = current_terminated_overall or skip_terminated
             current_truncated_overall = current_truncated_overall or skip_truncated
             
@@ -727,7 +729,7 @@ class AceAttorneyEnv(RetroEnv):
                 self.adapter.log_step_data(
                     agent_action_str=f"<AUTO_SKIP_BLOCK_GAME_OVER>", # Indicate skip led to game over
                     thought_process=f"Auto-skipped, resulted in Game Over - Lives 0",
-                    reward=overall_accumulated_reward,
+                    reward=0,
                     info=current_agent_facing_info_to_return.copy(),
                     terminated=True,
                     truncated=current_truncated_overall,
@@ -752,10 +754,8 @@ class AceAttorneyEnv(RetroEnv):
             for frame_num_phase2 in range(num_frames_for_no_op_pause):
                 self.adapter.increment_step() # Increment step for adapter's internal count
 
-                ram_obs_frame_p2, p2_step_reward_frame, p2_terminated_frame_internal, p2_truncated_frame_internal, self.current_core_info = super().step(no_op_action)
-                self.current_raw_frame = self.em.get_screen() # Keep updating current_raw_frame
-
-                accumulated_reward_phase2 += float(p2_step_reward_frame)
+                ram_obs_frame_p2, p2_step_reward_frame, p2_terminated_frame_internal, p2_truncated_frame_internal, self.current_core_info = self.env.step(no_op_action)
+                self.current_raw_frame = self.env.em.get_screen() # Keep updating current_raw_frame
                 self._update_internal_game_state(self.current_core_info)
                 if self.current_lives <= 0: p2_terminated_frame_internal = True
                 
@@ -765,9 +765,6 @@ class AceAttorneyEnv(RetroEnv):
                 if phase2_internal_terminated or phase2_internal_truncated:
                     # print(f"[AceAttorneyEnv DEBUG] Phase 2 (Internal Frame {frame_num_phase2+1}): Terminating/Truncating during no-op pause.")
                     break 
-            
-            # After the no-op loop (or early break), create one observation and log entry for the entire phase.
-            overall_accumulated_reward += accumulated_reward_phase2
 
             p2_agent_facing_info = self._get_agent_info()
             p2_block_perf_score = 0.0 # ADDED: Ace Attorney per-step perf score is 0
@@ -787,7 +784,7 @@ class AceAttorneyEnv(RetroEnv):
             self.adapter.log_step_data(
                 agent_action_str="<AUTO_NO_OP_BLOCK>", 
                 thought_process=f"Automatic no-op pause for {frame_num_phase2 + 1}/{num_frames_for_no_op_pause} frames.", # Log actual frames executed
-                reward=accumulated_reward_phase2, 
+                reward=0, 
                 info=p2_agent_facing_info.copy(), 
                 terminated=current_terminated_overall, 
                 truncated=current_truncated_overall, 
@@ -798,9 +795,6 @@ class AceAttorneyEnv(RetroEnv):
             current_observation_to_return = p2_final_agent_obs
             current_agent_facing_info_to_return = p2_agent_facing_info
         
-        # If num_frames_for_no_op_pause was 0, the observation and info from Phase 1 are still the latest.
-        # The overall_accumulated_reward is also correct.
-        # current_terminated_overall and current_truncated_overall would be from Phase 1.
 
         if self.wrapper_render_mode == "human": self.render()
         
@@ -815,7 +809,7 @@ class AceAttorneyEnv(RetroEnv):
 
     def render(self) -> Optional[RenderFrame]:
         if self.wrapper_render_mode == 'human':
-            return super().render()
+            return self.env.render()
         elif self.wrapper_render_mode == 'rgb_array' and self.current_raw_frame is not None:
             return self.current_raw_frame.copy()
         return None
@@ -981,23 +975,19 @@ class AceAttorneyEnv(RetroEnv):
         return prompt_body, additional_prefix
 
     def close(self):
-        """Closes the environment and the adapter's log file."""
-        # print(f"[AceAttorneyEnv CLOSE] Closing environment. Render mode: {self.wrapper_render_mode}")
+        """Closes the environment and the adapter's log file. Called by atexit."""
+        print(f"[AceAttorneyEnv CLOSE] Closing environment and saving recording...")
         try:
-            if self.wrapper_render_mode == 'human' and self.viewer is not None:
-                if hasattr(self.viewer, 'close'):
-                    self.viewer.close()
-                if pyglet.app.event_loop is not None and hasattr(pyglet.app.event_loop, 'running') and pyglet.app.event_loop.running:
-                    try:
-                        pyglet.app.exit()
-                    except Exception as e:
-                        print(f"[AceAttorneyEnv CLOSE] Exception during pyglet.app.exit(): {e}")
+            self.env.close()
+            print("[AceAttorneyEnv CLOSE] Environment closed successfully.")
         except Exception as e:
-            print(f"[AceAttorneyEnv CLOSE] Exception during pyglet cleanup: {e}")
-        finally:
-            super().close()
+            print(f"[AceAttorneyEnv CLOSE] Error closing retro environment: {e}")
+        
+        try:
             self.adapter.close_log_file()
-            # print("[AceAttorneyEnv] Environment and adapter log file closed.")
+            print("[AceAttorneyEnv CLOSE] Adapter log file closed successfully.")
+        except Exception as e:
+            print(f"[AceAttorneyEnv CLOSE] Error closing adapter log file: {e}")
 
     def calculate_final_performance_score(self) -> int:
         """
