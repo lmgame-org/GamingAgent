@@ -864,7 +864,7 @@ def build_app():
         """)
         
         with gr.Tabs():
-            with gr.Tab("🏆 Overall Leaderboard"):
+            with gr.Tab("🏆 Agent Leaderboard"):
                 # Visualization section
                 with gr.Row():
                     gr.Markdown("### 📊 Data Visualization")
