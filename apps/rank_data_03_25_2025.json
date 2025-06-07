@@ -3,37 +3,37 @@
         "runs": 5,
         "results": [
             {
-                "model": "claude-3-7-sonnet-20250219",
+                "model": "Agent + claude-3-7-sonnet-20250219",
                 "score": 710,
                 "progress": "1-1",
                 "time_s": 64.2
             },
             {
-                "model": "gpt-4.1-2025-04-14",
+                "model": "Agent + gpt-4.1-2025-04-14",
                 "score": 740,
                 "progress": "1-1",
                 "time_s": 68.6
             },
             {
-                "model": "gpt-4o-2024-11-20",
+                "model": "Agent + gpt-4o-2024-11-20",
                 "score": 560,
                 "progress": "1-1",
                 "time_s": 58.6
             },
             {
-                "model": "gemini-2.0-flash",
+                "model": "Agent + gemini-2.0-flash",
                 "score": 320,
                 "progress": "1-1",
                 "time_s": 51.8
             },
             {
-                "model": "claude-3-5-haiku-20241022",
+                "model": "Agent + claude-3-5-haiku-20241022",
                 "score": 140,
                 "progress": "1-1",
                 "time_s": 76.4
             },
             {
-                "model": "gpt-4.5-preview-2025-02-27",
+                "model": "Agent + gpt-4.5-preview-2025-02-27",
                 "score": 160,
                 "progress": "1-1",
                 "time_s": 62.8
@@ -44,67 +44,67 @@
         "runs": 3,
         "results": [
             {
-                "model": "claude-3-5-sonnet-20241022",
+                "model": "Agent + claude-3-5-sonnet-20241022",
                 "score": 1267.7,
                 "detail_data":"709;1532;1562",
                 "progress": "1-1"
             },
             {
-                "model": "claude-3-7-sonnet-20250219 (thinking)",
+                "model": "Agent + claude-3-7-sonnet-20250219 (thinking)",
                 "score": 1418.7,
                 "detail_data":"2015;709;1532",
                 "progress": "1-1"
             },
             {
-                "model": "gemini-2.5-flash-preview-04-17 (thinking)",
+                "model": "Agent + gemini-2.5-flash-preview-04-17 (thinking)",
                 "score": 1385.0,
                 "detail_data":"1672;1266;1247",
                 "progress": "1-1"
             },
             {
-                "model": "gemini-2.5-pro-preview-05-06 (thinking)",
+                "model": "Agent + gemini-2.5-pro-preview-05-06 (thinking)",
                 "score": 1498.3,
                 "detail_data":"1561;1271;1663",
                 "progress": "1-1"
             },
             {
-                "model": "llama-4-maverick-17b-128e-instruct-fp8",
+                "model": "Agent + llama-4-maverick-17b-128e-instruct-fp8",
                 "score": 1468.7,
                 "detail_data":"898;2008;1500",
                 "progress": "1-1"
             },
             {
-                "model": "gpt-4.1-2025-04-14",
+                "model": "Agent + gpt-4.1-2025-04-14",
                 "score": 2126.3,
                 "detail_data":"1531;722;4126",
                 "progress": "1-1"
             },
             {
-                "model": "gpt-4o-2024-11-20",
+                "model": "Agent + gpt-4o-2024-11-20",
                 "score": 2047.3,
                 "detail_data":"2017;2590;1535",
                 "progress": "1-1"
             },
             {
-                "model": "o1-2024-12-17",
+                "model": "Agent + o1-2024-12-17",
                 "score": 855,
                 "detail_data":"855",
                 "progress": "1-1"
             },
             {
-                "model": "o3-2025-04-16",
+                "model": "Agent + o3-2025-04-16",
                 "score": 3445,
                 "detail_data":"3445",
                 "progress": "1-1"
             },
             {
-                "model": "o4-mini-2025-04-16",
+                "model": "Agent + o4-mini-2025-04-16",
                 "score": 1448.0,
                 "detail_data":"1525;1263;1556",
                 "progress": "1-1"
             },
             {
-                "model": "Random (x30)",
+                "model": "Agent + Random (x30)",
                 "score": 986.97,
                 "detail_data":"986.97",
                 "progress": "1-1"
@@ -115,85 +115,85 @@
         "runs": 3,
         "results": [
             {
-                "model": "claude-3-5-sonnet-20241022",
+                "model": "Agent + claude-3-5-sonnet-20241022",
                 "score": 108.2,
                 "details": "1352;2860;1532",
                 "highest_tail": 256
             },
             {
-                "model": "claude-3-7-sonnet-20250219 (thinking)",
+                "model": "Agent + claude-3-7-sonnet-20250219 (thinking)",
                 "score": 113.3,
                 "details": "2560;3224;2088",
                 "highest_tail": 256
             },
             {
-                "model": "deepseek-r1",
+                "model": "Agent + deepseek-r1",
                 "score": 105.2,
                 "details": "700;1240;3680",
                 "highest_tail": 256
             },
             {
-                "model": "gemini-2.5-flash-preview-04-17 (thinking)",
-                "score": 256,
+                "model": "Agent + gemini-2.5-flash-preview-04-17 (thinking)",
+                "score": 106.6,
                 "details": "1304;1316;2472",
                 "highest_tail": 256
             },
             {
-                "model": "gemini-2.5-pro-preview-05-06 (thinking)",
+                "model": "Agent + gemini-2.5-pro-preview-05-06 (thinking)",
                 "score": 117.3,
                 "details": "5300;2400;3060",
                 "highest_tail": 512
             },
             {
-                "model": "grok-3-mini-beta (thinking)",
+                "model": "Agent + grok-3-mini-beta (thinking)",
                 "score": 118.6,
                 "details": "6412;2492;3204",
                 "highest_tail": 512
             },
             {
-                "model": "llama-4-maverick-17b-128e-instruct-fp8",
+                "model": "Agent + llama-4-maverick-17b-128e-instruct-fp8",
                 "score": 106,
                 "details": "1404;1272;2084",
                 "highest_tail": 128
             },
             {
-                "model": "gpt-4.1-2025-04-14",
+                "model": "Agent + gpt-4.1-2025-04-14",
                 "score": 105.7,
                 "details": "1156;2664;1148",
                 "highest_tail": 256
             },
             {
-                "model": "gpt-4o-2024-11-20",
+                "model": "Agent + gpt-4o-2024-11-20",
                 "score": 106.7,
                 "details": "1604;1284;2080",
                 "highest_tail": 256
             },
             {
-                "model": "o1-2024-12-17",
+                "model": "Agent + o1-2024-12-17",
                 "score": 128.9,
                 "details": "3132;2004;3136",
                 "highest_tail": 512
             },
             {
-                "model": "o1-mini-2024-09-12",
+                "model": "Agent + o1-mini-2024-09-12",
                 "score": 114.0,
                 "details": "21;86;37",
                 "highest_tail": 256
             },
             {
-                "model": "o3-2025-04-16",
+                "model": "Agent + o3-2025-04-16",
                 "score": 128.0,
                 "details": "7120",
                 "highest_tail": 512
             },
             {
-                "model": "o4-mini-2025-04-16",
+                "model": "Agent + o4-mini-2025-04-16",
                 "score": 120.6,
                 "details": "4928;5456;2912",
                 "highest_tail": 512
             },
             {
-                "model": "Random (x30)",
+                "model": "Agent + Random (x30)",
                 "score": 100.4,
                 "details": "",
                 "highest_tail": 128
@@ -204,25 +204,25 @@
         "runs": 3,
         "results": [
             {
-                "model": "claude-3-7-sonnet-20250219",
+                "model": "Agent + claude-3-7-sonnet-20250219",
                 "score": 95,
                 "steps_blocks": 27,
                 "rank": 1
             },
             {
-                "model": "claude-3-5-haiku-20241022",
+                "model": "Agent + claude-3-5-haiku-20241022",
                 "score": 90,
                 "steps_blocks": 25,
                 "rank": 2
             },
             {
-                "model": "gemini-2.0-flash",
+                "model": "Agent + gemini-2.0-flash",
                 "score": 82,
                 "steps_blocks": 23,
                 "rank": 3
             },
             {
-                "model": "gpt-4o-2024-11-20",
+                "model": "Agent + gpt-4o-2024-11-20",
                 "score": 54,
                 "steps_blocks": 19,
                 "rank": 4
@@ -233,72 +233,72 @@
         "runs": 3,
         "results": [
             {
-                "model": "claude-3-5-sonnet-20241022",
+                "model": "Agent + claude-3-5-sonnet-20241022",
                 "score": 14.7,
                 "details": "16;14;14"
             },
             {
-                "model": "claude-3-7-sonnet-20250219 (thinking)",
+                "model": "Agent + claude-3-7-sonnet-20250219 (thinking)",
                 "score": 16.3,
                 "details": "19;15;15"
             },
             {
-                "model": "deepseek-r1",
+                "model": "Agent + deepseek-r1",
                 "score": 14.3,
                 "details": "15;14;14"
             },
             {
-                "model": "gemini-2.5-flash-preview-04-17 (thinking)",
+                "model": "Agent + gemini-2.5-flash-preview-04-17 (thinking)",
                 "score": 16.3,
                 "details": "20;14;15"
             },
             {
-                "model": "gemini-2.5-pro-preview-05-06 (thinking)",
+                "model": "Agent + gemini-2.5-pro-preview-05-06 (thinking)",
                 "score": 23.3,
                 "details": "23;23;24"
             },
             {
-                "model": "grok-3-mini-beta (thinking)",
+                "model": "Agent + grok-3-mini-beta (thinking)",
                 "score": 21.3,
                 "details": "20;15;29"
             },
             {
-                "model": "llama-4-maverick-17b-128e-instruct-fp8",
+                "model": "Agent + llama-4-maverick-17b-128e-instruct-fp8",
                 "score": 10.3,
                 "details": "9;10;12"
             },
             {
-                "model": "gpt-4.1-2025-04-14",
+                "model": "Agent + gpt-4.1-2025-04-14",
                 "score": 13.7,
                 "details": "13;14;14"
             },
             {
-                "model": "gpt-4o-2024-11-20",
+                "model": "Agent + gpt-4o-2024-11-20",
                 "score": 14,
                 "details": "18;11;13"
             },
             {
-                "model": "o1-2024-12-17",
+                "model": "Agent + o1-2024-12-17",
                 "score": 35,
                 "details": "35"
             },
             {
-                "model": "o1-mini-2024-09-12",
+                "model": "Agent + o1-mini-2024-09-12",
                 "score": 11.7,
                 "details": "11;11;13"
             },
             {
-                "model": "o3-2025-04-16",
+                "model": "Agent + o3-2025-04-16",
                 "score": 42,
                 "details": "42"
             },
             {
-                "model": "o4-mini-2025-04-16",
+                "model": "Agent + o4-mini-2025-04-16",
                 "score": 25.3,
                 "details": "22;35;19"
             },
             {
-                "model": "Random (x30)",
+                "model": "Agent + Random (x30)",
                 "score": 10.2,
                 "details": ""
             }
@@ -308,72 +308,72 @@
         "runs": 3,
         "results": [
             {
-                "model": "claude-3-5-sonnet-20241022",
+                "model": "Agent + claude-3-5-sonnet-20241022",
                 "score": 106,
                 "details": "92;165;61"
             },
             {
-                "model": "claude-3-7-sonnet-20250219 (thinking)",
+                "model": "Agent + claude-3-7-sonnet-20250219 (thinking)",
                 "score": 484,
                 "details": "535;428;489"
             },
             {
-                "model": "deepseek-r1",
+                "model": "Agent + deepseek-r1",
                 "score": 447.3,
                 "details": "409;436;497"
             },
             {
-                "model": "gemini-2.5-flash-preview-04-17 (thinking)",
+                "model": "Agent + gemini-2.5-flash-preview-04-17 (thinking)",
                 "score": 334.7,
                 "details": "259;372;373"
             },
             {
-                "model": "gemini-2.5-pro-preview-05-06 (thinking)",
+                "model": "Agent + gemini-2.5-pro-preview-05-06 (thinking)",
                 "score": 416.3,
                 "details": "411;414;424"
             },
             {
-                "model": "grok-3-mini-beta (thinking)",
+                "model": "Agent + grok-3-mini-beta (thinking)",
                 "score": 254,
                 "details": "299;332;131"
             },
             {
-                "model": "llama-4-maverick-17b-128e-instruct-fp8",
+                "model": "Agent + llama-4-maverick-17b-128e-instruct-fp8",
                 "score": 128.7,
                 "details": "67;139;180"
             },
             {
-                "model": "gpt-4.1-2025-04-14",
+                "model": "Agent + gpt-4.1-2025-04-14",
                 "score": 182,
                 "details": "163;215;168"
             },
             {
-                "model": "gpt-4o-2024-11-20",
+                "model": "Agent + gpt-4o-2024-11-20",
                 "score": 147.3,
                 "details": "131;104;207"
             },
             {
-                "model": "o1-2024-12-17",
+                "model": "Agent + o1-2024-12-17",
                 "score": 159,
                 "details": "159"
             },
             {
-                "model": "o1-mini-2024-09-12",
+                "model": "Agent + o1-mini-2024-09-12",
                 "score": 48,
                 "details": "21;86;37"
             },
             {
-                "model": "o3-2025-04-16",
+                "model": "Agent + o3-2025-04-16",
                 "score": 647,
                 "details": "647"
             },
             {
-                "model": "o4-mini-2025-04-16",
+                "model": "Agent + o4-mini-2025-04-16",
                 "score": 487.3,
                 "details": "259;591;612"
             },
             {
-                "model": "Random (x30)",
+                "model": "Agent + Random (x30)",
                 "score": 116.5,
                 "details": ""
             }
@@ -383,85 +383,85 @@
         "runs": 3,
         "results": [
             {
-                "model": "claude-3-5-sonnet-20241022",
+                "model": "Agent + claude-3-5-sonnet-20241022",
                 "score": 0,
                 "detail_box_on_target":"0;0;0",
                 "cracked_levels": "0;0;0"
             },
             {
-                "model": "claude-3-7-sonnet-20250219 (thinking)",
+                "model": "Agent + claude-3-7-sonnet-20250219 (thinking)",
                 "score": 2.33,
                 "detail_box_on_target":"2;4;1",
                 "cracked_levels": "1;2;0"
             },
             {
-                "model": "deepseek-r1",
+                "model": "Agent + deepseek-r1",
                 "score": 1.33,
                 "detail_box_on_target":"2;0;2",
                 "cracked_levels": "1;0;1"
             },
             {
-                "model": "gemini-2.5-flash-preview-04-17 (thinking)",
+                "model": "Agent + gemini-2.5-flash-preview-04-17 (thinking)",
                 "score": 1.67,
                 "detail_box_on_target":"3;0;2",
                 "cracked_levels": "2;0;1"
             },
             {
-                "model": "gemini-2.5-pro-preview-05-06 (thinking)",
+                "model": "Agent + gemini-2.5-pro-preview-05-06 (thinking)",
                 "score": 4.33,
                 "detail_box_on_target":"4;4;5",
                 "cracked_levels": "2;2;3"
             },
             {
-                "model": "grok-3-mini-beta (thinking)",
+                "model": "Agent + grok-3-mini-beta (thinking)",
                 "score": 5.67,
                 "detail_box_on_target":"5;6;6",
                 "cracked_levels": "3;3;3"
             },
             {
-                "model": "llama-4-maverick-17b-128e-instruct-fp8",
+                "model": "Agent + llama-4-maverick-17b-128e-instruct-fp8",
                 "score": 0,
                 "detail_box_on_target":"0;0;0",
                 "cracked_levels": "0;0;0"
             },
             {
-                "model": "gpt-4.1-2025-04-14",
+                "model": "Agent + gpt-4.1-2025-04-14",
                 "score": 0,
                 "detail_box_on_target":"0;0;0",
                 "cracked_levels": "0;0;0"
             },
             {
-                "model": "gpt-4o-2024-11-20",
+                "model": "Agent + gpt-4o-2024-11-20",
                 "score": 0,
                 "detail_box_on_target":"0;0;0",
                 "cracked_levels": "0;0;0"
             },
             {
-                "model": "o1-2024-12-17",
+                "model": "Agent + o1-2024-12-17",
                 "score": 2.33,
                 "detail_box_on_target":"2;2;3",
                 "cracked_levels": "1;1;2"
             },
             {
-                "model": "o1-mini-2024-09-12",
+                "model": "Agent + o1-mini-2024-09-12",
                 "score": 1.33,
                 "detail_box_on_target":"1;2;1",
                 "cracked_levels": "0;1;0"
             },
             {
-                "model": "o3-2025-04-16",
+                "model": "Agent + o3-2025-04-16",
                 "score": 8,
                 "detail_box_on_target":"10;6",
                 "cracked_levels": "5;3"
             },
             {
-                "model": "o4-mini-2025-04-16",
+                "model": "Agent + o4-mini-2025-04-16",
                 "score": 5.33,
                 "detail_box_on_target":"4;6;6",
                 "cracked_levels": "2;2;3"
             },
             {
-                "model": "Random (x30)",
+                "model": "Agent + Random (x30)",
                 "score": 0,
                 "detail_box_on_target":"0,0,0",
                 "cracked_levels": "0,0,0"
@@ -472,74 +472,88 @@
         "runs": 1,
         "results": [
             {
-                "model": "claude-3-5-sonnet-20241022",
+                "model": "Agent + claude-3-5-sonnet-20241022",
                 "score": 2,
-                "progress": "1:2/5"
+                "progress": "1:2/5",
+                "evaluator result": "1/3"
             },
             {
-                "model": "claude-3-7-sonnet-20250219 (thinking)",
+                "model": "Agent + claude-3-7-sonnet-20250219 (thinking)",
                 "score": 7,
-                "progress": "2:2/9"
+                "progress": "2:2/9",
+                "evaluator result": "5/11"
             },
             {
-                "model": "deepseek-r1",
+                "model": "Agent + deepseek-r1",
                 "score": 0,
-                "progress": "0"
+                "progress": "0",
+                "evaluator result": "1/5"
             },
             {
-                "model": "gemini-2.5-flash-preview-04-17 (thinking)",
+                "model": "Agent + gemini-2.5-flash-preview-04-17 (thinking)",
                 "score": 4,
-                "progress": "1:4/5"
+                "progress": "1:4/5",
+                "evaluator result": "1/7"
             },
             {
-                "model": "gemini-2.5-pro-preview-05-06 (thinking)",
+                "model": "Agent + gemini-2.5-pro-preview-05-06 (thinking)",
                 "score": 7,
-                "progress": "2:2/9"
+                "progress": "2:2/9",
+                "evaluator result": "2/3"
             },
             {
-                "model": "grok-3-mini-beta (thinking)",
+                "model": "Agent + grok-3-mini-beta (thinking)",
                 "score": 0,
-                "progress": "0"
+                "progress": "0",
+                "evaluator result": "0"
             },
             {
-                "model": "llama-4-maverick-17b-128e-instruct-fp8",
+                "model": "Agent + llama-4-maverick-17b-128e-instruct-fp8",
                 "score": 0,
-                "progress": "0"
+                "progress": "0",
+                "evaluator result": "0"
             },
             {
-                "model": "gpt-4.1-2025-04-14",
+                "model": "Agent + gpt-4.1-2025-04-14",
                 "score": 2,
-                "progress": "1:2/5"
+                "progress": "1:2/5",
+                "evaluator result": "2/3"
             },
             {
-                "model": "gpt-4o-2024-11-20",
+                "model": "Agent + gpt-4o-2024-11-20",
                 "score": 0,
-                "progress": "0"
+                "progress": "0",
+                "evaluator result": "0"
             },
             {
-                "model": "o1-2024-12-17",
+                "model": "Agent + o1-2024-12-17",
                 "score": 16,
-                "progress": "3: 2/8"
+                "progress": "3: 2/8",
+                "evaluator result": "6/11"
             },
             {
-                "model": "o1-mini-2024-09-12",
+                "model": "Agent + o1-mini-2024-09-12",
                 "score": 0,
-                "progress": "0"
+                "progress": "0",
+                "evaluator result": "1/5"
             },
             {
-                "model": "o3-2025-04-16",
+                "model": "Agent + o3-2025-04-16",
                 "score": 16,
-                "progress": "3: 2/8"
+                "progress": "3: 2/8",
+                "evaluator result": "1/2"
             },
             {
-                "model": "o4-mini-2025-04-16",
+                "model": "Agent + o4-mini-2025-04-16",
                 "score": 4,
-                "progress": "1:4/5"
+                "progress": "1:4/5",
+                "evaluator result": "2/5"
             },
             {
-                "model": "Random (x30)",
+                "model": "Agent + Random (x30)",
                 "score": 0,
-                "progress": "0"
+                "progress": "0",
+                "evaluator result": "0"
             }
         ]
     }

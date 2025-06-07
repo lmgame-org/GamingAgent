@@ -181,13 +181,12 @@ def get_ace_attorney_leaderboard(rank_data):
     df = df.rename(columns={
         "model": "Player",
         "score": "Score",
-        "progress": "Progress",
-        "evaluator result": "Evaluator Result"
+        "progress": "Progress"
     })
     df["Organization"] = df["Player"].apply(get_organization)
     
-    # Define columns to keep, including Evaluator Result
-    columns_to_keep = ["Player", "Organization", "Score", "Progress", "Evaluator Result"]
+    # Define columns to keep
+    columns_to_keep = ["Player", "Organization", "Score", "Progress"]
     # Filter to only columns that actually exist in the DataFrame after renaming
     df_columns = [col for col in columns_to_keep if col in df.columns]
     df = df[df_columns]
