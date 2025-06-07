@@ -792,5 +792,91 @@
         0.0
       ]
     }
+  },
+  "claude-opus-4-20250514": {
+    "harness_true": {
+      "sokoban": [
+        4,
+        4,
+        4
+      ],
+      "super_mario_bros": [
+      ],
+      "tetris": [
+        17,
+        18,
+        25
+      ],
+      "twenty_forty_eight": [
+        3036
+      ],
+      "candy_crush": [
+        593,
+        406,
+        393
+      ],
+      "ace_attorney": [
+        6
+      ]
+    },
+    "harness_false": {
+      "sokoban": [
+      ],
+      "super_mario_bros": [
+      ],
+      "tetris": [
+      ],
+      "twenty_forty_eight": [
+      ],
+      "candy_crush": [
+      ],
+      "ace_attorney": [
+      ]
+    }
+  },
+  "claude-sonnet-4-20250514": {
+    "harness_true": {
+      "sokoban": [
+        2,
+        2,
+        5
+      ],
+      "super_mario_bros": [
+      ],
+      "tetris": [
+        20,
+        17,
+        21
+      ],
+      "twenty_forty_eight": [
+        2148,
+        2360,
+        4900
+      ],
+      "candy_crush": [
+        545,
+        468,
+        422
+      ],
+      "ace_attorney": [
+        3,
+        4,
+        4
+      ]
+    },
+    "harness_false": {
+      "sokoban": [
+      ],
+      "super_mario_bros": [
+      ],
+      "tetris": [
+      ],
+      "twenty_forty_eight": [
+      ],
+      "candy_crush": [
+      ],
+      "ace_attorney": [
+      ]
+    }
   }
 }
