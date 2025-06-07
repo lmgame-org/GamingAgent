@@ -3,6 +3,8 @@
     "claude-3-7-sonnet-20250219 (thinking)": "#2E5C8A",
     "claude-3-5-haiku-20241022": "#7FB5E6",
     "claude-3-5-sonnet-20241022": "#1A4C7C",
+    "claude-opus-4-20250514": "#3A80D2",
+    "claude-sonnet-4-20250514": "#5A9FE2",
   
     "gemini-2.0-flash": "#FF4081",
     "gemini-2.0-flash-thinking-exp-1219": "#C2185B",
@@ -26,15 +28,20 @@
     "grok-3-mini-beta (thinking)": "#F57C00",
   
     "deepseek-v3": "#FFC107",
-    "deepseek-r1": "#FFA000",
+    "deepseek-r1-0120": "#FFA000",
+    "deepseek-r1-0528": "#FFB300",
   
     "llama-4-maverick-17b-128e-instruct-fp8": "#8E24AA",
+    "qwen3-235B-A22B-fp8": "#6A1B9A",
+    
     "Random (x30)": "#9E9E9E",
 
     "Agent + claude-3-7-sonnet-20250219": "#4A90E2",
     "Agent + claude-3-7-sonnet-20250219 (thinking)": "#2E5C8A",
     "Agent + claude-3-5-haiku-20241022": "#7FB5E6",
     "Agent + claude-3-5-sonnet-20241022": "#1A4C7C",
+    "Agent + claude-opus-4-20250514": "#3A80D2",
+    "Agent + claude-sonnet-4-20250514": "#5A9FE2",
   
     "Agent + gemini-2.0-flash": "#FF4081",
     "Agent + gemini-2.0-flash-thinking-exp-1219": "#C2185B",
@@ -58,8 +65,10 @@
     "Agent + grok-3-mini-beta (thinking)": "#F57C00",
   
     "Agent + deepseek-v3": "#FFC107",
-    "Agent + deepseek-r1": "#FFA000",
+    "Agent + deepseek-r1-0120": "#FFA000",
+    "Agent + deepseek-r1-0528": "#FFB300",
   
-    "Agent + llama-4-maverick-17b-128e-instruct-fp8": "#8E24AA"
-  }
+    "Agent + llama-4-maverick-17b-128e-instruct-fp8": "#8E24AA",
+    "Agent + qwen3-235B-A22B-fp8": "#6A1B9A"
+}
   
