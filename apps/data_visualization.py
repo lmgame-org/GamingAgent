@@ -186,7 +186,7 @@ def get_combined_leaderboard_with_radar(rank_data, selected_games):
     df_viz = df.copy()
     return df, create_radar_charts(df_viz)
 
-def create_group_bar_chart(df):
+def create_group_bar_chart(df, top_n=10):
     game_cols = {}
     for game in GAME_ORDER:
         col = f"{game} Score"
@@ -245,9 +245,12 @@ def create_group_bar_chart(df):
         game_data = df[df[col].notna()].copy()
         game_data = game_data.sort_values(by=col, ascending=False)
         
-        # Store rankings for this game
+        # Store rankings for this game (limit to top_n)
         game_rankings[game] = []
         for i, (_, row) in enumerate(game_data.iterrows()):
+            if i >= top_n:  # Limit to top_n performers
+                break
+                
             player = row["Player"]
             score = row[col]
             rank = i + 1
@@ -261,8 +264,9 @@ def create_group_bar_chart(df):
             all_x_categories.append(x_category)
             all_players.add(player)
             
-            # Only show label for the fifth occurrence (rank 5) of each game
-            if rank == 5:
+            # Show label at the middle position based on number of models
+            middle_position = (top_n + 1) // 2
+            if rank == middle_position:
                 # Special case for Super Mario Bros (planning only)
                 if game == "Super Mario Bros (planning only)":
                     unique_x_labels.append("SMB")
@@ -301,7 +305,7 @@ def create_group_bar_chart(df):
         autosize=True,
         height=550,
         margin=dict(l=50, r=50, t=20, b=20),
-        title=dict(text="Grouped Bar Chart - Top Performers by Game", pad=dict(t=10)),
+        title=dict(text=f"Grouped Bar Chart - Top {top_n} Performers by Game", pad=dict(t=10)),
         xaxis_title="Games (Ranked by Performance)",
         yaxis_title="Normalized Score",
         xaxis=dict(
@@ -332,11 +336,11 @@ def create_group_bar_chart(df):
 
 
 
-def get_combined_leaderboard_with_group_bar(rank_data, selected_games):
+def get_combined_leaderboard_with_group_bar(rank_data, selected_games, top_n=10):
     df = get_combined_leaderboard(rank_data, selected_games)
     # Create a copy for visualization to avoid modifying the original
     df_viz = df.copy()
-    return df, create_group_bar_chart(df_viz)
+    return df, create_group_bar_chart(df_viz, top_n)
 
 def hex_to_rgba(hex_color, alpha=0.2):
     hex_color = hex_color.lstrip('#')

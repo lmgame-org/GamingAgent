@@ -189,6 +189,7 @@ def update_leaderboard(# mario_overall, mario_details, # Commented out
                        # tetris_overall, tetris_details, # Commented out
                        tetris_plan_overall, tetris_plan_details,
                        ace_attorney_overall, ace_attorney_details,
+                       top_n=10,
                        data_source=None):
     global leaderboard_state
     
@@ -332,7 +333,7 @@ def update_leaderboard(# mario_overall, mario_details, # Commented out
         group_bar_chart = chart 
     else:
         # For overall view
-        df, group_bar_chart = get_combined_leaderboard_with_group_bar(data, selected_games)
+        df, group_bar_chart = get_combined_leaderboard_with_group_bar(data, selected_games, top_n)
         display_df = prepare_dataframe_for_display(df)
         _, radar_chart = get_combined_leaderboard_with_single_radar(data, selected_games)
         chart = radar_chart # In overall view, the 'detailed' chart can be the radar chart
@@ -396,7 +397,7 @@ def get_initial_state():
         }
     }
 
-def clear_filters(data_source=None):
+def clear_filters(top_n=10, data_source=None):
     global leaderboard_state
     
     # Use provided data source or default to rank_data
@@ -411,7 +412,7 @@ def clear_filters(data_source=None):
         "Ace Attorney": True
     }
     
-    df, group_bar_chart = get_combined_leaderboard_with_group_bar(data, selected_games)
+    df, group_bar_chart = get_combined_leaderboard_with_group_bar(data, selected_games, top_n)
     display_df = prepare_dataframe_for_display(df)
     _, radar_chart = get_combined_leaderboard_with_single_radar(data, selected_games)
     
@@ -890,6 +891,15 @@ def build_app():
                                 )
                         # Comment out the Group Bar Chart tab
                         with gr.Tab("📊 Group Bar Chart"):
+                            with gr.Row():
+                                top_n_slider = gr.Slider(
+                                    minimum=1,
+                                    maximum=20,
+                                    step=1,
+                                    value=10,
+                                    label="Number of Top Models to Display",
+                                    elem_classes="top-n-slider"
+                                )
                             group_bar_visualization = gr.Plot(
                                 label="Comparative Analysis (Group Bar Chart)",
                                 elem_classes="visualization-container"
@@ -1039,7 +1049,7 @@ def build_app():
                 for checkbox in checkbox_list:
                     checkbox.change(
                         lambda *args: update_leaderboard(*args, data_source=rank_data),
-                        inputs=checkbox_list,
+                        inputs=checkbox_list + [top_n_slider],
                         outputs=[
                             leaderboard_df,
                             detailed_visualization,
@@ -1048,10 +1058,22 @@ def build_app():
                         ] + checkbox_list
                     )
                 
+                # Update when top_n_slider changes
+                top_n_slider.change(
+                    lambda *args: update_leaderboard(*args, data_source=rank_data),
+                    inputs=checkbox_list + [top_n_slider],
+                    outputs=[
+                        leaderboard_df,
+                        detailed_visualization,
+                        radar_visualization,
+                        group_bar_visualization
+                    ] + checkbox_list
+                )
+                
                 # Update when clear button is clicked
                 clear_btn.click(
-                    lambda: clear_filters(data_source=rank_data),
-                    inputs=[],
+                    lambda *args: clear_filters(*args, data_source=rank_data),
+                    inputs=[top_n_slider],
                     outputs=[
                         leaderboard_df,
                         detailed_visualization,
