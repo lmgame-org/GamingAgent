@@ -1118,6 +1118,15 @@ def build_app():
                                     elem_classes="radar-tip"
                                 )
                         with gr.Tab("📊 Group Bar Chart"):
+                            with gr.Row():
+                                model_top_n_slider = gr.Slider(
+                                    minimum=1,
+                                    maximum=20,
+                                    step=1,
+                                    value=10,
+                                    label="Number of Top Models to Display",
+                                    elem_classes="top-n-slider"
+                                )
                             model_group_bar_visualization = gr.Plot(
                                 label="Comparative Analysis (Group Bar Chart)",
                                 elem_classes="visualization-container"
@@ -1238,7 +1247,7 @@ def build_app():
                 for checkbox in model_checkbox_list:
                     checkbox.change(
                         lambda *args: update_leaderboard(*args, data_source=model_rank_data),
-                        inputs=model_checkbox_list,
+                        inputs=model_checkbox_list + [model_top_n_slider],
                         outputs=[
                             model_leaderboard_df,
                             model_detailed_visualization,
@@ -1246,6 +1255,18 @@ def build_app():
                             model_group_bar_visualization
                         ] + model_checkbox_list
                     )
+                
+                # Update when model top_n_slider changes
+                model_top_n_slider.change(
+                    lambda *args: update_leaderboard(*args, data_source=model_rank_data),
+                    inputs=model_checkbox_list + [model_top_n_slider],
+                    outputs=[
+                        model_leaderboard_df,
+                        model_detailed_visualization,
+                        model_radar_visualization,
+                        model_group_bar_visualization
+                    ] + model_checkbox_list
+                )
                 
                 # Update when clear button is clicked
                 model_clear_btn.click(
