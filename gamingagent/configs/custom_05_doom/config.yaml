@@ -51,14 +51,13 @@ agent:
   record_video: true
   video_dir: "videos/doom"
   log_level: "INFO"
+  observation_mode: "vision"
 
   modules:
     base_module:
-      observation_mode: "both"
       log_level: "INFO"
 
     perception_module:
-      observation_mode: "both"
       log_level: "INFO"
       token_limit: 8000
 

@@ -18,7 +18,7 @@ import gymnasium as gym
 from gymnasium import spaces
 
 from gamingagent.envs.gym_env_adapter import GymEnvAdapter
-from gamingagent.modules.core_module import Observation
+from gamingagent.modules.core_module import Observation, GameTrajectory
 
 # Enable fault handler for better crash information
 faulthandler.enable()
@@ -132,8 +132,6 @@ class DoomEnvWrapper(gym.Env):
         
         # Set up run directory
         timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-        self.run_dir = os.path.join(self.base_log_dir, self.model_name, timestamp)
-        os.makedirs(self.run_dir, exist_ok=True)
         
         # Create video directory if needed
         if self.record_video and self.video_dir:
@@ -436,10 +434,8 @@ class DoomEnvWrapper(gym.Env):
         super().reset(seed=seed)
         self.game.new_episode()
         
-        # Set up episode directory
-        timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-        self.episode_dir = os.path.join("cache", "doom", "gpt_4o", timestamp, f"episode_{episode_id}")
-        os.makedirs(self.episode_dir, exist_ok=True)
+        # Reset adapter for new episode
+        self.adapter.reset_episode(episode_id)
         
         # Reset ammo count
         self.current_ammo = 50
@@ -451,18 +447,21 @@ class DoomEnvWrapper(gym.Env):
         frame_path = self._capture_frame()
         if not frame_path:
             self.logger.error("[DoomEnvWrapper] Failed to capture initial frame")
-            frame_path = os.path.join(self.episode_dir, "initial_frame.png")
+            frame_path = os.path.join(self.adapter.agent_observations_dir, "initial_frame.png")
             # Create a blank frame if capture fails
             blank_frame = np.zeros((240, 320, 3), dtype=np.uint8)
             cv2.imwrite(frame_path, blank_frame)
         
+        # Initialize game trajectory
+        self.game_trajectory = GameTrajectory(max_length=100)
+        
         # Create initial observation
         observation = Observation(
             img_path=frame_path,
-            game_trajectory=[],
-            reflection="",
-            processed_visual_description="",
-            textual_representation=self._text_repr()
+            game_trajectory=self.game_trajectory,
+            reflection=None,
+            processed_visual_description=None,
+            textual_representation=None
         )
         
         # Store initial observation
@@ -491,7 +490,7 @@ class DoomEnvWrapper(gym.Env):
                 
             # Generate unique filename
             timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S_%f")
-            frame_path = os.path.join(self.episode_dir, f"step_{timestamp}.png")
+            frame_path = os.path.join(self.adapter.agent_observations_dir, f"step_{timestamp}.png")
             
             # Save frame
             cv2.imwrite(frame_path, screen)
@@ -520,6 +519,7 @@ class DoomEnvWrapper(gym.Env):
             Tuple of (observation, reward, terminated, truncated, info, performance_score)
         """
         self._validate_game_state()
+        self.adapter.increment_step()
 
         # Get current state before action
         prev_info = self._get_game_state()
@@ -590,15 +590,29 @@ class DoomEnvWrapper(gym.Env):
             f"###Thought\n{thought_process}\n"
             f"###Action\n{action_str}\n"
         )
-        self.game_trajectory.append(trajectory_entry)
+        self.game_trajectory.add(trajectory_entry)
+
+        # Format thought process for observation
+        formatted_thought = (
+            f"Current State:\n"
+            f"- Health: {current_info.get('health', 0)}\n"
+            f"- Ammo: {current_info.get('ammo2', 0)}\n"
+            f"- Position: ({current_info.get('position_x', 0)}, {current_info.get('position_y', 0)})\n"
+            f"- Angle: {current_info.get('angle', 0)}\n\n"
+            f"Action Analysis:\n"
+            f"- Action taken: {action_str}\n"
+            f"- Reward received: {reward}\n"
+            f"- State changes: {', '.join([f'{k}: {v}' for k, v in current_info.items() if k in ['health', 'ammo2', 'position_x', 'position_y', 'angle']])}\n\n"
+            f"Combat Strategy:\n{thought_process}"
+        )
 
         # Create observation
         observation = Observation(
             img_path=frame_path,
             game_trajectory=self.game_trajectory,
-            reflection="",
-            processed_visual_description="",
-            textual_representation=self._text_repr()
+            reflection=formatted_thought,
+            processed_visual_description=self._text_repr(),
+            textual_representation=None
         )
 
         # Store current observation for next step
@@ -607,8 +621,21 @@ class DoomEnvWrapper(gym.Env):
         # Check if episode is done
         is_episode_finished = self.game.is_episode_finished()
 
-        # Calculate performance score (0.0 for now)
-        performance_score = 0.0
+        # Set the performance score as the reward
+        performance_score = reward
+
+        # Log step data using adapter
+        self.adapter.log_step_data(
+            agent_action_str=action_str,
+            thought_process=formatted_thought,
+            reward=reward,
+            info=current_info,
+            terminated=is_episode_finished,
+            truncated=False,
+            time_taken_s=time_taken_s,
+            perf_score=performance_score,
+            agent_observation=observation
+        )
 
         return observation, reward, is_episode_finished, False, current_info, performance_score
 
@@ -658,6 +685,8 @@ class DoomEnvWrapper(gym.Env):
         """
         if hasattr(self, 'game'):
             self.game.close()
+        if hasattr(self, 'adapter'):
+            self.adapter.close_log_file()
 
     def _get_game_state(self) -> Dict[str, Any]:
         """Get current game state information.
