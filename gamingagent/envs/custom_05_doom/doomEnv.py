@@ -24,7 +24,6 @@ from gamingagent.modules.core_module import Observation, GameTrajectory
 faulthandler.enable()
 
 # Set minimal environment variables to prevent SDL initialization issues
-os.environ["SDL_VIDEODRIVER"] = "dummy"
 os.environ["SDL_AUDIODRIVER"] = "dummy"
 os.environ["ALSA_CARD"] = "none"
 os.environ["PULSE_SERVER"] = "none"
@@ -237,7 +236,6 @@ class DoomEnvWrapper(gym.Env):
         """Initialize the Doom game components."""
         try:
             # Set environment variables for headless mode
-            os.environ["SDL_VIDEODRIVER"] = "dummy"
             os.environ["SDL_AUDIODRIVER"] = "dummy"
             
             print(f"[{time.time()}] Creating game instance...", file=sys.stderr)
@@ -246,7 +244,7 @@ class DoomEnvWrapper(gym.Env):
             print(f"[{time.time()}] Setting basic settings...", file=sys.stderr)
             try:
                 # Basic settings - following basic example
-                self.game.set_window_visible(False)  # Always false for headless mode
+                self.game.set_window_visible(True)
                 self.game.set_sound_enabled(False)  # Keep sound disabled as in basic example
                 
                 # Set scenario path first - exactly as in basic example

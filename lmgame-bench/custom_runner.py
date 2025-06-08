@@ -375,11 +375,11 @@ def create_environment(game_name_arg: str,
             config_dir_path=os.path.dirname(env_specific_config_path),  # Use the directory containing the config file
             observation_mode=obs_mode_arg,
             base_log_dir=cache_dir_for_adapter,
-            render_mode_human=False,
+            render_mode_human=True,  # Enable human rendering
             record_video=False,
             video_dir="videos/doom",
             model_name=model_name_arg,
-            headless=True,
+            headless=False,  # Allow display
             debug=True  # Add debug mode to help track issues
         )
         return env
