@@ -371,6 +371,19 @@ def update_leaderboard_with_time(time_point, # mario_overall, mario_details, # C
                             tetris_plan_overall, tetris_plan_details,
                             ace_attorney_overall, ace_attorney_details)
 
+def get_total_model_count(data_source):
+    """Get the total number of unique models in the data"""
+    selected_games = {
+        "Super Mario Bros (planning only)": True,
+        "Sokoban": True,
+        "2048": True,
+        "Candy Crush": True,
+        "Tetris (planning only)": True,
+        "Ace Attorney": True
+    }
+    df = get_combined_leaderboard(data_source, selected_games)
+    return len(df["Player"].unique())
+
 def get_initial_state():
     """Get the initial state for the leaderboard"""
     return {
@@ -892,12 +905,14 @@ def build_app():
                         # Comment out the Group Bar Chart tab
                         with gr.Tab("📊 Group Bar Chart"):
                             with gr.Row():
+                                # Calculate dynamic maximum based on total models
+                                agent_max_models = get_total_model_count(rank_data)
                                 top_n_slider = gr.Slider(
                                     minimum=1,
-                                    maximum=20,
+                                    maximum=agent_max_models,
                                     step=1,
-                                    value=10,
-                                    label="Number of Top Models to Display",
+                                    value=min(10, agent_max_models),
+                                    label=f"Number of Top Models to Display (max: {agent_max_models})",
                                     elem_classes="top-n-slider"
                                 )
                             group_bar_visualization = gr.Plot(
@@ -1119,12 +1134,14 @@ def build_app():
                                 )
                         with gr.Tab("📊 Group Bar Chart"):
                             with gr.Row():
+                                # Calculate dynamic maximum based on total models
+                                model_max_models = get_total_model_count(model_rank_data)
                                 model_top_n_slider = gr.Slider(
                                     minimum=1,
-                                    maximum=20,
+                                    maximum=model_max_models,
                                     step=1,
-                                    value=10,
-                                    label="Number of Top Models to Display",
+                                    value=min(10, model_max_models),
+                                    label=f"Number of Top Models to Display (max: {model_max_models})",
                                     elem_classes="top-n-slider"
                                 )
                             model_group_bar_visualization = gr.Plot(
@@ -1270,8 +1287,8 @@ def build_app():
                 
                 # Update when clear button is clicked
                 model_clear_btn.click(
-                    lambda: clear_filters(data_source=model_rank_data),
-                    inputs=[],
+                    lambda *args: clear_filters(*args, data_source=model_rank_data),
+                    inputs=[model_top_n_slider],
                     outputs=[
                         model_leaderboard_df,
                         model_detailed_visualization,
