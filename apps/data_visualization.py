@@ -231,56 +231,85 @@ def create_group_bar_chart(df):
     # Create mapping from original to formatted names
     game_display_map = dict(zip(sorted_games, formatted_games))
     
-    # Group models by prefix, then sort alphabetically
-    model_groups = {}
-    for player in df["Player"].unique():
-        prefix = player.split('-')[0]
-        model_groups.setdefault(prefix, []).append(player)
-
-    ordered_players = []
-    for prefix in sorted(model_groups):
-        ordered_players.extend(sorted(model_groups[prefix]))
-
-    # Create one trace per player
+    # For each game, get top performers and create combined x-axis categories
     fig = go.Figure()
-    for player in ordered_players:
-        row = df[df["Player"] == player]
-        if row.empty:
-            continue
-        row = row.iloc[0]
-
-        y_vals = []
-        has_data = False
-        for game in sorted_games:
-            col = f"norm_{game} Score"
-            val = row.get(col, np.nan)
-            if not np.isnan(val):
-                has_data = True
-            y_vals.append(val if not np.isnan(val) else 0)
-
-        if not has_data:
-            continue
+    all_x_categories = []
+    all_players = set()
+    unique_x_labels = []
+    
+    # First pass: collect all players and create x-axis categories
+    game_rankings = {}
+    for game in sorted_games:
+        col = f"norm_{game} Score"
+        # Get valid scores for this game and sort by score (highest first)
+        game_data = df[df[col].notna()].copy()
+        game_data = game_data.sort_values(by=col, ascending=False)
+        
+        # Store rankings for this game
+        game_rankings[game] = []
+        for i, (_, row) in enumerate(game_data.iterrows()):
+            player = row["Player"]
+            score = row[col]
+            rank = i + 1
+            x_category = f"{game_display_map[game]}<br>#{rank}"
+            game_rankings[game].append({
+                'player': player,
+                'score': score,
+                'x_category': x_category,
+                'rank': rank
+            })
+            all_x_categories.append(x_category)
+            all_players.add(player)
             
-        fig.add_trace(go.Bar(
-            name=row["Player"],
-            x=[game_display_map[game] for game in sorted_games],
-            y=y_vals,
-            marker_color=MODEL_COLORS.get(player, '#808080'),
-            hovertemplate="<b>%{fullData.name}</b><br>Score: %{y:.1f}<extra></extra>"
-        ))
+            # Only show label for the fifth occurrence (rank 5) of each game
+            if rank == 5:
+                # Special case for Super Mario Bros (planning only)
+                if game == "Super Mario Bros (planning only)":
+                    unique_x_labels.append("SMB")
+                else:
+                    unique_x_labels.append(game_display_map[game])  # Show just game name without rank
+            else:
+                unique_x_labels.append("")  # Empty string for other ranks
+    
+    # Second pass: create traces for each player
+    for player in sorted(all_players):
+        x_vals = []
+        y_vals = []
+        
+        for game in sorted_games:
+            # Find this player's data for this game
+            player_data = None
+            for data in game_rankings[game]:
+                if data['player'] == player:
+                    player_data = data
+                    break
+            
+            if player_data:
+                x_vals.append(player_data['x_category'])
+                y_vals.append(player_data['score'])
+        
+        if x_vals:  # Only add trace if player has data
+            fig.add_trace(go.Bar(
+                name=player,
+                x=x_vals,
+                y=y_vals,
+                marker_color=MODEL_COLORS.get(player, '#808080'),
+                hovertemplate="<b>%{fullData.name}</b><br>Score: %{y:.1f}<extra></extra>"
+            ))
 
     fig.update_layout(
-        autosize=False,
-        width=1000,
-        height=800,
-        margin=dict(l=200, r=200, t=20, b=20),
-        title=dict(text="Grouped Bar Chart of AI Models (Consistent Trace Grouping)", pad=dict(t=10)),
-        xaxis_title="Games",
+        autosize=True,
+        height=550,
+        margin=dict(l=50, r=50, t=20, b=20),
+        title=dict(text="Grouped Bar Chart - Top Performers by Game", pad=dict(t=10)),
+        xaxis_title="Games (Ranked by Performance)",
         yaxis_title="Normalized Score",
         xaxis=dict(
             categoryorder='array',
-            categoryarray=[game_display_map[g] for g in sorted_games],
-            tickangle=0  # Keep text horizontal since we're using line breaks
+            categoryarray=all_x_categories,
+            tickangle=0,  # Keep text horizontal since we're using line breaks
+            ticktext=unique_x_labels,  # Show labels only for first occurrence
+            tickvals=all_x_categories
         ),
         barmode='group',
         bargap=0.2,        # Gap between game categories
@@ -387,10 +416,9 @@ def create_single_radar_chart(df, selected_games=None, highlight_models=None):
         ))
 
     fig.update_layout(
-        autosize=False,
-        width=1000,
-        height=700,  # Increased height to accommodate legend
-        margin=dict(l=400, r=200, t=20, b=20),
+        autosize=True,
+        height=550,  # Reduced height for better proportion with legend
+        margin=dict(l=400, r=100, t=20, b=20),
         title=dict(
             text="AI Normalized Performance Across Games",
             x=0.5,
