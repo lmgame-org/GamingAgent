@@ -14,7 +14,6 @@ from leaderboard_utils import (
     get_sokoban_leaderboard,
     get_2048_leaderboard,
     get_candy_leaderboard,
-    get_tetris_leaderboard,
     get_tetris_planning_leaderboard,
     get_ace_attorney_leaderboard,
     get_combined_leaderboard,
@@ -22,11 +21,7 @@ from leaderboard_utils import (
 )
 from data_visualization import (
     get_combined_leaderboard_with_group_bar,
-    create_organization_radar_chart,
-    create_top_players_radar_chart,
-    create_player_radar_chart,
     create_horizontal_bar_chart,
-    normalize_values,
     get_combined_leaderboard_with_single_radar
 )
 from gallery_tab import create_video_gallery
@@ -55,22 +50,22 @@ leaderboard_state = {
     "current_game": None,
     "previous_overall": {
         # "Super Mario Bros": True, # Commented out
-        "Super Mario Bros (planning only)": True,
+        "Super Mario Bros": True,
         "Sokoban": True,
         "2048": True,
         "Candy Crush": True,
-        # "Tetris (complete)", # Commented out
-        "Tetris (planning only)": True,
+        # "Tetris(complete)", # Commented out
+        "Tetris": True,
         "Ace Attorney": True
     },
     "previous_details": {
         # "Super Mario Bros": False, # Commented out
-        "Super Mario Bros (planning only)": False,
+        "Super Mario Bros": False,
         "Sokoban": False,
         "2048": False,
         "Candy Crush": False,
-        # "Tetris (complete)": False, # Commented out
-        "Tetris (planning only)": False,
+        # "Tetris(complete)": False, # Commented out
+        "Tetris": False,
         "Ace Attorney": False
     }
 }
@@ -199,23 +194,23 @@ def update_leaderboard(# mario_overall, mario_details, # Commented out
     # Convert current checkbox states to dictionary for easier comparison
     current_overall = {
         # "Super Mario Bros": mario_overall, # Commented out
-        "Super Mario Bros (planning only)": mario_plan_overall,
+        "Super Mario Bros": mario_plan_overall,
         "Sokoban": sokoban_overall,
         "2048": _2048_overall,
         "Candy Crush": candy_overall,
-        # "Tetris (complete)": tetris_overall, # Commented out
-        "Tetris (planning only)": tetris_plan_overall,
+        # "Tetris(complete)": tetris_overall, # Commented out
+        "Tetris": tetris_plan_overall,
         "Ace Attorney": ace_attorney_overall
     }
     
     current_details = {
         # "Super Mario Bros": mario_details, # Commented out
-        "Super Mario Bros (planning only)": mario_plan_details,
+        "Super Mario Bros": mario_plan_details,
         "Sokoban": sokoban_details,
         "2048": _2048_details,
         "Candy Crush": candy_details,
-        # "Tetris (complete)": tetris_details, # Commented out
-        "Tetris (planning only)": tetris_plan_details,
+        # "Tetris(complete)": tetris_details, # Commented out
+        "Tetris": tetris_plan_details,
         "Ace Attorney": ace_attorney_details
     }
     
@@ -298,12 +293,12 @@ def update_leaderboard(# mario_overall, mario_details, # Commented out
     # Build dictionary for selected games
     selected_games = {
         # "Super Mario Bros": current_overall["Super Mario Bros"], # Commented out
-        "Super Mario Bros (planning only)": current_overall["Super Mario Bros (planning only)"],
+        "Super Mario Bros": current_overall["Super Mario Bros"],
         "Sokoban": current_overall["Sokoban"],
         "2048": current_overall["2048"],
         "Candy Crush": current_overall["Candy Crush"],
-        # "Tetris (complete)": current_overall["Tetris (complete)"], # Commented out
-        "Tetris (planning only)": current_overall["Tetris (planning only)"],
+        # "Tetris(complete)": current_overall["Tetris(complete)"], # Commented out
+        "Tetris": current_overall["Tetris"],
         "Ace Attorney": current_overall["Ace Attorney"]
     }
     
@@ -312,7 +307,7 @@ def update_leaderboard(# mario_overall, mario_details, # Commented out
         # For detailed view
         # if leaderboard_state["current_game"] == "Super Mario Bros": # Commented out
         #     df = get_mario_leaderboard(data)
-        if leaderboard_state["current_game"] == "Super Mario Bros (planning only)":
+        if leaderboard_state["current_game"] == "Super Mario Bros":
             df = get_mario_planning_leaderboard(data)
         elif leaderboard_state["current_game"] == "Sokoban":
             df = get_sokoban_leaderboard(data)
@@ -320,7 +315,7 @@ def update_leaderboard(# mario_overall, mario_details, # Commented out
             df = get_2048_leaderboard(data)
         elif leaderboard_state["current_game"] == "Candy Crush":
             df = get_candy_leaderboard(data)
-        elif leaderboard_state["current_game"] == "Tetris (planning only)":
+        elif leaderboard_state["current_game"] == "Tetris":
             df = get_tetris_planning_leaderboard(data)
         elif leaderboard_state["current_game"] == "Ace Attorney":
             df = get_ace_attorney_leaderboard(data)
@@ -340,11 +335,11 @@ def update_leaderboard(# mario_overall, mario_details, # Commented out
     
     # Return values, including all four plot placeholders
     return (update_df_with_height(display_df), chart, radar_chart, group_bar_chart,
-            current_overall["Super Mario Bros (planning only)"], current_details["Super Mario Bros (planning only)"],
+            current_overall["Super Mario Bros"], current_details["Super Mario Bros"],
             current_overall["Sokoban"], current_details["Sokoban"],
             current_overall["2048"], current_details["2048"],
             current_overall["Candy Crush"], current_details["Candy Crush"],
-            current_overall["Tetris (planning only)"], current_details["Tetris (planning only)"],
+            current_overall["Tetris"], current_details["Tetris"],
             current_overall["Ace Attorney"], current_details["Ace Attorney"])
 
 def update_leaderboard_with_time(time_point, # mario_overall, mario_details, # Commented out
@@ -361,7 +356,7 @@ def update_leaderboard_with_time(time_point, # mario_overall, mario_details, # C
     if new_rank_data is not None:
         rank_data = new_rank_data
     
-    # Use the existing update_leaderboard function, including Super Mario (planning only)
+    # Use the existing update_leaderboard function, including Super Mario 
     return update_leaderboard(# mario_overall, mario_details, # Commented out
                             mario_plan_overall, mario_plan_details, # Added
                             sokoban_overall, sokoban_details,
@@ -374,11 +369,11 @@ def update_leaderboard_with_time(time_point, # mario_overall, mario_details, # C
 def get_total_model_count(data_source):
     """Get the total number of unique models in the data"""
     selected_games = {
-        "Super Mario Bros (planning only)": True,
+        "Super Mario Bros": True,
         "Sokoban": True,
         "2048": True,
         "Candy Crush": True,
-        "Tetris (planning only)": True,
+        "Tetris": True,
         "Ace Attorney": True
     }
     df = get_combined_leaderboard(data_source, selected_games)
@@ -390,22 +385,22 @@ def get_initial_state():
         "current_game": None,
         "previous_overall": {
             # "Super Mario Bros": True, # Commented out
-            "Super Mario Bros (planning only)": True,
+            "Super Mario Bros": True,
             "Sokoban": True,
             "2048": True,
             "Candy Crush": True,
-            # "Tetris (complete)", # Commented out
-            "Tetris (planning only)": True,
+            # "Tetris(complete)", # Commented out
+            "Tetris": True,
             "Ace Attorney": True
         },
         "previous_details": {
             # "Super Mario Bros": False, # Commented out
-            "Super Mario Bros (planning only)": False,
+            "Super Mario Bros": False,
             "Sokoban": False,
             "2048": False,
             "Candy Crush": False,
-            # "Tetris (complete)": False, # Commented out
-            "Tetris (planning only)": False,
+            # "Tetris(complete)": False, # Commented out
+            "Tetris": False,
             "Ace Attorney": False
         }
     }
@@ -417,11 +412,11 @@ def clear_filters(top_n=10, data_source=None):
     data = data_source if data_source is not None else rank_data
     
     selected_games = {
-        "Super Mario Bros (planning only)": True,
+        "Super Mario Bros": True,
         "Sokoban": True,
         "2048": True,
         "Candy Crush": True,
-        "Tetris (planning only)": True,
+        "Tetris": True,
         "Ace Attorney": True
     }
     
@@ -437,7 +432,7 @@ def clear_filters(top_n=10, data_source=None):
             True, False,  # sokoban
             True, False,  # 2048
             True, False,  # candy
-            True, False,  # tetris plan
+            True, False,  # Tetrisplan
             True, False)  # ace attorney
 
 def create_timeline_slider():
@@ -775,18 +770,18 @@ def build_app():
                 
                 let newContent = header.innerHTML;
                 
-                // Format Super Mario Bros header
+                // Format Super Mario Brosheader
                 if (text.includes('Super Mario Bros')) {
                     newContent = newContent.replace(/Super\s+Mario\s+Bros/g, 'Super<br>Mario Bros');
                 }
                 
-                // Format Tetris headers
-                if (text.includes('Tetris (complete)')) {
+                // Format Tetrisheaders
+                if (text.includes('Tetris(complete)')) {
                     newContent = newContent.replace(/Tetris\s+\(complete\)/g, 'Tetris<br>(complete)');
                 }
                 
-                if (text.includes('Tetris (planning only)')) {
-                    newContent = newContent.replace(/Tetris\s+\(planning\s+only\)/g, 'Tetris<br>(planning)');
+                if (text.includes('Tetris')) {
+                    newContent = newContent.replace(/Tetris\s+\(planning\s+only\)/g, 'Tetris');
                 }
                 
                 // Format Candy Crush header
@@ -928,14 +923,14 @@ def build_app():
                 with gr.Row():
                     gr.Markdown("### 🎮 Game Selection")
                 with gr.Row():
-                    # with gr.Column(): # Commented out Super Mario Bros UI
+                    # with gr.Column(): # Commented out Super Mario BrosUI
                     #     gr.Markdown("**🎮 Super Mario Bros**")
-                    #     mario_overall = gr.Checkbox(label="Super Mario Bros Score", value=True)
-                    #     mario_details = gr.Checkbox(label="Super Mario Bros Details", value=False)
-                    with gr.Column(): # Added Super Mario Bros (planning only) UI
-                        gr.Markdown("**📝 Super Mario Bros (planning only)**")
-                        mario_plan_overall = gr.Checkbox(label="Super Mario Bros (planning only) Score", value=True)
-                        mario_plan_details = gr.Checkbox(label="Super Mario Bros (planning only) Details", value=False)
+                    #     mario_overall = gr.Checkbox(label="Super Mario BrosScore", value=True)
+                    #     mario_details = gr.Checkbox(label="Super Mario BrosDetails", value=False)
+                    with gr.Column(): # Added Super Mario BrosUI
+                        gr.Markdown("**🎮 Super Mario Bros**")
+                        mario_plan_overall = gr.Checkbox(label="Super Mario Bros Score", value=True)
+                        mario_plan_details = gr.Checkbox(label="Super Mario Bros Details", value=False)
                     with gr.Column(): # Sokoban is now after mario_plan
                         gr.Markdown("**📦 Sokoban**")
                         sokoban_overall = gr.Checkbox(label="Sokoban Score", value=True)
@@ -948,14 +943,14 @@ def build_app():
                         gr.Markdown("**🍬 Candy Crush**")
                         candy_overall = gr.Checkbox(label="Candy Crush Score", value=True)
                         candy_details = gr.Checkbox(label="Candy Crush Details", value=False)
-                    # with gr.Column(): # Commented out Tetris (complete) UI
-                    #     gr.Markdown("**🎯 Tetris (complete)**")
-                    #     tetris_overall = gr.Checkbox(label="Tetris (complete) Score", value=True)
-                    #     tetris_details = gr.Checkbox(label="Tetris (complete) Details", value=False)
+                    # with gr.Column(): # Commented out Tetris(complete) UI
+                    #     gr.Markdown("**🎯 Tetris(complete)**")
+                    #     tetris_overall = gr.Checkbox(label="Tetris(complete) Score", value=True)
+                    #     tetris_details = gr.Checkbox(label="Tetris(complete) Details", value=False)
                     with gr.Column():
-                        gr.Markdown("**📋 Tetris (planning)**")
-                        tetris_plan_overall = gr.Checkbox(label="Tetris (planning) Score", value=True)
-                        tetris_plan_details = gr.Checkbox(label="Tetris (planning) Details", value=False)
+                        gr.Markdown("**🎯 Tetris**")
+                        tetris_plan_overall = gr.Checkbox(label="Tetris Score", value=True)
+                        tetris_plan_details = gr.Checkbox(label="Tetris Details", value=False)
                     with gr.Column():
                         gr.Markdown("**⚖️ Ace Attorney**")
                         ace_attorney_overall = gr.Checkbox(label="Ace Attorney Score", value=True)
@@ -981,12 +976,12 @@ def build_app():
                 # Get initial leaderboard dataframe
                 initial_df = get_combined_leaderboard(rank_data, {
                     # "Super Mario Bros": True, # Commented out
-                    "Super Mario Bros (planning only)": True,
+                    "Super Mario Bros": True,
                     "Sokoban": True,
                     "2048": True,
                     "Candy Crush": True,
-                    # "Tetris (complete)": True, # Commented out
-                    "Tetris (planning only)": True,
+                    # "Tetris(complete)": True, # Commented out
+                    "Tetris": True,
                     "Ace Attorney": True
                 })
                 
@@ -1021,7 +1016,7 @@ def build_app():
                 with gr.Row():
                     score_note = add_score_note()
                 
-                # List of all checkboxes, including Super Mario Bros (planning only)
+                # List of all checkboxes, including Super Mario Bros
                 checkbox_list = [
                     # mario_overall, mario_details, # Commented out
                     mario_plan_overall, mario_plan_details,
@@ -1036,13 +1031,13 @@ def build_app():
                 # Update visualizations when checkboxes change
                 def update_visualizations(*checkbox_states):
                     # Check if any details checkbox is selected
-                    # Adjusted indices due to addition of Super Mario (planning only)
+                    # Adjusted indices due to addition of Super Mario 
                     is_details_view = any([
                         checkbox_states[1], # Mario Plan details
                         checkbox_states[3], # Sokoban details
                         checkbox_states[5], # 2048 details
                         checkbox_states[7], # Candy Crush details
-                        checkbox_states[9], # Tetris (planning only) details
+                        checkbox_states[9], # Tetris details
                         checkbox_states[11]  # Ace Attorney details
                     ])
                     
@@ -1154,9 +1149,9 @@ def build_app():
                     gr.Markdown("### 🎮 Game Selection")
                 with gr.Row():
                     with gr.Column():
-                        gr.Markdown("**📝 Super Mario Bros (planning only)**")
-                        model_mario_plan_overall = gr.Checkbox(label="Super Mario Bros (planning only) Score", value=True)
-                        model_mario_plan_details = gr.Checkbox(label="Super Mario Bros (planning only) Details", value=False)
+                        gr.Markdown("**🎮 Super Mario Bros**")
+                        model_mario_plan_overall = gr.Checkbox(label="Super Mario Bros Score", value=True)
+                        model_mario_plan_details = gr.Checkbox(label="Super Mario Bros Details", value=False)
                     with gr.Column():
                         gr.Markdown("**📦 Sokoban**")
                         model_sokoban_overall = gr.Checkbox(label="Sokoban Score", value=True)
@@ -1170,9 +1165,9 @@ def build_app():
                         model_candy_overall = gr.Checkbox(label="Candy Crush Score", value=True)
                         model_candy_details = gr.Checkbox(label="Candy Crush Details", value=False)
                     with gr.Column():
-                        gr.Markdown("**📋 Tetris (planning)**")
-                        model_tetris_plan_overall = gr.Checkbox(label="Tetris (planning) Score", value=True)
-                        model_tetris_plan_details = gr.Checkbox(label="Tetris (planning) Details", value=False)
+                        gr.Markdown("**🎯 Tetris**")
+                        model_tetris_plan_overall = gr.Checkbox(label="Tetris Score", value=True)
+                        model_tetris_plan_details = gr.Checkbox(label="Tetris Details", value=False)
                     with gr.Column():
                         gr.Markdown("**⚖️ Ace Attorney**")
                         model_ace_attorney_overall = gr.Checkbox(label="Ace Attorney Score", value=True)
@@ -1193,11 +1188,11 @@ def build_app():
                 
                 # Get initial leaderboard dataframe
                 model_initial_df = get_combined_leaderboard(model_rank_data, {
-                    "Super Mario Bros (planning only)": True,
+                    "Super Mario Bros": True,
                     "Sokoban": True,
                     "2048": True,
                     "Candy Crush": True,
-                    "Tetris (planning only)": True,
+                    "Tetris": True,
                     "Ace Attorney": True
                 })
                 
@@ -1242,7 +1237,7 @@ def build_app():
                         checkbox_states[3], # Sokoban details
                         checkbox_states[5], # 2048 details
                         checkbox_states[7], # Candy Crush details
-                        checkbox_states[9], # Tetris (planning only) details
+                        checkbox_states[9], # Tetris details
                         checkbox_states[11]  # Ace Attorney details
                     ])
                     

@@ -1,46 +1,5 @@
 {
     "Super Mario Bros": {
-        "runs": 5,
-        "results": [
-            {
-                "model": "claude-3-7-sonnet-20250219",
-                "score": 710,
-                "progress": "1-1",
-                "time_s": 64.2
-            },
-            {
-                "model": "gpt-4.1-2025-04-14",
-                "score": 740,
-                "progress": "1-1",
-                "time_s": 68.6
-            },
-            {
-                "model": "gpt-4o-2024-11-20",
-                "score": 560,
-                "progress": "1-1",
-                "time_s": 58.6
-            },
-            {
-                "model": "gemini-2.0-flash",
-                "score": 320,
-                "progress": "1-1",
-                "time_s": 51.8
-            },
-            {
-                "model": "claude-3-5-haiku-20241022",
-                "score": 140,
-                "progress": "1-1",
-                "time_s": 76.4
-            },
-            {
-                "model": "gpt-4.5-preview-2025-02-27",
-                "score": 160,
-                "progress": "1-1",
-                "time_s": 62.8
-            }
-        ]
-    },
-    "Super Mario Bros (planning only)": {
         "runs": 3,
         "results": [
             {
@@ -104,7 +63,7 @@
                 "progress": "1-1"
             },
             {
-                "model": "Random (x30)",
+                "model": "random (x30)",
                 "score": 986.97,
                 "detail_data":"986.97",
                 "progress": "1-1"
@@ -175,43 +134,32 @@
                 "highest_tail": 256
             },
             {
-                "model": "Random (x30)",
+                "model": "random (x30)",
                 "score": 100.4,
                 "details": "",
+                "highest_tail": 128
+            },
+            {
+                "model": "gemini-2.5-flash-preview-05-20",
+                "score": 2750,
+                "details": "3128, 2758, 2364",
+                "highest_tail": 128
+            },
+            {
+                "model": "claude-sonnet-4-20250514",
+                "score": 3844,
+                "details": "3280,5024,3228",
+                "highest_tail": 512
+            },
+            {
+                "model": "gemini-2.5-pro-preview-06-05",
+                "score": 1,
+                "details": "3232,x,1628",
                 "highest_tail": 128
             }
         ]
     },
-    "Tetris (complete)": {
-        "runs": 3,
-        "results": [
-            {
-                "model": "claude-3-7-sonnet-20250219",
-                "score": 95,
-                "steps_blocks": 27,
-                "rank": 1
-            },
-            {
-                "model": "claude-3-5-haiku-20241022",
-                "score": 90,
-                "steps_blocks": 25,
-                "rank": 2
-            },
-            {
-                "model": "gemini-2.0-flash",
-                "score": 82,
-                "steps_blocks": 23,
-                "rank": 3
-            },
-            {
-                "model": "gpt-4o-2024-11-20",
-                "score": 54,
-                "steps_blocks": 19,
-                "rank": 4
-            }
-        ]
-    },
-    "Tetris (planning only)": {
+    "Tetris": {
         "runs": 3,
         "results": [
             {
@@ -265,9 +213,24 @@
                 "details": "14,12,19"
             },
             {
-                "model": "Random (x30)",
+                "model": "random (x30)",
                 "score": 10.2,
                 "details": ""
+            },
+            {
+                "model": "gemini-2.5-flash-preview-05-20",
+                "score": 16,
+                "details": "15,15,18"
+            },
+            {
+                "model": "claude-sonnet-4-20250514",
+                "score": 13.67,
+                "details": "15,12,14"
+            },
+            {
+                "model": "gemini-2.5-pro-preview-06-05",
+                "score": 12,
+                "details": "12"
             }
         ]
     },
@@ -325,9 +288,24 @@
                 "details": "259,591,612"
             },
             {
-                "model": "Random (x30)",
+                "model": "random (x30)",
                 "score": 116.5,
                 "details": ""
+            },
+            {
+                "model": "gemini-2.5-flash-preview-05-20",
+                "score": 254,
+                "details": "276,191,295"
+            },
+            {
+                "model": "claude-sonnet-4-20250514",
+                "score": 557.67,
+                "details": "503, 557, 613"
+            },
+            {
+                "model": "gemini-2.5-pro-preview-06-05",
+                "score": 496,
+                "details": "461,556,471"
             }
         ]
     },
@@ -395,9 +373,27 @@
                 "cracked_levels": "0,1,0"
             },
             {
-                "model": "Random (x30)",
+                "model": "random (x30)",
                 "score": 0,
                 "detail_box_on_target":"0,0,0",
+                "cracked_levels": "0,0,0"
+            },
+            {
+                "model": "claude-sonnet-4-20250514",
+                "score": 0,
+                "detail_box_on_target":"0,0,0",
+                "cracked_levels": "0,0,0"
+            },
+            {
+                "model": "gemini-2.5-pro-preview-06-05",
+                "score": 0.33,
+                "detail_box_on_target": "0,0,1",
+                "cracked_levels": "0,0,0"
+            },
+            {
+                "model": "gemini-2.5-flash-preview-05-20",
+                "score": 0,
+                "detail_box_on_target": "0,0,0",
                 "cracked_levels": "0,0,0"
             }
         ]
@@ -456,9 +452,21 @@
                 "progress": "1:2/5"
             },
             {
-                "model": "Random (x30)",
+                "model": "random (x30)",
                 "score": 0,
                 "progress": "0"
+            },
+            {
+                "model": "gemini-2.5-flash-preview-05-20",
+                "score": 2.33,
+                "details": "1,4,2",
+                "progress": "1:4/5"
+            },
+            {
+                "model": "claude-sonnet-4-20250514",
+                "score": 1.33,
+                "details": "0,2,2",
+                "progress": "1:2/5"
             }
         ]
     }

@@ -5,12 +5,12 @@ import numpy as np
 # Define game order
 GAME_ORDER = [
     # "Super Mario Bros", # Commented out
-    "Super Mario Bros (planning only)",
+    "Super Mario Bros",
     "Sokoban",
     "2048",
     "Candy Crush",
     # "Tetris (complete)", # Commented out
-    "Tetris (planning only)",
+    "Tetris",
     "Ace Attorney"
 ]
 
@@ -31,20 +31,6 @@ def get_organization(model_name):
     else:
         return "unknown"
 
-def get_mario_leaderboard(rank_data):
-    data = rank_data.get("Super Mario Bros", {}).get("results", [])
-    df = pd.DataFrame(data)
-    df = df.rename(columns={
-        "model": "Player", 
-        "progress": "Progress (current/total)", 
-        "score": "Score", 
-        "time_s": "Time (s)"
-    })
-    df["Organization"] = df["Player"].apply(get_organization)
-    df = df[["Player", "Organization", "Progress (current/total)", "Score", "Time (s)"]]
-    if "Score" in df.columns:
-        df = df.sort_values("Score", ascending=False)
-    return df
 
 def get_sokoban_leaderboard(rank_data):
     data = rank_data.get("Sokoban", {}).get("results", [])
@@ -143,20 +129,8 @@ def get_candy_leaderboard(rank_data):
         df = df.sort_values("Score", ascending=False)
     return df
 
-def get_tetris_leaderboard(rank_data):
-    data = rank_data.get("Tetris (complete)", {}).get("results", [])
-    df = pd.DataFrame(data)
-    df = df.rename(columns={
-        "model": "Player", 
-        "score": "Score", 
-        "steps_blocks": "Steps"
-    })
-    df["Organization"] = df["Player"].apply(get_organization)
-    df = df[["Player", "Organization", "Score", "Steps"]]
-    return df
-
 def get_tetris_planning_leaderboard(rank_data):
-    data = rank_data.get("Tetris (planning only)", {}).get("results", [])
+    data = rank_data.get("Tetris", {}).get("results", [])
     df = pd.DataFrame(data)
     df = df.rename(columns={
         "model": "Player", 
@@ -197,7 +171,7 @@ def get_ace_attorney_leaderboard(rank_data):
     return df
 
 def get_mario_planning_leaderboard(rank_data):
-    data = rank_data.get("Super Mario Bros (planning only)", {}).get("results", [])
+    data = rank_data.get("Super Mario Bros", {}).get("results", [])
     df = pd.DataFrame(data)
     df = df.rename(columns={
         "model": "Player", 
@@ -223,8 +197,8 @@ def calculate_rank_and_completeness(rank_data, selected_games):
     # Get DataFrames for selected games
     # if selected_games.get("Super Mario Bros"): # Commented out
     #     game_dfs["Super Mario Bros"] = get_mario_leaderboard(rank_data)
-    if selected_games.get("Super Mario Bros (planning only)"):
-        game_dfs["Super Mario Bros (planning only)"] = get_mario_planning_leaderboard(rank_data)
+    if selected_games.get("Super Mario Bros"):
+        game_dfs["Super Mario Bros"] = get_mario_planning_leaderboard(rank_data)
     if selected_games.get("Sokoban"):
         game_dfs["Sokoban"] = get_sokoban_leaderboard(rank_data)
     if selected_games.get("2048"):
@@ -233,8 +207,8 @@ def calculate_rank_and_completeness(rank_data, selected_games):
         game_dfs["Candy Crush"] = get_candy_leaderboard(rank_data)
     # if selected_games.get("Tetris (complete)"): # Commented out
     #     game_dfs["Tetris (complete)"] = get_tetris_leaderboard(rank_data)
-    if selected_games.get("Tetris (planning only)"):
-        game_dfs["Tetris (planning only)"] = get_tetris_planning_leaderboard(rank_data)
+    if selected_games.get("Tetris"):
+        game_dfs["Tetris"] = get_tetris_planning_leaderboard(rank_data)
     if selected_games.get("Ace Attorney"):
         game_dfs["Ace Attorney"] = get_ace_attorney_leaderboard(rank_data)
 
@@ -264,7 +238,7 @@ def calculate_rank_and_completeness(rank_data, selected_games):
                     # if game == "Super Mario Bros": # Commented out
                     #     player_score = df[df["Player"] == player]["Score"].iloc[0]
                     #     rank = len(df[df["Score"] > player_score]) + 1
-                    if game == "Super Mario Bros (planning only)":
+                    if game == "Super Mario Bros":
                         player_score = df[df["Player"] == player]["Score"].iloc[0]
                         rank = len(df[df["Score"] > player_score]) + 1
                     elif game == "Sokoban":
@@ -276,7 +250,7 @@ def calculate_rank_and_completeness(rank_data, selected_games):
                     elif game == "Candy Crush":
                         player_score = df[df["Player"] == player]["Score"].iloc[0]
                         rank = len(df[df["Score"] > player_score]) + 1
-                    elif game in ["Tetris (planning only)"]:
+                    elif game in ["Tetris"]:
                         player_score = df[df["Player"] == player]["Score"].iloc[0]
                         rank = len(df[df["Score"] > player_score]) + 1
                     elif game == "Ace Attorney":
@@ -328,8 +302,8 @@ def get_combined_leaderboard(rank_data, selected_games):
     # Get DataFrames for selected games
     # if selected_games.get("Super Mario Bros"): # Commented out
     #     game_dfs["Super Mario Bros"] = get_mario_leaderboard(rank_data)
-    if selected_games.get("Super Mario Bros (planning only)"):
-        game_dfs["Super Mario Bros (planning only)"] = get_mario_planning_leaderboard(rank_data)
+    if selected_games.get("Super Mario Bros"):
+        game_dfs["Super Mario Bros"] = get_mario_planning_leaderboard(rank_data)
     if selected_games.get("Sokoban"):
         game_dfs["Sokoban"] = get_sokoban_leaderboard(rank_data)
     if selected_games.get("2048"):
@@ -338,8 +312,8 @@ def get_combined_leaderboard(rank_data, selected_games):
         game_dfs["Candy Crush"] = get_candy_leaderboard(rank_data)
     # if selected_games.get("Tetris (complete)"): # Commented out
     #     game_dfs["Tetris (complete)"] = get_tetris_leaderboard(rank_data)
-    if selected_games.get("Tetris (planning only)"):
-        game_dfs["Tetris (planning only)"] = get_tetris_planning_leaderboard(rank_data)
+    if selected_games.get("Tetris"):
+        game_dfs["Tetris"] = get_tetris_planning_leaderboard(rank_data)
     if selected_games.get("Ace Attorney"):
         game_dfs["Ace Attorney"] = get_ace_attorney_leaderboard(rank_data)
 
@@ -364,7 +338,7 @@ def get_combined_leaderboard(rank_data, selected_games):
                 if player in df["Player"].values:
                     # if game == "Super Mario Bros": # Commented out
                     #     player_data[f"{game} Score"] = df[df["Player"] == player]["Score"].iloc[0]
-                    if game == "Super Mario Bros (planning only)":
+                    if game == "Super Mario Bros":
                         player_data[f"{game} Score"] = df[df["Player"] == player]["Score"].iloc[0]
                     elif game == "Sokoban":
                         player_data[f"{game} Score"] = df[df["Player"] == player]["Score"].iloc[0]
@@ -372,7 +346,7 @@ def get_combined_leaderboard(rank_data, selected_games):
                         player_data[f"{game} Score"] = df[df["Player"] == player]["Score"].iloc[0]
                     elif game == "Candy Crush":
                         player_data[f"{game} Score"] = df[df["Player"] == player]["Score"].iloc[0]
-                    elif game in ["Tetris (planning only)"]:
+                    elif game in ["Tetris"]:
                         player_data[f"{game} Score"] = df[df["Player"] == player]["Score"].iloc[0]
                     elif game == "Ace Attorney":
                         player_data[f"{game} Score"] = df[df["Player"] == player]["Score"].iloc[0]

@@ -3,13 +3,6 @@ import numpy as np
 import pandas as pd
 import json
 from leaderboard_utils import (
-    get_organization,
-    get_mario_leaderboard,
-    get_sokoban_leaderboard,
-    get_2048_leaderboard,
-    get_candy_leaderboard,
-    get_tetris_leaderboard,
-    get_tetris_planning_leaderboard,
     get_combined_leaderboard,
     GAME_ORDER
 )
@@ -268,7 +261,7 @@ def create_group_bar_chart(df, top_n=10):
             middle_position = (top_n + 1) // 2
             if rank == middle_position:
                 # Special case for Super Mario Bros (planning only)
-                if game == "Super Mario Bros (planning only)":
+                if game == "Super Mario Bros":
                     unique_x_labels.append("SMB")
                 else:
                     unique_x_labels.append(game_display_map[game])  # Show just game name without rank
@@ -357,10 +350,8 @@ def create_single_radar_chart(df, selected_games=None, highlight_models=None):
     # Format game names
     formatted_games = []
     for game in selected_games:
-        if game == 'Super Mario Bros (planning only)':
-            formatted_games.append('Super Mario')  # Simplified name
-        elif game == 'Tetris (planning only)':
-            formatted_games.append('Tetris')
+        if game == 'Super Mario Bros':
+            formatted_games.append('SMB')  # Clean name without planning only
         else:
             formatted_games.append(game)  # Keep other names as is
 
