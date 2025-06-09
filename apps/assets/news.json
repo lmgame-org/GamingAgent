@@ -1,10 +1,22 @@
 {
     "news": [
         {
+            "date": "2025-06-07",
+            "video_link": "https://www.youtube.com/watch?v=4CV-fB5EVJs",
+            "twitter_text": "New Benchmark Results: Claude-sonnet-4 & Claude-opus-4 and Join Us in the Discord!",
+            "twitter_link": "https://x.com/haoailab/status/1931438794756313530"
+        },
+        {
+            "date": "2025-06-03",
+            "video_link": "https://www.youtube.com/watch?v=m6i9L6-pgu4",
+            "twitter_text": "New Benchmark Results: How do top open-source models like Deepseek r1 & Qwen 3 perform on games?",
+            "twitter_link": "https://x.com/haoailab/status/1929997363407708646"
+        },
+        {
             "date": "2025-04-28",
             "video_link": "https://www.youtube.com/watch?v=OEQRhBKYxIE",
             "twitter_text": "Grok-3-mini-beta Joins the Battle: Outperforms Gemini 2.5 Flash, Challenges O3-mini Across Games — Full Grok-3-beta Power Yet to Come. 🚀",
-            "twitter_link": "https://x.com/haoailab"
+            "twitter_link": "https://x.com/haoailab/status/1917309598861779021"
         },
         {
             "date": "2025-04-24",
