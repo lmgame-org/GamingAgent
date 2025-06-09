@@ -16,6 +16,7 @@ agent:
   token_limit: 100000
   harness: true
   observation_mode: "vision"
+  scaffolding: (5, 5)  # Add 5x5 coordinate grid to game images
   # Module-specific settings
   modules:
     base_module:

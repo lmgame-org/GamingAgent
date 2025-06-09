@@ -8,7 +8,7 @@ from .core_module import CoreModule, Observation
 
 import copy
 
-from tools.utils import scale_image_up
+from tools.utils import scale_image_up, draw_grid_on_image
 
 class PerceptionModule(CoreModule):
     """
@@ -26,7 +26,8 @@ class PerceptionModule(CoreModule):
                 system_prompt="", 
                 prompt="",
                 token_limit=100000, 
-                reasoning_effort="high"
+                reasoning_effort="high",
+                scaffolding=None
         ):
         """
         Initialize the perception module.
@@ -43,6 +44,8 @@ class PerceptionModule(CoreModule):
             prompt (str): Default user prompt for perception module VLM calls.
             token_limit (int): Maximum number of tokens for VLM calls.
             reasoning_effort (str): Reasoning effort for reasoning VLM calls (low, medium, high).
+            scaffolding (tuple, optional): Grid dimensions as (rows, cols) for drawing coordinate grid on images. 
+                                         Default is None (no grid). Example: (5, 5) for a 5x5 grid.
         """
         super().__init__(
             module_name="perception_module",
@@ -57,6 +60,7 @@ class PerceptionModule(CoreModule):
         valid_observation_modes = ["vision", "text", "both"]
         assert observation_mode in valid_observation_modes, f"Invalid observation_mode: {observation_mode}, choose only from: {valid_observation_modes}"
         self.observation_mode = observation_mode
+        self.scaffolding = scaffolding
         
         # Initialize observation
         self.observation = observation if observation is not None else Observation()
@@ -112,6 +116,10 @@ class PerceptionModule(CoreModule):
         elif self.observation_mode in ["vision", "both"]:
             assert self.observation.img_path is not None, "to process from graphic representation, image should have been prepared and path should exist in observation."
             new_img_path = scale_image_up(self.observation.get_img_path())
+            
+            # Apply scaffolding grid if specified
+            if self.scaffolding is not None:
+                new_img_path = draw_grid_on_image(new_img_path, grid_dim=self.scaffolding)
 
             processed_visual_description = self.api_manager.vision_text_completion(
                 model_name=self.model_name,

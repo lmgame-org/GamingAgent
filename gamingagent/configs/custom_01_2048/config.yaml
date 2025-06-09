@@ -4,7 +4,7 @@ game_env:
   env_type: "custom"
   render_mode: "human"
   max_steps: 1000
-  seed: 0
+  seed: 1
   num_runs: 1
 
 agent:
@@ -15,7 +15,7 @@ agent:
   reasoning_effort: "high"
   token_limit: 100000
   harness: true # Whether to use the perception-memory-reasoning pipeline
-  observation_mode: "vision"
+  observation_mode: "text"
   # Module-specific settings
   modules:
     base_module:
