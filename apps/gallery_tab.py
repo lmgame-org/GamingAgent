@@ -12,11 +12,12 @@ with open('assets/news.json', 'r') as f:
 def create_video_gallery():
     """Create a custom HTML/JS component for video gallery"""
     # Extract video IDs
-    mario_id = VIDEO_LINKS["super_mario"].split("?v=")[1]
+    mario_id = VIDEO_LINKS["super_mario_bros"].split("?v=")[1]
     sokoban_id = VIDEO_LINKS["sokoban"].split("?v=")[1]
     game_2048_id = VIDEO_LINKS["2048"].split("?v=")[1]
     candy_id = VIDEO_LINKS["candy"].split("?v=")[1]
     ace_attorney_id = VIDEO_LINKS["ace_attorney"].split("?v=")[1]
+    tetris_id = VIDEO_LINKS["tetris"].split("?v=")[1]
 
     # Get the latest video from news data
     latest_news = NEWS_DATA["news"][0]  # First item is the latest
@@ -259,6 +260,12 @@ def create_video_gallery():
                     <iframe src="https://www.youtube.com/embed/{ace_attorney_id}"></iframe>
                 </div>
                 <div class="video-title">⚖️ Ace Attorney</div>
+            </div>
+            <div class="video-card">
+                <div class="video-wrapper">
+                    <iframe src="https://www.youtube.com/embed/{tetris_id}"></iframe>
+                </div>
+                <div class="video-title">🧩 Tetris</div>
             </div>
         </div>
         
