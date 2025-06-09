@@ -124,6 +124,7 @@ class DoomEnvWrapper(gym.Env):
         self.headless = headless
         self.record_video = record_video
         self.video_dir = video_dir
+        self.render_mode_human = render_mode_human  # Store render_mode_human as instance attribute
         
         # Initialize episode tracking
         self.current_episode_id = 1
@@ -244,7 +245,7 @@ class DoomEnvWrapper(gym.Env):
             print(f"[{time.time()}] Setting basic settings...", file=sys.stderr)
             try:
                 # Basic settings - following basic example
-                self.game.set_window_visible(True)
+                self.game.set_window_visible(self.render_mode_human)
                 self.game.set_sound_enabled(False)  # Keep sound disabled as in basic example
                 
                 # Set scenario path first - exactly as in basic example
@@ -640,8 +641,7 @@ class DoomEnvWrapper(gym.Env):
     def render(self) -> None:
         """Render the game.
         
-        This method renders the game by getting the current game state and displaying it.
-        For human viewing, it uses pygame to display the screen buffer.
+        This method renders the game using VizDoom's native window.
         """
         if not self.game:
             return
@@ -655,26 +655,12 @@ class DoomEnvWrapper(gym.Env):
         if screen is None:
             return
             
-        # Convert from BGR to RGB
+        # Convert from BGR to RGB for consistency
         screen = cv2.cvtColor(screen, cv2.COLOR_BGR2RGB)
         
-        # For human viewing, display using pygame
+        # No need for additional rendering as VizDoom handles it natively
         if self.render_mode == "human":
-            import pygame
-            
-            # Initialize pygame if needed
-            if not hasattr(self, 'window_surface'):
-                pygame.init()
-                pygame.display.set_caption("ViZDoom")
-                self.window_surface = pygame.display.set_mode(screen.shape[:2][::-1])
-                self.clock = pygame.time.Clock()
-            
-            # Convert screen buffer to pygame surface and display
-            surf = pygame.surfarray.make_surface(screen.transpose(1, 0, 2))
-            self.window_surface.blit(surf, (0, 0))
-            pygame.display.update()
-            pygame.event.pump()
-            self.clock.tick(self.metadata["render_fps"])
+            time.sleep(1.0 / self.metadata["render_fps"])  # Control frame rate
 
     def close(self) -> None:
         """Clean up resources.
