@@ -2,6 +2,8 @@ import plotly.graph_objects as go
 import numpy as np
 import pandas as pd
 import json
+import os
+from datetime import datetime
 from leaderboard_utils import (
     get_combined_leaderboard,
     GAME_ORDER
@@ -628,6 +630,281 @@ def create_player_radar_chart(rank_data, player_name):
     )
     return fig
 
+def save_normalized_data(df, selected_games, filename="normalized_data.json"):
+    """
+    Save normalized data to a JSON file for caching
+    
+    Args:
+        df (pd.DataFrame): DataFrame with raw scores
+        selected_games (dict): Dictionary of selected games
+        filename (str): Output filename
+    """
+    game_cols = [f"{game} Score" for game in GAME_ORDER if f"{game} Score" in df.columns]
+    
+    # Calculate normalization parameters and normalized values
+    normalization_data = {
+        "timestamp": datetime.now().isoformat(),
+        "selected_games": selected_games,
+        "games": {},
+        "players": {}
+    }
+    
+    # Store normalization parameters per game
+    for col in game_cols:
+        game_name = col.replace(" Score", "")
+        vals = df[col].replace("n/a", 0).infer_objects(copy=False).astype(float)
+        mean, std = vals.mean(), vals.std()
+        
+        normalization_data["games"][game_name] = {
+            "mean": mean,
+            "std": std,
+            "raw_scores": vals.to_dict()
+        }
+    
+    # Store normalized scores per player
+    for _, row in df.iterrows():
+        player = row["Player"]
+        player_data = {"organization": row.get("Organization", "unknown")}
+        
+        for col in game_cols:
+            game_name = col.replace(" Score", "")
+            raw_score = row[col]
+            
+            if raw_score != "n/a":
+                raw_score = float(raw_score)
+                mean = normalization_data["games"][game_name]["mean"]
+                std = normalization_data["games"][game_name]["std"]
+                normalized = normalize_values([raw_score], mean, std)[0]
+            else:
+                raw_score = "n/a"
+                normalized = 0
+            
+            player_data[f"{game_name}_raw"] = raw_score
+            player_data[f"{game_name}_normalized"] = normalized
+        
+        normalization_data["players"][player] = player_data
+    
+    # Save to file
+    os.makedirs("cache", exist_ok=True)
+    filepath = os.path.join("cache", filename)
+    
+    with open(filepath, 'w') as f:
+        json.dump(normalization_data, f, indent=2)
+    
+    print(f"Normalized data saved to {filepath}")
+    return filepath
+
+def load_normalized_data(filename="normalized_data.json"):
+    """
+    Load normalized data from a JSON file
+    
+    Args:
+        filename (str): Input filename
+        
+    Returns:
+        dict: Normalized data or None if file doesn't exist
+    """
+    filepath = os.path.join("cache", filename)
+    
+    if not os.path.exists(filepath):
+        return None
+    
+    try:
+        with open(filepath, 'r') as f:
+            data = json.load(f)
+        print(f"Normalized data loaded from {filepath}")
+        return data
+    except Exception as e:
+        print(f"Error loading normalized data: {e}")
+        return None
+
+def get_normalized_scores_from_cache(players, games, cache_data):
+    """
+    Extract normalized scores from cached data
+    
+    Args:
+        players (list): List of player names
+        games (list): List of game names
+        cache_data (dict): Cached normalization data
+        
+    Returns:
+        pd.DataFrame: DataFrame with normalized scores
+    """
+    data = []
+    
+    for player in players:
+        if player in cache_data["players"]:
+            player_data = {"Player": player}
+            player_cache = cache_data["players"][player]
+            
+            for game in games:
+                raw_key = f"{game}_raw"
+                norm_key = f"{game}_normalized"
+                
+                if raw_key in player_cache:
+                    player_data[f"{game} Score"] = player_cache[raw_key]
+                    player_data[f"norm_{game} Score"] = player_cache[norm_key]
+                else:
+                    player_data[f"{game} Score"] = "n/a"
+                    player_data[f"norm_{game} Score"] = 0
+            
+            data.append(player_data)
+    
+    return pd.DataFrame(data)
 
 def save_visualization(fig, filename):
     fig.write_image(filename)
+
+def generate_and_save_normalized_data(rank_data, filename="normalized_data.json"):
+    """
+    Generate normalized data for all games and save to file
+    
+    Args:
+        rank_data (dict): Raw rank data
+        filename (str): Output filename
+        
+    Returns:
+        str: Path to saved file
+    """
+    # Select all games
+    all_games = {game: True for game in GAME_ORDER}
+    
+    # Get combined leaderboard
+    df = get_combined_leaderboard(rank_data, all_games)
+    
+    # Save normalized data
+    return save_normalized_data(df, all_games, filename)
+
+def create_single_radar_chart_with_cache(df, selected_games=None, highlight_models=None, use_cache=True, cache_filename="normalized_data.json"):
+    """
+    Create radar chart with optional caching support
+    """
+    if selected_games is None:
+        selected_games = ['Super Mario Bros', '2048', 'Candy Crush', 'Sokoban', 'Ace Attorney']
+
+    # Try to load from cache first
+    cached_data = None
+    if use_cache:
+        cached_data = load_normalized_data(cache_filename)
+    
+    if cached_data:
+        # Use cached normalized data
+        players = df["Player"].tolist()
+        df_normalized = get_normalized_scores_from_cache(players, selected_games, cached_data)
+        # Merge with original df to get Organization info
+        df_normalized = df_normalized.merge(df[["Player", "Organization"]], on="Player", how="left")
+    else:
+        # Fall back to on-the-fly normalization
+        df_normalized = df.copy()
+        game_cols = [f"{game} Score" for game in selected_games]
+        
+        # Normalize
+        for col in game_cols:
+            vals = df_normalized[col].replace("n/a", 0).infer_objects(copy=False).astype(float)
+            mean, std = vals.mean(), vals.std()
+            df_normalized[f"norm_{col}"] = normalize_values(vals, mean, std)
+
+    # Format game names
+    formatted_games = []
+    for game in selected_games:
+        if game == 'Super Mario Bros':
+            formatted_games.append('SMB')
+        else:
+            formatted_games.append(game)
+
+    categories = formatted_games
+
+    # Group players by prefix and sort alphabetically
+    model_groups = {}
+    for player in df_normalized["Player"]:
+        prefix = get_model_prefix(player)
+        model_groups.setdefault(prefix, []).append(player)
+    
+    # Sort each group alphabetically
+    for prefix in model_groups:
+        model_groups[prefix] = sorted(model_groups[prefix], key=str.lower)
+    
+    # Get sorted prefixes and create ordered player list
+    sorted_prefixes = sorted(model_groups.keys(), key=str.lower)
+    grouped_players = []
+    for prefix in sorted_prefixes:
+        grouped_players.extend(model_groups[prefix])
+
+    fig = go.Figure()
+
+    for player in grouped_players:
+        row = df_normalized[df_normalized["Player"] == player]
+        if row.empty:
+            continue
+        row = row.iloc[0]
+
+        is_highlighted = highlight_models and player in highlight_models
+        color = 'red' if is_highlighted else MODEL_COLORS.get(player, '#808080')
+        fillcolor = 'rgba(255, 0, 0, 0.4)' if is_highlighted else hex_to_rgba(color, 0.2)
+
+        # Get normalized values
+        if cached_data:
+            r = [row[f"norm_{game} Score"] for game in selected_games]
+        else:
+            r = [row[f"norm_{game} Score"] for game in selected_games]
+
+        display_name = player.lower()
+
+        fig.add_trace(go.Scatterpolar(
+            r=r + [r[0]],
+            theta=categories + [categories[0]],
+            mode='lines+markers',
+            fill='toself',
+            name=display_name,
+            line=dict(color=color, width=6 if is_highlighted else 2),
+            marker=dict(color=color, size=10 if is_highlighted else 6),
+            fillcolor=fillcolor,
+            opacity=1.0 if is_highlighted else 0.7,
+            hovertemplate='<b>%{fullData.name}</b><br>Game: %{theta}<br>Score: %{r:.1f}<extra></extra>'
+        ))
+
+    fig.update_layout(
+        autosize=True,
+        height=550,
+        margin=dict(l=400, r=100, t=20, b=20),
+        title=dict(
+            text="AI Normalized Performance Across Games",
+            x=0.5,
+            xanchor='center',
+            yanchor='top',
+            y=0.95,
+            font=dict(size=20),
+            pad=dict(b=20)
+        ),
+        polar=dict(
+            radialaxis=dict(
+                visible=True, 
+                range=[0, 100],
+                tickangle=45,
+                tickfont=dict(size=12),
+                gridcolor='lightgray',
+                gridwidth=1,
+                angle=45
+            ),
+            angularaxis=dict(
+                tickfont=dict(size=14, weight='bold'),
+                tickangle=0
+            )
+        ),
+        legend=dict(
+            font=dict(size=12),
+            title="Choose your model 💡 (click / double-click)",
+            itemsizing='trace',
+            x=-1.4,
+            y=0.8,
+            yanchor='top',
+            xanchor='left',
+            bgcolor='rgba(255,255,255,0.6)',
+            bordercolor='gray',
+            borderwidth=1,
+            itemclick="toggleothers",
+            itemdoubleclick="toggle"
+        )
+    )
+
+    return fig
