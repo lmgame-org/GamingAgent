@@ -537,23 +537,26 @@ class DoomEnvWrapper(gym.Env):
         ticrate = self._cfg.get("episode_settings", {}).get("ticrate", 20)
         frame_time = 1.0 / ticrate
 
-        # Maximum attempts to get state changes
-        max_attempts = 3
-        state_changed = False
-        reward = 0
+        # Initialize variables for action execution
+        total_reward = 0
         current_info = None
+        state_changed = False
+        max_wait_time = 5.0  # Maximum time to wait for state change in seconds
+        start_time = time.time()
+        tics_executed = 0
 
-        for attempt in range(max_attempts):
-            # Execute action with multiple tics to ensure state updates
-            reward = self.game.make_action(buttons, tics=8)  # Advance 8 tics per action
-            
-            # Longer delay to allow action to process
-            time.sleep(frame_time * 2)  # Wait 2 frames worth of time
+        # Execute action and wait for state change
+        while not state_changed and (time.time() - start_time) < max_wait_time:
+            # Execute action
+            step_reward = self.game.make_action(buttons, tics=1)  # Execute one tic at a time
+            total_reward += step_reward
+            tics_executed += 1
             
             # Get new state
             state = self.game.get_state()
             if state is None:
-                self.logger.error(f"Failed to get game state after action (attempt {attempt + 1}/{max_attempts})")
+                self.logger.error("Failed to get game state after action")
+                time.sleep(frame_time)  # Wait one frame before retrying
                 continue
                 
             # Update current state
@@ -567,15 +570,15 @@ class DoomEnvWrapper(gym.Env):
                         if prev_info[key] != current_info[key]:
                             changes.append(f"{key}: {prev_info[key]} -> {current_info[key]}")
                 if changes:
-                    self.logger.info(f"State changes detected: {', '.join(changes)}")
+                    self.logger.info(f"State changes detected after {tics_executed} tics: {', '.join(changes)}")
                     state_changed = True
                     break
                 else:
-                    self.logger.warning(f"No state changes detected after action (attempt {attempt + 1}/{max_attempts})")
-                    time.sleep(frame_time * 2)  # Wait longer before next attempt
+                    self.logger.debug("No state changes detected, waiting...")
+                    time.sleep(frame_time)  # Wait one frame before retrying
 
         if not state_changed:
-            self.logger.error("Failed to detect state changes after maximum attempts")
+            self.logger.warning(f"No state changes detected after {max_wait_time} seconds and {tics_executed} tics")
             current_info = prev_info  # Use previous state if no changes detected
 
         # Capture frame after state update
@@ -600,7 +603,7 @@ class DoomEnvWrapper(gym.Env):
             f"- Angle: {current_info.get('angle', 0)}\n\n"
             f"Action Analysis:\n"
             f"- Action taken: {action_str}\n"
-            f"- Reward received: {reward}\n"
+            f"- Reward received: {total_reward} (over {tics_executed} tics)\n"
             f"- State changes: {', '.join([f'{k}: {v}' for k, v in current_info.items() if k in ['health', 'ammo2', 'position_x', 'position_y', 'angle']])}\n\n"
             f"Combat Strategy:\n{thought_process}"
         )
@@ -634,14 +637,14 @@ class DoomEnvWrapper(gym.Env):
                     textual_representation=None
                 )
 
-        # Set the performance score as the reward
-        performance_score = reward
+        # Set the performance score as the total reward
+        performance_score = total_reward
 
         # Log step data using adapter
         self.adapter.log_step_data(
             agent_action_str=action_str,
             thought_process=formatted_thought,
-            reward=reward,
+            reward=total_reward,
             info=current_info,
             terminated=is_episode_finished,
             truncated=False,
@@ -650,7 +653,7 @@ class DoomEnvWrapper(gym.Env):
             agent_observation=observation
         )
 
-        return observation, reward, is_episode_finished, False, current_info, performance_score
+        return observation, total_reward, is_episode_finished, False, current_info, performance_score
 
     def render(self) -> None:
         """Render the game.
