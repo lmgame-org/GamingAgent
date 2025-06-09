@@ -153,9 +153,9 @@
             },
             {
                 "model": "gemini-2.5-pro-preview-06-05",
-                "score": 1,
-                "details": "3232,x,1628",
-                "highest_tail": 128
+                "score": 2232,
+                "details": "2212,2856,1628",
+                "highest_tail": 256
             }
         ]
     },
@@ -229,8 +229,8 @@
             },
             {
                 "model": "gemini-2.5-pro-preview-06-05",
-                "score": 12,
-                "details": "12"
+                "score": 13.67,
+                "details": "12,14,15"
             }
         ]
     },
@@ -467,6 +467,12 @@
                 "score": 1.33,
                 "details": "0,2,2",
                 "progress": "1:2/5"
+            },
+            {
+                "model": "gemini-2.5-pro-preview-06-05",
+                "score": 1.33,
+                "details": "7,0,0",
+                "progress": "2:2/9"
             }
         ]
     }
