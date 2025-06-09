@@ -914,6 +914,10 @@ def build_app():
                                 label="Comparative Analysis (Group Bar Chart)",
                                 elem_classes="visualization-container"
                             )
+                            gr.Markdown(
+                                    "*💡 Click a legend entry to isolate that model. Double-click additional ones to add them for comparison.*",
+                                    elem_classes="radar-tip"
+                                )
                             
 
                 # Hidden placeholder for group bar visualization (to maintain code references)
@@ -1143,6 +1147,10 @@ def build_app():
                                 label="Comparative Analysis (Group Bar Chart)",
                                 elem_classes="visualization-container"
                             )
+                            gr.Markdown(
+                                    "*💡 Click a legend entry to isolate that model. Double-click additional ones to add them for comparison.*",
+                                    elem_classes="radar-tip"
+                                )
 
                 # Game selection section
                 with gr.Row():

@@ -314,6 +314,7 @@ def create_group_bar_chart(df, top_n=10):
         uniformtext=dict(mode='hide', minsize=8),  # Hide text that doesn't fit
         legend=dict(
             font=dict(size=12),
+            title="Choose your model 💡 (click / double-click)",
             itemsizing='trace',
             x=1.1,
             y=1,

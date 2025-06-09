@@ -1,6 +1,5 @@
 {
     "claude-3-7-sonnet-20250219": "#4A90E2",
-    "claude-3-7-sonnet-20250219 (thinking)": "#2E5C8A",
     "claude-3-5-haiku-20241022": "#7FB5E6",
     "claude-3-5-sonnet-20241022": "#1A4C7C",
     "claude-opus-4-20250514": "#3A80D2",
@@ -10,9 +9,8 @@
     "gemini-2.0-flash-thinking-exp-1219": "#C2185B",
     "gemini-2.5-pro-exp-03-25": "#FF80AB",
     "gemini-2.5-flash-preview-04-17": "#F06292",
-    "gemini-2.5-flash-preview-04-17 (thinking)": "#E91E63",
     "gemini-2.5-flash-preview-05-20": "#F8BBD9",
-    "gemini-2.5-pro-preview-05-06 (thinking)": "#AD1457",
+    "gemini-2.5-pro-preview-05-06": "#AD1457",
     "gemini-2.5-pro-preview-06-05": "#EC407A",
   
     "gpt-4o-2024-11-20": "#00BFA5",
@@ -27,7 +25,6 @@
   
     "grok-3-beta": "#FF7043",
     "grok-3-mini-beta": "#FF8A65",
-    "grok-3-mini-beta (thinking)": "#F57C00",
   
     "deepseek-v3": "#FFC107",
     "deepseek-r1-0120": "#FFA000",
@@ -39,7 +36,6 @@
     "random (x30)": "#9E9E9E",
 
     "gamingagent + claude-3-7-sonnet-20250219": "#4A90E2",
-    "gamingagent + claude-3-7-sonnet-20250219 (thinking)": "#2E5C8A",
     "gamingagent + claude-3-5-haiku-20241022": "#7FB5E6",
     "gamingagent + claude-3-5-sonnet-20241022": "#1A4C7C",
     "gamingagent + claude-opus-4-20250514": "#3A80D2",
@@ -49,9 +45,8 @@
     "gamingagent + gemini-2.0-flash-thinking-exp-1219": "#C2185B",
     "gamingagent + gemini-2.5-pro-exp-03-25": "#FF80AB",
     "gamingagent + gemini-2.5-flash-preview-04-17": "#F06292",
-    "gamingagent + gemini-2.5-flash-preview-04-17 (thinking)": "#E91E63",
     "gamingagent + gemini-2.5-flash-preview-05-20": "#F8BBD9",
-    "gamingagent + gemini-2.5-pro-preview-05-06 (thinking)": "#AD1457",
+    "gamingagent + gemini-2.5-pro-preview-05-06": "#AD1457",
     "gamingagent + gemini-2.5-pro-preview-06-05": "#EC407A",
   
     "gamingagent + gpt-4o-2024-11-20": "#00BFA5",
@@ -66,7 +61,6 @@
   
     "gamingagent + grok-3-beta": "#FF7043",
     "gamingagent + grok-3-mini-beta": "#FF8A65",
-    "gamingagent + grok-3-mini-beta (thinking)": "#F57C00",
   
     "gamingagent + deepseek-v3": "#FFC107",
     "gamingagent + deepseek-r1-0120": "#FFA000",

@@ -9,19 +9,19 @@
                 "progress": "1-1"
             },
             {
-                "model": "claude-3-7-sonnet-20250219 (thinking)",
+                "model": "claude-3-7-sonnet-20250219",
                 "score": 1430.0,
                 "detail_data":"1532,1515,1243",
                 "progress": "1-1"
             },
             {
-                "model": "gemini-2.5-flash-preview-04-17 (thinking)",
+                "model": "gemini-2.5-flash-preview-04-17",
                 "score": 1540.7,
                 "detail_data":"1794,1270,1558",
                 "progress": "1-1"
             },
             {
-                "model": "gemini-2.5-pro-preview-05-06 (thinking)",
+                "model": "gemini-2.5-pro-preview-05-06",
                 "score": 1025.3,
                 "detail_data":"820,1534,722",
                 "progress": "1-1"
@@ -75,67 +75,67 @@
         "results": [
             {
                 "model": "claude-3-5-sonnet-20241022",
-                "score": 17.0,
+                "score": 84,
                 "details": "188,20,44",
                 "highest_tail": 32
             },
             {
-                "model": "claude-3-7-sonnet-20250219 (thinking)",
-                "score": 126.3,
+                "model": "claude-3-7-sonnet-20250219",
+                "score": 2624,
                 "details": "1596,4256,3008",
                 "highest_tail": 512
             },
             {
-                "model": "gemini-2.5-flash-preview-04-17 (thinking)",
-                "score": 97.7,
+                "model": "gemini-2.5-flash-preview-04-17",
+                "score": 1738.67,
                 "details": "2228,1424,1564",
                 "highest_tail": 256
             },
             {
-                "model": "gemini-2.5-pro-preview-05-06 (thinking)",
+                "model": "gemini-2.5-pro-preview-05-06",
                 "score": 120.5,
-                "details": "5784,3544,3704",
+                "details": "4344",
                 "highest_tail": 512
             },
             {
                 "model": "llama-4-maverick-17b-128e-instruct-fp8",
-                "score": 44.6,
+                "score": 28,
                 "details": "16,56,12",
                 "highest_tail": 64
             },
             {
                 "model": "gpt-4.1-2025-04-14",
-                "score": 94.5,
+                "score": 1113.33,
                 "details": "264,500,2576",
                 "highest_tail": 256
             },
             {
                 "model": "gpt-4o-2024-11-20",
-                "score": 70.4,
+                "score": 176,
                 "details": "292,196,40",
                 "highest_tail": 32
             },
             {
                 "model": "o1-2024-12-17",
-                "score": 128.1,
+                "score": 7176,
                 "details": "7176",
                 "highest_tail": 512
             },
             {
                 "model": "o3-2025-04-16",
-                "score": 128.2,
+                "score": 7220,
                 "details": "7220",
                 "highest_tail": 512
             },
             {
                 "model": "o4-mini-2025-04-16",
-                "score": 97.6,
+                "score": 1882.67,
                 "details": "3004,84,2560",
                 "highest_tail": 256
             },
             {
                 "model": "random (x30)",
-                "score": 100.4,
+                "score": 1228,
                 "details": "",
                 "highest_tail": 128
             },
@@ -168,17 +168,17 @@
                 "details": "10,15,12"
             },
             {
-                "model": "claude-3-7-sonnet-20250219 (thinking)",
+                "model": "claude-3-7-sonnet-20250219",
                 "score": 13.0,
                 "details": "13,13,13"
             },
             {
-                "model": "gemini-2.5-flash-preview-04-17 (thinking)",
+                "model": "gemini-2.5-flash-preview-04-17",
                 "score": 19.0,
                 "details": "15,18,24"
             },
             {
-                "model": "gemini-2.5-pro-preview-05-06 (thinking)",
+                "model": "gemini-2.5-pro-preview-05-06",
                 "score": 12.3,
                 "details": "15,9,13"
             },
@@ -243,17 +243,17 @@
                 "details": "15,36,0"
             },
             {
-                "model": "claude-3-7-sonnet-20250219 (thinking)",
+                "model": "claude-3-7-sonnet-20250219",
                 "score": 126.3,
                 "details": "148,182,49"
             },
             {
-                "model": "gemini-2.5-flash-preview-04-17 (thinking)",
+                "model": "gemini-2.5-flash-preview-04-17",
                 "score": 97.7,
                 "details": "60,101,132"
             },
             {
-                "model": "gemini-2.5-pro-preview-05-06 (thinking)",
+                "model": "gemini-2.5-pro-preview-05-06",
                 "score": 177.3,
                 "details": "117,169,246"
             },
@@ -319,19 +319,19 @@
                 "cracked_levels": "0,0,0"
             },
             {
-                "model": "claude-3-7-sonnet-20250219 (thinking)",
+                "model": "claude-3-7-sonnet-20250219",
                 "score": 0,
                 "detail_box_on_target":"0,0,0",
                 "cracked_levels": "0,0,0"
             },
             {
-                "model": "gemini-2.5-flash-preview-04-17 (thinking)",
+                "model": "gemini-2.5-flash-preview-04-17",
                 "score": 0,
                 "detail_box_on_target":"0,0,0",
                 "cracked_levels": "0,0,0"
             },
             {
-                "model": "gemini-2.5-pro-preview-05-06 (thinking)",
+                "model": "gemini-2.5-pro-preview-05-06",
                 "score": 1,
                 "detail_box_on_target":"1,1,1",
                 "cracked_levels": "0,0,0"
@@ -407,17 +407,17 @@
                 "progress": "1:1/5"
             },
             {
-                "model": "claude-3-7-sonnet-20250219 (thinking)",
+                "model": "claude-3-7-sonnet-20250219",
                 "score": 3,
                 "progress": "1:3/5"
             },
             {
-                "model": "gemini-2.5-flash-preview-04-17 (thinking)",
+                "model": "gemini-2.5-flash-preview-04-17",
                 "score": 1,
                 "progress": "1:1/5"
             },
             {
-                "model": "gemini-2.5-pro-preview-05-06 (thinking)",
+                "model": "gemini-2.5-pro-preview-05-06",
                 "score": 8,
                 "progress": "2:3/9"
             },
