@@ -1,13 +1,51 @@
 import os
+import time
+import functools
+import anthropic
+import httpx
 
 from openai import OpenAI
-import anthropic
 import google.generativeai as genai
 from google.generativeai import types
 from together import Together
 
+def retry_on_overload(func):
+    """
+    A decorator to retry a function call on anthropic.APIStatusError with 'overloaded_error'.
+    It uses exponential backoff with jitter.
+    """
+    @functools.wraps(func)
+    def wrapper(*args, **kwargs):
+        max_retries = 5
+        base_delay = 2  # seconds
+        for attempt in range(max_retries):
+            try:
+                return func(*args, **kwargs)
+            except anthropic.APIStatusError as e:
+                if e.body and e.body.get('error', {}).get('type') == 'overloaded_error':
+                    if attempt < max_retries - 1:
+                        delay = base_delay * (2 ** attempt) + (os.urandom(1)[0] / 255.0)
+                        print(f"Anthropic API overloaded. Retrying in {delay:.2f} seconds... (Attempt {attempt + 1}/{max_retries})")
+                        time.sleep(delay)
+                    else:
+                        print(f"Anthropic API still overloaded after {max_retries} attempts. Raising the error.")
+                        raise
+                else:
+                    # Re-raise if it's not an overload error
+                    raise
+            except httpx.RemoteProtocolError as e:
+                if attempt < max_retries - 1:
+                    delay = base_delay * (2 ** attempt) + (os.urandom(1)[0] / 255.0)
+                    print(f"Streaming connection closed unexpectedly. Retrying in {delay:.2f} seconds... (Attempt {attempt + 1}/{max_retries})")
+                    time.sleep(delay)
+                else:
+                    print(f"Streaming connection failed after {max_retries} attempts. Raising the error.")
+                    raise
+    return wrapper
+
+@retry_on_overload
 def anthropic_completion(system_prompt, model_name, base64_image, prompt, thinking=False, token_limit=30000):
-    print(f"anthropic vision-text activated... thinking: f{thinking}")
+    print(f"anthropic vision-text activated... thinking: {thinking}")
     client = anthropic.Anthropic(api_key=os.getenv("ANTHROPIC_API_KEY"))
     messages = [
         {
@@ -42,6 +80,10 @@ def anthropic_completion(system_prompt, model_name, base64_image, prompt, thinki
         print("claude-opus-4 supports 32000 tokens")
         token_limit = 32000
 
+    if "claude-sonnet-4" in model_name.lower() and token_limit > 64000:
+        print("claude-sonnet-4 supports 64000 tokens")
+        token_limit = 64000
+
     if thinking:
         with client.messages.stream(
                 max_tokens=token_limit,
@@ -55,8 +97,13 @@ def anthropic_completion(system_prompt, model_name, base64_image, prompt, thinki
                 model=model_name, # claude-3-5-sonnet-20241022 # claude-3-7-sonnet-20250219
             ) as stream:
                 partial_chunks = []
-                for chunk in stream.text_stream:
-                    partial_chunks.append(chunk)
+                try:
+                    for chunk in stream.text_stream:
+                        partial_chunks.append(chunk)
+                except httpx.RemoteProtocolError as e:
+                    print(f"Streaming connection closed unexpectedly: {e}")
+                    # Return what we have so far
+                    return "".join(partial_chunks)
     else:
          
         with client.messages.stream(
@@ -67,13 +114,19 @@ def anthropic_completion(system_prompt, model_name, base64_image, prompt, thinki
                 model=model_name, # claude-3-5-sonnet-20241022 # claude-3-7-sonnet-20250219
             ) as stream:
                 partial_chunks = []
-                for chunk in stream.text_stream:
-                    partial_chunks.append(chunk)
+                try:
+                    for chunk in stream.text_stream:
+                        partial_chunks.append(chunk)
+                except httpx.RemoteProtocolError as e:
+                    print(f"Streaming connection closed unexpectedly: {e}")
+                    # Return what we have so far
+                    return "".join(partial_chunks)
         
     generated_code_str = "".join(partial_chunks)
     
     return generated_code_str
 
+@retry_on_overload
 def anthropic_text_completion(system_prompt, model_name, prompt, thinking=False, token_limit=30000):
     client = anthropic.Anthropic(api_key=os.getenv("ANTHROPIC_API_KEY"))
 
@@ -100,6 +153,10 @@ def anthropic_text_completion(system_prompt, model_name, prompt, thinking=False,
         print("claude-opus-4 supports 32000 tokens")
         token_limit = 32000
 
+    if "claude-sonnet-4" in model_name.lower() and token_limit > 64000:
+        print("claude-sonnet-4 supports 64000 tokens")
+        token_limit = 64000
+
     if thinking:
         with client.messages.stream(
                 max_tokens=token_limit,
@@ -113,8 +170,13 @@ def anthropic_text_completion(system_prompt, model_name, prompt, thinking=False,
                 model=model_name, # claude-3-5-sonnet-20241022 # claude-3-7-sonnet-20250219
             ) as stream:
                 partial_chunks = []
-                for chunk in stream.text_stream:
-                    partial_chunks.append(chunk)
+                try:
+                    for chunk in stream.text_stream:
+                        partial_chunks.append(chunk)
+                except httpx.RemoteProtocolError as e:
+                    print(f"Streaming connection closed unexpectedly: {e}")
+                    # Return what we have so far
+                    return "".join(partial_chunks)
     else:    
         with client.messages.stream(
                 max_tokens=token_limit,
@@ -124,20 +186,30 @@ def anthropic_text_completion(system_prompt, model_name, prompt, thinking=False,
                 model=model_name, # claude-3-5-sonnet-20241022 # claude-3-7-sonnet-20250219
             ) as stream:
                 partial_chunks = []
-                for chunk in stream.text_stream:
-                    partial_chunks.append(chunk)
+                try:
+                    for chunk in stream.text_stream:
+                        partial_chunks.append(chunk)
+                except httpx.RemoteProtocolError as e:
+                    print(f"Streaming connection closed unexpectedly: {e}")
+                    # Return what we have so far
+                    return "".join(partial_chunks)
         
     generated_str = "".join(partial_chunks)
     
     return generated_str
 
 
+@retry_on_overload
 def anthropic_multiimage_completion(system_prompt, model_name, prompt, list_content, list_image_base64, token_limit=30000):
     client = anthropic.Anthropic(api_key=os.getenv("ANTHROPIC_API_KEY"))
 
     if "claude-opus-4" in model_name.lower() and token_limit > 32000:
         print("claude-opus-4 supports 32000 tokens")
         token_limit = 32000
+    
+    if "claude-sonnet-4" in model_name.lower() and token_limit > 64000:
+        print("claude-sonnet-4 supports 64000 tokens")
+        token_limit = 64000
     
     content_blocks = [] 
     for text_item, base64_image in zip(list_content, list_image_base64):
@@ -182,9 +254,14 @@ def anthropic_multiimage_completion(system_prompt, model_name, prompt, list_cont
             model=model_name, # claude-3-5-sonnet-20241022 # claude-3-7-sonnet-20250219
         ) as stream:
             partial_chunks = []
-            for chunk in stream.text_stream:
-                print(chunk)
-                partial_chunks.append(chunk)
+            try:
+                for chunk in stream.text_stream:
+                    print(chunk)
+                    partial_chunks.append(chunk)
+            except httpx.RemoteProtocolError as e:
+                print(f"Streaming connection closed unexpectedly: {e}")
+                # Return what we have so far
+                return "".join(partial_chunks)
         
     generated_str = "".join(partial_chunks)
     

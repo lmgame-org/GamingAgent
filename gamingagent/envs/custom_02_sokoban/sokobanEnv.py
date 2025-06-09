@@ -186,6 +186,8 @@ class SokobanEnv(gym.Env):
         self.num_boxes_initial = num_boxes # Store initial config
         self.level_to_load = level_to_load
         self.tile_size_for_render = tile_size_for_render
+        self.current_level = level_to_load if level_to_load is not None else 1
+        self.max_level = 6  # Maximum level number in levels.txt
         
         if num_gen_steps is None and not self.level_to_load : 
             self.num_gen_steps = int(1.7 * (self.dim_room[0] + self.dim_room[1]))
@@ -391,14 +393,17 @@ class SokobanEnv(gym.Env):
         
         # Calculate initial perf score using the overridden method
         initial_perf_score = self.calculate_perf_score(0, info_dict) 
-
+    
+        img_path_for_adapter = None
+        text_representation_for_adapter = None
         if self.adapter.observation_mode in ["vision", "both"]:
             img_path_for_adapter = self.adapter._create_agent_observation_path(self.adapter.current_episode_id, self.adapter.current_step_num)
             create_board_image_sokoban(raw_board_obs, img_path_for_adapter, tile_size=self.tile_size_for_render, perf_score=initial_perf_score)
         
         if self.adapter.observation_mode in ["text", "both"]:
             char_board_2d_list = [[ROOM_STATE_TO_CHAR.get(tile, '?') for tile in row] for row in raw_board_obs.tolist()]
-            text_representation_for_adapter = str(char_board_2d_list)
+            # text_representation_for_adapter = str(char_board_2d_list)
+            text_representation_for_adapter = self.matrix_to_text_table(char_board_2d_list)
 
         agent_observation = self.adapter.create_agent_observation(
             img_path=img_path_for_adapter,
@@ -505,12 +510,43 @@ class SokobanEnv(gym.Env):
         
         return moved_player, moved_box
 
+    def matrix_to_text_table(self, matrix: List[List[str]]) -> str:
+        """Convert a 2D list matrix into a structured text table."""
+        header = "ID  | Item Type    | Position"
+        line_separator = "-" * len(header)
+        
+        item_map = {
+            '#': 'Wall',
+            '@': 'Worker',
+            '$': 'Box',
+            '?': 'Dock',
+            '*': 'Box on Dock',
+            ' ': 'Empty'
+        }
+        
+        table_rows = [header, line_separator]
+        item_id = 1
+        
+        for row_idx, row in enumerate(matrix):
+            for col_idx, cell in enumerate(row):
+                item_type = item_map.get(cell, 'Unknown')
+                table_rows.append(f"{item_id:<3} | {item_type:<12} | ({col_idx}, {row_idx})")
+                item_id += 1
+        
+        return "\n".join(table_rows)
+
+    def _progress_to_next_level(self) -> bool:
+        """Progress to the next level if available. Returns True if progressed, False if at max level."""
+        if self.current_level < self.max_level:
+            self.current_level += 1
+            self.level_to_load = self.current_level
+            return True
+        return False
 
     def step(self, agent_action_str: Optional[str], thought_process: str = "", time_taken_s: float = 0.0) -> Tuple[Observation, float, bool, bool, Dict[str, Any], float]:
         self.adapter.increment_step()
         
         # Map agent string action to environment action index using adapter
-        # The adapter's action_mapping should map "push up" to 1, "move up" to 5 etc.
         env_action_idx = self.adapter.map_agent_action_to_env_action(agent_action_str)
         
         reward = 0.0
@@ -521,18 +557,43 @@ class SokobanEnv(gym.Env):
             self._internal_push_or_move(env_action_idx)
             reward = self._calc_reward()
             terminated = self._check_if_all_boxes_on_target()
+            
+            # If level is completed, try to progress to next level
+            if terminated and self._progress_to_next_level():
+                # Reset the environment for the new level
+                self.reset()
+                # Return the new observation and info
+                raw_board_obs = self._get_raw_board_obs()
+                info_dict = self._get_info()
+                current_perf_score = self.calculate_perf_score(reward, info_dict)
+                
+                img_path_for_adapter = None
+                text_representation_for_adapter = None
+                if self.adapter.observation_mode in ["vision", "both"]:
+                    img_path_for_adapter = self.adapter._create_agent_observation_path(self.adapter.current_episode_id, self.adapter.current_step_num)
+                    create_board_image_sokoban(raw_board_obs, img_path_for_adapter, tile_size=self.tile_size_for_render, perf_score=current_perf_score, action_taken_str=agent_action_str)
+                
+                if self.adapter.observation_mode in ["text", "both"]:
+                    char_board_2d_list = [[ROOM_STATE_TO_CHAR.get(tile, '?') for tile in row] for row in raw_board_obs.tolist()]
+                    text_representation_for_adapter = self.matrix_to_text_table(char_board_2d_list)
+
+                agent_observation = self.adapter.create_agent_observation(
+                    img_path=img_path_for_adapter,
+                    text_representation=text_representation_for_adapter
+                )
+                
+                return agent_observation, reward, False, False, info_dict, current_perf_score
         else: # Invalid or no action from agent
             print(f"[SokobanEnv] Action '{agent_action_str}' (mapped to {env_action_idx}) is skip/invalid. Env not stepped.")
-            # Reward remains 0 (or penalty_for_step if we decide no_op costs something)
-            reward = self.penalty_for_step # Penalize for invalid/skipped action
-            terminated = self._check_if_all_boxes_on_target() # Check current state
+            reward = self.penalty_for_step
+            terminated = self._check_if_all_boxes_on_target()
 
-        self.num_env_steps += 1 # Increment even for invalid actions that cost a step
+        self.num_env_steps += 1
         truncated = self._check_if_maxsteps()
-        self.current_reward_last_step = reward # Store for info
+        self.current_reward_last_step = reward
 
         raw_board_obs = self._get_raw_board_obs()
-        info_dict = self._get_info() # Get latest info
+        info_dict = self._get_info()
         current_perf_score = self.calculate_perf_score(reward, info_dict)
         
         img_path_for_adapter = None
@@ -543,7 +604,7 @@ class SokobanEnv(gym.Env):
         
         if self.adapter.observation_mode in ["text", "both"]:
             char_board_2d_list = [[ROOM_STATE_TO_CHAR.get(tile, '?') for tile in row] for row in raw_board_obs.tolist()]
-            text_representation_for_adapter = str(char_board_2d_list)
+            text_representation_for_adapter = self.matrix_to_text_table(char_board_2d_list)
 
         agent_observation = self.adapter.create_agent_observation(
             img_path=img_path_for_adapter,
@@ -601,7 +662,15 @@ class SokobanEnv(gym.Env):
             pygame.init()
             pygame.display.init()
             self.window = pygame.display.set_mode((img_rgb_array.shape[1], img_rgb_array.shape[0])) # W, H
-            pygame.display.set_caption("Sokoban")
+            pygame.display.set_caption(f"Sokoban - Level {self.current_level}")
+        else:
+            # Check if window size needs to be updated for new level
+            current_size = self.window.get_size()
+            new_size = (img_rgb_array.shape[1], img_rgb_array.shape[0])
+            if current_size != new_size:
+                self.window = pygame.display.set_mode(new_size)
+            pygame.display.set_caption(f"Sokoban - Level {self.current_level}")
+
         if self.clock is None:
             self.clock = pygame.time.Clock()
 

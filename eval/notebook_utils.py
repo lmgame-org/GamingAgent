@@ -1659,133 +1659,209 @@ def run_polynomial_analysis_notebook(
             
     return all_polynomial_results
 
-def visualize_polynomial_category_weights(polynomial_results: dict, save_plots: bool = False):
+def visualize_polynomial_category_weights(polynomial_results: dict, save_plots: bool = False, comb_list: list = None):
     """
-    Visualizes polynomial analysis results with category weights.
-    Shows one bar chart per combination, focusing on linear term weights.
+    Visualizes polynomial analysis results with one bar chart per game within each combination.
+    Each game's bar chart shows all features (knowledge, physics, math, etc.) on x-axis.
     
     Args:
         polynomial_results: Results from run_polynomial_analysis_notebook
         save_plots: Whether to save plots (optional, default False for seamless workflow)
+        comb_list: List of combination names to visualize (default: ["Comb3_LangPhyVisMathCode"])
     """
     import matplotlib.pyplot as plt
     import numpy as np
+    
+    # Set default combination list if not provided
+    if comb_list is None:
+        comb_list = ["Comb3_LangPhyVisMathCode"]
     
     if not polynomial_results:
         print("No polynomial results to visualize")
         return
     
-    # Iterate through each game
-    for game_name, game_data in polynomial_results.items():
-        print(f"\n=== Polynomial Analysis: {game_name} ===")
+    # Organize data by combination first
+    combination_data = {}
+    all_games = list(polynomial_results.keys())
+    
+    for combination_name in comb_list:
+        combination_data[combination_name] = {}
         
-        # Get all combinations for this game
-        combinations = list(game_data.keys())
-        n_combinations = len(combinations)
+        for game_name in all_games:
+            game_data = polynomial_results[game_name]
+            if combination_name in game_data:
+                config_key = list(game_data[combination_name].keys())[0]
+                config_data = game_data[combination_name][config_key]
+                
+                # Extract linear weights only
+                feature_weights = config_data.get('feature_weights', {})
+                linear_weights = {}
+                
+                for feature_name, weight in feature_weights.items():
+                    if feature_name != '1' and '^' not in feature_name and ' ' not in feature_name:
+                        linear_weights[feature_name] = weight
+                
+                combination_data[combination_name][game_name] = {
+                    'linear_weights': linear_weights,
+                    'error': config_data.get('evaluation', {}).get('avg_residual_error', np.nan),
+                    'categories': config_data.get('config', {}).get('R_categories_used', [])
+                }
+    
+    # Filter out combinations with no data
+    valid_combinations = [comb for comb in comb_list if combination_data.get(comb)]
+    
+    if not valid_combinations:
+        print("No valid combinations found with data")
+        return
+    
+    print(f"Visualizing {len(valid_combinations)} combinations across {len(all_games)} games")
+    
+    # Define colors for categories (consistent across all plots)
+    all_categories = set()
+    for comb_data in combination_data.values():
+        for game_data in comb_data.values():
+            all_categories.update(game_data['linear_weights'].keys())
+    
+    category_colors = {}
+    colors = plt.cm.Set3(np.linspace(0, 1, len(all_categories)))
+    for i, cat in enumerate(sorted(all_categories)):
+        category_colors[cat] = colors[i]
+    
+    # Process each combination separately
+    for combination_name in valid_combinations:
+        comb_data = combination_data[combination_name]
         
-        if n_combinations == 0:
-            print(f"No combinations found for {game_name}")
+        # Get games with data for this combination
+        games_with_data = []
+        for game_name in all_games:
+            if game_name in comb_data and comb_data[game_name]['linear_weights']:
+                games_with_data.append(game_name)
+        
+        if not games_with_data:
+            print(f"No games with data for {combination_name}")
             continue
-            
-        # Create subplots - 2x2 grid for 4 combinations
-        fig, axes = plt.subplots(2, 2, figsize=(16, 12))
-        fig.suptitle(f'Linear Term Weights Analysis: {game_name}', fontsize=16, fontweight='bold')
         
-        # Flatten axes array for easier indexing
-        axes_flat = axes.flatten()
+        # Get all features for this combination
+        all_features_in_comb = set()
+        for game_name in games_with_data:
+            all_features_in_comb.update(comb_data[game_name]['linear_weights'].keys())
         
-        # Iterate through each combination
-        for idx, combination_name in enumerate(combinations):
-            if idx >= 4:  # Only show first 4 combinations
+        features_sorted = sorted(all_features_in_comb)
+        
+        if not features_sorted:
+            print(f"No features with data for {combination_name}")
+            continue
+        
+        n_games = len(games_with_data)
+        
+        # Create subplots for each game in this combination
+        if n_games == 1:
+            fig, axes = plt.subplots(1, 1, figsize=(12, 6))
+            axes = [axes]
+        elif n_games == 2:
+            fig, axes = plt.subplots(1, 2, figsize=(24, 6))
+        elif n_games <= 4:
+            fig, axes = plt.subplots(2, 2, figsize=(24, 12))
+            axes = axes.flatten()
+        elif n_games <= 6:
+            fig, axes = plt.subplots(2, 3, figsize=(36, 12))
+            axes = axes.flatten()
+        elif n_games <= 9:
+            fig, axes = plt.subplots(3, 3, figsize=(36, 18))
+            axes = axes.flatten()
+        else:
+            # For more than 9 games, use a 4x4 grid (max 16 games)
+            fig, axes = plt.subplots(4, 4, figsize=(48, 24))
+            axes = axes.flatten()
+        
+        fig.suptitle(f'{combination_name} - Feature Weights by Game', fontsize=16, fontweight='bold')
+        
+        # Plot each game separately
+        for game_idx, game_name in enumerate(games_with_data):
+            if game_idx >= len(axes):
                 break
                 
-            ax = axes_flat[idx]
-            combination_data = game_data[combination_name]
+            ax = axes[game_idx]
+            game_data = comb_data[game_name]
+            linear_weights = game_data['linear_weights']
+            error = game_data['error']
             
-            # Get the configuration data (should be only one key like 'harness_true_deg3')
-            config_key = list(combination_data.keys())[0]
-            config_data = combination_data[config_key]
+            # Prepare data for this game
+            feature_values = []
+            feature_colors = []
             
-            # Extract data
-            config = config_data.get('config', {})
-            evaluation = config_data.get('evaluation', {})
-            feature_weights = config_data.get('feature_weights', {})
+            for feature in features_sorted:
+                weight = linear_weights.get(feature, 0)
+                feature_values.append(weight)
+                feature_colors.append(category_colors.get(feature, '#888888'))
             
-            categories_used = config.get('R_categories_used', [])
-            avg_residual_error = evaluation.get('avg_residual_error', np.nan)
-            poly_degree = config.get('poly_degree', 3)
+            # Create bar chart for this game
+            x_positions = np.arange(len(features_sorted))
+            bars = ax.bar(x_positions, feature_values, color=feature_colors, alpha=0.8, 
+                         edgecolor='black', linewidth=0.5)
             
-            # Extract linear weights only
-            linear_weights = {}
-            constant_weight = feature_weights.get('1', 0)
+            # Add value labels on bars
+            for bar, value, feature in zip(bars, feature_values, features_sorted):
+                if abs(value) > 0.001:
+                    height = bar.get_height()
+                    ax.text(bar.get_x() + bar.get_width()/2, 
+                           height + (0.02 * max(abs(v) for v in feature_values) if height >= 0 else -0.02 * max(abs(v) for v in feature_values)), 
+                           f'{value:.3f}', ha='center', 
+                           va='bottom' if height >= 0 else 'top', 
+                           fontsize=9, fontweight='bold')
             
-            for feature_name, weight in feature_weights.items():
-                if feature_name == '1':
-                    continue
-                elif '^' not in feature_name and ' ' not in feature_name:
-                    # Linear terms only
-                    linear_weights[feature_name] = weight
+            # Customize the plot
+            ax.set_xticks(x_positions)
+            ax.set_xticklabels([feature.title() for feature in features_sorted], 
+                              fontsize=10, rotation=45, ha='right')
+            ax.set_ylabel('Linear Weight', fontsize=11)
+            ax.set_title(f'{game_name}\n(Error: {error:.3f})', fontsize=12, fontweight='bold')
+            ax.grid(True, alpha=0.3, axis='y')
             
-            # Create bar chart for linear weights
-            if linear_weights:
-                categories = list(linear_weights.keys())
-                weights = list(linear_weights.values())
-                
-                # Use different colors for each category
-                colors = plt.cm.Set3(np.linspace(0, 1, len(categories)))
-                bars = ax.bar(range(len(categories)), weights, color=colors, alpha=0.8, edgecolor='black', linewidth=0.5)
-                
-                # Customize the plot
-                ax.set_title(f'{combination_name}\n(Error: {avg_residual_error:.4f})', 
-                           fontsize=11, fontweight='bold')
-                ax.set_xlabel('Categories', fontsize=10)
-                ax.set_ylabel('Linear Weight', fontsize=10)
-                ax.set_xticks(range(len(categories)))
-                ax.set_xticklabels(categories, rotation=45, ha='right', fontsize=9)
-                ax.grid(True, alpha=0.3, axis='y')
-                
-                # Add value labels on bars
-                for bar, weight in zip(bars, weights):
-                    if abs(weight) > 0.001:  # Only show significant weights
-                        height = bar.get_height()
-                        ax.text(bar.get_x() + bar.get_width()/2, 
-                              height + (0.05 * max(weights) if height >= 0 else -0.05 * max(weights)), 
-                              f'{weight:.3f}', ha='center', 
-                              va='bottom' if height >= 0 else 'top', 
-                              fontsize=8, fontweight='bold')
-                
-                # Set y-axis limits with some padding
-                max_abs_weight = max(abs(w) for w in weights)
-                ax.set_ylim(-max_abs_weight * 1.2, max_abs_weight * 1.2)
-                
-            else:
-                ax.text(0.5, 0.5, 'No Linear Terms', ha='center', va='center', 
-                       transform=ax.transAxes, fontsize=12, fontweight='bold')
-                ax.set_title(f'{combination_name}\n(Error: {avg_residual_error:.4f})', 
-                           fontsize=11, fontweight='bold')
+            # Set y-axis limits with some padding
+            if feature_values:
+                max_abs_weight = max(abs(v) for v in feature_values)
+                if max_abs_weight > 0:
+                    ax.set_ylim(-max_abs_weight * 1.2, max_abs_weight * 1.2)
             
-            # Print concise summary for this combination
-            print(f"  {combination_name}: Error={avg_residual_error:.4f}, Categories={len(categories_used)}")
+            # Add horizontal line at y=0
+            ax.axhline(y=0, color='black', linestyle='-', alpha=0.3)
         
-        # Hide any unused subplots
-        for idx in range(n_combinations, 4):
-            axes_flat[idx].set_visible(False)
+        # Hide unused subplots
+        for idx in range(len(games_with_data), len(axes)):
+            axes[idx].set_visible(False)
         
         plt.tight_layout()
         
         if save_plots:
-            safe_filename = f'polynomial_linear_weights_{game_name}'.replace(' ', '_').replace('(', '').replace(')', '')
+            safe_filename = f'polynomial_weights_{combination_name}'.replace(' ', '_').replace('(', '').replace(')', '')
             plt.savefig(f'{safe_filename}.png', dpi=300, bbox_inches='tight')
             print(f"Saved plot: {safe_filename}.png")
         
         plt.show()
         
-        # Print concise game summary
-        best_combo = min(combinations, key=lambda c: game_data[c][list(game_data[c].keys())[0]]['evaluation'].get('avg_residual_error', float('inf')))
-        best_error = game_data[best_combo][list(game_data[best_combo].keys())[0]]['evaluation'].get('avg_residual_error', float('inf'))
-        print(f"Best combination: {best_combo} (Error: {best_error:.4f})")
+        # Print summary for this combination
+        print(f"\n{combination_name} Summary:")
+        print(f"  Games: {len(games_with_data)}")
+        print(f"  Features: {', '.join(features_sorted)}")
+        
+        # Calculate average error across games
+        errors = [comb_data[game]['error'] for game in games_with_data if not np.isnan(comb_data[game]['error'])]
+        if errors:
+            avg_error = np.mean(errors)
+            print(f"  Average error: {avg_error:.4f}")
+        
+        # Show strongest feature weights across all games
+        feature_totals = {}
+        for feature in features_sorted:
+            total_abs_weight = sum(abs(comb_data[game]['linear_weights'].get(feature, 0)) for game in games_with_data)
+            feature_totals[feature] = total_abs_weight
+        
+        if feature_totals:
+            strongest_feature = max(feature_totals.items(), key=lambda x: x[1])
+            print(f"  Strongest overall feature: {strongest_feature[0]} (total abs weight: {strongest_feature[1]:.3f})")
     
-    print("Polynomial analysis visualization complete.")
+    print("\nPolynomial analysis visualization complete.")
 
 def normalize_game_columns(benchmark_df: pd.DataFrame, columns_to_normalize: list = None) -> pd.DataFrame:
     """
