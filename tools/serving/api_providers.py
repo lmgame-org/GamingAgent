@@ -1,51 +1,15 @@
 import os
-import time
-import functools
-import anthropic
-import httpx
 
 from openai import OpenAI
+import anthropic
 import google.generativeai as genai
 from google.generativeai import types
 from together import Together
 
-def retry_on_overload(func):
-    """
-    A decorator to retry a function call on anthropic.APIStatusError with 'overloaded_error'.
-    It uses exponential backoff with jitter.
-    """
-    @functools.wraps(func)
-    def wrapper(*args, **kwargs):
-        max_retries = 5
-        base_delay = 2  # seconds
-        for attempt in range(max_retries):
-            try:
-                return func(*args, **kwargs)
-            except anthropic.APIStatusError as e:
-                if e.body and e.body.get('error', {}).get('type') == 'overloaded_error':
-                    if attempt < max_retries - 1:
-                        delay = base_delay * (2 ** attempt) + (os.urandom(1)[0] / 255.0)
-                        print(f"Anthropic API overloaded. Retrying in {delay:.2f} seconds... (Attempt {attempt + 1}/{max_retries})")
-                        time.sleep(delay)
-                    else:
-                        print(f"Anthropic API still overloaded after {max_retries} attempts. Raising the error.")
-                        raise
-                else:
-                    # Re-raise if it's not an overload error
-                    raise
-            except httpx.RemoteProtocolError as e:
-                if attempt < max_retries - 1:
-                    delay = base_delay * (2 ** attempt) + (os.urandom(1)[0] / 255.0)
-                    print(f"Streaming connection closed unexpectedly. Retrying in {delay:.2f} seconds... (Attempt {attempt + 1}/{max_retries})")
-                    time.sleep(delay)
-                else:
-                    print(f"Streaming connection failed after {max_retries} attempts. Raising the error.")
-                    raise
-    return wrapper
+import requests
 
-@retry_on_overload
 def anthropic_completion(system_prompt, model_name, base64_image, prompt, thinking=False, token_limit=30000):
-    print(f"anthropic vision-text activated... thinking: {thinking}")
+    print(f"anthropic vision-text activated... thinking: f{thinking}")
     client = anthropic.Anthropic(api_key=os.getenv("ANTHROPIC_API_KEY"))
     messages = [
         {
@@ -97,13 +61,8 @@ def anthropic_completion(system_prompt, model_name, base64_image, prompt, thinki
                 model=model_name, # claude-3-5-sonnet-20241022 # claude-3-7-sonnet-20250219
             ) as stream:
                 partial_chunks = []
-                try:
-                    for chunk in stream.text_stream:
-                        partial_chunks.append(chunk)
-                except httpx.RemoteProtocolError as e:
-                    print(f"Streaming connection closed unexpectedly: {e}")
-                    # Return what we have so far
-                    return "".join(partial_chunks)
+                for chunk in stream.text_stream:
+                    partial_chunks.append(chunk)
     else:
          
         with client.messages.stream(
@@ -114,19 +73,13 @@ def anthropic_completion(system_prompt, model_name, base64_image, prompt, thinki
                 model=model_name, # claude-3-5-sonnet-20241022 # claude-3-7-sonnet-20250219
             ) as stream:
                 partial_chunks = []
-                try:
-                    for chunk in stream.text_stream:
-                        partial_chunks.append(chunk)
-                except httpx.RemoteProtocolError as e:
-                    print(f"Streaming connection closed unexpectedly: {e}")
-                    # Return what we have so far
-                    return "".join(partial_chunks)
+                for chunk in stream.text_stream:
+                    partial_chunks.append(chunk)
         
     generated_code_str = "".join(partial_chunks)
     
     return generated_code_str
 
-@retry_on_overload
 def anthropic_text_completion(system_prompt, model_name, prompt, thinking=False, token_limit=30000):
     client = anthropic.Anthropic(api_key=os.getenv("ANTHROPIC_API_KEY"))
 
@@ -170,13 +123,8 @@ def anthropic_text_completion(system_prompt, model_name, prompt, thinking=False,
                 model=model_name, # claude-3-5-sonnet-20241022 # claude-3-7-sonnet-20250219
             ) as stream:
                 partial_chunks = []
-                try:
-                    for chunk in stream.text_stream:
-                        partial_chunks.append(chunk)
-                except httpx.RemoteProtocolError as e:
-                    print(f"Streaming connection closed unexpectedly: {e}")
-                    # Return what we have so far
-                    return "".join(partial_chunks)
+                for chunk in stream.text_stream:
+                    partial_chunks.append(chunk)
     else:    
         with client.messages.stream(
                 max_tokens=token_limit,
@@ -186,20 +134,14 @@ def anthropic_text_completion(system_prompt, model_name, prompt, thinking=False,
                 model=model_name, # claude-3-5-sonnet-20241022 # claude-3-7-sonnet-20250219
             ) as stream:
                 partial_chunks = []
-                try:
-                    for chunk in stream.text_stream:
-                        partial_chunks.append(chunk)
-                except httpx.RemoteProtocolError as e:
-                    print(f"Streaming connection closed unexpectedly: {e}")
-                    # Return what we have so far
-                    return "".join(partial_chunks)
+                for chunk in stream.text_stream:
+                    partial_chunks.append(chunk)
         
     generated_str = "".join(partial_chunks)
     
     return generated_str
 
 
-@retry_on_overload
 def anthropic_multiimage_completion(system_prompt, model_name, prompt, list_content, list_image_base64, token_limit=30000):
     client = anthropic.Anthropic(api_key=os.getenv("ANTHROPIC_API_KEY"))
 
@@ -254,14 +196,9 @@ def anthropic_multiimage_completion(system_prompt, model_name, prompt, list_cont
             model=model_name, # claude-3-5-sonnet-20241022 # claude-3-7-sonnet-20250219
         ) as stream:
             partial_chunks = []
-            try:
-                for chunk in stream.text_stream:
-                    print(chunk)
-                    partial_chunks.append(chunk)
-            except httpx.RemoteProtocolError as e:
-                print(f"Streaming connection closed unexpectedly: {e}")
-                # Return what we have so far
-                return "".join(partial_chunks)
+            for chunk in stream.text_stream:
+                print(chunk)
+                partial_chunks.append(chunk)
         
     generated_str = "".join(partial_chunks)
     
@@ -378,9 +315,7 @@ def openai_text_completion(system_prompt, model_name, prompt, token_limit=30000,
         request_params["temperature"] = 1
 
     response = client.chat.completions.create(**request_params)
-
     generated_str = response.choices[0].message.content
-     
     return generated_str
 
 def openai_text_reasoning_completion(system_prompt, model_name, prompt, temperature=1, token_limit=30000, reasoning_effort="medium"):
@@ -422,9 +357,7 @@ def openai_text_reasoning_completion(system_prompt, model_name, prompt, temperat
         request_params["temperature"] = temperature
 
     response = client.chat.completions.create(**request_params)
-
     generated_str = response.choices[0].message.content
-     
     return generated_str
 
 def deepseek_text_reasoning_completion(system_prompt, model_name, prompt, token_limit=30000):
@@ -463,7 +396,7 @@ def deepseek_text_reasoning_completion(system_prompt, model_name, prompt, token_
     return content
     
 
-def xai_grok_completion(system_prompt, model_name, prompt, reasoning_effort="high", token_limit=30000, temperature=1):
+def xai_grok_text_completion(system_prompt, model_name, prompt, reasoning_effort="high", token_limit=30000, temperature=1):
     print(f"XAI Grok text API call: model={model_name}, reasoning_effort={reasoning_effort}")
     
     client = OpenAI(
@@ -552,9 +485,7 @@ def openai_multiimage_completion(system_prompt, model_name, prompt, list_content
         request_params["temperature"] = 1
 
     response = client.chat.completions.create(**request_params)
-
     generated_str = response.choices[0].message.content
-     
     return generated_str
 
 
@@ -757,7 +688,6 @@ def together_ai_text_completion(system_prompt, model_name, prompt, temperature=1
             temperature=temperature,
             max_tokens=token_limit
         )
-
         generated_str = response.choices[0].message.content
 
         # HACK: resolve temporary generation repetition issue for deepseek-ai/DeepSeek-R1-0528
@@ -844,10 +774,246 @@ def together_ai_multiimage_completion(system_prompt, model_name, prompt, list_co
             temperature=temperature,
             max_tokens=token_limit
         )
-
         generated_str = response.choices[0].message.content
 
         return generated_str
     except Exception as e:
         print(f"Error in together_ai_multiimage_completion: {e}")
         raise
+
+def parse_vllm_model_name(model_name: str) -> str:
+    """
+    Extracts the actual model path from a vLLM-prefixed model name.
+    For example, 'vllm-mistralai/Mistral-7B-Instruct-v0.2' becomes 'mistralai/Mistral-7B-Instruct-v0.2'.
+    """
+    if model_name.startswith("vllm-"):
+        return model_name[len("vllm-"):]
+    return model_name
+
+def vllm_text_completion(
+    system_prompt, 
+    vllm_model_name, 
+    prompt, 
+    token_limit=30000, 
+    temperature=1, 
+    port=8000,
+    host="localhost"
+):
+    url = f"http://{host}:{port}/v1/chat/completions"
+    headers = {"Authorization": "Bearer FAKE_TOKEN"}
+    messages = [
+        {"role": "system", "content": system_prompt},
+        {"role": "user", "content": prompt}
+    ]
+
+    model_name = parse_vllm_model_name(vllm_model_name)
+    payload = {
+        "model": model_name,
+        "messages": messages,
+        "max_tokens": token_limit,
+        "temperature": temperature,
+        "stream": False
+    }
+    response = requests.post(url, headers=headers, json=payload)
+    response.raise_for_status()
+    return response.json()["choices"][0]["message"]["content"]
+
+def vllm_completion(
+    system_prompt,
+    vllm_model_name,
+    prompt,
+    base64_image=None,
+    token_limit=30000,
+    temperature=1.0,
+    port=8000,
+    host="localhost"
+):
+    url = f"http://{host}:{port}/v1/chat/completions"
+    headers = {"Authorization": "Bearer FAKE_TOKEN"}
+
+    # Construct the user message content
+    if base64_image:
+        user_content = [
+            {"type": "image_url", "image_url": {"url": f"data:image/png;base64,{base64_image}"}},
+            {"type": "text", "text": prompt}
+        ]
+    else:
+        user_content = [{"type": "text", "text": prompt}]
+
+    messages = []
+    if system_prompt:
+        messages.append({"role": "system", "content": system_prompt})
+    messages.append({"role": "user", "content": user_content})
+
+    model_name = parse_vllm_model_name(vllm_model_name)
+    payload = {
+        "model": model_name,
+        "messages": messages,
+        "max_tokens": token_limit,
+        "temperature": temperature,
+        "stream": False
+    }
+
+    response = requests.post(url, headers=headers, json=payload)
+    response.raise_for_status()
+    return response.json()["choices"][0]["message"]["content"]
+
+def vllm_multiimage_completion(
+    system_prompt,
+    vllm_model_name,
+    prompt,
+    list_image_base64,
+    token_limit=30000,
+    temperature=1.0,
+    port=8000,
+    host="localhost"
+):
+    url = f"http://{host}:{port}/v1/chat/completions"
+    headers = {"Authorization": "Bearer FAKE_TOKEN"}
+
+    # Construct the user message content with multiple images
+    user_content = []
+    for image_base64 in list_image_base64:
+        user_content.append({"type": "image_url", "image_url": {"url": f"data:image/png;base64,{image_base64}"}})
+    user_content.append({"type": "text", "text": prompt})
+
+    messages = []
+    if system_prompt:
+        messages.append({"role": "system", "content": system_prompt})
+    messages.append({"role": "user", "content": user_content})
+
+    model_name = parse_vllm_model_name(vllm_model_name)
+    payload = {
+        "model": model_name,
+        "messages": messages,
+        "max_tokens": token_limit,
+        "temperature": temperature,
+        "stream": False
+    }
+
+    response = requests.post(url, headers=headers, json=payload)
+    response.raise_for_status()
+    return response.json()["choices"][0]["message"]["content"]
+
+
+def parse_modal_model_name(modal_model_name: str) -> str:
+    if modal_model_name.startswith("modal-"):
+        return modal_model_name[len("modal-"):]
+    return modal_model_name
+
+from openai import OpenAI
+
+def modal_vllm_text_completion(
+    system_prompt: str,
+    model_name: str,
+    prompt: str,
+    token_limit: int = 30000,
+    temperature: float = 1.0,
+    api_key: str = "DUMMY_TOKEN",
+    port=8000,
+    url: str = "https://your-modal-url.modal.run/v1",
+):
+    model_name = parse_modal_model_name(model_name)
+
+    print(f"calling modal_vllm_text_completion...\nmodel_name: {model_name}\nurl: {url}\n")
+    #complete_url = f"{url}:{port}/v1"
+
+    if api_key:
+        client = OpenAI(api_key=api_key, base_url=url)
+    else:
+        client = OpenAI(api_key=os.getenv("MODAL_API_KEY"), base_url=url)
+    
+    messages = []
+    if system_prompt:
+        messages.append({"role": "system", "content": system_prompt})
+    messages.append({"role": "user", "content": prompt})
+
+    response = client.chat.completions.create(
+        model=model_name,
+        messages=messages,
+        max_tokens=token_limit,
+        temperature=temperature,
+    )
+    return response.choices[0].message.content
+
+def modal_vllm_completion(
+    system_prompt: str,
+    model_name: str,
+    prompt: str,
+    base64_image: str = None,
+    token_limit: int = 30000,
+    temperature: float = 1.0,
+    api_key: str = "DUMMY_TOKEN",
+    port=8000,
+    url: str = "https://your-modal-url.modal.run/v1",
+):
+    model_name = parse_modal_model_name(model_name)
+    #complete_url = f"{url}:{port}/v1"
+    print(f"calling modal_vllm_completion...\nmodel_name: {model_name}\nurl: {url}\n")
+    
+    if api_key:
+        client = OpenAI(api_key=api_key, base_url=url)
+    else:
+        client = OpenAI(api_key=os.getenv("MODAL_API_KEY"), base_url=url)
+
+    user_content = []
+    if base64_image:
+        user_content.append({
+            "type": "image_url",
+            "image_url": {"url": f"data:image/png;base64,{base64_image}"},
+        })
+    user_content.append({"type": "text", "text": prompt})
+
+    messages = []
+    if system_prompt:
+        messages.append({"role": "system", "content": system_prompt})
+    messages.append({"role": "user", "content": user_content})
+
+    response = client.chat.completions.create(
+        model=model_name,
+        messages=messages,
+        max_tokens=token_limit,
+        temperature=temperature,
+    )
+    return response.choices[0].message.content
+
+def modal_vllm_multiimage_completion(
+    system_prompt: str,
+    model_name: str,
+    prompt: str,
+    list_image_base64: list,
+    token_limit: int = 30000,
+    temperature: float = 1.0,
+    api_key: str = "DUMMY_TOKEN",
+    port=8000,
+    url: str = "https://your-modal-url.modal.run/v1",
+):
+    model_name = parse_modal_model_name(model_name)
+    #complete_url = f"{url}:{port}/v1"
+    print(f"calling modal_multiimage_vllm_completion...\nmodel_name: {model_name}\nurl: {url}\n")
+    
+    if api_key:
+        client = OpenAI(api_key=api_key, base_url=url)
+    else:
+        client = OpenAI(api_key=os.getenv("MODAL_API_KEY"), base_url=url)
+
+    user_content = []
+    for base64_image in list_image_base64:
+        user_content.append({
+            "type": "image_url",
+            "image_url": {"url": f"data:image/png;base64,{base64_image}"}
+        })
+    user_content.append({"type": "text", "text": prompt})
+
+    messages = []
+    if system_prompt:
+        messages.append({"role": "system", "content": system_prompt})
+    messages.append({"role": "user", "content": user_content})
+
+    response = client.chat.completions.create(
+        model=model_name,
+        messages=messages,
+        max_tokens=token_limit,
+        temperature=temperature,
+    )
+    return response.choices[0].message.content
