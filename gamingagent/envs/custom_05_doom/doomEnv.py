@@ -620,6 +620,20 @@ class DoomEnvWrapper(gym.Env):
         # Check if episode is done
         is_episode_finished = self.game.is_episode_finished()
 
+        # If episode is finished, capture one final frame
+        if is_episode_finished:
+            final_frame_path = self._capture_frame()
+            if final_frame_path:
+                self.logger.info(f"[DoomEnvWrapper] Captured final frame at: {final_frame_path}")
+                # Update observation with final frame
+                observation = Observation(
+                    img_path=final_frame_path,
+                    game_trajectory=self.game_trajectory,
+                    reflection=formatted_thought,
+                    processed_visual_description=self._text_repr(),
+                    textual_representation=None
+                )
+
         # Set the performance score as the reward
         performance_score = reward
 
@@ -667,10 +681,34 @@ class DoomEnvWrapper(gym.Env):
         
         This method closes the game instance and cleans up any resources.
         """
-        if hasattr(self, 'game'):
-            self.game.close()
-        if hasattr(self, 'adapter'):
-            self.adapter.close_log_file()
+        try:
+            # Capture final frame before closing if game is still active
+            if hasattr(self, 'game') and self.game:
+                final_frame_path = self._capture_frame()
+                if final_frame_path:
+                    self.logger.info(f"[DoomEnvWrapper] Captured final frame during close at: {final_frame_path}")
+            
+            # Close game instance
+            if hasattr(self, 'game'):
+                self.game.close()
+            
+            # Close adapter
+            if hasattr(self, 'adapter'):
+                self.adapter.close_log_file()
+                
+        except Exception as e:
+            self.logger.error(f"[DoomEnvWrapper] Error during close: {e}")
+            # Still try to close resources even if there's an error
+            if hasattr(self, 'game'):
+                try:
+                    self.game.close()
+                except:
+                    pass
+            if hasattr(self, 'adapter'):
+                try:
+                    self.adapter.close_log_file()
+                except:
+                    pass
 
     def _get_game_state(self) -> Dict[str, Any]:
         """Get current game state information.
