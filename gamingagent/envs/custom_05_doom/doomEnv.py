@@ -11,6 +11,7 @@ import datetime
 import random
 import cv2
 import psutil  # Add psutil import for memory usage logging
+import math
 
 import numpy as np
 import vizdoom as vzd
@@ -499,6 +500,23 @@ class DoomEnvWrapper(gym.Env):
             self.logger.error(f"[DoomEnvWrapper] Error capturing frame: {e}")
             return ""
 
+    def _handle_episode_end(self, current_info: Dict[str, Any], frame_time: float) -> Tuple[Optional[str], Dict[str, Any]]:
+        """Handle episode ending state.
+        
+        Args:
+            current_info: Current game state info
+            frame_time: Time per frame
+            
+        Returns:
+            Tuple of (frame_path, current_info)
+        """
+        self.logger.info("Episode finished, capturing final frame")
+        # Capture frame immediately
+        frame_path = self._capture_frame()
+        if current_info is None:
+            current_info = {}
+        return frame_path, current_info
+
     def step(
         self,
         agent_action_str: Optional[str],
@@ -519,17 +537,19 @@ class DoomEnvWrapper(gym.Env):
         """
         self._validate_game_state()
         self.adapter.increment_step()
-
+            
         # Get current state before action
         prev_info = self._get_game_state()
+        if prev_info is None:
+            prev_info = {}
         prev_ammo = prev_info.get('ammo2', 0)
-
+        
         # Convert action string to button list
         if use_random_action:
             action_str = random.choice(self._cfg.get("available_buttons", ["move_left", "move_right", "attack"]))
         else:
             action_str = agent_action_str
-
+            
         buttons = self._buttons_from_str(action_str)
         self.logger.info(f"[DoomEnvWrapper] Executing action '{action_str}' with buttons: {buttons}")
 
@@ -544,46 +564,101 @@ class DoomEnvWrapper(gym.Env):
         max_wait_time = 5.0  # Maximum time to wait for state change in seconds
         start_time = time.time()
         tics_executed = 0
+        max_retries = 3  # Maximum number of retries for getting game state
+        retry_count = 0
+        frame_path = None  # Initialize frame_path
+        max_movement_attempts = 5  # Maximum number of movement attempts
 
         # Execute action and wait for state change
+        movement_attempts = 0
         while not state_changed and (time.time() - start_time) < max_wait_time:
-            # Execute action
-            step_reward = self.game.make_action(buttons, tics=1)  # Execute one tic at a time
+            # For movement actions, execute multiple tics to make movement more perceptible
+            if action_str in ["move_left", "move_right"]:
+                if movement_attempts >= max_movement_attempts:
+                    self.logger.info(f"Reached maximum movement attempts ({max_movement_attempts})")
+                    break
+                movement_attempts += 1
+                tics_to_execute = 1  # Execute 1 tic for very small movement
+            else:
+                tics_to_execute = 8  # Execute 8 tics for attack
+                
+            # Execute action for specified number of tics
+            step_reward = self.game.make_action(buttons, tics=tics_to_execute)
             total_reward += step_reward
-            tics_executed += 1
+            tics_executed += tics_to_execute
             
-            # Get new state
-            state = self.game.get_state()
+            # For attack actions, capture frame during the action
+            if action_str == "attack":
+                # Wait longer for attack state update
+                time.sleep(frame_time * 8)  # Wait 8 frames for attack state update
+                # Capture frame after state update
+                frame_path = self._capture_frame()
+                # Additional wait after frame capture
+                time.sleep(frame_time * 2)  # Wait 2 more frames for state to stabilize
+            else:
+                # For movement actions, capture frame after each small movement
+                time.sleep(frame_time * 8)  # Wait 8 frames for movement state update
+                frame_path = self._capture_frame()
+                time.sleep(frame_time * 2)  # Wait 2 more frames for state to stabilize
+            
+            # Get new state with retries
+            state = None
+            retry_count = 0
+            while state is None and retry_count < max_retries:
+                try:
+                    state = self.game.get_state()
+                    if state is None:
+                        self.logger.warning(f"Failed to get game state, attempt {retry_count + 1}/{max_retries}")
+                        time.sleep(frame_time * 8)  # Wait 8 frames before retrying
+                        retry_count += 1
+                except Exception as e:
+                    self.logger.error(f"Error getting game state: {str(e)}")
+                    time.sleep(frame_time * 8)
+                    retry_count += 1
+
             if state is None:
-                self.logger.error("Failed to get game state after action")
-                time.sleep(frame_time)  # Wait one frame before retrying
-                continue
+                self.logger.error("Failed to get game state after maximum retries")
+                # Use previous state if we can't get new state
+                current_info = prev_info
+                break
                 
             # Update current state
             current_info = self._get_game_state()
+            if current_info is None:
+                current_info = prev_info
+                break
             
-            # Verify state changed
+            # Verify state changed based on action type
             if prev_info:
                 changes = []
-                for key in ['ammo2', 'health', 'position_x', 'position_y', 'angle']:
-                    if key in prev_info and key in current_info:
-                        if prev_info[key] != current_info[key]:
-                            changes.append(f"{key}: {prev_info[key]} -> {current_info[key]}")
+                if action_str == "attack":
+                    # For attack, only check ammo change
+                    if 'ammo2' in prev_info and 'ammo2' in current_info:
+                        if prev_info['ammo2'] != current_info['ammo2']:
+                            changes.append(f"ammo2: {prev_info['ammo2']} -> {current_info['ammo2']}")
+                            state_changed = True
+                else:
+                    # For movement, check position_x change
+                    if 'position_x' in prev_info and 'position_x' in current_info:
+                        if prev_info['position_x'] != current_info['position_x']:
+                            changes.append(f"position_x: {prev_info['position_x']} -> {current_info['position_x']}")
+                            state_changed = True
+                
                 if changes:
                     self.logger.info(f"State changes detected after {tics_executed} tics: {', '.join(changes)}")
-                    state_changed = True
                     break
                 else:
                     self.logger.debug("No state changes detected, waiting...")
-                    time.sleep(frame_time)  # Wait one frame before retrying
+                    time.sleep(frame_time * 4)  # Wait 4 frames before retrying
 
         if not state_changed:
             self.logger.warning(f"No state changes detected after {max_wait_time} seconds and {tics_executed} tics")
             current_info = prev_info  # Use previous state if no changes detected
-
-        # Capture frame after state update
-        frame_path = self._capture_frame()
-
+        
+        # Check if episode is done
+        is_episode_finished = self.game.is_episode_finished()
+        
+        
         # Update game trajectory
         ts = datetime.datetime.now().isoformat(timespec="seconds")
         trajectory_entry = (
@@ -593,7 +668,7 @@ class DoomEnvWrapper(gym.Env):
             f"###Action\n{action_str}\n"
         )
         self.game_trajectory.add(trajectory_entry)
-
+        
         # Format thought process for observation
         formatted_thought = (
             f"Current State:\n"
@@ -619,27 +694,10 @@ class DoomEnvWrapper(gym.Env):
 
         # Store current observation for next step
         self.last_observation = observation
-
-        # Check if episode is done
-        is_episode_finished = self.game.is_episode_finished()
-
-        # If episode is finished, capture one final frame
-        if is_episode_finished:
-            final_frame_path = self._capture_frame()
-            if final_frame_path:
-                self.logger.info(f"[DoomEnvWrapper] Captured final frame at: {final_frame_path}")
-                # Update observation with final frame
-                observation = Observation(
-                    img_path=final_frame_path,
-                    game_trajectory=self.game_trajectory,
-                    reflection=formatted_thought,
-                    processed_visual_description=self._text_repr(),
-                    textual_representation=None
-                )
-
+        
         # Set the performance score as the total reward
         performance_score = total_reward
-
+        
         # Log step data using adapter
         self.adapter.log_step_data(
             agent_action_str=action_str,
@@ -652,8 +710,23 @@ class DoomEnvWrapper(gym.Env):
             perf_score=performance_score,
             agent_observation=observation
         )
-
-        return observation, total_reward, is_episode_finished, False, current_info, performance_score
+        
+        # If episode is finished or monster is defeated, handle ending
+        if is_episode_finished or ('monster_visible' in current_info and not current_info['monster_visible']):
+            frame_path, current_info = self._handle_episode_end(current_info, frame_time)
+            # Create a minimal observation for episode end
+            observation = Observation(
+                img_path=frame_path,
+                game_trajectory=self.game_trajectory,
+                reflection="Episode ended",
+                processed_visual_description="Episode ended",
+                textual_representation=None
+            )
+        
+            return observation, 106 + total_reward, True, False, current_info, 106 + total_reward
+        else:
+            # If episode is not finished, return the observation and reward as normal   
+            return observation, total_reward, is_episode_finished, False, current_info, performance_score
 
     def render(self) -> None:
         """Render the game.
