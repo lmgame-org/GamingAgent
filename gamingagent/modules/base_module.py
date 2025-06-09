@@ -26,7 +26,9 @@ class BaseModule(CoreModule):
                 system_prompt="", 
                 prompt="", 
                 token_limit=100000, 
-                reasoning_effort="high"
+                reasoning_effort="high",
+                vllm_url=None,
+                modal_url=None
         ):
         """
         Initialize the base module.
@@ -50,7 +52,9 @@ class BaseModule(CoreModule):
             prompt=prompt,
             cache_dir=cache_dir,
             token_limit=token_limit,
-            reasoning_effort=reasoning_effort
+            reasoning_effort=reasoning_effort,
+            vllm_url=vllm_url,
+            modal_url=modal_url
         )
         self.observation_mode = observation_mode
         self.observation = Observation()  # Observation data class
