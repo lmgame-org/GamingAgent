@@ -9,19 +9,19 @@
                 "progress": "1-1"
             },
             {
-                "model": "gamingagent + claude-3-7-sonnet-20250219 (thinking)",
+                "model": "gamingagent + claude-3-7-sonnet-20250219",
                 "score": 1418.7,
                 "detail_data":"2015,709,1532",
                 "progress": "1-1"
             },
             {
-                "model": "gamingagent + gemini-2.5-flash-preview-04-17 (thinking)",
+                "model": "gamingagent + gemini-2.5-flash-preview-04-17",
                 "score": 1385.0,
                 "detail_data":"1672,1266,1247",
                 "progress": "1-1"
             },
             {
-                "model": "gamingagent + gemini-2.5-pro-preview-05-06 (thinking)",
+                "model": "gamingagent + gemini-2.5-pro-preview-05-06",
                 "score": 1498.3,
                 "detail_data":"1561,1271,1663",
                 "progress": "1-1"
@@ -80,7 +80,7 @@
                 "highest_tail": 256
             },
             {
-                "model": "gamingagent + claude-3-7-sonnet-20250219 (thinking)",
+                "model": "gamingagent + claude-3-7-sonnet-20250219",
                 "score": 2624,
                 "details": "2560,3224,2088",
                 "highest_tail": 256
@@ -92,19 +92,19 @@
                 "highest_tail": 256
             },
             {
-                "model": "gamingagent + gemini-2.5-flash-preview-04-17 (thinking)",
+                "model": "gamingagent + gemini-2.5-flash-preview-04-17",
                 "score": 1697.33,
                 "details": "1304,1316,2472",
                 "highest_tail": 256
             },
             {
-                "model": "gamingagent + gemini-2.5-pro-preview-05-06 (thinking)",
+                "model": "gamingagent + gemini-2.5-pro-preview-05-06",
                 "score": 3586.67,
                 "details": "5300,2400,3060",
                 "highest_tail": 512
             },
             {
-                "model": "gamingagent + grok-3-mini-beta (thinking)",
+                "model": "gamingagent + grok-3-mini-beta",
                 "score": 4036,
                 "details": "6412,2492,3204",
                 "highest_tail": 512
@@ -192,7 +192,7 @@
                 "details": "16,14,14"
             },
             {
-                "model": "gamingagent + claude-3-7-sonnet-20250219 (thinking)",
+                "model": "gamingagent + claude-3-7-sonnet-20250219",
                 "score": 16.3,
                 "details": "19,15,15"
             },
@@ -202,17 +202,17 @@
                 "details": "15,14,14"
             },
             {
-                "model": "gamingagent + gemini-2.5-flash-preview-04-17 (thinking)",
+                "model": "gamingagent + gemini-2.5-flash-preview-04-17",
                 "score": 16.3,
                 "details": "20,14,15"
             },
             {
-                "model": "gamingagent + gemini-2.5-pro-preview-05-06 (thinking)",
+                "model": "gamingagent + gemini-2.5-pro-preview-05-06",
                 "score": 23.3,
                 "details": "23,23,24"
             },
             {
-                "model": "gamingagent + grok-3-mini-beta (thinking)",
+                "model": "gamingagent + grok-3-mini-beta",
                 "score": 21.3,
                 "details": "20,15,29"
             },
@@ -287,7 +287,7 @@
                 "details": "92,165,61"
             },
             {
-                "model": "gamingagent + claude-3-7-sonnet-20250219 (thinking)",
+                "model": "gamingagent + claude-3-7-sonnet-20250219",
                 "score": 484,
                 "details": "535,428,489"
             },
@@ -297,17 +297,17 @@
                 "details": "409,436,497"
             },
             {
-                "model": "gamingagent + gemini-2.5-flash-preview-04-17 (thinking)",
+                "model": "gamingagent + gemini-2.5-flash-preview-04-17",
                 "score": 334.7,
                 "details": "259,372,373"
             },
             {
-                "model": "gamingagent + gemini-2.5-pro-preview-05-06 (thinking)",
+                "model": "gamingagent + gemini-2.5-pro-preview-05-06",
                 "score": 416.3,
                 "details": "411,414,424"
             },
             {
-                "model": "gamingagent + grok-3-mini-beta (thinking)",
+                "model": "gamingagent + grok-3-mini-beta",
                 "score": 254,
                 "details": "299,332,131"
             },
@@ -383,7 +383,7 @@
                 "cracked_levels": "0,0,0"
             },
             {
-                "model": "gamingagent + claude-3-7-sonnet-20250219 (thinking)",
+                "model": "gamingagent + claude-3-7-sonnet-20250219",
                 "score": 2.33,
                 "detail_box_on_target":"2,4,1",
                 "cracked_levels": "1,2,0"
@@ -395,19 +395,19 @@
                 "cracked_levels": "1,0,1"
             },
             {
-                "model": "gamingagent + gemini-2.5-flash-preview-04-17 (thinking)",
+                "model": "gamingagent + gemini-2.5-flash-preview-04-17",
                 "score": 1.67,
                 "detail_box_on_target":"3,0,2",
                 "cracked_levels": "2,0,1"
             },
             {
-                "model": "gamingagent + gemini-2.5-pro-preview-05-06 (thinking)",
+                "model": "gamingagent + gemini-2.5-pro-preview-05-06",
                 "score": 4.33,
                 "detail_box_on_target":"4,4,5",
                 "cracked_levels": "2,2,3"
             },
             {
-                "model": "gamingagent + grok-3-mini-beta (thinking)",
+                "model": "gamingagent + grok-3-mini-beta",
                 "score": 5.67,
                 "detail_box_on_target":"5,6,6",
                 "cracked_levels": "3,3,3"
@@ -492,7 +492,7 @@
                 "evaluator result": "1/3"
             },
             {
-                "model": "gamingagent + claude-3-7-sonnet-20250219 (thinking)",
+                "model": "gamingagent + claude-3-7-sonnet-20250219",
                 "score": 7,
                 "progress": "2:2/9",
                 "evaluator result": "5/11"
@@ -504,19 +504,19 @@
                 "evaluator result": "1/5"
             },
             {
-                "model": "gamingagent + gemini-2.5-flash-preview-04-17 (thinking)",
+                "model": "gamingagent + gemini-2.5-flash-preview-04-17",
                 "score": 4,
                 "progress": "1:4/5",
                 "evaluator result": "1/7"
             },
             {
-                "model": "gamingagent + gemini-2.5-pro-preview-05-06 (thinking)",
+                "model": "gamingagent + gemini-2.5-pro-preview-05-06",
                 "score": 7,
                 "progress": "2:2/9",
                 "evaluator result": "2/3"
             },
             {
-                "model": "gamingagent + grok-3-mini-beta (thinking)",
+                "model": "gamingagent + grok-3-mini-beta",
                 "score": 0,
                 "progress": "0",
                 "evaluator result": "0"
