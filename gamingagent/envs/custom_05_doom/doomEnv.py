@@ -584,7 +584,12 @@ class DoomEnvWrapper(gym.Env):
                 
             # Execute action for specified number of tics
             step_reward = self.game.make_action(buttons, tics=tics_to_execute)
-            total_reward += step_reward
+            
+            # Add negative rewards explicitly
+            if action_str == "attack":
+                total_reward -= 5  # -5 for each shot
+            total_reward -= tics_to_execute  # -1 for each tic alive
+            
             tics_executed += tics_to_execute
             
             # For attack actions, capture frame during the action
@@ -722,8 +727,10 @@ class DoomEnvWrapper(gym.Env):
                 processed_visual_description="Episode ended",
                 textual_representation=None
             )
+            
+            total_reward += 106
         
-            return observation, 106 + total_reward, True, False, current_info, 106 + total_reward
+            return observation, total_reward, True, False, current_info, total_reward
         else:
             # If episode is not finished, return the observation and reward as normal   
             return observation, total_reward, is_episode_finished, False, current_info, performance_score
