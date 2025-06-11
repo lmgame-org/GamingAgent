@@ -75,11 +75,11 @@ setup_env.sh
 *.pce
 *.sms
 *.bk2
+*.rom
+*.ram
 custom_integrations/roms/
 *.state
 *.sha
-*.rom
-
 
 perf/
 
