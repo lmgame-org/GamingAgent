@@ -181,7 +181,7 @@ def get_combined_leaderboard_with_radar(rank_data, selected_games):
     df_viz = df.copy()
     return df, create_radar_charts(df_viz)
 
-def create_group_bar_chart(df, top_n=10):
+def create_group_bar_chart(df, top_n=5):
     game_cols = {}
     for game in GAME_ORDER:
         col = f"{game} Score"
@@ -332,7 +332,7 @@ def create_group_bar_chart(df, top_n=10):
 
 
 
-def get_combined_leaderboard_with_group_bar(rank_data, selected_games, top_n=10, limit_to_top_n=None):
+def get_combined_leaderboard_with_group_bar(rank_data, selected_games, top_n=5, limit_to_top_n=None):
     df = get_combined_leaderboard(rank_data, selected_games, limit_to_top_n)
     # Create a copy for visualization to avoid modifying the original
     df_viz = df.copy()

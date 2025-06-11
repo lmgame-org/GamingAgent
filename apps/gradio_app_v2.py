@@ -190,7 +190,7 @@ def update_leaderboard(# mario_overall, mario_details, # Commented out
                        # tetris_overall, tetris_details, # Commented out
                        tetris_plan_overall, tetris_plan_details,
                        ace_attorney_overall, ace_attorney_details,
-                       top_n=10,
+                       top_n=5,
                        data_source=None):
     global leaderboard_state
     
@@ -414,7 +414,7 @@ def get_initial_state():
         }
     }
 
-def clear_filters(top_n=10, data_source=None):
+def clear_filters(top_n=5, data_source=None):
     global leaderboard_state
     
     # Use provided data source or default to rank_data
@@ -1007,7 +1007,7 @@ def build_app():
                     # "Tetris(complete)": True, # Commented out
                     "Tetris": True,
                     "Ace Attorney": True
-                }, limit_to_top_n=min(10, get_total_model_count(rank_data)))
+                }, limit_to_top_n=min(5, get_total_model_count(rank_data)))
                 
                 # Format the DataFrame for display
                 initial_display_df = prepare_dataframe_for_display(initial_df)
