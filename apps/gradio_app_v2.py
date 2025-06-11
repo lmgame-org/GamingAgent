@@ -912,7 +912,7 @@ def build_app():
                         minimum=1,
                         maximum=agent_max_models,
                         step=1,
-                        value=min(10, agent_max_models),
+                        value=min(5, agent_max_models),
                         label=f"Number of Top Models to Display in All Views (max: {agent_max_models})",
                         elem_classes="top-n-slider"
                     )       
@@ -1153,7 +1153,7 @@ def build_app():
                         minimum=1,
                         maximum=model_max_models,
                         step=1,
-                        value=min(10, model_max_models),
+                        value=min(5, model_max_models),
                         label=f"Number of Top Models to Display in All Views (max: {model_max_models})",
                         elem_classes="top-n-slider"
                     )
