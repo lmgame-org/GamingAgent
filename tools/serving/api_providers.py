@@ -377,9 +377,16 @@ def openai_text_completion(system_prompt, model_name, prompt, token_limit=30000,
     else:
         request_params["temperature"] = 1
 
-    response = client.chat.completions.create(**request_params)
-
-    generated_str = response.choices[0].message.content
+    if model_name == 'o3-pro':
+        messages[0]['content'][0]['type'] = "input_text"
+        response = client.responses.create(
+            model="o3-pro",
+            input=messages,
+        )
+        generated_str = response.output[1].content[0].text
+    else:
+        response = client.chat.completions.create(**request_params)
+        generated_str = response.choices[0].message.content
      
     return generated_str
 
