@@ -105,7 +105,7 @@ def prepare_dataframe_for_display(df, for_game=None):
     
     # Replace '_' with '-' for better display
     for col in display_df.columns:
-        if col.endswith(' Score'):
+        if col.endswith(' Score') and col != 'Avg Normalized Score':
             display_df[col] = display_df[col].apply(lambda x: '-' if x == '_' else x)
     
     # If we're in detailed view, sort by score
@@ -120,36 +120,36 @@ def prepare_dataframe_for_display(df, for_game=None):
             # Filter out models that didn't participate
             display_df = display_df[~display_df[score_col].isna()]
     else:
-        # For overall view, sort by average of game scores (implicitly used for ranking)
-        # but we won't add an explicit 'Rank' or 'Average Rank' column to the final display_df
-        
-        # Calculate an internal sorting key based on average scores, but don't add it to the display_df
-        score_cols = [col for col in display_df.columns if col.endswith(' Score')]
-        if score_cols:
-            temp_sort_df = display_df.copy()
-            for col in score_cols:
-                temp_sort_df[col] = pd.to_numeric(temp_sort_df[col], errors='coerce')
-            
-            # Calculate average of the game scores (use mean of ranks from utils for actual ranking logic if different)
-            # For display sorting, let's use a simple average of available scores.
-            # The actual ranking for 'Average Rank' in leaderboard_utils uses mean of ranks, which is more robust.
-            # Here we just need a consistent sort order.
-            
-            # Create a temporary column for sorting
-            temp_sort_df['temp_avg_score_for_sort'] = temp_sort_df[score_cols].mean(axis=1)
-            
-            # Sort by this temporary average score (higher is better for scores)
-            # and then by Player name as a tie-breaker
-            display_df = display_df.loc[temp_sort_df.sort_values(by=['temp_avg_score_for_sort', 'Player'], ascending=[False, True]).index]
+        # For overall view, sort by average normalized score if available, otherwise fallback to average scores
+        if 'Avg Normalized Score' in display_df.columns:
+            # Sort by average normalized score (already calculated in leaderboard_utils)
+            display_df = display_df.sort_values(by='Avg Normalized Score', ascending=False)
+        else:
+            # Calculate an internal sorting key based on average scores, but don't add it to the display_df
+            score_cols = [col for col in display_df.columns if col.endswith(' Score')]
+            if score_cols:
+                temp_sort_df = display_df.copy()
+                for col in score_cols:
+                    temp_sort_df[col] = pd.to_numeric(temp_sort_df[col], errors='coerce')
+                
+                # Create a temporary column for sorting
+                temp_sort_df['temp_avg_score_for_sort'] = temp_sort_df[score_cols].mean(axis=1)
+                
+                # Sort by this temporary average score (higher is better for scores)
+                # and then by Player name as a tie-breaker
+                display_df = display_df.loc[temp_sort_df.sort_values(by=['temp_avg_score_for_sort', 'Player'], ascending=[False, True]).index]
     
     # Add line breaks to column headers
     new_columns = {}
     for col in display_df.columns:
-        if col.endswith(' Score'):
+        if col.endswith(' Score') and col != 'Avg Normalized Score':
             # Replace 'Game Name Score' with 'Game Name\nScore'
             game_name = col.replace(' Score', '')
             new_col = f"{game_name}\nScore"
             new_columns[col] = new_col
+        elif col == 'Avg Normalized Score':
+            # Add line break to Avg Normalized Score column
+            new_columns[col] = "Avg Normalized\nScore"
     
     # Rename columns with new line breaks
     if new_columns:
@@ -164,8 +164,14 @@ def update_df_with_height(df):
     col_widths = ["40px"]  # Row number column width
     col_widths.append("230px")  # Player column - reduced by 20px
     col_widths.append("120px")  # Organization column
+    
+    # Check if there's an Avg Normalized Score column
+    if any('Avg Normalized' in col for col in df.columns):
+        col_widths.append("140px")  # Avg Normalized Score column - slightly wider
+    
     # Add game score columns
-    for _ in range(len(df.columns) - 2):
+    remaining_cols = len(df.columns) - len(col_widths) + 1  # +1 because we subtracted row number column
+    for _ in range(remaining_cols):
         col_widths.append("120px")
     
     return gr.update(value=df, 
@@ -304,21 +310,22 @@ def update_leaderboard(# mario_overall, mario_details, # Commented out
     
     # Get the appropriate DataFrame and charts based on current state
     if leaderboard_state["current_game"]:
-        # For detailed view
+        # For detailed view - use slider value for agent leaderboard, no limit for model leaderboard
+        limit = top_n if data is rank_data else None
         # if leaderboard_state["current_game"] == "Super Mario Bros": # Commented out
         #     df = get_mario_leaderboard(data)
         if leaderboard_state["current_game"] == "Super Mario Bros":
-            df = get_mario_planning_leaderboard(data)
+            df = get_mario_planning_leaderboard(data, limit)
         elif leaderboard_state["current_game"] == "Sokoban":
-            df = get_sokoban_leaderboard(data)
+            df = get_sokoban_leaderboard(data, limit)
         elif leaderboard_state["current_game"] == "2048":
-            df = get_2048_leaderboard(data)
+            df = get_2048_leaderboard(data, limit)
         elif leaderboard_state["current_game"] == "Candy Crush":
-            df = get_candy_leaderboard(data)
+            df = get_candy_leaderboard(data, limit)
         elif leaderboard_state["current_game"] == "Tetris":
-            df = get_tetris_planning_leaderboard(data)
+            df = get_tetris_planning_leaderboard(data, limit)
         elif leaderboard_state["current_game"] == "Ace Attorney":
-            df = get_ace_attorney_leaderboard(data)
+            df = get_ace_attorney_leaderboard(data, limit)
         else: # Should not happen if current_game is one of the known games
             df = pd.DataFrame() # Empty df
         
@@ -327,10 +334,12 @@ def update_leaderboard(# mario_overall, mario_details, # Commented out
         radar_chart = chart # In detailed view, radar and group bar can be the same as the main chart
         group_bar_chart = chart 
     else:
-        # For overall view
-        df, group_bar_chart = get_combined_leaderboard_with_group_bar(data, selected_games, top_n)
+        # For overall view - use slider value for agent leaderboard, no limit for model leaderboard
+        limit = top_n if data is rank_data else None
+        df, group_bar_chart = get_combined_leaderboard_with_group_bar(data, selected_games, top_n, limit)
         display_df = prepare_dataframe_for_display(df)
-        _, radar_chart = get_combined_leaderboard_with_single_radar(data, selected_games)
+        # Pass appropriate title and top_n based on data source
+        _, radar_chart = get_combined_leaderboard_with_single_radar(data, selected_games, limit_to_top_n=limit, top_n=top_n)
         chart = radar_chart # In overall view, the 'detailed' chart can be the radar chart
     
     # Return values, including all four plot placeholders
@@ -420,9 +429,12 @@ def clear_filters(top_n=10, data_source=None):
         "Ace Attorney": True
     }
     
-    df, group_bar_chart = get_combined_leaderboard_with_group_bar(data, selected_games, top_n)
+    # Use slider value for agent leaderboard, no limit for model leaderboard
+    limit = top_n if data is rank_data else None
+    df, group_bar_chart = get_combined_leaderboard_with_group_bar(data, selected_games, top_n, limit)
     display_df = prepare_dataframe_for_display(df)
-    _, radar_chart = get_combined_leaderboard_with_single_radar(data, selected_games)
+    # Pass top_n parameter for consistent titles
+    _, radar_chart = get_combined_leaderboard_with_single_radar(data, selected_games, limit_to_top_n=limit, top_n=top_n)
     
     leaderboard_state = get_initial_state()
     
@@ -675,9 +687,18 @@ def build_app():
             max-width: 140px !important;
         }
         
-        /* Game score columns */
-        .table-container th:nth-child(n+4), 
-        .table-container td:nth-child(n+4) {
+        /* Avg Normalized Score column (4th column) */
+        .table-container th:nth-child(4), 
+        .table-container td:nth-child(4) {
+            width: 140px !important;
+            min-width: 120px !important;
+            max-width: 160px !important;
+            text-align: center !important;
+        }
+        
+        /* Game score columns (5th column onwards) */
+        .table-container th:nth-child(n+5), 
+        .table-container td:nth-child(n+5) {
             width: 120px !important;
             min-width: 100px !important;
             max-width: 140px !important;
@@ -884,7 +905,17 @@ def build_app():
                     visible=False,
                     elem_classes="visualization-container"
                 )
-                
+                with gr.Row():
+                    # Calculate dynamic maximum based on total models
+                    agent_max_models = get_total_model_count(rank_data)
+                    top_n_slider = gr.Slider(
+                        minimum=1,
+                        maximum=agent_max_models,
+                        step=1,
+                        value=min(10, agent_max_models),
+                        label=f"Number of Top Models to Display in All Views (max: {agent_max_models})",
+                        elem_classes="top-n-slider"
+                    )       
                 with gr.Column(visible=True) as overall_visualizations:
                     with gr.Tabs():
                         with gr.Tab("📈 Radar Chart"):
@@ -894,31 +925,18 @@ def build_app():
                                 elem_classes="visualization-container"
                             )
                             gr.Markdown(
-                                    "*💡 Click a legend entry to isolate that model. Double-click additional ones to add them for comparison.*",
+                                    "*💡 Click a legend entry to isolate that model. Double-click additional ones to add them for comparison.*\n\n*🎮 - with our gaming agent*",
                                     elem_classes="radar-tip"
                                 )
-                        # Comment out the Group Bar Chart tab
                         with gr.Tab("📊 Group Bar Chart"):
-                            with gr.Row():
-                                # Calculate dynamic maximum based on total models
-                                agent_max_models = get_total_model_count(rank_data)
-                                top_n_slider = gr.Slider(
-                                    minimum=1,
-                                    maximum=agent_max_models,
-                                    step=1,
-                                    value=min(10, agent_max_models),
-                                    label=f"Number of Top Models to Display (max: {agent_max_models})",
-                                    elem_classes="top-n-slider"
-                                )
                             group_bar_visualization = gr.Plot(
                                 label="Comparative Analysis (Group Bar Chart)",
                                 elem_classes="visualization-container"
                             )
                             gr.Markdown(
-                                    "*💡 Click a legend entry to isolate that model. Double-click additional ones to add them for comparison.*",
+                                    "*💡 Click a legend entry to isolate that model. Double-click additional ones to add them for comparison.*\n\n*🎮 - with our gaming agent*",
                                     elem_classes="radar-tip"
                                 )
-                            
 
                 # Hidden placeholder for group bar visualization (to maintain code references)
                 # group_bar_visualization = gr.Plot(visible=False)
@@ -972,12 +990,14 @@ def build_app():
                 # Leaderboard table
                 with gr.Row():
                     gr.Markdown("### 📋 Detailed Results")
+                with gr.Row():
+                    gr.Markdown("*💡 The slider above controls how many top models are shown in the radar chart, bar chart, and data table.*", elem_classes="radar-tip")
                 
                 # Add reference to Jupyter notebook
                 with gr.Row():
                     gr.Markdown("*All data analysis can be replicated by checking [this Jupyter notebook](https://colab.research.google.com/drive/1CYFiJGm3EoBXXI8vICPVR82J9qrmmRvc#scrollTo=qft1Oald-21J)*")
                 
-                # Get initial leaderboard dataframe
+                # Get initial leaderboard dataframe (limited by default slider value for agent leaderboard)
                 initial_df = get_combined_leaderboard(rank_data, {
                     # "Super Mario Bros": True, # Commented out
                     "Super Mario Bros": True,
@@ -987,7 +1007,7 @@ def build_app():
                     # "Tetris(complete)": True, # Commented out
                     "Tetris": True,
                     "Ace Attorney": True
-                })
+                }, limit_to_top_n=min(10, get_total_model_count(rank_data)))
                 
                 # Format the DataFrame for display
                 initial_display_df = prepare_dataframe_for_display(initial_df)
@@ -996,8 +1016,14 @@ def build_app():
                 col_widths = ["40px"]  # Row number column width
                 col_widths.append("230px")  # Player column - reduced by 20px
                 col_widths.append("120px")  # Organization column
+                
+                # Check if there's an Avg Normalized Score column
+                if any('Avg Normalized' in col for col in initial_display_df.columns):
+                    col_widths.append("140px")  # Avg Normalized Score column - slightly wider
+                
                 # Add game score columns
-                for _ in range(len(initial_display_df.columns) - 2):
+                remaining_cols = len(initial_display_df.columns) - len(col_widths) + 1  # +1 because we subtracted row number column
+                for _ in range(remaining_cols):
                     col_widths.append("120px")
                 
                 # Create a standard DataFrame component with enhanced styling
@@ -1096,7 +1122,7 @@ def build_app():
                     ] + checkbox_list
                 )
                 
-                # Initialize the app
+                # Initialize the agent leaderboard (with top 5 limit)
                 demo.load(
                     lambda: clear_filters(data_source=rank_data),
                     inputs=[],
@@ -1119,6 +1145,20 @@ def build_app():
                     visible=False,
                     elem_classes="visualization-container"
                 )
+
+                with gr.Row():
+                    # Calculate dynamic maximum based on total models
+                    model_max_models = get_total_model_count(model_rank_data)
+                    model_top_n_slider = gr.Slider(
+                        minimum=1,
+                        maximum=model_max_models,
+                        step=1,
+                        value=min(10, model_max_models),
+                        label=f"Number of Top Models to Display in All Views (max: {model_max_models})",
+                        elem_classes="top-n-slider"
+                    )
+                
+
                 
                 with gr.Column(visible=True) as model_overall_visualizations:
                     with gr.Tabs():
@@ -1132,17 +1172,6 @@ def build_app():
                                     elem_classes="radar-tip"
                                 )
                         with gr.Tab("📊 Group Bar Chart"):
-                            with gr.Row():
-                                # Calculate dynamic maximum based on total models
-                                model_max_models = get_total_model_count(model_rank_data)
-                                model_top_n_slider = gr.Slider(
-                                    minimum=1,
-                                    maximum=model_max_models,
-                                    step=1,
-                                    value=min(10, model_max_models),
-                                    label=f"Number of Top Models to Display (max: {model_max_models})",
-                                    elem_classes="top-n-slider"
-                                )
                             model_group_bar_visualization = gr.Plot(
                                 label="Comparative Analysis (Group Bar Chart)",
                                 elem_classes="visualization-container"
@@ -1193,8 +1222,10 @@ def build_app():
                 # Leaderboard table
                 with gr.Row():
                     gr.Markdown("### 📋 Detailed Results")
+                with gr.Row():
+                    gr.Markdown("*💡 The slider above controls how many top models are shown in the radar chart, bar chart, and data table.*", elem_classes="radar-tip")
                 
-                # Get initial leaderboard dataframe
+                # Get initial leaderboard dataframe (no limit for model leaderboard)
                 model_initial_df = get_combined_leaderboard(model_rank_data, {
                     "Super Mario Bros": True,
                     "Sokoban": True,
@@ -1300,7 +1331,7 @@ def build_app():
                     ] + model_checkbox_list
                 )
                 
-                # Initialize the model leaderboard
+                # Initialize the model leaderboard (no limit)
                 demo.load(
                     lambda: clear_filters(data_source=model_rank_data),
                     inputs=[],

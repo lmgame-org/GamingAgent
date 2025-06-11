@@ -332,8 +332,8 @@ def create_group_bar_chart(df, top_n=10):
 
 
 
-def get_combined_leaderboard_with_group_bar(rank_data, selected_games, top_n=10):
-    df = get_combined_leaderboard(rank_data, selected_games)
+def get_combined_leaderboard_with_group_bar(rank_data, selected_games, top_n=10, limit_to_top_n=None):
+    df = get_combined_leaderboard(rank_data, selected_games, limit_to_top_n)
     # Create a copy for visualization to avoid modifying the original
     df_viz = df.copy()
     return df, create_group_bar_chart(df_viz, top_n)
@@ -346,7 +346,7 @@ def hex_to_rgba(hex_color, alpha=0.2):
     return f'rgba({r}, {g}, {b}, {alpha})'
 
 
-def create_single_radar_chart(df, selected_games=None, highlight_models=None):
+def create_single_radar_chart(df, selected_games=None, highlight_models=None, chart_title=None, top_n=None, full_df=None):
     if selected_games is None:
         selected_games = ['Super Mario Bros', '2048', 'Candy Crush', 'Sokoban', 'Ace Attorney']
 
@@ -361,11 +361,19 @@ def create_single_radar_chart(df, selected_games=None, highlight_models=None):
     game_cols = [f"{game} Score" for game in selected_games]
     categories = formatted_games
 
-    # Normalize
+    # Use full dataset for normalization to keep consistent scale
+    # If full_df is not provided, use the current df (fallback for backward compatibility)
+    normalization_df = full_df if full_df is not None else df
+    
+    # Normalize using the full dataset but apply to the limited df
     for col in game_cols:
-        vals = df[col].replace("n/a", 0).infer_objects(copy=False).astype(float)
-        mean, std = vals.mean(), vals.std()
-        df[f"norm_{col}"] = normalize_values(vals, mean, std)
+        # Get normalization parameters from full dataset
+        full_vals = normalization_df[col].replace("n/a", 0).infer_objects(copy=False).astype(float)
+        mean, std = full_vals.mean(), full_vals.std()
+        
+        # Apply normalization to the limited df
+        limited_vals = df[col].replace("n/a", 0).infer_objects(copy=False).astype(float)
+        df[f"norm_{col}"] = normalize_values(limited_vals, mean, std)
 
     # Group players by prefix and sort alphabetically
     model_groups = {}
@@ -413,12 +421,23 @@ def create_single_radar_chart(df, selected_games=None, highlight_models=None):
             hovertemplate='<b>%{fullData.name}</b><br>Game: %{theta}<br>Score: %{r:.1f}<extra></extra>'
         ))
 
+    # Dynamic title based on the data source and top_n
+    if chart_title is None:
+        if top_n is not None:
+            chart_title = f"Radar Chart - Top {top_n} Performers by Game"
+        else:
+            # Fallback title
+            if len(df) <= 10:
+                chart_title = "🎮 Agent Performance Across Games"
+            else:
+                chart_title = "🤖 Model Performance Across Games"
+    
     fig.update_layout(
         autosize=True,
         height=550,  # Reduced height for better proportion with legend
         margin=dict(l=400, r=100, t=20, b=20),
         title=dict(
-            text="AI Normalized Performance Across Games",
+            text=chart_title,
             x=0.5,
             xanchor='center',
             yanchor='top',
@@ -464,12 +483,20 @@ def create_single_radar_chart(df, selected_games=None, highlight_models=None):
 
     return fig
 
-def get_combined_leaderboard_with_single_radar(rank_data, selected_games, highlight_models=None):
-    df = get_combined_leaderboard(rank_data, selected_games)
+def get_combined_leaderboard_with_single_radar(rank_data, selected_games, highlight_models=None, limit_to_top_n=None, chart_title=None, top_n=None):
+    # Get full dataset for normalization
+    full_df = get_combined_leaderboard(rank_data, selected_games, limit_to_top_n=None)
+    
+    # Get limited dataset for display
+    df = get_combined_leaderboard(rank_data, selected_games, limit_to_top_n)
+    
     selected_game_names = [g for g, sel in selected_games.items() if sel]
-    # Create a copy for visualization to avoid modifying the original
+    
+    # Create copies for visualization to avoid modifying the original
     df_viz = df.copy()
-    return df, create_single_radar_chart(df_viz, selected_game_names, highlight_models)
+    full_df_viz = full_df.copy()
+    
+    return df, create_single_radar_chart(df_viz, selected_game_names, highlight_models, chart_title, top_n, full_df_viz)
 
 def create_organization_radar_chart(rank_data):
     df = get_combined_leaderboard(rank_data, {g: True for g in GAME_ORDER})

@@ -32,7 +32,7 @@ def get_organization(model_name):
         return "unknown"
 
 
-def get_sokoban_leaderboard(rank_data):
+def get_sokoban_leaderboard(rank_data, limit_to_top_n=None):
     data = rank_data.get("Sokoban", {}).get("results", [])
     df = pd.DataFrame(data)
     df = df.rename(columns={
@@ -53,9 +53,12 @@ def get_sokoban_leaderboard(rank_data):
     if "Score" in df.columns:
         df["Score"] = pd.to_numeric(df["Score"], errors='coerce')
         df = df.sort_values("Score", ascending=False)
+        # Apply limit if specified
+        if limit_to_top_n is not None:
+            df = df.head(limit_to_top_n)
     return df
 
-def get_2048_leaderboard(rank_data):
+def get_2048_leaderboard(rank_data, limit_to_top_n=None):
     data = rank_data.get("2048", {}).get("results", [])
     # --- Diagnostic Print Removed ---
     # if data and isinstance(data, list) and len(data) > 0 and isinstance(data[0], dict):
@@ -108,9 +111,12 @@ def get_2048_leaderboard(rank_data):
     if "Score" in df.columns:
         df["Score"] = pd.to_numeric(df["Score"], errors='coerce')
         df = df.sort_values("Score", ascending=False)
+        # Apply limit if specified
+        if limit_to_top_n is not None:
+            df = df.head(limit_to_top_n)
     return df
 
-def get_candy_leaderboard(rank_data):
+def get_candy_leaderboard(rank_data, limit_to_top_n=None):
     data = rank_data.get("Candy Crush", {}).get("results", [])
     df = pd.DataFrame(data)
     df = df.rename(columns={
@@ -127,9 +133,12 @@ def get_candy_leaderboard(rank_data):
     if "Score" in df.columns:
         df["Score"] = pd.to_numeric(df["Score"], errors='coerce')
         df = df.sort_values("Score", ascending=False)
+        # Apply limit if specified
+        if limit_to_top_n is not None:
+            df = df.head(limit_to_top_n)
     return df
 
-def get_tetris_planning_leaderboard(rank_data):
+def get_tetris_planning_leaderboard(rank_data, limit_to_top_n=None):
     data = rank_data.get("Tetris", {}).get("results", [])
     df = pd.DataFrame(data)
     df = df.rename(columns={
@@ -147,9 +156,12 @@ def get_tetris_planning_leaderboard(rank_data):
     if "Score" in df.columns:
         df["Score"] = pd.to_numeric(df["Score"], errors='coerce')
         df = df.sort_values("Score", ascending=False)
+        # Apply limit if specified
+        if limit_to_top_n is not None:
+            df = df.head(limit_to_top_n)
     return df
 
-def get_ace_attorney_leaderboard(rank_data):
+def get_ace_attorney_leaderboard(rank_data, limit_to_top_n=None):
     data = rank_data.get("Ace Attorney", {}).get("results", [])
     df = pd.DataFrame(data)
     df = df.rename(columns={
@@ -168,9 +180,12 @@ def get_ace_attorney_leaderboard(rank_data):
     if "Score" in df.columns:
         df["Score"] = pd.to_numeric(df["Score"], errors='coerce')
         df = df.sort_values("Score", ascending=False)  # Higher score is better
+        # Apply limit if specified
+        if limit_to_top_n is not None:
+            df = df.head(limit_to_top_n)
     return df
 
-def get_mario_planning_leaderboard(rank_data):
+def get_mario_planning_leaderboard(rank_data, limit_to_top_n=None):
     data = rank_data.get("Super Mario Bros", {}).get("results", [])
     df = pd.DataFrame(data)
     df = df.rename(columns={
@@ -188,6 +203,9 @@ def get_mario_planning_leaderboard(rank_data):
     if "Score" in df.columns:
         df["Score"] = pd.to_numeric(df["Score"], errors='coerce')
         df = df.sort_values("Score", ascending=False)
+        # Apply limit if specified
+        if limit_to_top_n is not None:
+            df = df.head(limit_to_top_n)
     return df
 
 def calculate_rank_and_completeness(rank_data, selected_games):
@@ -285,13 +303,14 @@ def calculate_rank_and_completeness(rank_data, selected_games):
 
     return df_results
 
-def get_combined_leaderboard(rank_data, selected_games):
+def get_combined_leaderboard(rank_data, selected_games, limit_to_top_n=None):
     """
     Get combined leaderboard for selected games
     
     Args:
         rank_data (dict): Dictionary containing rank data
         selected_games (dict): Dictionary of game names and their selection status
+        limit_to_top_n (int, optional): Limit results to top N entries. None means no limit.
         
     Returns:
         pd.DataFrame: Combined leaderboard DataFrame
@@ -358,20 +377,61 @@ def get_combined_leaderboard(rank_data, selected_games):
     # Create DataFrame
     df_results = pd.DataFrame(results)
     
-    # Sort by total score across all games
+    # Calculate normalized scores and average normalized score
     if not df_results.empty:
-        # Calculate total score for each player
-        df_results["Total Score"] = 0
+        # Import the normalize_values function from data_visualization
+        from data_visualization import normalize_values
+        
+        # Calculate normalized scores for each game
+        game_score_columns = []
         for game in GAME_ORDER:
-            if f"{game} Score" in df_results.columns:
-                df_results["Total Score"] += df_results[f"{game} Score"].apply(
-                    lambda x: float(x) if x != 'n/a' else 0
-                )
+            score_col = f"{game} Score"
+            if score_col in df_results.columns:
+                game_score_columns.append(score_col)
+                # Get numeric values, replacing 'n/a' with NaN
+                numeric_scores = pd.to_numeric(df_results[score_col].replace('n/a', np.nan), errors='coerce')
+                
+                # Skip games where all scores are NaN or 0
+                valid_scores = numeric_scores.dropna()
+                if len(valid_scores) > 0 and valid_scores.sum() > 0:
+                    mean = valid_scores.mean()
+                    std = valid_scores.std() if len(valid_scores) > 1 else 0
+                    
+                    # Calculate normalized scores for all players
+                    normalized_scores = []
+                    for _, row in df_results.iterrows():
+                        score = row[score_col]
+                        if score == 'n/a' or pd.isna(score):
+                            normalized_scores.append(0)
+                        else:
+                            normalized_scores.append(normalize_values([float(score)], mean, std)[0])
+                    
+                    df_results[f"norm_{score_col}"] = normalized_scores
+                else:
+                    # If no valid scores, set all normalized scores to 0
+                    df_results[f"norm_{score_col}"] = 0
         
-        # Sort by total score in descending order
-        df_results = df_results.sort_values("Total Score", ascending=False)
+        # Calculate average normalized score across games
+        normalized_columns = [f"norm_{col}" for col in game_score_columns if f"norm_{col}" in df_results.columns]
+        if normalized_columns:
+            df_results["Avg Normalized Score"] = df_results[normalized_columns].mean(axis=1).round(2)
+        else:
+            df_results["Avg Normalized Score"] = 0.0
         
-        # Drop the temporary total score column
-        df_results = df_results.drop("Total Score", axis=1)
+        # Reorder columns to put Avg Normalized Score after Organization
+        base_columns = ["Player", "Organization", "Avg Normalized Score"]
+        game_columns = [col for col in df_results.columns if col.endswith(" Score") and not col.startswith("norm_") and col != "Avg Normalized Score"]
+        other_columns = [col for col in df_results.columns if col not in base_columns + game_columns and not col.startswith("norm_")]
+        
+        # Create final column order
+        final_columns = base_columns + game_columns + other_columns
+        df_results = df_results[final_columns]
+        
+        # Sort by average normalized score in descending order
+        df_results = df_results.sort_values("Avg Normalized Score", ascending=False)
+        
+        # Apply limit if specified
+        if limit_to_top_n is not None:
+            df_results = df_results.head(limit_to_top_n)
 
     return df_results
