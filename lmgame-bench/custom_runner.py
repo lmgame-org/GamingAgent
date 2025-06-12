@@ -71,6 +71,14 @@ def parse_arguments(defaults_map=None, argv_to_parse=None):
         help="Optional URL for a vLLM inference endpoint passed to BaseAgent.",
     )
 
+    # Pokemon Red specific arguments
+    parser.add_argument(
+        "--navigation_enabled",
+        action="store_true",
+        default=False,
+        help="Enable navigation assistance add-on feature."
+    )
+
     if defaults_map:
         parser.set_defaults(**defaults_map)
         
@@ -82,7 +90,8 @@ def create_environment(game_name_arg: str,
                        model_name_arg: str,
                        obs_mode_arg: str, 
                        config_dir_name_for_env_cfg: str, # For loading game_env_config.json
-                       cache_dir_for_adapter: str):
+                       cache_dir_for_adapter: str,
+                       navigation_enabled: bool = False):
     """Creates and returns a game environment instance based on the game name."""
     
     env_specific_config_path = os.path.join("gamingagent/envs", config_dir_name_for_env_cfg, "game_env_config.json")
@@ -273,7 +282,12 @@ def create_environment(game_name_arg: str,
             observation_mode_for_adapter=obs_mode_arg,
             agent_cache_dir_for_adapter=cache_dir_for_adapter,
             game_specific_config_path_for_adapter=env_specific_config_path,
-            max_stuck_steps_for_adapter=env_init_params.get('max_stuck_steps_for_adapter')
+            max_stuck_steps_for_adapter=env_init_params.get('max_stuck_steps_for_adapter'),
+            navigation_enabled=navigation_enabled,
+            # Model configuration
+            model_name=model_name_arg,
+            vllm_url=os.getenv('VLLM_URL'),
+            modal_url=os.getenv('MODAL_URL')
         )
         return env
     elif game_name_arg == "super_mario_bros":
@@ -671,7 +685,8 @@ def main():
         model_name_arg=args.model_name,
         obs_mode_arg=args.observation_mode,
         config_dir_name_for_env_cfg=config_dir_name,
-        cache_dir_for_adapter=runner_log_dir_base
+        cache_dir_for_adapter=runner_log_dir_base,
+        navigation_enabled=args.navigation_enabled
     )
 
     if game_env is None:

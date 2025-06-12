@@ -1,11 +1,10 @@
-
 # TODO: Define reward for each step - Yuxuan
 import io
 import logging
 import pickle
 from collections import deque
 import heapq
-from typing import Optional, Dict, Any, Tuple
+from typing import Optional, Dict, Any, Tuple, List
 
 from .memory_reader import PokemonRedReader, StatusCondition
 from PIL import Image
@@ -16,7 +15,11 @@ import numpy as np
 
 from gamingagent.envs.gym_env_adapter import GymEnvAdapter
 from gamingagent.modules.core_module import Observation
+from gamingagent.envs.custom_05_pokemon_red.navigation_system import NavigationSystem
+from gamingagent.envs.custom_05_pokemon_red.navigation_assistant import NavigationAssistant
 
+# Configure logging
+logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 
@@ -32,8 +35,17 @@ class PokemonRedEnv(Env):
                  observation_mode_for_adapter: str = "vision",
                  agent_cache_dir_for_adapter: str = "cache/pokemon_red/default_run",
                  game_specific_config_path_for_adapter: str = "gamingagent/envs/custom_05_pokemon_red/game_env_config.json",
-                 max_stuck_steps_for_adapter: Optional[int] = 20):
+                 max_stuck_steps_for_adapter: Optional[int] = 20,
+                 navigation_enabled: bool = False,
+                 model_name: str = "default",
+                 vllm_url: Optional[str] = None,
+                 modal_url: Optional[str] = None):
         super().__init__()
+        
+        # Store model configuration
+        self.model_name = model_name
+        self.vllm_url = vllm_url
+        self.modal_url = modal_url
         
         # Initialize adapter
         self.adapter = GymEnvAdapter(
@@ -68,6 +80,16 @@ class PokemonRedEnv(Env):
         # Initialize emulator if rom_path provided
         if self.rom_path:
             self._init_emulator()
+
+        self.navigation_enabled = navigation_enabled
+        if self.navigation_enabled:
+            self.navigation_system = NavigationSystem()
+            self.navigation_assistant = NavigationAssistant(
+                self.navigation_system,
+                model_name=self.model_name,
+                vllm_url=self.vllm_url,
+                modal_url=self.modal_url
+            )
 
     def _init_emulator(self):
         """Initialize the PyBoy emulator"""
@@ -112,6 +134,9 @@ class PokemonRedEnv(Env):
             img_path=img_path_for_adapter,
             text_representation=text_representation_for_adapter
         )
+        
+        if self.navigation_enabled:
+            self._update_navigation_system()
         
         return agent_observation, info
 
@@ -206,6 +231,9 @@ class PokemonRedEnv(Env):
             agent_observation=agent_observation
         )
 
+        if self.navigation_enabled:
+            self._update_navigation_system()
+        
         return agent_observation, reward, final_terminated, final_truncated, info, current_perf_score
 
     def _calculate_reward(self) -> float:
@@ -354,43 +382,59 @@ class PokemonRedEnv(Env):
         """Downsample an 18x20 array to 9x10 by averaging 2x2 blocks"""
         if arr.shape != (18, 20):
             raise ValueError("Input array must be 18x20")
-
         return arr.reshape(9, 2, 10, 2).mean(axis=(1, 3))
 
     def get_collision_map(self):
-        """Creates a simple ASCII map showing player position, direction, terrain and sprites"""
+        """
+        Creates a simple ASCII map showing player position, direction, terrain and sprites.
+        Returns:
+            str: A string representation of the ASCII map with legend
+        """
+        # Get the terrain and movement data
         full_map = self.pyboy.game_wrapper.game_area()
         collision_map = self.pyboy.game_wrapper.game_area_collision()
         downsampled_terrain = self._downsample_array(collision_map)
 
+        # Get sprite locations
         sprite_locations = self.get_sprites()
+
+        # Get character direction from the full map
         direction = self._get_direction(full_map)
-        
         if direction == "no direction found":
+            logger.warning("Could not determine player direction for collision map")
             return None
 
+        # Direction symbols
         direction_chars = {"up": "↑", "down": "↓", "left": "←", "right": "→"}
         player_char = direction_chars.get(direction, "P")
 
+        # Create the ASCII map
         horizontal_border = "+" + "-" * 10 + "+"
         lines = [horizontal_border]
 
+        # Create each row
         for i in range(9):
             row = "|"
             for j in range(10):
                 if i == 4 and j == 4:
+                    # Player position with direction
                     row += player_char
                 elif (j, i) in sprite_locations:
+                    # Sprite position
                     row += "S"
                 else:
+                    # Terrain representation
                     if downsampled_terrain[i][j] == 0:
-                        row += "█"
+                        row += "█"  # Wall
                     else:
-                        row += "·"
+                        row += "·"  # Path
             row += "|"
             lines.append(row)
 
+        # Add bottom border
         lines.append(horizontal_border)
+
+        # Add legend
         lines.extend([
             "",
             "Legend:",
@@ -400,25 +444,53 @@ class PokemonRedEnv(Env):
             f"{direction_chars['up']}/{direction_chars['down']}/{direction_chars['left']}/{direction_chars['right']} - Player (facing direction)",
         ])
 
-        return "\n".join(lines)
+        # Join all lines with newlines
+        ascii_map = "\n".join(lines)
+        
+        # Log the collision map if logging is enabled
+        if hasattr(self, 'logger'):
+            self.logger.debug(f"Generated collision map:\n{ascii_map}")
+        
+        # Update navigation system if enabled
+        if hasattr(self, 'navigation_system'):
+            self._update_navigation_system()
+        
+        return ascii_map
 
     def get_valid_moves(self):
-        """Returns a list of valid moves based on the collision map"""
-        collision_map = self.pyboy.game_wrapper.game_area_collision()
-        terrain = self._downsample_array(collision_map)
+        """Returns a list of valid moves based on the collision map."""
+        try:
+            # Get collision map directly from game
+            collision_map = self.pyboy.game_wrapper.game_area_collision()
+            if collision_map is None:
+                if hasattr(self, 'logger'):
+                    self.logger.error("Failed to get collision data for valid moves")
+                return []
 
-        valid_moves = []
-
-        if terrain[3][4] != 0:
-            valid_moves.append("up")
-        if terrain[5][4] != 0:
-            valid_moves.append("down")
-        if terrain[4][3] != 0:
-            valid_moves.append("left")
-        if terrain[4][5] != 0:
-            valid_moves.append("right")
-
-        return valid_moves
+            # Get terrain data
+            terrain = self._downsample_array(collision_map)
+            
+            valid_moves = []
+            
+            # Check each direction for valid movement
+            if terrain[3][4] != 0:  # Up
+                valid_moves.append("up")
+            if terrain[5][4] != 0:  # Down
+                valid_moves.append("down")
+            if terrain[4][3] != 0:  # Left
+                valid_moves.append("left")
+            if terrain[4][5] != 0:  # Right
+                valid_moves.append("right")
+            
+            # Log valid moves if logging is enabled
+            if hasattr(self, 'logger'):
+                self.logger.info(f"Valid moves: {valid_moves}")
+            
+            return valid_moves
+        except Exception as e:
+            if hasattr(self, 'logger'):
+                self.logger.error(f"Error getting valid moves: {str(e)}")
+            return []
 
     def _can_move_between_tiles(self, tile1: int, tile2: int, tileset: str) -> bool:
         """Check if movement between two tiles is allowed based on tile pair collision data"""
@@ -646,3 +718,196 @@ class PokemonRedEnv(Env):
                 memory_str += f"Status: {pokemon.status.get_status_name()}\n"
 
         return memory_str
+
+    def _update_navigation_system(self):
+        """Update navigation system with current collision map and player position."""
+        try:
+            if not self.pyboy:
+                logger.error("Cannot update navigation system: PyBoy not initialized")
+                return
+
+            reader = PokemonRedReader(self.pyboy.memory)
+            location = reader.read_location()
+            coords = reader.read_coordinates()
+            
+            logger.info(f"Navigation System State:")
+            logger.info(f"- Location: {location}")
+            logger.info(f"- Coordinates: {coords}")
+            logger.info(f"- Navigation Enabled: {self.navigation_enabled}")
+            logger.info(f"- Navigation System Initialized: {hasattr(self, 'navigation_system')}")
+            
+            # Create and update collision map
+            collision_map = self._create_collision_map()
+            if collision_map is not None:
+                # Update navigation system
+                self.navigation_system.update_collision_map(location, collision_map)
+                
+                # Get ASCII map for logging
+                ascii_map = self.navigation_system.get_ascii_map(location)
+                
+                # Update memory module if available
+                if hasattr(self, 'memory_module'):
+                    self.memory_module.update_navigation_memory(location, collision_map)
+                    self.memory_module.add_explored_area(location, coords)
+                    self.memory_module.add_navigation_history(
+                        action=self._get_direction(self.pyboy.game_wrapper.game_area()),
+                        location=location,
+                        coords=coords
+                    )
+                
+                # Enhanced logging
+                logger.info(f"Navigation Update:")
+                logger.info(f"- Location: {location}")
+                logger.info(f"- Coordinates: {coords}")
+                logger.info(f"- Collision Map:\n{ascii_map}")
+                
+                # Log valid moves
+                valid_moves = self.get_valid_moves()
+                logger.info(f"- Valid Moves: {valid_moves}")
+                
+                # Log navigation history
+                if hasattr(self, 'memory_module'):
+                    history = self.memory_module.get_navigation_history()
+                    logger.info(f"- Navigation History: {history}")
+                    
+                # Log dialog state
+                dialog = reader.read_dialog()
+                if dialog:
+                    logger.info(f"- Active Dialog: {dialog}")
+            else:
+                logger.warning("Failed to create collision map")
+            
+        except Exception as e:
+            logger.error(f"Error updating navigation system: {e}")
+            logger.exception("Full traceback:")
+
+    def _create_collision_map(self):
+        """Create a collision map from the current game state."""
+        try:
+            if not self.pyboy:
+                logger.error("Cannot create collision map: PyBoy not initialized")
+                return None
+
+            # Check if we're in a valid game state
+            reader = PokemonRedReader(self.pyboy.memory)
+            dialog = reader.read_dialog()
+            if dialog and "NEW GAME" in dialog:
+                logger.info("Game is in title screen state - collision map not available yet")
+                return None
+
+            # Get collision data
+            collision_map = self.pyboy.game_wrapper.game_area_collision()
+            if collision_map is None:
+                logger.error("Failed to get collision data from game")
+                return None
+
+            # Downsample the collision map
+            downsampled_terrain = self._downsample_array(collision_map)
+            
+            # Get sprite locations
+            sprite_locations = self.get_sprites()
+            
+            # Get player direction
+            game_area = self.pyboy.game_wrapper.game_area()
+            direction = self._get_direction(game_area)
+            if direction == "no direction found":
+                logger.warning("Could not determine player direction for collision map")
+                return None
+
+            # Direction symbols
+            direction_chars = {"up": "↑", "down": "↓", "left": "←", "right": "→"}
+            player_char = direction_chars.get(direction, "P")
+
+            # Create the ASCII map
+            horizontal_border = "+" + "-" * 10 + "+"
+            lines = [horizontal_border]
+
+            # Create each row
+            for i in range(9):
+                row = "|"
+                for j in range(10):
+                    if i == 4 and j == 4:
+                        # Player position with direction
+                        row += player_char
+                    elif (j, i) in sprite_locations:
+                        # Sprite position
+                        row += "S"
+                    else:
+                        # Terrain representation
+                        if downsampled_terrain[i][j] == 0:
+                            row += "█"  # Wall
+                        else:
+                            row += "·"  # Path
+                row += "|"
+                lines.append(row)
+
+            # Add bottom border
+            lines.append(horizontal_border)
+
+            # Add legend
+            lines.extend([
+                "",
+                "Legend:",
+                "█ - Wall/Obstacle",
+                "· - Path/Walkable",
+                "S - Sprite",
+                f"{direction_chars['up']}/{direction_chars['down']}/{direction_chars['left']}/{direction_chars['right']} - Player (facing direction)",
+            ])
+
+            # Join all lines with newlines
+            ascii_map = "\n".join(lines)
+            
+            # Log the collision map
+            logger.info(f"Generated collision map:\n{ascii_map}")
+            
+            # Return the downsampled terrain for navigation
+            return downsampled_terrain
+            
+        except Exception as e:
+            logger.error(f"Error creating collision map: {e}")
+            logger.exception("Full traceback:")
+            return None
+
+    def get_navigation_advice(self, goal_location: str = None, goal_coords: Tuple[int, int] = None) -> str:
+        """Get navigation advice from the navigation assistant."""
+        if not self.navigation_enabled:
+            return "Navigation assistance is not enabled."
+        
+        try:
+            advice = self.navigation_assistant.get_navigation_advice(
+                location=self.get_location(),
+                navigation_goal=f"Goal: {goal_location} at {goal_coords}" if goal_location and goal_coords else "Explore the area"
+            )
+            
+            # Log navigation advice
+            logger.info(f"Navigation Advice:\n{advice}")
+            
+            return advice
+        except Exception as e:
+            logger.error(f"Error getting navigation advice: {str(e)}")
+            return "Failed to get navigation advice."
+
+    def auto_path_to_location(self, goal_location: str = None, goal_coords: Tuple[int, int] = None) -> List[str]:
+        """Get automatic path to a location using the navigation system."""
+        if not self.navigation_enabled:
+            return []
+        
+        try:
+            path = self.navigation_assistant.auto_path_to_location(
+                location=self.get_location(),
+                goal_coords=goal_coords
+            )
+            
+            # Log path
+            logger.info(f"Auto-generated path to {goal_location or 'current goal'}:")
+            logger.info(f"Path: {' -> '.join(path) if path else 'No path found'}")
+            
+            return path
+        except Exception as e:
+            logger.error(f"Error generating auto path: {str(e)}")
+            return []
+
+    def add_location_label(self, location: str, coords: Tuple[int, int], label: str):
+        if not self.navigation_enabled:
+            return
+        self.navigation_system.add_location_label(location, coords, label)

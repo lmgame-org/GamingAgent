@@ -3,13 +3,16 @@ import json
 import time
 import datetime
 import re
+import numpy as np
+from typing import Dict, Tuple, List, Optional
 from .core_module import CoreModule, GameTrajectory, Observation
 
 class MemoryModule(CoreModule):
     """
     A lightweight memory module: 
-        1. stores the most recent N turns in a GameTrajectory deque.
+        1. stores the most recent N turns in a GameTrajectory deque.
         2. synthesises reflections with an LLM.
+        3. stores navigation-related information like maps and explored areas (for Pokemon Red game only).
     """
 
     def __init__(self,
@@ -27,7 +30,13 @@ class MemoryModule(CoreModule):
             cache_dir=cache_dir,
         )
 
-        self.max_memory=max_memory
+        self.max_memory = max_memory
+        
+        # Navigation-related memory (for Pokemon Red game only)
+        self.location_maps = {}  # Store maps for each location
+        self.location_labels = {}  # Store labels for each location
+        self.explored_areas = set()  # Store explored coordinates
+        self.navigation_history = []  # Store navigation history
 
     def _load_trajectory(self) -> None:
         """Load and return trajectory entries (as already‑stringified lines) from disk."""
@@ -224,3 +233,47 @@ class MemoryModule(CoreModule):
         return {
             "reflection": reflection
         }
+
+    # Navigation-related memory (for Pokemon Red game only)
+    def update_navigation_memory(self, location: str, collision_map: np.ndarray, labels: Dict[Tuple[int, int], str] = None) -> None:
+        """Update navigation-related memory."""
+        self.location_maps[location] = collision_map
+        if labels:
+            if location not in self.location_labels:
+                self.location_labels[location] = {}
+            self.location_labels[location].update(labels)
+    
+    # Navigation-related memory (for Pokemon Red game only)
+    def add_explored_area(self, location: str, coords: Tuple[int, int]) -> None:
+        """Mark an area as explored."""
+        self.explored_areas.add((location, coords))
+    
+    # Navigation-related memory (for Pokemon Red game only)
+    def add_navigation_history(self, action: str, location: str, coords: Tuple[int, int]) -> None:
+        """Add a navigation action to history."""
+        self.navigation_history.append({
+            'action': action,
+            'location': location,
+            'coords': coords,
+            'timestamp': time.time()
+        })
+    
+    # Navigation-related memory (for Pokemon Red game only)
+    def get_location_map(self, location: str) -> Optional[np.ndarray]:
+        """Get the collision map for a location."""
+        return self.location_maps.get(location)
+    
+    # Navigation-related memory (for Pokemon Red game only)
+    def get_location_labels(self, location: str) -> Dict[Tuple[int, int], str]:
+        """Get the labels for a location."""
+        return self.location_labels.get(location, {})
+    
+    # Navigation-related memory (for Pokemon Red game only)
+    def is_explored(self, location: str, coords: Tuple[int, int]) -> bool:
+        """Check if an area has been explored."""
+        return (location, coords) in self.explored_areas
+    
+    # Navigation-related memory (for Pokemon Red game only)
+    def get_navigation_history(self, limit: int = 10) -> List[dict]:
+        """Get recent navigation history."""
+        return self.navigation_history[-limit:]
