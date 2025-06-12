@@ -6,6 +6,7 @@ import re
 import numpy as np
 from typing import Dict, Tuple, List, Optional
 from .core_module import CoreModule, GameTrajectory, Observation
+import logging as logger
 
 class MemoryModule(CoreModule):
     """
@@ -277,3 +278,130 @@ class MemoryModule(CoreModule):
     def get_navigation_history(self, limit: int = 10) -> List[dict]:
         """Get recent navigation history."""
         return self.navigation_history[-limit:]
+
+    def read_map_name(self, memory) -> str:
+        """Read the current map name from memory."""
+        try:
+            # Map name is stored at 0xD35E
+            map_id = memory[0xD35E]
+            # Map names are stored in a table starting at 0x4A000
+            map_name_ptr = 0x4A000 + (map_id * 2)
+            name_length = memory[map_name_ptr]
+            name_bytes = memory[map_name_ptr + 1:map_name_ptr + 1 + name_length]
+            return ''.join(chr(b) for b in name_bytes)
+        except Exception as e:
+            logger.error(f"Error reading map name: {e}")
+            return None
+
+    def read_inventory(self, memory) -> List[str]:
+        """Read the current inventory from memory."""
+        try:
+            # Inventory starts at 0xD31E
+            inventory = []
+            for i in range(20):  # Max 20 items
+                item_id = memory[0xD31E + i]
+                if item_id == 0:
+                    break
+                item_name = self.get_item_name(memory, item_id)
+                if item_name:
+                    inventory.append(item_name)
+            return inventory
+        except Exception as e:
+            logger.error(f"Error reading inventory: {e}")
+            return []
+
+    def read_party(self, memory) -> List[str]:
+        """Read the current Pokemon party from memory."""
+        try:
+            # Party starts at 0xD163
+            party = []
+            for i in range(6):  # Max 6 Pokemon
+                pokemon_id = memory[0xD163 + i]
+                if pokemon_id == 0:
+                    break
+                pokemon_name = self.get_pokemon_name(memory, pokemon_id)
+                if pokemon_name:
+                    party.append(pokemon_name)
+            return party
+        except Exception as e:
+            logger.error(f"Error reading party: {e}")
+            return []
+
+    def read_quest_state(self, memory) -> Dict[str, str]:
+        """Read the current quest/objective states from memory."""
+        try:
+            # Quest flags start at 0xD7F1
+            quest_state = {}
+            
+            # Check if player has received starter
+            if memory[0xD7F1] & 0x01:
+                quest_state["Get Starter Pokemon"] = "completed"
+            else:
+                quest_state["Get Starter Pokemon"] = "in_progress"
+                
+            # Check if player has received Pokedex
+            if memory[0xD7F1] & 0x02:
+                quest_state["Get Pokedex"] = "completed"
+            else:
+                quest_state["Get Pokedex"] = "in_progress"
+                
+            # Check if player has received first badge
+            if memory[0xD7F1] & 0x04:
+                quest_state["Get First Badge"] = "completed"
+            else:
+                quest_state["Get First Badge"] = "in_progress"
+                
+            return quest_state
+        except Exception as e:
+            logger.error(f"Error reading quest state: {e}")
+            return {}
+
+    def read_game_progress(self, memory) -> Dict[str, str]:
+        """Read overall game progress metrics from memory."""
+        try:
+            progress = {}
+            
+            # Number of badges
+            badges = memory[0xD356]
+            progress["Badges"] = str(badges)
+            
+            # Number of Pokemon seen
+            seen = sum(1 for b in memory[0xD2A7:0xD2A7+19] if b > 0)
+            progress["Pokemon Seen"] = str(seen)
+            
+            # Number of Pokemon caught
+            caught = sum(1 for b in memory[0xD2A7:0xD2A7+19] if b > 0)
+            progress["Pokemon Caught"] = str(caught)
+            
+            # Current money
+            money = (memory[0xD347] << 16) | (memory[0xD348] << 8) | memory[0xD349]
+            progress["Money"] = str(money)
+            
+            return progress
+        except Exception as e:
+            logger.error(f"Error reading game progress: {e}")
+            return {}
+
+    def get_item_name(self, memory, item_id: int) -> Optional[str]:
+        """Get the name of an item from its ID."""
+        try:
+            # Item names are stored in a table starting at 0x4B000
+            item_name_ptr = 0x4B000 + (item_id * 2)
+            name_length = memory[item_name_ptr]
+            name_bytes = memory[item_name_ptr + 1:item_name_ptr + 1 + name_length]
+            return ''.join(chr(b) for b in name_bytes)
+        except Exception as e:
+            logger.error(f"Error getting item name: {e}")
+            return None
+
+    def get_pokemon_name(self, memory, pokemon_id: int) -> Optional[str]:
+        """Get the name of a Pokemon from its ID."""
+        try:
+            # Pokemon names are stored in a table starting at 0x4C000
+            pokemon_name_ptr = 0x4C000 + (pokemon_id * 2)
+            name_length = memory[pokemon_name_ptr]
+            name_bytes = memory[pokemon_name_ptr + 1:pokemon_name_ptr + 1 + name_length]
+            return ''.join(chr(b) for b in name_bytes)
+        except Exception as e:
+            logger.error(f"Error getting Pokemon name: {e}")
+            return None

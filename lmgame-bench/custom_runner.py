@@ -5,7 +5,7 @@ import datetime
 import time
 import numpy as np
 import yaml
-from typing import Any
+from typing import Any, Optional
 import sys
 import re
 
@@ -79,6 +79,11 @@ def parse_arguments(defaults_map=None, argv_to_parse=None):
         help="Enable navigation assistance add-on feature."
     )
 
+    # Add reasoning aids argument after all existing arguments
+    parser.add_argument('--enable_reasoning_aids', action='store_true',
+                    default=False,
+                      help='Enable meta-critique and reasoning aids system for Pokemon Red')
+
     if defaults_map:
         parser.set_defaults(**defaults_map)
         
@@ -91,7 +96,9 @@ def create_environment(game_name_arg: str,
                        obs_mode_arg: str, 
                        config_dir_name_for_env_cfg: str, # For loading game_env_config.json
                        cache_dir_for_adapter: str,
-                       navigation_enabled: bool = False):
+                       navigation_enabled: bool = False,
+                       enable_reasoning_aids: bool = False,
+                       runner_log_dir_base: Optional[str] = None):
     """Creates and returns a game environment instance based on the game name."""
     
     env_specific_config_path = os.path.join("gamingagent/envs", config_dir_name_for_env_cfg, "game_env_config.json")
@@ -284,10 +291,8 @@ def create_environment(game_name_arg: str,
             game_specific_config_path_for_adapter=env_specific_config_path,
             max_stuck_steps_for_adapter=env_init_params.get('max_stuck_steps_for_adapter'),
             navigation_enabled=navigation_enabled,
-            # Model configuration
-            model_name=model_name_arg,
-            vllm_url=os.getenv('VLLM_URL'),
-            modal_url=os.getenv('MODAL_URL')
+            enable_reasoning_aids=enable_reasoning_aids,
+            runner_log_dir_base=runner_log_dir_base
         )
         return env
     elif game_name_arg == "super_mario_bros":
@@ -686,7 +691,9 @@ def main():
         obs_mode_arg=args.observation_mode,
         config_dir_name_for_env_cfg=config_dir_name,
         cache_dir_for_adapter=runner_log_dir_base,
-        navigation_enabled=args.navigation_enabled
+        navigation_enabled=args.navigation_enabled,
+        enable_reasoning_aids=args.enable_reasoning_aids,
+        runner_log_dir_base=runner_log_dir_base
     )
 
     if game_env is None:
