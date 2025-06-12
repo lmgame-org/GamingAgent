@@ -27,6 +27,7 @@ class BaseAgent(ABC):
             harness=True,
             use_custom_prompt=False,
             max_memory=10,
+            use_reflection=True,
             cache_dir=None,
             custom_modules=None, 
             observation_mode="vision",    # change the abstraction to with or without image
@@ -41,6 +42,7 @@ class BaseAgent(ABC):
             harness (bool): If True, uses perception-memory-reasoning pipeline;
                            If False, uses base module only
             max_memory (int): Maximum number of memory entries to store
+            use_reflection (bool): If True, enables reflection in memory module; Defaults to True
             cache_dir (str, optional): Custom cache directory path
             custom_modules (dict, optional): Custom module classes to use
             observation_mode (str): Mode for processing observations ("vision", "text", or "both")
@@ -50,6 +52,7 @@ class BaseAgent(ABC):
         self.harness = harness
         self.use_custom_prompt = use_custom_prompt
         self.max_memory = max_memory
+        self.use_reflection = use_reflection
         self.observation_mode = observation_mode
         
         # Set up cache directory following the specified pattern
@@ -184,7 +187,8 @@ class BaseAgent(ABC):
                     cache_dir=self.cache_dir,
                     system_prompt=self.config["memory_module"]["system_prompt"],
                     prompt=self.config["memory_module"]["prompt"],
-                    max_memory=self.max_memory
+                    max_memory=self.max_memory,
+                    use_reflection=self.use_reflection
                 )
             else:
                 modules["memory_module"] = MemoryModule(
@@ -192,7 +196,8 @@ class BaseAgent(ABC):
                     cache_dir=self.cache_dir,
                     system_prompt=self.config["memory_module"]["system_prompt"],
                     prompt=self.config["memory_module"]["prompt"],
-                    max_memory=self.max_memory
+                    max_memory=self.max_memory,
+                    use_reflection=self.use_reflection
                 )
             
             # TODO (lanxiang): make reasoning efforts configurable
@@ -223,6 +228,7 @@ class BaseAgent(ABC):
             "observation_mode": self.observation_mode,
             "harness": self.harness,
             "max_memory": self.max_memory,
+            "use_reflection": self.use_reflection,
             "cache_dir": self.cache_dir,
             "modules": {
                 module: module_instance.__class__.__name__ 

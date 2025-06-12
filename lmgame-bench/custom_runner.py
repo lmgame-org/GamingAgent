@@ -49,6 +49,7 @@ def parse_arguments(defaults_map=None, argv_to_parse=None):
     parser.add_argument("--observation_mode", type=str, default="vision",
                         choices=["vision", "text", "both"], help="Agent's observation mode.")
     parser.add_argument("--max_memory", type=int, default=20, help="Agent's max memory entries.")
+    parser.add_argument("--use_reflection", action="store_true", help="Whether to use reflection in memory module.")
     parser.add_argument("--max_steps_per_episode", type=int, default=1000, help="Max steps per episode.")
     parser.add_argument("--use_custom_prompt", action="store_true", help="If set, will use the custom prompt from module_prompts.json if present.")
     parser.add_argument("--seed", type=int, default=None, help="Random seed for environment.")
@@ -106,7 +107,9 @@ def create_environment(game_name_arg: str,
                 env_specific_config = json.load(f)
                 env_init_kwargs = env_specific_config.get('env_init_kwargs', {})
                 env_init_params['dim_room'] = env_init_kwargs.get('dim_room', (10,10))
-                env_init_params['max_steps_episode'] = env_init_kwargs.get('max_steps_episode', 200)
+                # print(env_init_kwargs)
+                # exit()
+                env_init_params['max_steps_per_level'] = env_init_kwargs.get('max_steps_per_level', 200)
                 env_init_params['num_boxes'] = env_init_kwargs.get('num_boxes', 3)
                 env_init_params['num_gen_steps'] = env_init_kwargs.get('num_gen_steps') # Can be None
                 env_init_params['level_to_load'] = env_specific_config.get('level_to_load') # Can be None
@@ -116,7 +119,7 @@ def create_environment(game_name_arg: str,
         else:
             print(f"Warning: {env_specific_config_path} for {game_name_arg} not found. Using default env parameters for Sokoban.")
             env_init_params['dim_room'] = (10,10)
-            env_init_params['max_steps_episode'] = 200
+            env_init_params['max_steps_per_level'] = 200
             env_init_params['num_boxes'] = 3
             env_init_params['num_gen_steps'] = None
             env_init_params['level_to_load'] = None
@@ -129,7 +132,7 @@ def create_environment(game_name_arg: str,
         env = SokobanEnv(
             render_mode=env_init_params.get('render_mode'),
             dim_room=tuple(env_init_params.get('dim_room')), # Ensure it's a tuple
-            max_steps_episode=env_init_params.get('max_steps_episode'),
+            max_steps_per_level=env_init_params.get('max_steps_per_level'),
             num_boxes=env_init_params.get('num_boxes'),
             num_gen_steps=env_init_params.get('num_gen_steps'),
             level_to_load=env_init_params.get('level_to_load'),
@@ -510,6 +513,7 @@ def main():
                             if agent_config_yaml.get('modules'):
                                 if agent_config_yaml['modules'].get('memory_module'):
                                     defaults_from_yaml['max_memory'] = agent_config_yaml['modules']['memory_module'].get('max_memory')
+                                    defaults_from_yaml['use_reflection'] = agent_config_yaml['modules']['memory_module'].get('use_reflection', 'True')
                         defaults_from_yaml = {k: v for k, v in defaults_from_yaml.items() if v is not None}
             except Exception as e:
                 print(f"Warning: Could not load or process defaults from {config_file_path}: {e}")
@@ -533,7 +537,8 @@ def main():
         'num_runs', 
         'max_steps_per_episode',
         'seed',
-        'max_memory'
+        'max_memory',
+        'use_reflection',
     }
 
     if config_file_path and os.path.exists(config_file_path):
@@ -584,6 +589,7 @@ def main():
         harness=args.harness,
         use_custom_prompt=args.use_custom_prompt,
         max_memory=args.max_memory, 
+        use_reflection=args.use_reflection,
         custom_modules=custom_modules_for_agent,
         observation_mode=args.observation_mode,
         cache_dir=runner_log_dir_base # Ensure agent uses the same cache_dir

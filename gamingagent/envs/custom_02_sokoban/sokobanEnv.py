@@ -168,7 +168,7 @@ class SokobanEnv(gym.Env):
                  render_mode: Optional[str] = None,
                  # Sokoban specific params from game_env_config.json
                  dim_room: Tuple[int, int] = (10, 10),
-                 max_steps_episode: int = 200,
+                 max_steps_per_level: int = 200,
                  num_boxes: int = 3,
                  num_gen_steps: Optional[int] = None, # For procedural generation
                  level_to_load: Optional[int] = None, # To load a specific level
@@ -182,7 +182,7 @@ class SokobanEnv(gym.Env):
                  ):
         
         self.dim_room = dim_room
-        self.max_steps_episode = max_steps_episode
+        self.max_steps_per_level = max_steps_per_level
         self.num_boxes_initial = num_boxes # Store initial config
         self.level_to_load = level_to_load
         self.tile_size_for_render = tile_size_for_render
@@ -432,7 +432,7 @@ class SokobanEnv(gym.Env):
         return num_boxes_off_target == 0 and self.boxes_on_target == self.num_boxes_current
         
     def _check_if_maxsteps(self) -> bool:
-        return self.num_env_steps >= self.max_steps_episode
+        return self.num_env_steps >= self.max_steps_per_level
 
     def _calc_reward(self) -> float:
         # Adapted from sokoban_env_old.py
