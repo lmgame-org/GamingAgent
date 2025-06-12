@@ -151,7 +151,7 @@ class TetrisEnv(gym.Env):
         self.render_mode = render_mode
 
         # Headless mode fallback
-        if self.render_mode == "human" and not os.environ.get("DISPLAY"):
+        if self.render_mode == "human" and os.environ.get("DISPLAY") == False:
             print("[TetrisEnv] DISPLAY not found – switching render_mode from 'human' to 'rgb_array'")
             self.render_mode = "rgb_array"
 
