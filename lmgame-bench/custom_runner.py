@@ -24,11 +24,13 @@ from gamingagent.envs.retro_01_super_mario_bros.superMarioBrosEnv import SuperMa
 from gamingagent.envs.retro_02_ace_attorney.aceAttorneyEnv import AceAttorneyEnv
 from gamingagent.envs.retro_03_1942.NineteenFortyTwo_env import NineteenFortyTwoEnvWrapper
 from gamingagent.envs.custom_04_tetris.tetrisEnv import TetrisEnv
+from gamingagent.envs.custom_05_pokemon_red.pokemonRedEnv import PokemonRedEnv
 
 game_config_mapping = {"twenty_forty_eight": "custom_01_2048",
                        "sokoban": "custom_02_sokoban",
                        "candy_crush": "custom_03_candy_crush",
                        "tetris": "custom_04_tetris",
+                       "pokemon_red": "custom_05_pokemon_red",
                        "super_mario_bros":"retro_01_super_mario_bros",
                        "ace_attorney":"retro_02_ace_attorney",
                        "nineteen_forty_two": "retro_03_1942"}
@@ -239,6 +241,39 @@ def create_environment(game_name_arg: str,
             game_specific_config_path_for_adapter=env_specific_config_path,
             max_stuck_steps_for_adapter=env_init_params.get('max_stuck_steps_for_adapter')
             # seed will be passed during reset, not __init__ for TetrisEnv as per its definition
+        )
+        return env
+    elif game_name_arg == "pokemon_red":
+        # Load params specific to Pokemon Red
+        if os.path.exists(env_specific_config_path):
+            with open(env_specific_config_path, 'r') as f:
+                env_specific_config = json.load(f)
+                env_init_kwargs = env_specific_config.get('env_init_kwargs', {})
+                env_init_params['rom_path'] = env_init_kwargs.get('rom_path')
+                env_init_params['sound'] = env_init_kwargs.get('sound', False)
+                env_init_params['max_episode_steps'] = env_init_kwargs.get('max_episode_steps', 50000)
+                env_init_params['render_mode_for_make'] = env_specific_config.get('render_mode', 'human')
+                env_init_params['max_stuck_steps_for_adapter'] = env_specific_config.get('max_unchanged_steps_for_termination', 20)
+        else:
+            print(f"Warning: {env_specific_config_path} for {game_name_arg} not found. Using default env parameters for Pokemon Red.")
+            env_init_params['rom_path'] = None
+            env_init_params['sound'] = False
+            env_init_params['max_episode_steps'] = 50000
+            env_init_params['render_mode_for_make'] = 'human'
+            env_init_params['max_stuck_steps_for_adapter'] = 20
+
+        print(f"Initializing environment: {game_name_arg} with params: {env_init_params}")
+        env = PokemonRedEnv(
+            render_mode=env_init_params.get('render_mode_for_make'),
+            rom_path=env_init_params.get('rom_path'),
+            sound=env_init_params.get('sound'),
+            max_episode_steps=env_init_params.get('max_episode_steps'),
+            # Adapter related params
+            game_name_for_adapter=game_name_arg,
+            observation_mode_for_adapter=obs_mode_arg,
+            agent_cache_dir_for_adapter=cache_dir_for_adapter,
+            game_specific_config_path_for_adapter=env_specific_config_path,
+            max_stuck_steps_for_adapter=env_init_params.get('max_stuck_steps_for_adapter')
         )
         return env
     elif game_name_arg == "super_mario_bros":

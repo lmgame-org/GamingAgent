@@ -1,3 +1,5 @@
+
+# TODO: Define reward for each step - Yuxuan
 import io
 import logging
 import pickle
@@ -117,8 +119,30 @@ class PokemonRedEnv(Env):
         """Execute one step in the environment"""
         self.adapter.increment_step()
         
+        # Parse action string to extract action and repeat count
+        action_name = None
+        repeat_count = 1
+        
+        if agent_action_str:
+            # Handle format: "(action, count)" or just "action"
+            agent_action_str = agent_action_str.strip()
+            if agent_action_str.startswith('(') and agent_action_str.endswith(')'):
+                # Parse "(action, count)" format
+                try:
+                    content = agent_action_str[1:-1]  # Remove parentheses
+                    parts = [part.strip() for part in content.split(',')]
+                    if len(parts) == 2:
+                        action_name = parts[0].strip('"\'')  # Remove quotes if present
+                        repeat_count = int(parts[1])
+                    else:
+                        action_name = content.strip('"\'')
+                except (ValueError, IndexError):
+                    action_name = agent_action_str
+            else:
+                action_name = agent_action_str
+        
         # Map action string to environment action
-        env_action_idx = self.adapter.map_agent_action_to_env_action(agent_action_str)
+        env_action_idx = self.adapter.map_agent_action_to_env_action(action_name)
         
         reward = 0.0
         terminated = False
@@ -126,11 +150,15 @@ class PokemonRedEnv(Env):
         
         if env_action_idx is not None and self.action_space.contains(env_action_idx):
             button = self.action_map[env_action_idx]
-            self.press_buttons([button], wait=True)
+            # Execute the action multiple times if specified
+            for _ in range(repeat_count):
+                self.press_buttons([button], wait=True)
+                if self._check_terminated():
+                    terminated = True
+                    break
             reward = self._calculate_reward()
-            terminated = self._check_terminated()
         else:
-            print(f"[PokemonRedEnv] Action '{agent_action_str}' (mapped to {env_action_idx}) is skip/invalid. Env not stepped.")
+            print(f"[PokemonRedEnv] Action '{agent_action_str}' (parsed: '{action_name}', count: {repeat_count}) is skip/invalid. Env not stepped.")
             reward = -0.01
 
         self.num_env_steps += 1
@@ -229,7 +257,7 @@ class PokemonRedEnv(Env):
         self.adapter.close_log_file()
         print("[PokemonRedEnv] Closed.")
 
-    # Emulator Methods
+    # ===================== Emulator Methods =====================
 
     def tick(self, frames):
         """Advance the emulator by the specified number of frames"""
