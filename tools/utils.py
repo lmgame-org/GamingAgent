@@ -91,13 +91,13 @@ def draw_grid_on_image(image_path, grid_dim=(5, 5)):
     
     # Add coordinate labels at the top-left corner of each cell
     font = cv2.FONT_HERSHEY_SIMPLEX
-    font_scale = 0.5
-    font_thickness = 1
+    font_scale = 1.5  # 3 times larger than original 0.5
+    font_thickness = 2  # Slightly thicker for better visibility
     font_color = (255, 255, 255)  # White text
     
     # Add background rectangles for better visibility of text
     rect_color = (0, 0, 0)  # Black background
-    rect_padding = 5
+    rect_padding = 8  # Increased padding for larger text
     
     for row in range(grid_dim[0]):
         for col in range(grid_dim[1]):

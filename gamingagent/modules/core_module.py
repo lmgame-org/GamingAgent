@@ -296,7 +296,9 @@ class CoreModule(ABC):
                 prompt="", 
                 cache_dir="cache",
                 token_limit=100000, 
-                reasoning_effort="medium"
+                reasoning_effort="medium",
+                vllm_url=None,
+                modal_url=None
         ):
         """
         Initialize the core module with basic parameters.
@@ -319,7 +321,11 @@ class CoreModule(ABC):
         self.reasoning_effort = reasoning_effort
         
         # Initialize API manager
-        self.api_manager = APIManager(game_name=module_name.replace("_module", ""))
+        self.api_manager = APIManager(
+            game_name=module_name.replace("_module", ""), 
+            vllm_url=vllm_url,
+            modal_url=modal_url
+        )
         
         # Create cache directory if it doesn't exist
         os.makedirs(cache_dir, exist_ok=True)
