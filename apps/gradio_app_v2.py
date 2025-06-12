@@ -139,6 +139,17 @@ def prepare_dataframe_for_display(df, for_game=None):
                 # and then by Player name as a tie-breaker
                 display_df = display_df.loc[temp_sort_df.sort_values(by=['temp_avg_score_for_sort', 'Player'], ascending=[False, True]).index]
     
+    # Add medal emojis for top 3 performers
+    if len(display_df) > 0 and 'Player' in display_df.columns:
+        # Reset index to get proper ranking after sorting
+        display_df = display_df.reset_index(drop=True)
+        
+        # Add medal emojis to Player names for top 3
+        medal_emojis = ['🥇', '🥈', '🥉']
+        for i in range(min(3, len(display_df))):
+            original_name = display_df.loc[i, 'Player']
+            display_df.loc[i, 'Player'] = f"{medal_emojis[i]} {original_name}"
+    
     # Add line breaks to column headers
     new_columns = {}
     for col in display_df.columns:
@@ -310,8 +321,8 @@ def update_leaderboard(# mario_overall, mario_details, # Commented out
     
     # Get the appropriate DataFrame and charts based on current state
     if leaderboard_state["current_game"]:
-        # For detailed view - use slider value for agent leaderboard, no limit for model leaderboard
-        limit = top_n if data is rank_data else None
+        # For detailed view - use slider value for both leaderboards
+        limit = top_n
         # if leaderboard_state["current_game"] == "Super Mario Bros": # Commented out
         #     df = get_mario_leaderboard(data)
         if leaderboard_state["current_game"] == "Super Mario Bros":
@@ -334,8 +345,8 @@ def update_leaderboard(# mario_overall, mario_details, # Commented out
         radar_chart = chart # In detailed view, radar and group bar can be the same as the main chart
         group_bar_chart = chart 
     else:
-        # For overall view - use slider value for agent leaderboard, no limit for model leaderboard
-        limit = top_n if data is rank_data else None
+        # For overall view - use slider value for both leaderboards
+        limit = top_n
         df, group_bar_chart = get_combined_leaderboard_with_group_bar(data, selected_games, top_n, limit)
         display_df = prepare_dataframe_for_display(df)
         # Pass appropriate title and top_n based on data source
@@ -429,8 +440,8 @@ def clear_filters(top_n=5, data_source=None):
         "Ace Attorney": True
     }
     
-    # Use slider value for agent leaderboard, no limit for model leaderboard
-    limit = top_n if data is rank_data else None
+    # Use slider value for both leaderboards
+    limit = top_n
     df, group_bar_chart = get_combined_leaderboard_with_group_bar(data, selected_games, top_n, limit)
     display_df = prepare_dataframe_for_display(df)
     # Pass top_n parameter for consistent titles
@@ -925,7 +936,7 @@ def build_app():
                                 elem_classes="visualization-container"
                             )
                             gr.Markdown(
-                                    "*💡 Click a legend entry to isolate that model. Double-click additional ones to add them for comparison.*\n\n*🎮 - with our gaming agent*",
+                                    "*💡 Click a legend entry to isolate that model. Double-click additional ones to add them for comparison.*\n\n*⚔️ - Model with our gaming agent*",
                                     elem_classes="radar-tip"
                                 )
                         with gr.Tab("📊 Group Bar Chart"):
@@ -934,7 +945,7 @@ def build_app():
                                 elem_classes="visualization-container"
                             )
                             gr.Markdown(
-                                    "*💡 Click a legend entry to isolate that model. Double-click additional ones to add them for comparison.*\n\n*🎮 - with our gaming agent*",
+                                    "*💡 Click a legend entry to isolate that model. Double-click additional ones to add them for comparison.*\n\n*⚔️ - Model with our gaming agent*",
                                     elem_classes="radar-tip"
                                 )
 
@@ -943,14 +954,14 @@ def build_app():
 
                 # Game selection section
                 with gr.Row():
-                    gr.Markdown("### 🎮 Game Selection")
+                    gr.Markdown("### 🕹️ Game Selection")
                 with gr.Row():
                     # with gr.Column(): # Commented out Super Mario BrosUI
                     #     gr.Markdown("**🎮 Super Mario Bros**")
                     #     mario_overall = gr.Checkbox(label="Super Mario BrosScore", value=True)
                     #     mario_details = gr.Checkbox(label="Super Mario BrosDetails", value=False)
                     with gr.Column(): # Added Super Mario BrosUI
-                        gr.Markdown("**🎮 Super Mario Bros**")
+                        gr.Markdown("**🍄 Super Mario Bros**")
                         mario_plan_overall = gr.Checkbox(label="Super Mario Bros Score", value=True)
                         mario_plan_details = gr.Checkbox(label="Super Mario Bros Details", value=False)
                     with gr.Column(): # Sokoban is now after mario_plan
@@ -991,7 +1002,7 @@ def build_app():
                 with gr.Row():
                     gr.Markdown("### 📋 Detailed Results")
                 with gr.Row():
-                    gr.Markdown("*💡 The slider above controls how many top models are shown in the radar chart, bar chart, and data table.*", elem_classes="radar-tip")
+                    gr.Markdown("*⚔️ - Model with our gaming agent*", elem_classes="radar-tip")
                 
                 # Add reference to Jupyter notebook
                 with gr.Row():
@@ -1183,10 +1194,10 @@ def build_app():
 
                 # Game selection section
                 with gr.Row():
-                    gr.Markdown("### 🎮 Game Selection")
+                    gr.Markdown("### 🕹️ Game Selection")
                 with gr.Row():
                     with gr.Column():
-                        gr.Markdown("**🎮 Super Mario Bros**")
+                        gr.Markdown("**🍄 Super Mario Bros**")
                         model_mario_plan_overall = gr.Checkbox(label="Super Mario Bros Score", value=True)
                         model_mario_plan_details = gr.Checkbox(label="Super Mario Bros Details", value=False)
                     with gr.Column():
@@ -1225,7 +1236,7 @@ def build_app():
                 with gr.Row():
                     gr.Markdown("*💡 The slider above controls how many top models are shown in the radar chart, bar chart, and data table.*", elem_classes="radar-tip")
                 
-                # Get initial leaderboard dataframe (no limit for model leaderboard)
+                # Get initial leaderboard dataframe (limited by default slider value for model leaderboard)
                 model_initial_df = get_combined_leaderboard(model_rank_data, {
                     "Super Mario Bros": True,
                     "Sokoban": True,
@@ -1233,7 +1244,7 @@ def build_app():
                     "Candy Crush": True,
                     "Tetris": True,
                     "Ace Attorney": True
-                })
+                }, limit_to_top_n=min(5, get_total_model_count(model_rank_data)))
                 
                 # Format the DataFrame for display
                 model_initial_display_df = prepare_dataframe_for_display(model_initial_df)
@@ -1331,7 +1342,7 @@ def build_app():
                     ] + model_checkbox_list
                 )
                 
-                # Initialize the model leaderboard (no limit)
+                # Initialize the model leaderboard (with default slider limit)
                 demo.load(
                     lambda: clear_filters(data_source=model_rank_data),
                     inputs=[],
