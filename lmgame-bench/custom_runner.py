@@ -107,8 +107,6 @@ def create_environment(game_name_arg: str,
                 env_specific_config = json.load(f)
                 env_init_kwargs = env_specific_config.get('env_init_kwargs', {})
                 env_init_params['dim_room'] = env_init_kwargs.get('dim_room', (10,10))
-                # print(env_init_kwargs)
-                # exit()
                 env_init_params['max_steps_per_level'] = env_init_kwargs.get('max_steps_per_level', 200)
                 env_init_params['num_boxes'] = env_init_kwargs.get('num_boxes', 3)
                 env_init_params['num_gen_steps'] = env_init_kwargs.get('num_gen_steps') # Can be None

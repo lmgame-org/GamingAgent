@@ -672,13 +672,15 @@
     "harness_true": {
       "sokoban": [
         10,
-        6
+        6,
+        12
       ],
       "super_mario_bros": [
         3445
       ],
       "tetris": [
-        42
+        42,
+        72
       ],
       "twenty_forty_eight": [
         7120
@@ -708,6 +710,16 @@
       ],
       "ace_attorney": [
         8
+      ]
+    }
+  },
+  "o3-pro-2025-06-10": {
+    "harness_true": {
+      "sokoban": [
+        15
+      ],
+      "tetris": [
+        106
       ]
     }
   },
