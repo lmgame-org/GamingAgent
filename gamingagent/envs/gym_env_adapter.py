@@ -1,12 +1,12 @@
 import os
 import json
-import datetime
-import hashlib
-from typing import Optional, Dict, Any, Tuple, List
 import numpy as np
+from datetime import datetime
+from typing import Optional, Dict, Any, Tuple, List
+import hashlib
 
-from gamingagent.modules.core_module import Observation
 from tools.utils import convert_numpy_to_python
+from gamingagent.modules.core_module import Observation
 
 SKIP_ACTION_IDX = -1 # Consistent with BaseGameEnv
 
@@ -152,6 +152,7 @@ class GymEnvAdapter:
         if self.current_episode_id == 1 or not self.all_episode_results: # A simple check, or clear if episode_id resets to 1
             self.all_episode_results = []
 
+        # Close previous episode log file if it exists
         if self.episode_log_file_handle is not None:
             try:
                 self.episode_log_file_handle.close()
@@ -159,10 +160,25 @@ class GymEnvAdapter:
                 print(f"[GymEnvAdapter] Warning: Error closing previous episode log file: {e}")
             self.episode_log_file_handle = None
         
+        # Create new episode log file
         self.episode_log_file_path = os.path.join(self.agent_cache_dir, f"episode_{self.current_episode_id:03d}_log.jsonl")
         try:
+            # Create directory if it doesn't exist
+            os.makedirs(os.path.dirname(self.episode_log_file_path), exist_ok=True)
+            
+            # Open file in append mode
             self.episode_log_file_handle = open(self.episode_log_file_path, 'a')
             print(f"[GymEnvAdapter] Logging episode {self.current_episode_id} data to: {self.episode_log_file_path}")
+            
+            # Write episode header
+            header = {
+                "episode_id": self.current_episode_id,
+                "timestamp": datetime.now().isoformat(),
+                "type": "episode_header"
+            }
+            self.episode_log_file_handle.write(json.dumps(header) + '\n')
+            self.episode_log_file_handle.flush()
+            
         except Exception as e:
             print(f"[GymEnvAdapter] ERROR: Could not open episode log file {self.episode_log_file_path}: {e}")
             self.episode_log_file_handle = None
@@ -225,6 +241,7 @@ class GymEnvAdapter:
         log_entry = {
             "episode_id": self.current_episode_id,
             "step": self.current_step_num,
+            "timestamp": datetime.now().isoformat(),
             "agent_action": agent_action_str,
             "thought": thought_process,
             "reward": float(reward),

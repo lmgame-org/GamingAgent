@@ -4,6 +4,7 @@ import json
 from datetime import datetime
 import os
 import requests
+from tools.serving.api_manager import APIManager
 
 logger = logging.getLogger(__name__)
 
@@ -205,23 +206,18 @@ class MetaCritiqueSystem:
     def _call_llm(self, prompt: str) -> str:
         """Call the LLM API with the given prompt."""
         try:
-            if self.vllm_url:
-                logger.info(f"Calling vLLM API at {self.vllm_url}")
-                response = requests.post(
-                    self.vllm_url,
-                    json={"prompt": prompt, "model": self.model_name}
+            # Initialize API manager if not already done
+            if not hasattr(self, 'api_manager'):
+                self.api_manager = APIManager(
+                    game_name="pokemon_red",
+                    vllm_url=self.vllm_url,
+                    modal_url=self.modal_url
                 )
-                return response.json()["response"]
-            elif self.modal_url:
-                logger.info(f"Calling Modal API at {self.modal_url}")
-                response = requests.post(
-                    self.modal_url,
-                    json={"prompt": prompt, "model": self.model_name}
-                )
-                return response.json()["response"]
-            else:
-                logger.warning("No LLM API URL provided. Returning prompt as is.")
-                return prompt
+            
+            # Use API manager to make the call
+            response = self.api_manager.call_llm(prompt, model_name=self.model_name)
+            return response
+            
         except Exception as e:
             logger.error(f"Error calling LLM API: {e}")
             return prompt

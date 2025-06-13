@@ -1,6 +1,11 @@
 from dataclasses import dataclass
 from enum import IntEnum, IntFlag
+from typing import Optional
+import time
+import logging
 
+# Configure logger
+logger = logging.getLogger(__name__)
 
 class StatusCondition(IntFlag):
     NONE = 0
@@ -734,12 +739,66 @@ class PokemonRedReader:
     def __init__(self, memory_view):
         """Initialize with a PyBoy memory view object"""
         self.memory = memory_view
+        self._verify_memory_access()
+
+    def _verify_memory_access(self) -> bool:
+        """Verify that memory access is working by reading a known value"""
+        try:
+            # Try to read player name - this should be initialized early in the game
+            name_bytes = self.memory[0xD158:0xD163]
+            if not name_bytes or all(b == 0 for b in name_bytes):
+                logger.warning("Memory verification failed: Player name bytes are all zero")
+                return False
+            return True
+        except Exception as e:
+            logger.error(f"Memory verification failed: {str(e)}")
+            return False
+
+    def _safe_read_memory(self, start_addr: int, length: int = 1, max_retries: int = 3) -> Optional[bytes]:
+        """Safely read memory with retries"""
+        for attempt in range(max_retries):
+            try:
+                if not (0 <= start_addr <= 0xFFFF):
+                    logger.warning(f"Invalid memory address: {hex(start_addr)}")
+                    return None
+                    
+                data = self.memory[start_addr:start_addr + length]
+                if data is None or len(data) == 0:
+                    logger.warning(f"Failed to read memory at {hex(start_addr)}")
+                    return None
+                    
+                return data
+            except Exception as e:
+                logger.warning(f"Memory read attempt {attempt + 1} failed: {str(e)}")
+                if attempt < max_retries - 1:
+                    time.sleep(0.1)  # Small delay before retry
+                continue
+        return None
+
+    def read_player_name(self) -> str:
+        """Read the player's name"""
+        name_bytes = self._safe_read_memory(0xD158, 11)
+        if name_bytes is None:
+            return "Not yet set"
+        return self._convert_text(name_bytes)
+
+    def read_rival_name(self) -> str:
+        """Read rival's name"""
+        name_bytes = self._safe_read_memory(0xD34A, 7)
+        if name_bytes is None:
+            return "Not yet set"
+        return self._convert_text(name_bytes)
 
     def read_money(self) -> int:
         """Read the player's money in Binary Coded Decimal format"""
-        b1 = self.memory[0xD349]  # Least significant byte
-        b2 = self.memory[0xD348]  # Middle byte
-        b3 = self.memory[0xD347]  # Most significant byte
+        b1 = self._safe_read_memory(0xD349)
+        b2 = self._safe_read_memory(0xD348)
+        b3 = self._safe_read_memory(0xD347)
+        
+        if any(x is None for x in [b1, b2, b3]):
+            return 0
+            
+        b1, b2, b3 = b1[0], b2[0], b3[0]
         money = (
             ((b3 >> 4) * 100000)
             + ((b3 & 0xF) * 10000)
@@ -749,6 +808,32 @@ class PokemonRedReader:
             + (b1 & 0xF)
         )
         return money
+
+    def read_location(self) -> str:
+        """Read current location name"""
+        map_id_bytes = self._safe_read_memory(0xD35E)
+        if map_id_bytes is None:
+            return "unknown"
+            
+        try:
+            map_id = map_id_bytes[0]
+            return MapLocation(map_id).name.replace("_", " ")
+        except (ValueError, IndexError) as e:
+            logger.warning(f"Failed to read location: {str(e)}")
+            return "unknown"
+
+    def read_coordinates(self) -> tuple[int, int]:
+        """Read player's current X,Y coordinates"""
+        x_bytes = self._safe_read_memory(0xD362)
+        y_bytes = self._safe_read_memory(0xD361)
+        
+        if x_bytes is None or y_bytes is None:
+            return (0, 0)
+            
+        try:
+            return (x_bytes[0], y_bytes[0])
+        except IndexError:
+            return (0, 0)
 
     def _convert_text(self, bytes_data: list[int]) -> str:
         """Convert Pokemon text format to ASCII"""
@@ -865,16 +950,6 @@ class PokemonRedReader:
                 result += f"[{b:02X}]"
         return result.strip()
 
-    def read_player_name(self) -> str:
-        """Read the player's name"""
-        name_bytes = self.memory[0xD158:0xD163]
-        return self._convert_text(name_bytes)
-
-    def read_rival_name(self) -> str:
-        """Read rival's name"""
-        name_bytes = self.memory[0xD34A:0xD351]
-        return self._convert_text(name_bytes)
-
     def read_badges(self) -> list[str]:
         """Read obtained badges as list of names"""
         badge_byte = self.memory[0xD356]
@@ -975,19 +1050,10 @@ class PokemonRedReader:
         seconds = self.memory[0xDA44]
         return (hours, minutes, seconds)
 
-    def read_location(self) -> str:
-        """Read current location name"""
-        map_id = self.memory[0xD35E]
-        return MapLocation(map_id).name.replace("_", " ")
-
     def read_tileset(self) -> str:
         """Read current map's tileset name"""
         tileset_id = self.memory[0xD367]
         return Tileset(tileset_id).name.replace("_", " ")
-
-    def read_coordinates(self) -> tuple[int, int]:
-        """Read player's current X,Y coordinates"""
-        return (self.memory[0xD362], self.memory[0xD361])
 
     def read_coins(self) -> int:
         """Read game corner coins"""

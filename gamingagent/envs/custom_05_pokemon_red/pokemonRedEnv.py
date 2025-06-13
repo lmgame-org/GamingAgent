@@ -66,11 +66,20 @@ class PokemonRedEnv(Env):
         self.action_space = spaces.Discrete(8)
         self.observation_space = spaces.Box(low=0, high=255, shape=(240, 256, 3), dtype=np.uint8)
         
-        # Action mapping
+        # Action mapping - ensure this matches game_env_config.json
         self.action_map = {
-            0: "a", 1: "b", 2: "start", 3: "select",
-            4: "up", 5: "down", 6: "left", 7: "right"
+            "a": 0,
+            "b": 1,
+            "start": 2,
+            "select": 3,
+            "up": 4,
+            "down": 5,
+            "left": 6,
+            "right": 7
         }
+        
+        # Reverse mapping for validation
+        self.reverse_action_map = {v: k for k, v in self.action_map.items()}
         
         # Emulator setup
         self.rom_path = rom_path
@@ -151,132 +160,99 @@ class PokemonRedEnv(Env):
         
         return agent_observation, info
 
-    def step(self, agent_action_str: Optional[str] = None, thought_process: str = "", time_taken_s: float = 0.0) -> Tuple[Observation, float, bool, bool, Dict[str, Any], float]:
-        """Execute one step in the environment.
-        
-        Args:
-            agent_action_str: The action string from the agent
-            thought_process: The agent's thought process
-            time_taken_s: Time taken by the agent to decide on the action
+    def _validate_action(self, action_name: str) -> bool:
+        """Validate if an action is valid."""
+        if not action_name:
+            logger.warning("Empty action name provided")
+            return False
             
-        Returns:
-            Tuple containing:
-            - Observation: The next observation
-            - float: The reward
-            - bool: Whether the episode is terminated
-            - bool: Whether the episode is truncated
-            - Dict[str, Any]: Additional information
-            - float: Performance score for this step
-        """
+        if action_name not in self.action_map:
+            logger.warning(f"Invalid action name: {action_name}")
+            logger.info(f"Valid actions are: {list(self.action_map.keys())}")
+            return False
+            
+        return True
+
+    def step(self, agent_action_str: Optional[str] = None, thought_process: str = "", time_taken_s: float = 0.0) -> Tuple[Observation, float, bool, bool, Dict[str, Any], float]:
+        """Execute one step in the environment."""
+        # Increment step number first
+        self.adapter.increment_step()
+        
         # Parse action string
-        base_action_name = "noop"
-        frame_count = 1
+        action_name = None
+        repeat_count = 1
         
         if agent_action_str:
-            # Handle tuple format (action, repeat_count)
-            if isinstance(agent_action_str, tuple):
-                base_action_name, frame_count = agent_action_str
-            elif agent_action_str.startswith("(") and agent_action_str.endswith(")"):
+            # Handle format: "(action, count)" or just "action"
+            agent_action_str = agent_action_str.strip()
+            if agent_action_str.startswith('(') and agent_action_str.endswith(')'):
+                # Parse "(action, count)" format
                 try:
                     content = agent_action_str[1:-1]  # Remove parentheses
                     parts = [part.strip() for part in content.split(',')]
                     if len(parts) == 2:
-                        base_action_name = parts[0].strip('"\'')  # Remove quotes if present
-                        frame_count = int(parts[1])
+                        action_name = parts[0].strip('"\'')  # Remove quotes if present
+                        repeat_count = int(parts[1])
+                    else:
+                        action_name = content.strip('"\'')
                 except (ValueError, IndexError):
-                    logger.warning(f"Invalid action format: {agent_action_str}")
-                    base_action_name = agent_action_str
+                    action_name = agent_action_str
             else:
-                base_action_name = agent_action_str.strip("()\\\' ")
+                action_name = agent_action_str
         
-        # Execute action using PyBoy
-        if self.pyboy:
-            # Map action string to button press
-            if base_action_name in self.adapter.move_to_action_idx:
-                button = base_action_name  # Use the action name directly
-                # Press and hold button for frame_count frames
-                self.pyboy.button_press(button)
-                for _ in range(frame_count):
-                    self.pyboy.tick()
-                self.pyboy.button_release(button)
-                # Add a small delay after action
-                self.pyboy.tick(10)
-            else:
-                logger.warning(f"Invalid action: {base_action_name}")
-                return self._get_observation(), 0.0, False, False, self._get_info(), 0.0
+        # Map action string to environment action
+        env_action_idx = self.adapter.map_agent_action_to_env_action(action_name)
         
-        # Get observation
-        observation = self._get_observation()
+        reward = 0.0
+        terminated = False
+        truncated = False
         
-        # Calculate reward
-        reward = self._calculate_reward()
-        
-        # Check termination conditions
-        terminated = self._check_terminated()
+        if env_action_idx is not None and self.action_space.contains(env_action_idx):
+            button = self.reverse_action_map[env_action_idx]
+            # Execute the action multiple times if specified
+            for _ in range(repeat_count):
+                self.press_buttons([button], wait=True)
+                if self._check_terminated():
+                    terminated = True
+                    break
+            reward = self._calculate_reward()
+        else:
+            print(f"[PokemonRedEnv] Action '{agent_action_str}' (parsed: '{action_name}', count: {repeat_count}) is skip/invalid. Env not stepped.")
+            reward = -0.01
+
+        self.num_env_steps += 1
         truncated = self._check_truncated()
+        self.current_reward_last_step = reward
         
-        # Get info
+        # Get game info and performance score
         info = self._get_info()
+        current_perf_score = self.calculate_perf_score(reward, info)
         
-        # Update game state in adapter
-        if hasattr(self.adapter, 'game_state'):
-            current_location = self.get_location()
-            current_inventory = self._get_inventory()
-            current_pokemon = self._get_pokemon_party()
-            current_quest = self._get_quest_state()
-            current_progress = self._get_game_progress()
-            current_map = self._get_map_data()
-            
-            self.adapter.game_state.update({
-                'location': current_location,
-                'inventory': current_inventory,
-                'pokemon': current_pokemon,
-                'quest_state': current_quest,
-                'game_progress': current_progress,
-                'map_data': current_map
-            })
-            
-            # Update navigation system if enabled
-            if self.navigation_enabled and current_location:
-                # Get collision map
-                if current_map is not None:
-                    # Update navigation system
-                    self.navigation_system.update_collision_map(
-                        location=current_location,
-                        collision_map=current_map
+        # Create observation for adapter
+        img_path_for_adapter = None
+        text_representation_for_adapter = None
+        
+        if self.pyboy:
+            try:
+                # Get screenshot
+                screenshot = self.pyboy.screen.ndarray
+                if screenshot is not None:
+                    # Save screenshot using adapter's path
+                    img_path_for_adapter = self.adapter._create_agent_observation_path(
+                        self.adapter.current_episode_id, self.adapter.current_step_num
                     )
+                    Image.fromarray(screenshot).save(img_path_for_adapter)
                     
-                    # Update memory module if available
-                    if hasattr(self.adapter, 'memory_module'):
-                        # Update location map
-                        self.adapter.memory_module.location_maps[current_location] = current_map
-                        
-                        # Update explored areas
-                        player_pos = self._get_player_position()
-                        if player_pos:
-                            # Mark current position as explored
-                            self.adapter.memory_module.add_explored_area(current_location, player_pos)
-                            
-                            # Add to navigation history
-                            self.adapter.memory_module.add_navigation_history(
-                                action=agent_action_str,
-                                location=current_location,
-                                coords=player_pos
-                            )
-                            
-                            # Update location labels if needed
-                            if hasattr(self.adapter, 'location_labels'):
-                                labels = self.adapter.location_labels.get(current_location, {})
-                                if labels:
-                                    self.navigation_system.location_labels[current_location] = labels
-                                    self.adapter.memory_module.location_labels[current_location] = labels
+                    # Get text representation
+                    text_representation_for_adapter = self._get_text_representation()
+            except Exception as e:
+                logger.error(f"Error getting observation: {str(e)}")
         
-        # Update meta-critique if enabled
-        if self.enable_reasoning_aids:
-            self._update_meta_critique(agent_action_str, str(observation))
-        
-        # Calculate performance score for this step
-        current_step_perf_score = self._calculate_step_perf_score(info)
+        # Create observation using adapter
+        observation = self.adapter.create_agent_observation(
+            img_path=img_path_for_adapter,
+            text_representation=text_representation_for_adapter
+        )
         
         # Log step data
         if hasattr(self.adapter, 'log_step_data'):
@@ -288,11 +264,11 @@ class PokemonRedEnv(Env):
                 terminated=terminated,
                 truncated=truncated,
                 time_taken_s=time_taken_s,
-                perf_score=current_step_perf_score,
+                perf_score=current_perf_score,
                 agent_observation=observation
             )
         
-        return observation, reward, terminated, truncated, info, current_step_perf_score
+        return observation, reward, terminated, truncated, info, current_perf_score
 
     def _save_game_frame(self, frame, episode_id: int, step_num: int) -> str:
         """Save the current game frame to a file.
@@ -305,33 +281,60 @@ class PokemonRedEnv(Env):
         Returns:
             str: Path to the saved frame
         """
-        # Create directory if it doesn't exist
-        os.makedirs(self.adapter.agent_cache_dir, exist_ok=True)
-        
-        # Create path for the frame
-        img_path = self.adapter._create_agent_observation_path(episode_id, step_num)
-        
-        # Save frame
-        Image.fromarray(frame).save(img_path)
-        
-        return img_path
+        try:
+            # Create directory if it doesn't exist
+            os.makedirs(self.adapter.agent_cache_dir, exist_ok=True)
+            
+            # Create path for the frame
+            img_path = self.adapter._create_agent_observation_path(episode_id, step_num)
+            
+            # Ensure frame is in correct format
+            if not isinstance(frame, np.ndarray):
+                frame = np.array(frame)
+            
+            if frame.shape != (144, 160, 3):
+                logger.warning(f"Invalid frame shape: {frame.shape}")
+                return img_path
+            
+            if frame.dtype != np.uint8:
+                frame = frame.astype(np.uint8)
+            
+            # Save frame
+            Image.fromarray(frame).save(img_path)
+            logger.debug(f"Saved frame to {img_path}")
+            
+            return img_path
+            
+        except Exception as e:
+            logger.error(f"Error saving game frame: {str(e)}")
+            logger.exception("Full traceback:")
+            return ""
 
     def _get_observation(self) -> Observation:
         """Get the current observation from the environment."""
-        # Get the current frame
-        frame = self.get_screenshot()
-        
-        # Save frame to file
-        img_path = self._save_game_frame(frame, self.adapter.current_episode_id, self.adapter.current_step_num)
-        
-        # Get textual representation
-        textual_representation = self.get_state_from_memory()
-        
-        # Create observation
-        return Observation(
-            img_path=img_path,
-            textual_representation=textual_representation
-        )
+        try:
+            # Get the current frame
+            frame = self.get_screenshot()
+            
+            # Save frame to file
+            img_path = self._save_game_frame(frame, self.adapter.current_episode_id, self.adapter.current_step_num)
+            
+            # Get textual representation
+            textual_representation = self.get_state_from_memory()
+            
+            # Create observation
+            return Observation(
+                img_path=img_path,
+                textual_representation=textual_representation
+            )
+            
+        except Exception as e:
+            logger.error(f"Error getting observation: {str(e)}")
+            logger.exception("Full traceback:")
+            return Observation(
+                img_path="",
+                textual_representation="Error getting observation"
+            )
 
     def _calculate_step_perf_score(self, info: Dict[str, Any]) -> float:
         """Calculate performance score for the current step."""
@@ -339,7 +342,7 @@ class PokemonRedEnv(Env):
         return float(info.get('reward', 0.0))
 
     def _get_player_position(self) -> Tuple[int, int]:
-        """Get player's current position."""
+        """Get player's current position with validation."""
         try:
             if not self._verify_game_running():
                 return (0, 0)
@@ -348,18 +351,26 @@ class PokemonRedEnv(Env):
             reader = PokemonRedReader(self.pyboy.memory)
             x, y = reader.read_coordinates()
             
-            logger.debug(f"Raw position values - X: {x} (type: {type(x)}), Y: {y} (type: {type(y)})")
+            # Validate coordinates
+            if not isinstance(x, (int, np.integer)) or not isinstance(y, (int, np.integer)):
+                logger.warning(f"Invalid coordinate types: X={type(x)}, Y={type(y)}")
+                return (0, 0)
+                
+            # Convert to int if numpy types
+            x = int(x)
+            y = int(y)
             
             # Verify values are reasonable (0-20 range)
             if 0 <= y < 20 and 0 <= x < 20:
                 logger.debug(f"Found valid position: ({x}, {y})")
                 return (x, y)
             
-            logger.warning(f"Could not find valid position values. Last values - X: {x}, Y: {y}")
+            logger.warning(f"Coordinates out of bounds: X={x}, Y={y}")
             return (0, 0)
             
         except Exception as e:
             logger.warning(f"Error getting player position: {str(e)}")
+            logger.exception("Full traceback:")
             return (0, 0)
 
     def _get_player_direction(self) -> str:
@@ -381,6 +392,94 @@ class PokemonRedEnv(Env):
         except Exception as e:
             logger.warning(f"Error getting player direction: {str(e)}")
             return "unknown"
+
+    def _get_direction(self, array):
+        """Determine the player's facing direction from the sprite pattern with validation."""
+        try:
+            if array is None or not isinstance(array, np.ndarray):
+                logger.warning("Invalid input array for direction detection")
+                return "no direction found"
+                
+            rows, cols = array.shape
+            logger.debug(f"Game area shape: {array.shape}")
+            
+            # Validate array dimensions
+            if rows < 2 or cols < 2:
+                logger.warning(f"Array too small for direction detection: {array.shape}")
+                return "no direction found"
+            
+            # Log the entire game area for debugging
+            logger.debug("Game area contents:")
+            for i in range(rows):
+                row = array[i].tolist()
+                logger.debug(f"Row {i}: {row}")
+
+            # Define direction patterns with more detailed logging
+            direction_patterns = {
+                "down": [0, 1, 2, 3],
+                "up": [4, 5, 6, 7],
+                "right": [9, 8, 11, 10],
+                "left": [8, 9, 10, 11]
+            }
+
+            # Check center area first (most likely to contain player)
+            center_row = rows // 2
+            center_col = cols // 2
+            
+            # Check a 3x3 area around center
+            for i in range(max(0, center_row-1), min(rows-1, center_row+2)):
+                for j in range(max(0, center_col-1), min(cols-1, center_col+2)):
+                    if i+1 >= rows or j+1 >= cols:
+                        continue
+                        
+                    try:
+                        # Get 2x2 grid and ensure it's a list of integers
+                        grid = array[i:i+2, j:j+2].flatten()
+                        grid_values = [int(x) for x in grid]
+                        logger.debug(f"Checking grid at ({i},{j}): {grid_values}")
+                        
+                        # Check each direction pattern
+                        for direction, pattern in direction_patterns.items():
+                            if grid_values == pattern:
+                                logger.debug(f"Found {direction.upper()} pattern at position ({i},{j})")
+                                logger.debug(f"Pattern values: {pattern}")
+                                logger.debug(f"Grid values: {grid_values}")
+                                return direction
+                    except Exception as e:
+                        logger.warning(f"Error checking grid at ({i},{j}): {str(e)}")
+                        continue
+
+            # If no pattern found in center area, check entire grid
+            for i in range(rows - 1):
+                for j in range(cols - 1):
+                    try:
+                        # Get 2x2 grid and ensure it's a list of integers
+                        grid = array[i:i+2, j:j+2].flatten()
+                        grid_values = [int(x) for x in grid]
+                        
+                        # Check each direction pattern
+                        for direction, pattern in direction_patterns.items():
+                            if grid_values == pattern:
+                                logger.debug(f"Found {direction.upper()} pattern at position ({i},{j})")
+                                logger.debug(f"Pattern values: {pattern}")
+                                logger.debug(f"Grid values: {grid_values}")
+                                return direction
+                    except Exception as e:
+                        logger.warning(f"Error checking grid at ({i},{j}): {str(e)}")
+                        continue
+
+            # If no pattern is found, log the entire grid for debugging
+            logger.warning("No direction pattern found in game area")
+            logger.debug("Full game area grid:")
+            for i in range(rows):
+                for j in range(cols):
+                    logger.debug(f"Position ({i},{j}): {array[i,j]}")
+            return "no direction found"
+            
+        except Exception as e:
+            logger.error(f"Error determining direction: {str(e)}")
+            logger.exception("Full traceback:")
+            return "no direction found"
 
     def _get_collision_map(self) -> Optional[np.ndarray]:
         """Get collision map for current location."""
@@ -410,22 +509,36 @@ class PokemonRedEnv(Env):
             return None
 
     def _get_map_data(self) -> Optional[np.ndarray]:
-        """Get current map data."""
+        """Get the current map data."""
         try:
             if not self._verify_game_running():
                 return None
                 
-            # Get map data from game wrapper
-            map_data = self.pyboy.game_wrapper.game_area()
-            if map_data is None:
-                logger.warning("Failed to get map data from game")
+            # Get map dimensions from game wrapper
+            try:
+                map_data = self.pyboy.game_wrapper.game_area()
+                if map_data is None:
+                    logger.warning("Failed to get map data from game wrapper")
+                    return None
+                    
+                # Convert to numpy array if not already
+                if not isinstance(map_data, np.ndarray):
+                    map_data = np.array(map_data)
+                    
+                # Ensure we have valid dimensions
+                if map_data.size == 0 or map_data.shape[0] == 0 or map_data.shape[1] == 0:
+                    logger.warning("Invalid map dimensions from game wrapper")
+                    return None
+                    
+                return map_data
+                
+            except Exception as e:
+                logger.warning(f"Error getting map data from game wrapper: {str(e)}")
                 return None
                 
-            # Downsample the map data to 10x10
-            return self._downsample_array(map_data)
-            
         except Exception as e:
-            logger.warning(f"Failed to create map data: {str(e)}")
+            logger.error(f"Failed to get map data: {str(e)}")
+            logger.exception("Full traceback:")
             return None
 
     def _calculate_reward(self) -> float:
@@ -447,55 +560,64 @@ class PokemonRedEnv(Env):
     def _get_info(self):
         """Get current game state information."""
         try:
-            # Get basic game state
-            location = self.get_location()
-            rival_name = self._get_rival_name()
-            money = self._get_money()
+            if not self._verify_game_running():
+                return {
+                    "player_name": "",
+                    "rival_name": "",
+                    "money": 0,
+                    "location": "unknown",
+                    "coordinates": (0, 0),
+                    "valid_moves": [],
+                    "badges": [],
+                    "inventory": {},
+                    "dialog": "",
+                    "pokemon_party": [],
+                    "battle_state": {"in_battle": False}
+                }
             
-            # Get party info using the correct method name
-            party_info = self._get_pokemon_party()
-            
-            # Get inventory
-            inventory = self._get_inventory()
-            
-            # Get quest state
-            quest_state = self._get_quest_state()
-            
-            # Get game progress
-            game_progress = self._get_game_progress()
-            
-            # Get text-based map
-            text_based_map = self._get_text_based_map()
-            
-            # Get screenshot if available
-            screenshot = self.get_screenshot() if self.pyboy else None
-            
-            # Create checkpoint info if reasoning aids are enabled
-            if self.adapter and hasattr(self.adapter, 'meta_critique_system'):
-                self.adapter.meta_critique_system.mark_checkpoint(
-                    location=location,
-                    inventory=inventory,
-                    pokemon=party_info,
-                    quest_state=quest_state,
-                    game_progress=game_progress,
-                    text_based_map=text_based_map,
-                    screenshot=screenshot
-                )
-            
-            return {
-                "location": location,
-                "rival_name": rival_name,
-                "money": money,
-                "party": party_info,
-                "inventory": inventory,
-                "quest_state": quest_state,
-                "game_progress": game_progress,
-                "text_based_map": text_based_map,
-                "screenshot": screenshot
+            # Get basic info
+            reader = PokemonRedReader(self.pyboy.memory)
+            info = {
+                "player_name": reader.read_player_name(),
+                "rival_name": reader.read_rival_name(),
+                "money": reader.read_money(),
+                "location": reader.read_location(),
+                "coordinates": reader.read_coordinates(),
+                "valid_moves": self._get_valid_moves(),
+                "inventory": self._get_inventory(),
+                "dialog": self._get_dialog(),
+                "pokemon_party": self._get_pokemon_party(),
+                "battle_state": self._get_battle_state()
             }
+            
+            # Add quest state if available
+            quest_state = self._get_quest_state()
+            if quest_state:
+                info["quest_state"] = quest_state
+                
+            # Add game progress if available
+            game_progress = self._get_game_progress()
+            if game_progress:
+                info["game_progress"] = game_progress
+                
+            return info
+            
         except Exception as e:
-            logger.warning(f"Error getting game state info: {str(e)}")
-            return {}
+            logger.error(f"Error getting game info: {str(e)}")
+            logger.exception("Full traceback:")
+            return {
+                "player_name": "",
+                "rival_name": "",
+                "money": 0,
+                "location": "unknown",
+                "coordinates": (0, 0),
+                "valid_moves": [],
+                "badges": [],
+                "inventory": {},
+                "dialog": "",
+                "pokemon_party": [],
+                "battle_state": {"in_battle": False}
+            }
 
     def _get_dialog(self) -> str:
         """Get current dialog text."""
@@ -503,16 +625,19 @@ class PokemonRedEnv(Env):
             return ""
             
         try:
-            # Get dialog from memory
-            dialog = ""
-            # Read dialog from memory addresses
-            for i in range(20):  # Pokemon Red dialog is 20 characters
-                char = self._get_memory_value(0xC4A0 + i)
-                if char:
-                    dialog += chr(char)
+            # Use PokemonRedReader for consistent dialog reading
+            reader = PokemonRedReader(self.pyboy.memory)
+            dialog = reader.read_dialog()
+            
+            # Validate dialog
+            if not dialog:
+                return ""
+                
             return dialog.strip()
+            
         except Exception as e:
             logger.warning(f"Error getting dialog: {e}")
+            logger.exception("Full traceback:")
             return ""
 
     def _get_menu_state(self) -> str:
@@ -521,8 +646,15 @@ class PokemonRedEnv(Env):
             return "none"
             
         try:
-            # Get menu state from memory
+            # Get menu state from memory using PokemonRedReader
+            reader = PokemonRedReader(self.pyboy.memory)
             menu_state = self._get_memory_value(0xD057)
+            
+            # Validate menu state
+            if not isinstance(menu_state, (int, np.integer)):
+                logger.warning(f"Invalid menu state type: {type(menu_state)}")
+                return "none"
+                
             menu_states = {
                 0: "none",
                 1: "main",
@@ -531,9 +663,12 @@ class PokemonRedEnv(Env):
                 4: "save",
                 5: "option"
             }
-            return menu_states.get(menu_state, "none")
+            
+            return menu_states.get(int(menu_state), "none")
+            
         except Exception as e:
             logger.warning(f"Error getting menu state: {e}")
+            logger.exception("Full traceback:")
             return "none"
 
     def _get_battle_state(self) -> Dict[str, Any]:
@@ -542,6 +677,7 @@ class PokemonRedEnv(Env):
             return {}
             
         try:
+            reader = PokemonRedReader(self.pyboy.memory)
             # Get battle state from memory
             battle_state = self._get_memory_value(0xD057)
             if battle_state == 0:
@@ -560,7 +696,7 @@ class PokemonRedEnv(Env):
             return {}
 
     def _get_text_based_map(self) -> Optional[np.ndarray]:
-        """Get text-based representation of current map."""
+        """Get text-based representation of current map with validation."""
         try:
             if not self._verify_game_running():
                 return None
@@ -574,11 +710,11 @@ class PokemonRedEnv(Env):
             # Get player position
             player_x, player_y = self._get_player_position()
             
-            # Create text-based map
-            text_map = np.full((20, 20), '.', dtype='U1')
+            # Create text-based map (using actual dimensions from map_data)
+            rows, cols = map_data.shape
+            text_map = np.full((rows, cols), '.', dtype='U1')
             
             # Map tile values to characters
-            # This is a simplified mapping - you may want to expand this
             tile_map = {
                 0: '.',  # Walkable
                 1: '#',  # Wall
@@ -593,15 +729,13 @@ class PokemonRedEnv(Env):
             }
             
             # Convert map data to text representation
-            # Convert numpy array to list for easier comparison
-            map_list = map_data.tolist()
-            for y in range(20):
-                for x in range(20):
-                    tile = map_list[y][x]
+            for y in range(rows):
+                for x in range(cols):
+                    tile = int(map_data[y, x])  # Ensure integer index
                     text_map[y, x] = tile_map.get(tile, '?')
             
-            # Add player position
-            if 0 <= player_x < 20 and 0 <= player_y < 20:
+            # Add player position if within bounds
+            if 0 <= player_y < rows and 0 <= player_x < cols:
                 text_map[player_y, player_x] = '@'
             
             logger.debug("Successfully created text-based map")
@@ -609,6 +743,7 @@ class PokemonRedEnv(Env):
             
         except Exception as e:
             logger.warning(f"Error creating text-based map: {str(e)}")
+            logger.exception("Full traceback:")
             return None
 
     def render(self, mode='rgb_array'):
@@ -642,8 +777,37 @@ class PokemonRedEnv(Env):
     def get_screenshot(self):
         """Get the current screenshot as numpy array"""
         if not self.pyboy:
-            return np.zeros((240, 256, 3), dtype=np.uint8)
-        return np.array(self.pyboy.screen.ndarray)
+            return np.zeros((144, 160, 3), dtype=np.uint8)
+            
+        try:
+            # Get screenshot from PyBoy
+            screen = self.pyboy.screen.ndarray
+            if screen is None:
+                logger.warning("Failed to get screenshot from PyBoy")
+                return np.zeros((144, 160, 3), dtype=np.uint8)
+            
+            # Ensure the array is in the correct format
+            if not isinstance(screen, np.ndarray):
+                screen = np.array(screen)
+            
+            # Ensure the array has the correct shape and type
+            if screen.shape != (144, 160, 4):  # PyBoy returns RGBA
+                logger.warning(f"Invalid screenshot shape: {screen.shape}")
+                return np.zeros((144, 160, 3), dtype=np.uint8)
+            
+            # Convert RGBA to RGB
+            screen = screen[:, :, :3]
+            
+            # Ensure the array is uint8
+            if screen.dtype != np.uint8:
+                screen = screen.astype(np.uint8)
+            
+            return screen
+            
+        except Exception as e:
+            logger.error(f"Error getting screenshot: {str(e)}")
+            logger.exception("Full traceback:")
+            return np.zeros((144, 160, 3), dtype=np.uint8)
 
     def load_state(self, state_filename):
         """Load a state from file"""
@@ -696,42 +860,68 @@ class PokemonRedEnv(Env):
 
     def get_location(self):
         """Returns the player's current location name"""
-        reader = PokemonRedReader(self.pyboy.memory)
-        return reader.read_location()
-
-    def _get_direction(self, array):
-        """Determine the player's facing direction from the sprite pattern"""
-        rows, cols = array.shape
-
-        for i in range(rows - 1):
-            for j in range(cols - 1):
-                grid = array[i : i + 2, j : j + 2].flatten()
-
-                if list(grid) == [0, 1, 2, 3]:
-                    return "down"
-                elif list(grid) == [4, 5, 6, 7]:
-                    return "up"
-                elif list(grid) == [9, 8, 11, 10]:
-                    return "right"
-                elif list(grid) == [8, 9, 10, 11]:
-                    return "left"
-
-        return "no direction found"
+        try:
+            if not self._verify_game_running():
+                return "unknown"
+                
+            reader = PokemonRedReader(self.pyboy.memory)
+            location = reader.read_location()
+            
+            # Validate location
+            if not location or location == "UNKNOWN":
+                logger.warning("Invalid location returned from memory")
+                return "unknown"
+                
+            return location
+            
+        except Exception as e:
+            logger.error(f"Error reading location: {str(e)}")
+            logger.exception("Full traceback:")
+            return "unknown"
 
     def _downsample_array(self, arr):
-        """Downsample an 18x20 array to 9x10 by averaging 2x2 blocks"""
-        if arr.shape != (18, 20):
-            raise ValueError("Input array must be 18x20")
-        return arr.reshape(9, 2, 10, 2).mean(axis=(1, 3))
+        """Downsample an array by averaging 2x2 blocks with validation."""
+        try:
+            if not isinstance(arr, np.ndarray):
+                raise ValueError(f"Input must be numpy array, got {type(arr)}")
+                
+            rows, cols = arr.shape
+            if rows % 2 != 0 or cols % 2 != 0:
+                raise ValueError(f"Input array dimensions must be even, got {arr.shape}")
+                
+            # Calculate output dimensions
+            out_rows = rows // 2
+            out_cols = cols // 2
+            
+            # Create output array
+            result = np.zeros((out_rows, out_cols), dtype=arr.dtype)
+            
+            # Reshape and average
+            for i in range(out_rows):
+                for j in range(out_cols):
+                    block = arr[i*2:i*2+2, j*2:j*2+2]
+                    result[i, j] = np.mean(block)
+                    
+            return result
+            
+        except Exception as e:
+            logger.error(f"Error in downsampling: {str(e)}")
+            logger.exception("Full traceback:")
+            raise
 
     def _get_valid_moves(self) -> List[str]:
         """Get list of valid moves based on current position and collision map."""
         try:
             if not self._verify_game_running():
+                logger.error("Game is not running")
                 return []
                 
             # Get position from PokemonRedReader
             reader = PokemonRedReader(self.pyboy.memory)
+            if not hasattr(reader, 'verify_memory_access') or not reader.verify_memory_access():
+                logger.error("Failed to access game memory for position")
+                return []
+                
             x, y = reader.read_coordinates()
             
             # Scale coordinates to 10x10 grid
@@ -741,6 +931,7 @@ class PokemonRedEnv(Env):
             # Get collision map
             collision_map = self._get_collision_map()
             if collision_map is None:
+                logger.error("Failed to get collision map")
                 return []
                 
             valid_moves = []
@@ -755,10 +946,14 @@ class PokemonRedEnv(Env):
             if x < 9 and collision_map[y, x+1] == 0:
                 valid_moves.append("right")
                 
+            if not valid_moves:
+                logger.warning(f"No valid moves found at position ({x}, {y})")
+                
             return valid_moves
             
         except Exception as e:
-            logger.warning(f"Error getting valid moves: {str(e)}")
+            logger.error(f"Error getting valid moves: {str(e)}")
+            logger.exception("Full traceback:")
             return []
 
     def _can_move_between_tiles(self, tile1: int, tile2: int, tileset: str) -> bool:
@@ -945,48 +1140,198 @@ class PokemonRedEnv(Env):
 
     def get_state_from_memory(self) -> str:
         """Reads the game state from memory and returns a string representation"""
-        reader = PokemonRedReader(self.pyboy.memory)
-        memory_str = ""
+        try:
+            if not self.pyboy:
+                logger.error("PyBoy instance not initialized")
+                return "Error: Game not initialized"
+                
+            reader = PokemonRedReader(self.pyboy.memory)
+            
+            # Verify memory access
+            if not reader._verify_memory_access():
+                logger.error("Failed to verify memory access")
+                return "Error: Cannot access game memory"
+                
+            memory_str = ""
 
-        name = reader.read_player_name()
-        if name == "NINTEN":
-            name = "Not yet set"
-        rival_name = reader.read_rival_name()
-        if rival_name == "SONY":
-            rival_name = "Not yet set"
+            # Read basic info with safe memory access
+            name = reader.read_player_name()
+            rival_name = reader.read_rival_name()
+            money = reader.read_money()
+            location = reader.read_location()
+            coords = reader.read_coordinates()
+            
+            # Get valid moves with error handling
+            try:
+                valid_moves = self._get_valid_moves()
+                valid_moves_str = ", ".join(valid_moves) if valid_moves else "None"
+            except Exception as e:
+                logger.warning(f"Failed to get valid moves: {str(e)}")
+                valid_moves_str = "None"
 
-        valid_moves = self._get_valid_moves()
-        valid_moves_str = ", ".join(valid_moves) if valid_moves else "None"
+            # Get badges with error handling
+            try:
+                badges = reader.read_badges()
+                badges_str = ", ".join(badges) if badges else "None"
+            except Exception as e:
+                logger.warning(f"Failed to get badges: {str(e)}")
+                badges_str = "None"
 
-        memory_str += f"Player: {name}\n"
-        memory_str += f"Rival: {rival_name}\n"
-        memory_str += f"Money: ${reader.read_money()}\n"
-        memory_str += f"Location: {reader.read_location()}\n"
-        memory_str += f"Coordinates: {reader.read_coordinates()}\n"
-        memory_str += f"Valid Moves: {valid_moves_str}\n"
-        memory_str += f"Badges: {', '.join(reader.read_badges())}\n"
+            # Get inventory with error handling
+            try:
+                inventory = reader.read_items()
+                inventory_str = "\n".join(f"  {item} x{qty}" for item, qty in inventory)
+            except Exception as e:
+                logger.warning(f"Failed to get inventory: {str(e)}")
+                inventory_str = "  None"
 
-        memory_str += "Inventory:\n"
-        for item, qty in reader.read_items():
-            memory_str += f"  {item} x{qty}\n"
+            # Build the state string
+            memory_str += f"Player: {name}\n"
+            memory_str += f"Rival: {rival_name}\n"
+            memory_str += f"Money: ${money}\n"
+            memory_str += f"Location: {location}\n"
+            memory_str += f"Coordinates: {coords}\n"
+            memory_str += f"Valid Moves: {valid_moves_str}\n"
+            memory_str += f"Badges: {badges_str}\n"
+            memory_str += "Inventory:\n"
+            memory_str += inventory_str
 
-        dialog = reader.read_dialog()
-        if dialog:
-            memory_str += f"Dialog: {dialog}\n"
-        else:
-            memory_str += "Dialog: None\n"
+            return memory_str
+            
+        except Exception as e:
+            logger.error(f"Error getting game state: {str(e)}")
+            logger.exception("Full traceback:")
+            return "Error: Failed to read game state"
 
-        memory_str += "\nPokemon Party:\n"
-        for pokemon in reader.read_party_pokemon():
-            memory_str += f"\n{pokemon.nickname} ({pokemon.species_name}):\n"
-            memory_str += f"Level {pokemon.level} - HP: {pokemon.current_hp}/{pokemon.max_hp}\n"
-            memory_str += f"Types: {pokemon.type1.name}{', ' + pokemon.type2.name if pokemon.type2 else ''}\n"
-            for move, pp in zip(pokemon.moves, pokemon.move_pp, strict=True):
-                memory_str += f"- {move} (PP: {pp})\n"
-            if pokemon.status != StatusCondition.NONE:
-                memory_str += f"Status: {pokemon.status.get_status_name()}\n"
+    def _get_memory_value(self, address: int) -> int:
+        """Get value from memory address with validation."""
+        if not self.pyboy:
+            return 0
+            
+        try:
+            # Validate memory address (PyBoy memory is 0x0000-0xFFFF)
+            if not (0 <= address <= 0xFFFF):
+                logger.warning(f"Invalid memory address: {hex(address)}")
+                return 0
+                
+            # Use PokemonRedReader for consistent memory access
+            reader = PokemonRedReader(self.pyboy.memory)
+            data = reader._safe_read_memory(address)
+            
+            if data is None:
+                return 0
+                
+            value = data[0]
+            
+            # Ensure value is within valid range (0-255 for single byte)
+            if not (0 <= value <= 255):
+                logger.warning(f"Invalid memory value at {hex(address)}: {value}")
+                return 0
+                
+            return value
+            
+        except Exception as e:
+            logger.error(f"Error reading memory at {hex(address)}: {str(e)}")
+            return 0
 
-        return memory_str
+    def _verify_game_running(self) -> bool:
+        """Verify that the game is running and memory is accessible."""
+        try:
+            if not self.pyboy:
+                return False
+                
+            # Check if we can read from a known good address
+            # D35E: Current map number (should always be readable)
+            map_id = self._get_memory_value(0xD35E)
+            
+            # Just verify we can read memory, don't check value
+            # Map ID 0 is valid (PALLET TOWN)
+            return True
+        except Exception as e:
+            logger.warning(f"Error verifying game state: {e}")
+            return False
+
+    def _get_inventory(self) -> Dict[str, int]:
+        """Get current inventory items and quantities."""
+        if not self.pyboy:
+            return {}
+            
+        try:
+            reader = PokemonRedReader(self.pyboy.memory)
+            items = reader.read_items()
+            return {item: qty for item, qty in items}
+        except Exception as e:
+            logger.warning(f"Error getting inventory: {e}")
+            return {}
+
+    def _get_pokemon_party(self) -> List[Dict[str, Any]]:
+        """Get current Pokemon party information."""
+        if not self.pyboy:
+            return []
+            
+        try:
+            reader = PokemonRedReader(self.pyboy.memory)
+            party = reader.read_party_pokemon()
+            return [{
+                'species': pokemon.species_name,
+                'level': pokemon.level,
+                'current_hp': pokemon.current_hp,
+                'max_hp': pokemon.max_hp,
+                'status': pokemon.status.get_status_name(),
+                'moves': [{'name': move, 'pp': pp} for move, pp in zip(pokemon.moves, pokemon.move_pp)]
+            } for pokemon in party]
+        except Exception as e:
+            logger.warning(f"Error getting Pokemon party: {e}")
+            return []
+
+    def _get_quest_state(self) -> Dict[str, Any]:
+        """Get current quest state."""
+        if not self.pyboy:
+            return {}
+            
+        try:
+            reader = PokemonRedReader(self.pyboy.memory)
+            badges = reader.read_badges()
+            return {f"badge_{i+1}": badge in badges for i, badge in enumerate([
+                "BOULDER", "CASCADE", "THUNDER", "RAINBOW",
+                "SOUL", "MARSH", "VOLCANO", "EARTH"
+            ])}
+        except Exception as e:
+            logger.warning(f"Error getting quest state: {e}")
+            return {}
+
+    def _get_game_progress(self) -> Dict[str, Any]:
+        """Get current game progress."""
+        if not self.pyboy:
+            return {}
+            
+        try:
+            reader = PokemonRedReader(self.pyboy.memory)
+            return {
+                'badges': reader.read_badges(),
+                'pokemon_seen': reader.read_pokedex_caught_count(),
+                'pokemon_caught': reader.read_pokedex_caught_count(),
+                'current_map': reader.read_location(),
+                'player_level': self._get_player_level()
+            }
+        except Exception as e:
+            logger.warning(f"Error getting game progress: {e}")
+            return {}
+
+    def _get_player_level(self) -> int:
+        """Get player's level."""
+        if not self.pyboy:
+            return 0
+            
+        try:
+            reader = PokemonRedReader(self.pyboy.memory)
+            party = reader.read_party_pokemon()
+            if party:
+                return party[0].level
+            return 0
+        except Exception as e:
+            logger.warning(f"Error getting player level: {e}")
+            return 0
 
     def _update_navigation_system(self):
         """Update navigation system with current collision map and player position."""
@@ -1051,89 +1396,40 @@ class PokemonRedEnv(Env):
             logger.exception("Full traceback:")
 
     def _create_collision_map(self):
-        """Create a collision map from the current game state."""
+        """Create a collision map for navigation."""
         try:
-            if not self.pyboy:
-                logger.error("Cannot create collision map: PyBoy not initialized")
+            if not self._verify_game_running():
                 return None
-
-            # Check if we're in a valid game state
-            reader = PokemonRedReader(self.pyboy.memory)
-            dialog = reader.read_dialog()
-            if dialog and "NEW GAME" in dialog:
-                logger.info("Game is in title screen state - collision map not available yet")
+                
+            # Get map data from game wrapper
+            map_data = self._get_map_data()
+            if map_data is None:
+                logger.warning("Failed to get map data for collision map")
                 return None
-
-            # Get collision data
-            collision_map = self.pyboy.game_wrapper.game_area_collision()
-            if collision_map is None:
-                logger.error("Failed to get collision data from game")
+                
+            # Get collision data from game wrapper
+            collision_data = self.pyboy.game_wrapper.game_area_collision()
+            if collision_data is None:
+                logger.warning("Failed to get collision data")
                 return None
-
-            # Downsample the collision map
-            downsampled_terrain = self._downsample_array(collision_map)
-            
-            # Get sprite locations
-            sprite_locations = self.get_sprites()
-            
-            # Get player direction
-            game_area = self.pyboy.game_wrapper.game_area()
-            direction = self._get_direction(game_area)
-            if direction == "no direction found":
-                logger.warning("Could not determine player direction for collision map")
+                
+            # Convert to numpy array if not already
+            if not isinstance(collision_data, np.ndarray):
+                collision_data = np.array(collision_data)
+                
+            # Ensure we have valid dimensions
+            if collision_data.size == 0 or collision_data.shape[0] == 0 or collision_data.shape[1] == 0:
+                logger.warning("Invalid collision map dimensions")
                 return None
-
-            # Direction symbols
-            direction_chars = {"up": "↑", "down": "↓", "left": "←", "right": "→"}
-            player_char = direction_chars.get(direction, "P")
-
-            # Create the ASCII map
-            horizontal_border = "+" + "-" * 10 + "+"
-            lines = [horizontal_border]
-
-            # Create each row
-            for i in range(9):
-                row = "|"
-                for j in range(10):
-                    if i == 4 and j == 4:
-                        # Player position with direction
-                        row += player_char
-                    elif (j, i) in sprite_locations:
-                        # Sprite position
-                        row += "S"
-                    else:
-                        # Terrain representation
-                        if downsampled_terrain[i][j] == 0:
-                            row += "█"  # Wall
-                        else:
-                            row += "·"  # Path
-                row += "|"
-                lines.append(row)
-
-            # Add bottom border
-            lines.append(horizontal_border)
-
-            # Add legend
-            lines.extend([
-                "",
-                "Legend:",
-                "█ - Wall/Obstacle",
-                "· - Path/Walkable",
-                "S - Sprite",
-                f"{direction_chars['up']}/{direction_chars['down']}/{direction_chars['left']}/{direction_chars['right']} - Player (facing direction)",
-            ])
-
-            # Join all lines with newlines
-            ascii_map = "\n".join(lines)
+                
+            # Create binary collision map (0 = walkable, 1 = collision)
+            collision_map = np.zeros_like(collision_data, dtype=bool)
+            collision_map[collision_data > 0] = True
             
-            # Log the collision map
-            logger.info(f"Generated collision map:\n{ascii_map}")
-            
-            # Return the downsampled terrain for navigation
-            return downsampled_terrain
+            return collision_map
             
         except Exception as e:
-            logger.error(f"Error creating collision map: {e}")
+            logger.error(f"Failed to create collision map: {str(e)}")
             logger.exception("Full traceback:")
             return None
 
@@ -1183,12 +1479,17 @@ class PokemonRedEnv(Env):
 
     def _update_meta_critique(self, action: str, observation: str):
         """Update meta-critique system with current state."""
+        if not self.adapter or not hasattr(self.adapter, 'meta_critique_system'):
+            logger.error("Meta-critique system not properly initialized")
+            return False
+            
         try:
-            if not self.adapter or not hasattr(self.adapter, 'meta_critique_system'):
-                return
-                
             # Get current state
             current_location = self.get_location()
+            if not current_location or current_location == "unknown":
+                logger.error("Failed to get valid location")
+                return False
+                
             current_inventory = self._get_inventory()
             current_pokemon = self._get_pokemon_party()
             current_quest = self._get_quest_state()
@@ -1202,13 +1503,16 @@ class PokemonRedEnv(Env):
                 inventory=current_inventory,
                 pokemon=current_pokemon,
                 quest_state=current_quest,
-                game_progress=current_progress,
-                text_based_map=current_map,
-                screenshot=current_screenshot
+                game_progress=current_progress
             )
             
+            logger.info(f"Successfully updated meta-critique system with location: {current_location}")
+            return True
+            
         except Exception as e:
-            logger.warning(f"Error updating meta-critique: {str(e)}")
+            logger.error(f"Error updating meta-critique: {str(e)}")
+            logger.exception("Full traceback:")
+            return False
 
     def _verify_state_consistency(self, observation: str):
         """Verify that the game state is consistent with the observation."""
@@ -1286,410 +1590,65 @@ class PokemonRedEnv(Env):
                 runner_log_dir_base=self.adapter.agent_cache_dir
             )
             
+            # Set self.meta_critique to reference the adapter's meta-critique system
+            self.meta_critique = self.adapter.meta_critique_system
+            
+            # Get current state
+            current_location = self.get_location()
+            current_inventory = self._get_inventory()
+            current_pokemon = self._get_pokemon_party()
+            current_quest = self._get_quest_state()
+            current_progress = self._get_game_progress()
+            
             # Mark initial checkpoint with current state
+            # Exclude text_based_map and screenshot as they're not essential for reasoning
             self.adapter.meta_critique_system.mark_checkpoint(
-                location=self.get_location(),
-                inventory=self._get_inventory(),
-                pokemon=self._get_pokemon_party(),
-                quest_state=self._get_quest_state(),
-                game_progress=self._get_game_progress(),
-                text_based_map=self._get_text_based_map(),
-                screenshot=self.get_screenshot() if self.pyboy else None
+                location=current_location,
+                inventory=current_inventory,
+                pokemon=current_pokemon,
+                quest_state=current_quest,
+                game_progress=current_progress
             )
             
             logger.info("Reasoning aids system enabled and initialized")
         except Exception as e:
             logger.error(f"Failed to enable reasoning aids: {str(e)}")
+            logger.exception("Full traceback:")
 
-    def _get_memory_value(self, address: int) -> int:
-        """Get value from memory address."""
-        if not self.pyboy:
-            return 0
-            
-        try:
-            # Direct memory access
-            value = self.pyboy.memory[address]
-            # Convert to int if it's a numpy array
-            if isinstance(value, np.ndarray):
-                value = value.item()
-            return int(value)  # Ensure we return an int
-        except Exception as e:
-            logger.warning(f"Error reading memory at {hex(address)}: {e}")
-            return 0
-
-    def _verify_game_running(self) -> bool:
-        """Verify that the game is running and memory is accessible."""
-        try:
-            if not self.pyboy:
-                return False
-                
-            # Check if we can read from a known good address
-            # D35E: Current map number (should always be readable)
-            map_id = self._get_memory_value(0xD35E)
-            
-            # Just verify we can read memory, don't check value
-            # Map ID 0 is valid (PALLET TOWN)
-            return True
-        except Exception as e:
-            logger.warning(f"Error verifying game state: {e}")
-            return False
-
-    def _get_inventory(self) -> Dict[str, int]:
-        """Get current inventory items and quantities."""
-        if not self.pyboy:
-            return {}
-            
-        try:
-            # Get inventory from memory
-            inventory = {}
-            # Read inventory items from memory addresses
-            for i in range(20):  # Pokemon Red has 20 inventory slots
-                item_id = self._get_memory_value(0xD31D + i)
-                if item_id:
-                    item_name = self._get_item_name(item_id)
-                    if item_name:
-                        inventory[item_name] = 1  # Default quantity
-            return inventory
-        except Exception as e:
-            logger.warning(f"Error getting inventory: {e}")
-            return {}
-
-    def _get_pokemon_data(self, slot: int) -> Dict[str, Any]:
-        """Get Pokemon data for a specific party slot."""
-        if not self.pyboy:
-            return None
-            
-        try:
-            # Base address for Pokemon data
-            base_addr = 0xD16B + (slot * 44)  # Each Pokemon takes 44 bytes
-            
-            # Read Pokemon data
-            species = self._get_memory_value(base_addr)
-            if not species:
-                return None
-                
-            # Get Pokemon name
-            name = self._get_pokemon_name(species)
-            
-            # Get level
-            level = self._get_memory_value(base_addr + 1)
-            
-            # Get HP
-            current_hp = self._get_memory_value(base_addr + 2)
-            max_hp = self._get_memory_value(base_addr + 3)
-            
-            # Get status
-            status = self._get_memory_value(base_addr + 4)
-            
-            # Get moves
-            moves = []
-            for i in range(4):
-                move_id = self._get_memory_value(base_addr + 5 + i)
-                if move_id:
-                    move_name = self._get_move_name(move_id)
-                    pp = self._get_memory_value(base_addr + 9 + i)
-                    moves.append({
-                        'name': move_name,
-                        'pp': pp
-                    })
-            
-            return {
-                'species': name,
-                'level': level,
-                'current_hp': current_hp,
-                'max_hp': max_hp,
-                'status': self._get_status_name(status),
-                'moves': moves
-            }
-        except Exception as e:
-            logger.warning(f"Error getting Pokemon data: {e}")
-            return None
-
-    def _get_pokemon_name(self, species_id: int) -> str:
-        """Get Pokemon name from species ID."""
-        # Map of species IDs to names
-        pokemon_names = {
-            1: "BULBASAUR",
-            2: "IVYSAUR",
-            3: "VENUSAUR",
-            4: "CHARMANDER",
-            5: "CHARMELEON",
-            6: "CHARIZARD",
-            7: "SQUIRTLE",
-            8: "WARTORTLE",
-            9: "BLASTOISE",
-            # Add more Pokemon as needed
-        }
-        return pokemon_names.get(species_id, f"POKEMON_{species_id}")
-
-    def _get_move_name(self, move_id: int) -> str:
-        """Get move name from move ID."""
-        # Map of move IDs to names
-        move_names = {
-            1: "POUND",
-            2: "KARATE CHOP",
-            3: "DOUBLESLAP",
-            4: "COMET PUNCH",
-            5: "MEGA PUNCH",
-            # Add more moves as needed
-        }
-        return move_names.get(move_id, f"MOVE_{move_id}")
-
-    def _get_status_name(self, status_id: int) -> str:
-        """Get status condition name from status ID."""
-        status_names = {
-            0: "OK",
-            1: "POISON",
-            2: "BURN",
-            3: "FREEZE",
-            4: "SLEEP",
-            5: "PARALYZE"
-        }
-        return status_names.get(status_id, "UNKNOWN")
-
-    def _get_badges(self) -> List[str]:
-        """Get list of obtained badges."""
-        if not self.pyboy:
-            return []
-            
-        try:
-            badges = []
-            badge_names = [
-                "BOULDER",
-                "CASCADE",
-                "THUNDER",
-                "RAINBOW",
-                "SOUL",
-                "MARSH",
-                "VOLCANO",
-                "EARTH"
-            ]
-            
-            for i, name in enumerate(badge_names):
-                if self._get_memory_value(0xD57A + i):
-                    badges.append(name)
-            return badges
-        except Exception as e:
-            logger.warning(f"Error getting badges: {e}")
-            return []
-
-    def _get_pokemon_seen(self) -> int:
-        """Get number of Pokemon seen."""
-        if not self.pyboy:
-            return 0
-            
-        try:
-            return self._get_memory_value(0xD2F7)
-        except Exception as e:
-            logger.warning(f"Error getting Pokemon seen: {e}")
-            return 0
-
-    def _get_pokemon_caught(self) -> int:
-        """Get number of Pokemon caught."""
-        if not self.pyboy:
-            return 0
-            
-        try:
-            return self._get_memory_value(0xD2F8)
-        except Exception as e:
-            logger.warning(f"Error getting Pokemon caught: {e}")
-            return 0
-
-    def _get_current_map(self) -> str:
-        """Get current map name."""
+    def _get_text_representation(self) -> str:
+        """Get a text representation of the current game state."""
         try:
             if not self._verify_game_running():
-                return "unknown"
+                return "Error: Game not running"
                 
-            # Get current map from memory
-            # D35E: Current map number
-            map_id = self._get_memory_value(0xD35E)
-            # Convert to int if it's a numpy array
-            if isinstance(map_id, np.ndarray):
-                map_id = map_id.item()
+            # Get basic game state
+            reader = PokemonRedReader(self.pyboy.memory)
+            location = reader.read_location()
+            coords = reader.read_coordinates()
+            dialog = reader.read_dialog()
             
-            # Map names based on official RAM map
-            map_names = {
-                0: "PALLET TOWN",
-                1: "VIRIDIAN CITY",
-                2: "PEWTER CITY",
-                3: "CERULEAN CITY",
-                4: "LAVENDER TOWN",
-                5: "VERMILION CITY",
-                6: "CELADON CITY",
-                7: "FUCHSIA CITY",
-                8: "CINNABAR ISLAND",
-                9: "INDIGO PLATEAU",
-                10: "SAFFRON CITY",
-                11: "ROUTE 1",
-                12: "ROUTE 2",
-                13: "ROUTE 3",
-                14: "ROUTE 4",
-                15: "ROUTE 5",
-                16: "ROUTE 6",
-                17: "ROUTE 7",
-                18: "ROUTE 8",
-                19: "ROUTE 9",
-                20: "ROUTE 10",
-                21: "ROUTE 11",
-                22: "ROUTE 12",
-                23: "ROUTE 13",
-                24: "ROUTE 14",
-                25: "ROUTE 15",
-                26: "ROUTE 16",
-                27: "ROUTE 17",
-                28: "ROUTE 18",
-                29: "ROUTE 19",
-                30: "ROUTE 20",
-                31: "ROUTE 21",
-                32: "ROUTE 22",
-                33: "ROUTE 23",
-                34: "ROUTE 24",
-                35: "ROUTE 25"
-            }
+            # Get valid moves
+            valid_moves = self._get_valid_moves()
+            valid_moves_str = ", ".join(valid_moves) if valid_moves else "None"
             
-            map_name = map_names.get(map_id, f"MAP_{map_id}")
-            logger.debug(f"Current map: {map_name} (ID: {map_id})")
-            return map_name
+            # Get text-based map
+            text_map = self._get_text_based_map()
+            map_str = ""
+            if text_map is not None:
+                map_str = "\n".join(["".join(row) for row in text_map])
+            
+            # Build text representation
+            text_rep = f"Location: {location}\n"
+            text_rep += f"Coordinates: {coords}\n"
+            text_rep += f"Valid Moves: {valid_moves_str}\n"
+            if dialog:
+                text_rep += f"Dialog: {dialog}\n"
+            if map_str:
+                text_rep += f"Map:\n{map_str}\n"
+            
+            return text_rep
             
         except Exception as e:
-            logger.warning(f"Error getting current map: {str(e)}")
-            return "unknown"
-
-    def _get_player_level(self) -> int:
-        """Get player's level."""
-        if not self.pyboy:
-            return 0
-            
-        try:
-            return self._get_memory_value(0xD18C)
-        except Exception as e:
-            logger.warning(f"Error getting player level: {e}")
-            return 0
-
-    def _get_pokemon_party(self) -> List[Dict[str, Any]]:
-        """Get current Pokemon party information."""
-        if not self.pyboy:
-            return []
-            
-        try:
-            party = []
-            # Read party Pokemon from memory
-            for i in range(6):  # Pokemon Red has 6 party slots
-                pokemon_data = self._get_pokemon_data(i)
-                if pokemon_data:
-                    party.append(pokemon_data)
-            return party
-        except Exception as e:
-            logger.warning(f"Error getting Pokemon party: {e}")
-            return []
-
-    def _get_quest_state(self) -> Dict[str, Any]:
-        """Get current quest state."""
-        if not self.pyboy:
-            return {}
-            
-        try:
-            # Get quest flags from memory
-            quest_flags = {}
-            # Read quest flags from memory addresses
-            for i in range(8):  # Pokemon Red has 8 gym badges
-                badge_flag = self._get_memory_value(0xD57A + i)
-                if badge_flag:
-                    quest_flags[f"badge_{i+1}"] = True
-            return quest_flags
-        except Exception as e:
-            logger.warning(f"Error getting quest state: {e}")
-            return {}
-
-    def _get_game_progress(self) -> Dict[str, Any]:
-        """Get current game progress."""
-        if not self.pyboy:
-            return {}
-            
-        try:
-            # Get game progress from memory
-            progress = {
-                'badges': self._get_badges(),
-                'pokemon_seen': self._get_pokemon_seen(),
-                'pokemon_caught': self._get_pokemon_caught(),
-                'current_map': self._get_current_map(),
-                'player_level': self._get_player_level()
-            }
-            return progress
-        except Exception as e:
-            logger.warning(f"Error getting game progress: {e}")
-            return {}
-
-    def _get_item_name(self, item_id: int) -> str:
-        """Get item name from item ID."""
-        # Map of item IDs to names
-        item_names = {
-            1: "MASTER BALL",
-            2: "ULTRA BALL",
-            3: "GREAT BALL",
-            4: "POKE BALL",
-            5: "TOWN MAP",
-            6: "BICYCLE",
-            7: "SURFBOARD",
-            8: "SAFARI BALL",
-            9: "POKEDEX",
-            10: "POTION",
-            # Add more items as needed
-        }
-        return item_names.get(item_id, f"ITEM_{item_id}")
-
-    def _get_player_name(self) -> str:
-        """Get player's name."""
-        if not self.pyboy:
-            return ""
-            
-        try:
-            # Get player name from memory
-            # 0xD158: Start of player name (10 characters)
-            name = ""
-            for i in range(10):
-                char = self._get_memory_value(0xD158 + i)
-                if char == 0x50:  # End of name marker
-                    break
-                name += chr(char)
-            return name.strip()
-        except Exception as e:
-            logger.warning(f"Error getting player name: {e}")
-            return ""
-
-    def _get_rival_name(self) -> str:
-        """Get rival's name."""
-        if not self.pyboy:
-            return ""
-            
-        try:
-            # Get rival name from memory
-            # 0xD34A: Start of rival name (10 characters)
-            name = ""
-            for i in range(10):
-                char = self._get_memory_value(0xD34A + i)
-                if char == 0x50:  # End of name marker
-                    break
-                name += chr(char)
-            return name.strip()
-        except Exception as e:
-            logger.warning(f"Error getting rival name: {e}")
-            return ""
-
-    def _get_money(self) -> int:
-        """Get player's money."""
-        if not self.pyboy:
-            return 0
-            
-        try:
-            # Get money from memory
-            # 0xD347: Money (3 bytes, BCD format)
-            money = 0
-            for i in range(3):
-                byte = self._get_memory_value(0xD347 + i)
-                money = (money * 100) + ((byte >> 4) * 10) + (byte & 0x0F)
-            return money
-        except Exception as e:
-            logger.warning(f"Error getting money: {e}")
-            return 0
+            logger.error(f"Error getting text representation: {str(e)}")
+            logger.exception("Full traceback:")
+            return "Error: Failed to get text representation"
