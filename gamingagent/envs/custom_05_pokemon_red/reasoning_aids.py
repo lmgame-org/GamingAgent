@@ -156,6 +156,11 @@ Note: At times there will be long periods of nonactivity where another program i
 class MetaCritiqueSystem:
     def __init__(self, checkpoint_file: str = "checkpoints.json", model_name: str = "default", vllm_url: Optional[str] = None, modal_url: Optional[str] = None, runner_log_dir_base: Optional[str] = None):
         # Use runner_log_dir_base if provided, otherwise fallback to default cache directory
+        if runner_log_dir_base is None:
+            runner_log_dir_base = "."
+            
+        # Ensure the directory exists
+        os.makedirs(runner_log_dir_base, exist_ok=True)
         
         self.checkpoint_file = os.path.join(runner_log_dir_base, checkpoint_file)
         
@@ -190,6 +195,9 @@ class MetaCritiqueSystem:
 
     def _save_checkpoints(self):
         """Save checkpoints to file."""
+        # Ensure the directory exists before saving
+        os.makedirs(os.path.dirname(self.checkpoint_file), exist_ok=True)
+        
         with open(self.checkpoint_file, 'w') as f:
             json.dump(self.checkpoints, f, indent=2)
         logger.info(f"Saved {len(self.checkpoints)} checkpoints to {self.checkpoint_file}")
