@@ -621,6 +621,7 @@ def main():
         custom_modules=custom_modules_for_agent,
         observation_mode=args.observation_mode,
         scaffolding=scaffolding_tuple,
+
         cache_dir=runner_log_dir_base,
         vllm_url=args.vllm_url,
         modal_url=args.modal_url
