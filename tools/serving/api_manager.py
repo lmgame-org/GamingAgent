@@ -32,7 +32,13 @@ from .api_providers import (
     together_ai_text_completion,
     together_ai_multiimage_completion,
     deepseek_text_reasoning_completion,
-    xai_grok_completion,
+    xai_grok_text_completion,
+    vllm_text_completion,
+    vllm_completion,
+    vllm_multiimage_completion,
+    modal_vllm_text_completion,
+    modal_vllm_completion,
+    modal_vllm_multiimage_completion,
 )
 
 # Import cost calculator utilities
@@ -71,7 +77,9 @@ class APIManager:
         base_cache_dir: str = "cache",
         enable_logging: bool = True,
         info: Optional[Dict[str, Any]] = None,
-        session_dir: Optional[str] = None
+        session_dir: Optional[str] = None,
+        vllm_url: Optional[str] = None,
+        modal_url: Optional[str] = None
     ):
         """
         Initialize the API Manager.
@@ -89,6 +97,9 @@ class APIManager:
         self.base_cache_dir = base_cache_dir
         self.enable_logging = enable_logging
         self.info = info or {}
+
+        self.vllm_url = vllm_url
+        self.modal_url = modal_url
         
         # Create timestamp for this session (use from info if provided)
         self.timestamp = self.info.get('datetime', datetime.datetime.now().strftime("%Y%m%d_%H%M%S"))
@@ -371,7 +382,7 @@ class APIManager:
         temperature: float = 1,
         thinking: bool = False,
         reasoning_effort: str = "medium",
-        token_limit: int = 30000
+        token_limit: int = 30000,
     ) -> Tuple[str, Dict[str, Any]]:
         """
         Make a combined vision-text completion API call.
@@ -444,6 +455,27 @@ class APIManager:
                     prompt=prompt,
                     token_limit=token_limit
                 )
+            elif model_name.startswith("vllm-"):
+                completion = vllm_completion(
+                    system_prompt=system_prompt,
+                    model_name=model_name,
+                    prompt=prompt,
+                    base64_image=base64_image,
+                    temperature=temperature,
+                    token_limit=token_limit,
+                    url=self.vllm_url
+                )
+            elif model_name.startswith("modal-"):
+                # TODO: make different modal backend configurable
+                completion = modal_vllm_completion(
+                    system_prompt=system_prompt,
+                    model_name=model_name,
+                    prompt=prompt,
+                    base64_image=base64_image,
+                    temperature=temperature,
+                    token_limit=token_limit,
+                    url=self.modal_url
+                )
             elif "llama" in model_name.lower() or "meta" in model_name.lower() or (model_name == "deepseek-ai/DeepSeek-R1") or (model_name == "Qwen/Qwen3-235B-A22B-fp8-turbo"):
                 completion = together_ai_completion(
                     system_prompt=system_prompt,
@@ -491,7 +523,7 @@ class APIManager:
         base64_image: Optional[str] = None, 
         session_name: Optional[str] = None,
         temperature: float = 0,
-        thinking: bool = False
+        thinking: bool = False,
     ) -> Tuple[str, Dict[str, Any]]:
         """
         Make a vision-only completion API call.
@@ -555,6 +587,25 @@ class APIManager:
                     base64_image=base64_image,
                     prompt=empty_prompt
                 )
+            elif model_name.startswith("vllm-"):
+                completion = vllm_completion(
+                    system_prompt=system_prompt,
+                    model_name=model_name,
+                    prompt=empty_prompt,
+                    base64_image=base64_image,
+                    temperature=temperature,
+                    url=self.vllm_url
+                )
+            elif model_name.startswith("modal-"):
+                # TODO: make different modal backend configurable
+                completion = modal_vllm_completion(
+                    system_prompt=system_prompt,
+                    model_name=model_name,
+                    prompt=empty_prompt,
+                    base64_image=base64_image,
+                    temperature=temperature,
+                    url=self.modal_url
+                )
             else:
                 raise ValueError(f"Unsupported model: {model_name}")
             
@@ -614,7 +665,7 @@ class APIManager:
         temperature: float = 1,
         thinking: bool = False,
         reasoning_effort: str = "medium",
-        token_limit: int = 30000
+        token_limit: int = 30000,
     ) -> Tuple[str, Dict[str, Any]]:
         """
         Make a text-only completion API call.
@@ -668,6 +719,25 @@ class APIManager:
                     prompt=prompt,
                     token_limit=token_limit
                 )
+            elif model_name.startswith("vllm-"):
+                completion = vllm_text_completion(
+                    system_prompt=system_prompt,
+                    model_name=model_name,
+                    prompt=prompt,
+                    temperature=temperature,
+                    token_limit=token_limit,
+                    url=self.vllm_url
+                )
+            elif model_name.startswith("modal-"):
+                # TODO: make different modal backend configurable
+                completion = modal_vllm_text_completion(
+                    system_prompt=system_prompt,
+                    model_name=model_name,
+                    prompt=prompt,
+                    temperature=temperature,
+                    token_limit=token_limit,
+                    url=self.modal_url
+                )
             elif "llama" in model_name.lower() or "meta" in model_name.lower() or (model_name == "Qwen/Qwen3-235B-A22B-fp8") or (model_name == "deepseek-ai/DeepSeek-R1"):
                 completion = together_ai_text_completion(
                     system_prompt=system_prompt,
@@ -684,7 +754,7 @@ class APIManager:
                     token_limit=token_limit
                 )
             elif "grok" in model_name.lower():
-                completion = xai_grok_completion(
+                completion = xai_grok_text_completion(
                     system_prompt=system_prompt,
                     model_name=model_name,
                     prompt=prompt,
@@ -734,8 +804,7 @@ class APIManager:
             logger.error(f"Error in text-only completion API call: {e}")
             raise
     
-    # Legacy methods for backward compatibility
-    
+    # Legacy methods for backward compatibility  
     def vision_completion(
         self, 
         model_name: str, 
@@ -747,7 +816,7 @@ class APIManager:
         temperature: float = 1,
         thinking: bool = False,
         reasoning_effort: str = "medium",
-        token_limit: int = 30000
+        token_limit: int = 30000,
     ) -> Tuple[str, Dict[str, Any]]:
         """
         Legacy method for vision-based completion API call.
@@ -779,7 +848,8 @@ class APIManager:
             temperature=temperature,
             thinking=thinking,
             reasoning_effort=reasoning_effort,
-            token_limit=token_limit
+            token_limit=token_limit,
+            url=self.modal_url
         )
     
     def text_completion(
@@ -791,7 +861,7 @@ class APIManager:
         temperature: float = 1,
         thinking: bool = False,
         reasoning_effort: str = "medium",
-        token_limit: int = 30000
+        token_limit: int = 30000,
     ) -> Tuple[str, Dict[str, Any]]:
         """
         Legacy method for text-only completion API call.
@@ -819,7 +889,8 @@ class APIManager:
             temperature=temperature,
             thinking=thinking,
             reasoning_effort=reasoning_effort,
-            token_limit=token_limit
+            token_limit=token_limit,
+            url=self.modal_url
         )
     
     def multi_image_completion(
@@ -832,7 +903,7 @@ class APIManager:
         list_image_base64: Optional[List[str]] = None,
         session_name: Optional[str] = None,
         temperature: float = 1,
-        reasoning_effort: str = "medium"
+        reasoning_effort: str = "medium",
     ) -> Tuple[str, Dict[str, Any]]:
         """
         Make a multi-image completion API call.
@@ -907,6 +978,25 @@ class APIManager:
                     list_content=list_content,
                     list_image_base64=list_image_base64,
                     temperature=temperature
+                )
+            elif model_name.startswith("vllm-"):
+                completion = vllm_multiimage_completion(
+                    system_prompt=system_prompt,
+                    model_name=model_name,
+                    prompt=prompt,
+                    base64_image=list_image_base64,
+                    temperature=temperature,
+                    url=self.vllm_url
+                )
+            elif model_name.startswith("modal-"):
+                # TODO: make different modal backend configurable
+                completion = modal_vllm_multiimage_completion(
+                    system_prompt=system_prompt,
+                    model_name=model_name,
+                    prompt=prompt,
+                    base64_image=list_image_base64,
+                    temperature=temperature,
+                    url=self.modal_url,
                 )
             else:
                 raise ValueError(f"Unsupported model: {model_name}")

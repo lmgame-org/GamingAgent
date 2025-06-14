@@ -54,6 +54,20 @@ def parse_arguments(defaults_map=None, argv_to_parse=None):
     parser.add_argument("--seed", type=int, default=None, help="Random seed for environment.")
     # Env type is fixed to custom gym for this runner
 
+    # Serving-related arguments
+    parser.add_argument(
+        "--modal_url",
+        type=str,
+        default=None,
+        help="Optional URL for a Modal‑hosted inference endpoint passed to BaseAgent.",
+    )
+    parser.add_argument(
+        "--vllm_url",
+        type=str,
+        default=None,
+        help="Optional URL for a vLLM inference endpoint passed to BaseAgent.",
+    )
+
     if defaults_map:
         parser.set_defaults(**defaults_map)
         
@@ -586,7 +600,9 @@ def main():
         max_memory=args.max_memory, 
         custom_modules=custom_modules_for_agent,
         observation_mode=args.observation_mode,
-        cache_dir=runner_log_dir_base # Ensure agent uses the same cache_dir
+        cache_dir=runner_log_dir_base,
+        vllm_url=args.vllm_url,
+        modal_url=args.modal_url
     )
     
     # runner_log_dir = agent.cache_dir # Agent already sets its cache_dir, this can be removed or used for verification
