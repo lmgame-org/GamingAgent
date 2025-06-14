@@ -9,7 +9,7 @@ import os
 import json
 from datetime import datetime
 
-from .memory_reader import PokemonRedReader, StatusCondition
+from gamingagent.envs.custom_05_pokemon_red.memory_reader import PokemonRedReader, StatusCondition
 from PIL import Image
 from pyboy import PyBoy
 
@@ -20,7 +20,7 @@ from gamingagent.envs.gym_env_adapter import GymEnvAdapter
 from gamingagent.modules.core_module import Observation
 from gamingagent.envs.custom_05_pokemon_red.navigation_system import NavigationSystem
 from gamingagent.envs.custom_05_pokemon_red.navigation_assistant import NavigationAssistant
-from .reasoning_aids import MetaCritiqueSystem
+from gamingagent.envs.custom_05_pokemon_red.reasoning_aids import MetaCritiqueSystem
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -45,13 +45,17 @@ class PokemonRedEnv(Env):
                  vllm_url: Optional[str] = None,
                  modal_url: Optional[str] = None,
                  enable_reasoning_aids=False,
-                 runner_log_dir_base: Optional[str] = None):
+                 runner_log_dir_base: Optional[str] = None,
+                 initial_state: Optional[str] = None):
         super().__init__()
         
         # Store model configuration
         self.model_name = model_name
         self.vllm_url = vllm_url
         self.modal_url = modal_url
+        
+        # Store initial state path
+        self.initial_state = initial_state
         
         # Initialize adapter
         self.adapter = GymEnvAdapter(
@@ -117,6 +121,15 @@ class PokemonRedEnv(Env):
             self.pyboy = PyBoy(self.rom_path, cgb=True, sound=self.sound)
         else:
             self.pyboy = PyBoy(self.rom_path, window="null", cgb=True)
+            
+        # Load initial state if provided
+        if self.initial_state and os.path.exists(self.initial_state):
+            try:
+                self.load_state(self.initial_state)
+                logger.info(f"Loaded initial state from {self.initial_state}")
+            except Exception as e:
+                logger.error(f"Failed to load initial state: {str(e)}")
+                logger.exception("Full traceback:")
 
     def reset(self, *, seed: Optional[int] = None, options: Optional[Dict[str, Any]] = None, episode_id: int = 1) -> Tuple[Observation, Dict[str, Any]]:
         """Reset the environment to initial state"""

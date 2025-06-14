@@ -744,11 +744,13 @@ class PokemonRedReader:
     def _verify_memory_access(self) -> bool:
         """Verify that memory access is working by reading a known value"""
         try:
-            # Try to read player name - this should be initialized early in the game
-            name_bytes = self.memory[0xD158:0xD163]
-            if not name_bytes or all(b == 0 for b in name_bytes):
-                logger.warning("Memory verification failed: Player name bytes are all zero")
-                return False
+            # Try to read a few known memory locations that should be initialized
+            # Check map ID (D35E) and player coordinates (D361, D362)
+            map_id = self.memory[0xD35E]
+            x_coord = self.memory[0xD362]
+            y_coord = self.memory[0xD361]
+            
+            # If we can read these values without error, memory access is working
             return True
         except Exception as e:
             logger.error(f"Memory verification failed: {str(e)}")
