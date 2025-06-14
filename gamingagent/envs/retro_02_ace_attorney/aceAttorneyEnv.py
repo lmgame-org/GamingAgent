@@ -20,10 +20,8 @@ from gamingagent.envs.gym_env_adapter import GymEnvAdapter
 # --- Constants ---
 ASSETS_DIR = os.path.join(os.path.dirname(__file__), "assets")
 DEFAULT_GAME_SCRIPT_PATH = os.path.join(ASSETS_DIR, "mapping.json")
-DEFAULT_SKIP_CONVERSATIONS_PATH = os.path.join(ASSETS_DIR, "skip_conversations.json")
+DEFAULT_END_STATEMENTS_PATH = os.path.join(ASSETS_DIR, "skip_conversations.json")
 LIVES_RAM_VARIABLE_NAME = "lives" # Example RAM variable, confirm actual name from .json
-CKPT_FILE_NAME = "ckpt.json" # ADDED
-DIALOGUE_LOG_FILE_NAME = "dialogues.jsonl" # ADDED
 
 # Ensure PIL is imported for image operations if any are done directly here
 # from PIL import Image
@@ -34,8 +32,8 @@ class AceAttorneyEnv(gym.Env):
     This environment wraps the gym-retro environment.
     Only 'lives' is reliably extracted from RAM. Dialogue and other game state
     elements are intended to be perceived by the agent from visual input.
-    Level progression based on dialogue end statements is currently non-functional
-    due to lack of direct dialogue extraction by the environment.
+    Level progression is handled by checking for end statement matches in dialogue
+    and automatically advancing to the next level when conditions are met.
     """
     metadata = {
         'render.modes': ['human', 'rgb_array'],
@@ -62,7 +60,7 @@ class AceAttorneyEnv(gym.Env):
         # Custom parameters
         wrapper_render_mode: Optional[str] = "rgb_array", # "human" or "rgb_array"
         game_script_path: str = DEFAULT_GAME_SCRIPT_PATH,
-        skip_conversations_path: str = DEFAULT_SKIP_CONVERSATIONS_PATH,
+        end_statements_path: str = DEFAULT_END_STATEMENTS_PATH,
         initial_lives: int = 5 # Default initial lives
     ):
         """
@@ -88,7 +86,7 @@ class AceAttorneyEnv(gym.Env):
             adapter_max_stuck_steps: Max steps for stuck detection by adapter.
             wrapper_render_mode: Render mode for the environment wrapper ('human', 'rgb_array').
             game_script_path: Path to the game script JSON file (e.g., mapping.json).
-            skip_conversations_path: Path to JSON file for skipping known dialogue sequences.
+            end_statements_path: Path to JSON file containing end statements for level progression.
             initial_lives: The starting number of lives/penalties.
         """
         # Register the close method to be called upon script exit.
@@ -134,7 +132,7 @@ class AceAttorneyEnv(gym.Env):
         self._load_game_script_data(game_script_path) # Loads mapping.json content
 
         self.skip_conversation_data: Dict[str, Any] = {}
-        self._load_skip_conversation_data(skip_conversations_path)
+        self._load_skip_conversation_data(end_statements_path)
         
         self.initial_lives = initial_lives
         self.current_lives = self.initial_lives
@@ -181,14 +179,15 @@ class AceAttorneyEnv(gym.Env):
                 print(f"[AceAttorneyEnv] Error decoding JSON from game script {script_path}: {e}")
         else: self.game_script_data = {}
 
-    def _load_skip_conversation_data(self, skip_path: str):
-        if os.path.exists(skip_path):
+    def _load_skip_conversation_data(self, end_statements_path: str):
+        """Loads end statement data for level progression from JSON file."""
+        if os.path.exists(end_statements_path):
             try:
-                with open(skip_path, 'r', encoding='utf-8') as f:
+                with open(end_statements_path, 'r', encoding='utf-8') as f:
                     self.skip_conversation_data = json.load(f)
-                # print(f"[AceAttorneyEnv] Loaded skip conversation data: {skip_path}")
+                # print(f"[AceAttorneyEnv] Loaded end statements data: {end_statements_path}")
             except Exception as e:
-                print(f"[AceAttorneyEnv] ERROR loading skip conversation data {skip_path}: {e}")
+                print(f"[AceAttorneyEnv] ERROR loading end statements data {end_statements_path}: {e}")
         else: pass
 
     def _initialize_level_specific_data(self):
@@ -199,7 +198,6 @@ class AceAttorneyEnv(gym.Env):
         self.current_level_evidence_map = {}
         self.current_level_all_scripted_evidence = []
         self.current_level_dialogue_log = []
-        self.current_level_skip_map = {}
         self.current_level_end_statements = []
 
         if not self.current_retro_state_name or not self.game_script_data:
@@ -217,12 +215,12 @@ class AceAttorneyEnv(gym.Env):
         self.current_level_evidence_map = level_data.get("evidence_mappings", {})
         self.current_level_all_scripted_evidence = level_data.get("evidences", [])
 
+        # Only load end statements from skip_conversation_data
         level_skip_data = self.skip_conversation_data.get(self.current_retro_state_name)
         if level_skip_data:
-            self.current_level_skip_map = {k: v for k, v in level_skip_data.items() if k != "end_statement"}
             self.current_level_end_statements = level_skip_data.get("end_statement", [])
         else:
-            # print(f"[AceAttorneyEnv] WARNING: No skip/end data for level: {self.current_retro_state_name}")
+            # print(f"[AceAttorneyEnv] WARNING: No end statement data for level: {self.current_retro_state_name}")
             pass
 
         # print(f"[AceAttorneyEnv] Initialized data for level: {self.current_retro_state_name}")
@@ -415,133 +413,6 @@ class AceAttorneyEnv(gym.Env):
         # print(f"[AceAttorneyEnv RESET] Reset complete. Current state: '{self.current_retro_state_name}', Lives: {self.current_lives}. Returning initial observation.")
         return agent_obs, agent_facing_info
 
-    def _check_and_trigger_skip_sequence(self) -> Optional[Tuple[Observation, SupportsFloat, bool, bool, Dict[str, Any], float]]:
-        """
-        Checks if the last dialogue line in history triggers a skip sequence.
-        If so, executes 'A' presses and returns the state after skipping.
-        Returns None if no skip sequence is triggered.
-        """
-        if not self.dialogue_history_for_agent: # Check if history is empty
-            return None
-        # print(f"[AceAttorneyEnv _check_and_trigger_skip_sequence] Dialogue ket: {self.dialogue_history_for_agent[-1]}")
-        trigger_key = self.dialogue_history_for_agent[-1] # Use the last line from history
-
-        # Ensure current_level_skip_map is populated
-        if not hasattr(self.adapter, 'map_agent_action_to_env_action'):
-            print("[AceAttorneyEnv _check_and_trigger_skip_sequence] ERROR: adapter not fully initialized or missing map_agent_action_to_env_action.")
-            return None
-        
-        # Assuming 'a' is the action string for pressing the A button.
-        # We need the actual button array for 'A'.
-        action_A_array = self.adapter.map_agent_action_to_env_action("a")
-        if action_A_array is None:
-            print("[AceAttorneyEnv _check_and_trigger_skip_sequence] ERROR: Could not map 'a' to an action array. Check game_env_config.json.")
-            # Fallback: try to create a plausible 'A' button array if num_buttons is known
-            # This assumes 'A' is the 9th button (index 8) for a 12-button layout.
-            if self.num_buttons == 12:
-                action_A_array = np.array([0,0,0,0,0,0,0,0,1,0,0,0], dtype=bool)
-                # print("[AceAttorneyEnv _check_and_trigger_skip_sequence] WARNING: Using hardcoded 'A' button for skipping due to mapping failure.")
-            else:
-                print("[AceAttorneyEnv _check_and_trigger_skip_sequence] CRITICAL: Cannot determine 'A' button action for skipping.")
-                return None
-
-        # print(f"[AceAttorneyEnv _check_and_trigger_skip_sequence] Current level skip map: {self.current_level_skip_map}")
-        if self.current_level_skip_map and trigger_key in self.current_level_skip_map:
-            lines_to_skip = self.current_level_skip_map[trigger_key]
-            num_skips = len(lines_to_skip)
-
-            if num_skips == 0:
-                return None # No lines to skip for this trigger
-
-            # print(f"[AceAttorneyEnv DEBUG _check_and_trigger_skip_sequence] Matched skip trigger: '{trigger_key}'. Skipping {num_skips} lines.")
-
-            # Add the dialogue lines that are being skipped to the agent's history
-            for skipped_dialogue_line in lines_to_skip:
-                self.dialogue_history_for_agent.append(skipped_dialogue_line)
-                # Attempt to parse and store the skipped dialogue line
-                try:
-                    parts = skipped_dialogue_line.split(": ", 1)
-                    if len(parts) == 2:
-                        speaker, text = parts[0], parts[1]
-                        parsed_dialogue_data_for_storage = {"speaker": speaker, "text": text}
-                        if hasattr(self, "store_llm_extracted_dialogue"):
-                            self.store_llm_extracted_dialogue(parsed_dialogue_data_for_storage)
-                    else:
-                        # Log a warning if the line doesn't conform to "Speaker: Text"
-                        print(f"[AceAttorneyEnv _check_and_trigger_skip_sequence] WARNING: Could not parse skipped dialogue line for storage (expected 'Speaker: Text' format): '{skipped_dialogue_line}'")
-                except Exception as e:
-                    print(f"[AceAttorneyEnv _check_and_trigger_skip_sequence] ERROR storing skipped dialogue line '{skipped_dialogue_line}': {e}")
-
-            accumulated_skip_reward: float = 0.0
-            skip_terminated: bool = False
-            skip_truncated: bool = False
-            final_skip_obs: Optional[Observation] = None
-            final_skip_info: Dict[str, Any] = {}
-            
-            # num_frames_for_no_op_pause_in_skip = 200 # Define the pause length
-            # Use the class attribute for unified no-op pause duration
-            no_op_action_for_skip_pause = np.zeros(self.num_buttons, dtype=bool)
-
-            for i in range(num_skips):
-                # --- 1. Press 'A' (1 frame) ---
-                # print(f"[AceAttorneyEnv DEBUG _check_and_trigger_skip_sequence] Skip Turn {i+1}/{num_skips}: Pressing 'A'.")
-                ram_obs_A, reward_A, term_A, trunc_A, self.current_core_info = self.env.step(action_A_array)
-                self.current_raw_frame = self.env.em.get_screen()
-                self._update_internal_game_state(self.current_core_info)
-                if self.current_lives <= 0: term_A = True
-                
-                skip_terminated = term_A
-                skip_truncated = trunc_A
-                if self.wrapper_render_mode == "human": self.render()
-
-                if skip_terminated or skip_truncated:
-                    print(f"[AceAttorneyEnv DEBUG _check_and_trigger_skip_sequence] Terminated/Truncated after 'A' press in skip turn {i+1}.")
-                    break # Exit the main skip loop
-
-                # --- 2. Execute No-Op Pause (e.g., 200 frames) ---
-                # print(f"[AceAttorneyEnv DEBUG _check_and_trigger_skip_sequence] Skip Turn {i+1}/{num_skips}: Starting {num_frames_for_no_op_pause_in_skip}-frame no-op pause.")
-                # Use self.num_frames_for_no_op_pause here
-                for _ in range(self.num_frames_for_no_op_pause): 
-                    ram_obs_noop, reward_noop, term_noop, trunc_noop, self.current_core_info = self.env.step(no_op_action_for_skip_pause)
-                    self.current_raw_frame = self.env.em.get_screen()
-                    self._update_internal_game_state(self.current_core_info)
-                    if self.current_lives <= 0: term_noop = True
-                    
-                    skip_terminated = term_noop
-                    skip_truncated = trunc_noop
-                    if self.wrapper_render_mode == "human": self.render()
-
-                    if skip_terminated or skip_truncated:
-                        print(f"[AceAttorneyEnv DEBUG _check_and_trigger_skip_sequence] Terminated/Truncated during no-op pause in skip turn {i+1}.")
-                        break # Exit no-op pause loop
-                
-                if skip_terminated or skip_truncated: # Check again to break main skip loop if no-op pause terminated
-                    break
-            
-            # After skip loop, build the final observation and info
-            final_skip_info = self._get_agent_info()
-            skip_block_perf_score = 0.0 # MODIFIED
-
-            img_path_skip, txt_rep_skip, bg_rep_skip = self._build_agent_observation_components(final_skip_info, skip_screenshot=False)
-            final_skip_obs = self.adapter.create_agent_observation(img_path=img_path_skip, text_representation=txt_rep_skip, background_info=bg_rep_skip)
-            print(self.dialogue_history_for_agent)
-
-            # Log this entire skip block as a single meta-action
-            self.adapter.log_step_data(
-                agent_action_str=f"<AUTO_SKIP_BLOCK_{num_skips}_FRAMES>",
-                thought_process=f"Auto-skipped {num_skips} dialogue lines triggered by: {trigger_key}",
-                reward=0,
-                info=final_skip_info.copy(),
-                terminated=skip_terminated,
-                truncated=skip_truncated,
-                time_taken_s=0.0, # Mechanical skip, effectively instantaneous from agent's perspective
-                perf_score=skip_block_perf_score,
-                agent_observation=final_skip_obs
-            )
-            return final_skip_obs, accumulated_skip_reward, skip_terminated, skip_truncated, final_skip_info, skip_block_perf_score
-        
-        return None # No skip triggered
-
     def _check_for_end_statement_match(self) -> bool:
         """Checks if the last dialogue line in history matches any defined end statement for the current level."""
         if not self.dialogue_history_for_agent: # Check if history is empty
@@ -568,9 +439,42 @@ class AceAttorneyEnv(gym.Env):
             # --- LEVEL PROGRESSION LOGIC ---
             next_level_state_name: Optional[str] = None
             if self.current_retro_state_name == "level1_1_5":
+                next_level_state_name = "level1_2_5"
+            elif self.current_retro_state_name == "level1_2_5":
+                next_level_state_name = "level1_3_5"
+            elif self.current_retro_state_name == "level1_3_5":
+                next_level_state_name = "level1_4_5"
+            elif self.current_retro_state_name == "level1_4_5":
+                next_level_state_name = "level1_5_5" 
+            elif self.current_retro_state_name == "level1_5_5":
                 next_level_state_name = "level2_1_9" 
-            if self.current_retro_state_name == "level2_1_9":
-                next_level_state_name = "level3_1_8" 
+            elif self.current_retro_state_name == "level2_1_9":
+                next_level_state_name = "level2_2_9"
+            elif self.current_retro_state_name == "level2_2_9":
+                next_level_state_name = "level2_3_9"
+            elif self.current_retro_state_name == "level2_3_9":
+                next_level_state_name = "level2_4_9"
+            elif self.current_retro_state_name == "level2_4_9":
+                next_level_state_name = "level2_5_9"
+            elif self.current_retro_state_name == "level2_5_9":
+                next_level_state_name = "level2_6_9"
+            elif self.current_retro_state_name == "level2_6_9":
+                next_level_state_name = "level2_7_9"
+            elif self.current_retro_state_name == "level2_7_9":
+                next_level_state_name = "level2_8_9"
+            elif self.current_retro_state_name == "level2_8_9":
+                next_level_state_name = "level2_9_9"
+            elif self.current_retro_state_name == "level2_9_9":
+                next_level_state_name = "level3_1_9"
+            elif self.current_retro_state_name == "level3_1_5":
+                next_level_state_name = "level3_2_5"
+            elif self.current_retro_state_name == "level3_2_5":
+                next_level_state_name = "level3_3_5"
+            elif self.current_retro_state_name == "level3_3_5":
+                next_level_state_name = "level3_4_5"
+            elif self.current_retro_state_name == "level3_4_5":
+                next_level_state_name = "level3_5_5"
+
             if next_level_state_name:
                 try:
                     # Load the new state into the retro emulator
@@ -704,42 +608,6 @@ class AceAttorneyEnv(gym.Env):
                         agent_observation=current_observation_to_return
                     )
                 # print(f"[AceAttorneyEnv DEBUG] Phase 1 (Frame {frame_num_phase1+1}): Terminating/Truncating. Skipping Phase 2.")
-                return current_observation_to_return, overall_accumulated_reward, current_terminated_overall, current_truncated_overall, current_agent_facing_info_to_return, 0.0 # MODIFIED
-
-        # --- Check and Execute Skip Sequence (NEW) ---
-        # This occurs after agent's action (Phase 1) and before automatic no-op (Phase 2)
-        # It uses self.last_llm_dialogue_info which was set by BaseAgent based on the LLM's parsing
-        # of the visual state *before* the current agent_action_str was executed.
-        
-        skip_results = self._check_and_trigger_skip_sequence()
-        
-        if skip_results:
-            # A skip sequence was executed. Update overall state.
-            # print("[AceAttorneyEnv DEBUG Step] Skip sequence executed.")
-            (current_observation_to_return, skip_reward, skip_terminated, 
-             skip_truncated, current_agent_facing_info_to_return, skip_perf_score) = skip_results
-            
-            current_terminated_overall = current_terminated_overall or skip_terminated
-            current_truncated_overall = current_truncated_overall or skip_truncated
-            
-            # Check for game over due to lives AFTER skip sequence
-            if self.current_lives <= 0 and not current_terminated_overall:
-                # print(f"[AceAttorneyEnv STEP] GAME OVER. Lives reached 0 after skip sequence.")
-                current_terminated_overall = True
-                self.adapter.log_step_data(
-                    agent_action_str=f"<AUTO_SKIP_BLOCK_GAME_OVER>", # Indicate skip led to game over
-                    thought_process=f"Auto-skipped, resulted in Game Over - Lives 0",
-                    reward=0,
-                    info=current_agent_facing_info_to_return.copy(),
-                    terminated=True,
-                    truncated=current_truncated_overall,
-                    time_taken_s=0.0,
-                    perf_score=0.0, # MODIFIED
-                    agent_observation=current_observation_to_return
-                )
-
-            if current_terminated_overall or current_truncated_overall:
-                # print("[AceAttorneyEnv DEBUG Step] Terminated/Truncated after skip sequence. Skipping Phase 2 (no-op).")
                 return current_observation_to_return, overall_accumulated_reward, current_terminated_overall, current_truncated_overall, current_agent_facing_info_to_return, 0.0 # MODIFIED
 
         # --- Phase 2: Execute Automatic No-Op Pause ---
@@ -991,74 +859,40 @@ class AceAttorneyEnv(gym.Env):
 
     def calculate_final_performance_score(self) -> int:
         """
-        Calculates a final performance score based on matching logged dialogues
-        against predefined checkpoints in ckpt.json.
-        Iterates dialogues from newest to oldest, checking ckpt8 down to ckpt1.
+        Calculates a final performance score based on the current game state.
+        Score mapping:
+        - level1_1_5: 0
+        - level1_2_5: 1
+        - level1_3_5: 2
+        - level1_4_5: 3
+        - level1_5_5: 4
         """
-        ckpt_file_path = os.path.join(ASSETS_DIR, CKPT_FILE_NAME)
-        dialogue_log_path = os.path.join(self.adapter.agent_cache_dir, DIALOGUE_LOG_FILE_NAME)
-
-        if not os.path.exists(ckpt_file_path):
-            print(f"[AceAttorneyEnv calculate_final_score] Checkpoint file {ckpt_file_path} not found. Score: 0")
-            return 0
-        try:
-            with open(ckpt_file_path, 'r', encoding='utf-8') as f:
-                ckpt_data = json.load(f)
-        except Exception as e:
-            print(f"[AceAttorneyEnv calculate_final_score] Error loading {ckpt_file_path}: {e}. Score: 0")
-            return 0
-
-        # Load dialogues.jsonl
-        if not os.path.exists(dialogue_log_path):
-            print(f"[AceAttorneyEnv calculate_final_score] Dialogue log {dialogue_log_path} not found. Score: 0")
-            return 0
+        # Define the state-to-score mapping
+        state_score_mapping = {
+            "level1_1_5": 0,
+            "level1_2_5": 1,
+            "level1_3_5": 2,
+            "level1_4_5": 3,
+            "level1_5_5": 4,
+            "level2_1_9": 5,
+            "level2_2_9": 6,
+            "level2_3_9": 7,
+            "level2_4_9": 8,
+            "level2_5_9": 9,
+            "level2_6_9": 10,
+            "level2_7_9": 11,
+            "level2_8_9": 12,
+            "level2_9_9": 13,
+            "level3_1_5": 14,
+            "level3_2_5": 15,
+            "level3_3_5": 16,
+            "level3_4_5": 17,
+            "level3_5_5": 18,
+        }
         
-        logged_dialogues_raw = []
-        try:
-            with open(dialogue_log_path, 'r', encoding='utf-8') as f:
-                for line in f:
-                    if line.strip():
-                        logged_dialogues_raw.append(json.loads(line.strip()))
-        except Exception as e:
-            print(f"[AceAttorneyEnv calculate_final_score] Error loading {dialogue_log_path}: {e}. Score: 0")
-            return 0
-
-        if not logged_dialogues_raw:
-            print(f"[AceAttorneyEnv calculate_final_score] No dialogues in {dialogue_log_path}. Score: 0")
-            return 0
-
-        # Define checkpoint levels in order of score (highest to lowest)
-        checkpoint_definitions = [
-            {"name": "ckpt8", "score": 8, "dialogues": ckpt_data.get("ckpt8", [])},
-            {"name": "ckpt7", "score": 7, "dialogues": ckpt_data.get("ckpt7", [])},
-            {"name": "ckpt6", "score": 6, "dialogues": ckpt_data.get("ckpt6", [])},
-            {"name": "ckpt5", "score": 5, "dialogues": ckpt_data.get("ckpt5", [])},
-            {"name": "ckpt4", "score": 4, "dialogues": ckpt_data.get("ckpt4", [])},
-            {"name": "ckpt3", "score": 3, "dialogues": ckpt_data.get("ckpt3", [])},
-            {"name": "ckpt2", "score": 2, "dialogues": ckpt_data.get("ckpt2", [])},
-            {"name": "ckpt1", "score": 1, "dialogues": ckpt_data.get("ckpt1", [])},
-        ]
-
-        # Iterate from newest to oldest logged dialogues
-        for logged_entry in reversed(logged_dialogues_raw):
-            speaker_raw = logged_entry.get("speaker")
-            text_raw = logged_entry.get("text")
-            state_name_from_log = logged_entry.get("state_name")
-
-            if not text_raw: # Only text is strictly needed for current comparison
-                continue 
-            
-            text_stripped = text_raw.strip()
-            current_logged_text_only = text_stripped
-
-            # Check against each checkpoint level, from highest score to lowest
-            for checkpoint in checkpoint_definitions:
-                for ckpt_dialogue_text in checkpoint["dialogues"]:
-                    ckpt_dialogue_text_stripped = ckpt_dialogue_text.strip()
-                    if current_logged_text_only == ckpt_dialogue_text_stripped:
-                        print(f"[AceAttorneyEnv calculate_final_score] Matched TEXT in {checkpoint['name']}: '{current_logged_text_only}'. Score: {checkpoint['score']}")
-                        return checkpoint['score']
-                    
-        print(f"[AceAttorneyEnv calculate_final_score] No matching TEXT dialogue found in checkpoints. Score: 0")
-        return 0
+        current_state = self.current_retro_state_name
+        score = state_score_mapping.get(current_state, 0)
+        
+        print(f"[AceAttorneyEnv calculate_final_score] Current state: '{current_state}', Score: {score}")
+        return score
        
