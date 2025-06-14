@@ -413,13 +413,6 @@ class AceAttorneyEnv(gym.Env):
         # print(f"[AceAttorneyEnv RESET] Reset complete. Current state: '{self.current_retro_state_name}', Lives: {self.current_lives}. Returning initial observation.")
         return agent_obs, agent_facing_info
 
-    def _check_and_trigger_skip_sequence(self) -> Optional[Tuple[Observation, SupportsFloat, bool, bool, Dict[str, Any], float]]:
-        """
-        Skip conversation logic has been removed. This method now always returns None.
-        Only end statement checking is used for level progression.
-        """
-        return None # Skip functionality removed
-
     def _check_for_end_statement_match(self) -> bool:
         """Checks if the last dialogue line in history matches any defined end statement for the current level."""
         if not self.dialogue_history_for_agent: # Check if history is empty
