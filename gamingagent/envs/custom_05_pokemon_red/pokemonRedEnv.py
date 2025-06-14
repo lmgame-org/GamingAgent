@@ -8,11 +8,10 @@ from typing import Optional, Dict, Any, Tuple, List
 import os
 import json
 from datetime import datetime
-
-from gamingagent.envs.custom_05_pokemon_red.memory_reader import PokemonRedReader, StatusCondition
-from PIL import Image
+from PIL import Image, ImageDraw
 from pyboy import PyBoy
 
+from gamingagent.envs.custom_05_pokemon_red.memory_reader import PokemonRedReader, StatusCondition
 from gymnasium import Env, spaces
 import numpy as np
 
@@ -230,7 +229,7 @@ class PokemonRedEnv(Env):
                     break
             reward = self._calculate_reward()
         else:
-            print(f"[PokemonRedEnv] Action '{agent_action_str}' (parsed: '{action_name}', count: {repeat_count}) is skip/invalid. Env not stepped.")
+            print(f"[PokemonRedEnv] Action '{agent_action_str}' is skip/invalid. Env not stepped.")
             reward = -0.01
 
         self.num_env_steps += 1
@@ -250,11 +249,20 @@ class PokemonRedEnv(Env):
                 # Get screenshot
                 screenshot = self.pyboy.screen.ndarray
                 if screenshot is not None:
-                    # Save screenshot using adapter's path
-                    img_path_for_adapter = self.adapter._create_agent_observation_path(
-                        self.adapter.current_episode_id, self.adapter.current_step_num
-                    )
-                    Image.fromarray(screenshot).save(img_path_for_adapter)
+                    # Save screenshot with grid overlay if in harness mode
+                    if hasattr(self, 'harness_mode') and self.harness_mode:
+                        img_path_for_adapter = self._save_game_frame(
+                            screenshot,
+                            self.adapter.current_episode_id,
+                            self.adapter.current_step_num
+                        )
+                    else:
+                        # Save screenshot without grid overlay
+                        img_path_for_adapter = self.adapter._create_agent_observation_path(
+                            self.adapter.current_episode_id,
+                            self.adapter.current_step_num
+                        )
+                        Image.fromarray(screenshot).save(img_path_for_adapter)
                     
                     # Get text representation
                     text_representation_for_adapter = self._get_text_representation()
@@ -284,44 +292,98 @@ class PokemonRedEnv(Env):
         return observation, reward, terminated, truncated, info, current_perf_score
 
     def _save_game_frame(self, frame, episode_id: int, step_num: int) -> str:
-        """Save the current game frame to a file.
-        
-        Args:
-            frame: The game frame to save
-            episode_id: Current episode ID
-            step_num: Current step number
-            
-        Returns:
-            str: Path to the saved frame
-        """
+        """Save a game frame with grid overlay."""
         try:
-            # Create directory if it doesn't exist
-            os.makedirs(self.adapter.agent_cache_dir, exist_ok=True)
+            # Use the adapter's path format
+            frame_path = self.adapter._create_agent_observation_path(episode_id, step_num)
             
-            # Create path for the frame
-            img_path = self.adapter._create_agent_observation_path(episode_id, step_num)
+            # Ensure the directory exists
+            save_dir = os.path.dirname(frame_path)
+            os.makedirs(save_dir, exist_ok=True)
             
-            # Ensure frame is in correct format
-            if not isinstance(frame, np.ndarray):
-                frame = np.array(frame)
+            # Clean up old frames if they exist
+            if os.path.exists(frame_path):
+                try:
+                    os.remove(frame_path)
+                except Exception as e:
+                    logger.warning(f"Failed to remove old frame {frame_path}: {str(e)}")
             
-            if frame.shape != (144, 160, 3):
-                logger.warning(f"Invalid frame shape: {frame.shape}")
-                return img_path
+            # Convert frame to PIL Image if it's not already
+            if isinstance(frame, np.ndarray):
+                # Ensure we have RGB format
+                if frame.shape[-1] == 4:  # If RGBA
+                    frame = frame[:, :, :3]  # Convert to RGB
+                # Ensure the array is uint8
+                if frame.dtype != np.uint8:
+                    frame = frame.astype(np.uint8)
+                frame = Image.fromarray(frame)
             
-            if frame.dtype != np.uint8:
-                frame = frame.astype(np.uint8)
+            # Create a copy for drawing
+            frame_with_grid = frame.copy()
+            draw = ImageDraw.Draw(frame_with_grid)
             
-            # Save frame
-            Image.fromarray(frame).save(img_path)
-            logger.debug(f"Saved frame to {img_path}")
+            # Get frame dimensions
+            width, height = frame_with_grid.size
             
-            return img_path
+            # Draw grid lines (16x16 pixel grid)
+            grid_size = 16
+            for x in range(0, width, grid_size):
+                draw.line([(x, 0), (x, height)], fill=(255, 0, 0), width=1)
+            for y in range(0, height, grid_size):
+                draw.line([(0, y), (width, y)], fill=(255, 0, 0), width=1)
+            
+            # Get collision map and draw terrain info
+            collision_map = self._get_collision_map()
+            if collision_map is not None:
+                # Scale collision map to match grid
+                scaled_map = self._downsample_array(collision_map)
+                for y in range(scaled_map.shape[0]):
+                    for x in range(scaled_map.shape[1]):
+                        # Draw terrain label (P for passable, I for impassable)
+                        label = "P" if scaled_map[y, x] == 0 else "I"
+                        color = (0, 255, 0) if scaled_map[y, x] == 0 else (255, 0, 0)
+                        draw.text((x * grid_size + 2, y * grid_size + 2), label, fill=color)
+            
+            # Draw player position
+            player_pos = self._get_player_position()
+            if player_pos:
+                x, y = player_pos
+                # Draw a red dot at player position
+                draw.ellipse([(x * grid_size + 4, y * grid_size + 4), 
+                             (x * grid_size + 12, y * grid_size + 12)], 
+                            fill=(255, 0, 0))
+            
+            # Save the frame with grid overlay
+            try:
+                # First try to save as PNG with compression
+                frame_with_grid.save(frame_path, format='PNG', optimize=True)
+            except Exception as e:
+                logger.error(f"Failed to save as PNG: {str(e)}")
+                try:
+                    # If PNG fails, try JPEG with lower quality
+                    frame_path = frame_path.replace('.png', '.jpg')
+                    frame_with_grid.save(frame_path, format='JPEG', quality=85, optimize=True)
+                except Exception as e2:
+                    logger.error(f"Failed to save as JPEG: {str(e2)}")
+                    return ""
+            
+            logger.debug(f"Saved frame with grid overlay to {frame_path}")
+            return frame_path
             
         except Exception as e:
             logger.error(f"Error saving game frame: {str(e)}")
             logger.exception("Full traceback:")
             return ""
+
+    def _get_in_combat(self) -> bool:
+        """Check if the player is in combat."""
+        try:
+            # Check battle state from memory reader
+            battle_state = self._get_battle_state()
+            return battle_state.get('in_battle', False)
+        except Exception as e:
+            logger.error(f"Error checking combat state: {str(e)}")
+            return False
 
     def _get_observation(self) -> Observation:
         """Get the current observation from the environment."""
@@ -509,11 +571,11 @@ class PokemonRedEnv(Env):
             # Downsample the collision map to 10x10
             downsampled = self._downsample_array(collision_map)
             
-            # Convert to binary collision map (0 = walkable, 1 = collision)
+            # Convert to binary collision map (0 = collision, 1 = walkable)
             binary_map = np.zeros((10, 10), dtype=np.uint8)
             for y in range(10):
                 for x in range(10):
-                    binary_map[y, x] = 0 if downsampled[y, x] == 0 else 1
+                    binary_map[y, x] = 1 if downsampled[y, x] == 0 else 0
                     
             return binary_map
             
