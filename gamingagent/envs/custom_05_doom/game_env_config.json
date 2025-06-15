@@ -1,0 +1,55 @@
+{
+    "env_id": "VizdoomBasic-v0",
+    "doom_scenario_path": "basic.wad",
+    "doom_map": "map01",
+    "rewards": {
+        "living_reward": -1,
+        "kill_monster": 106,
+        "shot_penalty": -5
+    },
+    "rendering_options": {
+        "screen_resolution": "RES_320X240",
+        "screen_format": "RGB24",
+        "render_hud": true,
+        "render_crosshair": false,
+        "render_weapon": true,
+        "render_decals": true,
+        "render_particles": true,
+        "render_effects_sprites": true,
+        "render_messages": false,
+        "render_corpses": false,
+        "render_screen_flashes": true,
+        "render_minimal_hud": false,
+        "window_visible": true
+    },
+    "episode_settings": {
+        "episode_start_time": 14,
+        "episode_timeout": 600,
+        "ticrate": 20
+    },
+    "available_buttons": [
+        "move_left",
+        "move_right",
+        "attack"
+    ],
+    "available_game_variables": [
+        "ammo2",
+        "position_x",
+        "position_y",
+        "angle",
+        "health"
+    ],
+    "mode": "player",
+    "doom_skill": 3,
+    "action_mapping": {
+        "move_left": [true, false, false],
+        "move_right": [false, true, false],
+        "attack": [false, false, true]
+    },
+    "ram_addresses": {
+        "health": "0x10",
+        "ammo": "0x20",
+        "x_position": "0x30",
+        "y_position": "0x40"
+    }
+}
