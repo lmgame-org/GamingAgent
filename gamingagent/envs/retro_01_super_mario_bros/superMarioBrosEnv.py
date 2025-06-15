@@ -248,6 +248,9 @@ class SuperMarioBrosEnvWrapper:
         last_agent_observation_in_loop = None
         current_game_info_frame = self.current_game_info 
 
+        # ad hoc to add a noop action to ensure following actions are executed
+        observation_data_frame, reward_frame, done_from_retro_frame, trunc_from_retro_frame, info_retro_frame = self.env.step(self.mario_action_mapping.get("noop", [0]*len(self.env.buttons if hasattr(self, 'env') and self.env else 9)))
+
         for frame_num in range(frame_count):
             self.adapter.increment_step() 
 
