@@ -51,6 +51,7 @@ def parse_arguments(defaults_map=None, argv_to_parse=None):
     parser.add_argument("--max_memory", type=int, default=20, help="Agent's max memory entries.")
     parser.add_argument("--max_steps_per_episode", type=int, default=1000, help="Max steps per episode.")
     parser.add_argument("--use_custom_prompt", action="store_true", help="If set, will use the custom prompt from module_prompts.json if present.")
+    parser.add_argument("--scaffolding", type=str, default=None, help="Grid dimensions as '(rows,cols)' for coordinate grid on images, e.g., '(5,5)'. Default is None.")
     parser.add_argument("--seed", type=int, default=None, help="Random seed for environment.")
     # Env type is fixed to custom gym for this runner
 
@@ -519,6 +520,7 @@ def main():
                             defaults_from_yaml['model_name'] = agent_config_yaml.get('model_name')
                             defaults_from_yaml['observation_mode'] = agent_config_yaml.get('observation_mode')
                             defaults_from_yaml['use_custom_prompt'] = agent_config_yaml.get('observation_mode')
+                            defaults_from_yaml['scaffolding'] = agent_config_yaml.get('scaffolding')
                             
                             # Still load max_memory from its specific module config if present
                             if agent_config_yaml.get('modules'):
@@ -547,7 +549,8 @@ def main():
         'num_runs', 
         'max_steps_per_episode',
         'seed',
-        'max_memory'
+        'max_memory',
+        'scaffolding'
     }
 
     if config_file_path and os.path.exists(config_file_path):
@@ -590,6 +593,23 @@ def main():
     os.makedirs(runner_log_dir_base, exist_ok=True)
     print(f"Agent and Environment cache directory: {runner_log_dir_base}")
 
+    # Parse scaffolding parameter
+    scaffolding_tuple = None
+    if args.scaffolding:
+        try:
+            # Handle both string formats: "(5,5)" or "5,5"
+            scaffolding_str = args.scaffolding.strip()
+            if scaffolding_str.startswith('(') and scaffolding_str.endswith(')'):
+                scaffolding_str = scaffolding_str[1:-1]  # Remove parentheses
+            parts = [int(x.strip()) for x in scaffolding_str.split(',')]
+            if len(parts) == 2:
+                scaffolding_tuple = tuple(parts)
+                print(f"Using scaffolding grid: {scaffolding_tuple}")
+            else:
+                print(f"Warning: Invalid scaffolding format '{args.scaffolding}'. Expected '(rows,cols)'. Using None.")
+        except (ValueError, AttributeError) as e:
+            print(f"Warning: Could not parse scaffolding '{args.scaffolding}': {e}. Using None.")
+
     # --- Then Create Agent, passing the environment ---
     agent = BaseAgent(
         game_name=args.game_name,
@@ -600,6 +620,8 @@ def main():
         max_memory=args.max_memory, 
         custom_modules=custom_modules_for_agent,
         observation_mode=args.observation_mode,
+        scaffolding=scaffolding_tuple,
+
         cache_dir=runner_log_dir_base,
         vllm_url=args.vllm_url,
         modal_url=args.modal_url

@@ -342,6 +342,57 @@ def openai_completion(system_prompt, model_name, base64_image, prompt, temperatu
     response = client.chat.completions.create(**request_params)
     return response.choices[0].message.content
 
+# def openai_response(system_prompt, model_name, base64_image, prompt, temperature=1, token_limit=30000, reasoning_effort="medium"):
+#     print(f"OpenAI vision-text API call: model={model_name}, reasoning_effort={reasoning_effort}")
+#     client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+#     if "gpt-4o" in model_name:
+#         print("gpt-4o only supports 16384 tokens")
+#         token_limit = 16384
+#     if "gpt-4.1" in model_name:
+#         print("gpt-4.1 only supports 32768 tokens")
+#         token_limit = 32768
+
+#     # Force-clean headers to prevent UnicodeEncodeError
+#     client._client._headers.update({
+#         k: (v.encode('ascii', 'ignore').decode() if isinstance(v, str) else v)
+#         for k, v in client._client._headers.items()
+#     })
+
+#     base64_image = None if "o3-mini" in model_name else base64_image
+
+#     if base64_image is None:
+#         messages = [
+#             {"role": "user", "content": [{"type": "text", "text": prompt}]}
+#         ]
+#     else:
+#         messages = [
+#             {
+#                 "role": "user",
+#                 "content": [
+#                     {"type": "image_url", "image_url": {"url": f"data:image/png;base64,{base64_image}"}},
+#                     {"type": "text", "text": prompt},
+#                 ],
+#             }
+#         ]
+
+#     # Update token parameter logic to include o4 models
+#     token_param = "max_completion_tokens" if ("o1" in model_name or "o4" in model_name or "o3" in model_name) else "max_tokens"
+#     request_params = {
+#         "model": model_name,
+#         "messages": messages,
+#         token_param: token_limit,
+#     }
+
+#     # Add reasoning_effort for o1, o3, o4 models, temperature for others
+#     if "o1" in model_name or "o3" in model_name or "o4" in model_name:
+#         request_params["reasoning_effort"] = reasoning_effort
+#     else:
+#         request_params["temperature"] = temperature
+
+#     response = client.response.create(**request_params)
+#     return response.choices[0].message.content
+
+
 def openai_text_completion(system_prompt, model_name, prompt, token_limit=30000, reasoning_effort="medium"):
     print(f"OpenAI text-only API call: model={model_name}, reasoning_effort={reasoning_effort}")
     client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))

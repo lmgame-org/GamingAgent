@@ -30,6 +30,7 @@ class BaseAgent(ABC):
             cache_dir=None,
             custom_modules=None, 
             observation_mode="vision",    # change the abstraction to with or without image
+            scaffolding=None,
             vllm_url=None,
             modal_url=None,
         ):
@@ -46,6 +47,10 @@ class BaseAgent(ABC):
             cache_dir (str, optional): Custom cache directory path
             custom_modules (dict, optional): Custom module classes to use
             observation_mode (str): Mode for processing observations ("vision", "text", or "both")
+            scaffolding (tuple, optional): Grid dimensions as (rows, cols) for drawing coordinate grid on images. 
+                                         Default is None (no grid). Example: (5, 5) for a 5x5 grid.
+            vllm_url (str, optional): URL for vLLM inference endpoint
+            modal_url (str, optional): URL for Modal inference endpoint
         """
         self.game_name = game_name
         self.model_name = model_name
@@ -53,6 +58,7 @@ class BaseAgent(ABC):
         self.use_custom_prompt = use_custom_prompt
         self.max_memory = max_memory
         self.observation_mode = observation_mode
+        self.scaffolding = scaffolding
 
         # Serving-related arguments
         self.vllm_url = vllm_url
@@ -177,7 +183,8 @@ class BaseAgent(ABC):
                     observation_mode=self.observation_mode,
                     cache_dir=self.cache_dir,
                     system_prompt=self.config["perception_module"]["system_prompt"],
-                    prompt=self.config["perception_module"]["prompt"]
+                    prompt=self.config["perception_module"]["prompt"],
+                    scaffolding=self.scaffolding
                 )
             else:
                 # Can't use default PerceptionModule as it's abstract
@@ -233,6 +240,7 @@ class BaseAgent(ABC):
             "observation_mode": self.observation_mode,
             "harness": self.harness,
             "max_memory": self.max_memory,
+            "scaffolding": self.scaffolding,
             "cache_dir": self.cache_dir,
             "modules": {
                 module: module_instance.__class__.__name__ 
