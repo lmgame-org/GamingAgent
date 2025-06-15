@@ -578,7 +578,7 @@ class DoomEnvWrapper(gym.Env):
                     self.logger.info(f"Reached maximum movement attempts ({max_movement_attempts})")
                     break
                 movement_attempts += 1
-                tics_to_execute = 1  # Execute 1 tic for very small movement
+                tics_to_execute = 3
             else:
                 tics_to_execute = 8  # Execute 8 tics for attack
                 
