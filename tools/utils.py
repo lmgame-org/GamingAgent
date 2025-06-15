@@ -7,6 +7,7 @@ Utility functions for image processing:
 import cv2
 import os
 import numpy as np
+from PIL import Image
 
 def scale_image_up(image_path, maximum_scale=2048):
     """
@@ -45,8 +46,16 @@ def scale_image_up(image_path, maximum_scale=2048):
         name, ext = os.path.splitext(file_name)
         output_path = os.path.join(file_dir, f"{name}_scaled{ext}")
         
-        # Save the scaled image
-        cv2.imwrite(output_path, scaled_image)
+        # Ensure output directory exists
+        os.makedirs(os.path.dirname(output_path), exist_ok=True)
+        
+        # Convert to RGB before saving (OpenCV uses BGR)
+        scaled_image_rgb = cv2.cvtColor(scaled_image, cv2.COLOR_BGR2RGB)
+        
+        # Save using PIL instead of OpenCV
+        pil_image = Image.fromarray(scaled_image_rgb)
+        pil_image.save(output_path, quality=95, optimize=True)
+        
         print(f"Scaled image from {width}x{height} to {new_width}x{new_height}")
         return output_path
     

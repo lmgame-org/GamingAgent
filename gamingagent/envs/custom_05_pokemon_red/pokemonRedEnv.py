@@ -480,18 +480,20 @@ class PokemonRedEnv(Env):
                     draw = ImageDraw.Draw(img)
                     
                     # Calculate tile size based on actual collision map dimensions
-                    # Game Boy screen is 160x144 pixels, with 20x18 tiles
                     # Scale up tile size to match new dimensions
                     tile_width = 16  # 320/20 = 16 pixels per tile
                     tile_height = 16  # 288/18 = 16 pixels per tile
+                    
+                    # Shift grid up by 2 rows (32 pixels)
+                    y_offset = -32
                     
                     logger.info(f"Image size: {shape}, Tile size: {tile_width}x{tile_height}")
                     
                     # Draw vertical lines (20 columns = 21 lines)
                     for x in range(0, shape[0], tile_width):
-                        draw.line(((x, 0), (x, shape[1])), fill=(255, 0, 0))
+                        draw.line(((x, y_offset), (x, shape[1])), fill=(255, 0, 0))
                     # Draw horizontal lines (18 rows = 19 lines)
-                    for y in range(0, shape[1], tile_height):
+                    for y in range(y_offset, shape[1], tile_height):
                         draw.line(((0, y), (shape[0], y)), fill=(255, 0, 0))
 
                     # Add minimal labels
@@ -501,10 +503,10 @@ class PokemonRedEnv(Env):
                             # Center the text in each tile
                             # Adjust text position to align with game pixels
                             text_x = col * tile_width + (tile_width // 2) - 6  # Center horizontally
-                            text_y = row * tile_height + (tile_height // 2) - 6  # Center vertically
+                            text_y = y_offset + row * tile_height + (tile_height // 2) - 6  # Center vertically
                             
                             # Ensure text stays within bounds
-                            if text_x < 0 or text_x >= shape[0] or text_y < 0 or text_y >= shape[1]:
+                            if text_x < 0 or text_x >= shape[0] or text_y < y_offset or text_y >= shape[1]:
                                 continue
                             
                             # Draw the label with smaller font
@@ -546,7 +548,7 @@ class PokemonRedEnv(Env):
                                 fill=text_color,
                                 font=font
                             )
-
+                    
                 except Exception as e:
                     logger.error(f"Grid overlay failed: {str(e)}")
                     logger.exception("Full traceback:")
