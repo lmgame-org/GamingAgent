@@ -5,7 +5,7 @@ game_env:
   render_mode: "human"  # Use "human" to watch, "rgb_array" for vision agent processing
   max_steps: 2000           # Max steps per Tetris game episode
   seed: 42             # Set a specific seed for reproducibility, e.g., 42, or null for random
-  num_runs: 2               # Number of game episodes to run
+  num_runs: 3               # Number of game episodes to run
 
 agent:
   name: "tetris_agent"
