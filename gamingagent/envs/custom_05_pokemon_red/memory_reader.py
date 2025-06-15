@@ -742,14 +742,32 @@ class PokemonRedReader:
         self._verify_memory_access()
 
     def _verify_memory_access(self) -> bool:
-        """Verify that memory access is working by reading a known value"""
+        """Verify that memory access is working by reading known values"""
         try:
             # Try to read a few known memory locations that should be initialized
             # Check map ID (D35E) and player coordinates (D361, D362)
-            map_id = self.memory[0xD35E]
-            x_coord = self.memory[0xD362]
-            y_coord = self.memory[0xD361]
+            map_id = self._safe_read_memory(0xD35E)
+            x_coord = self._safe_read_memory(0xD362)
+            y_coord = self._safe_read_memory(0xD361)
             
+            # Check if any reads failed
+            if any(x is None for x in [map_id, x_coord, y_coord]):
+                logger.error("Failed to read critical memory addresses")
+                return False
+                
+            # Check if values are within expected ranges
+            if not (0 <= map_id[0] <= 0xFF):
+                logger.error(f"Invalid map ID: {map_id[0]}")
+                return False
+                
+            if not (0 <= x_coord[0] <= 0xFF):
+                logger.error(f"Invalid X coordinate: {x_coord[0]}")
+                return False
+                
+            if not (0 <= y_coord[0] <= 0xFF):
+                logger.error(f"Invalid Y coordinate: {y_coord[0]}")
+                return False
+                
             # If we can read these values without error, memory access is working
             return True
         except Exception as e:
@@ -764,6 +782,10 @@ class PokemonRedReader:
                     logger.warning(f"Invalid memory address: {hex(start_addr)}")
                     return None
                     
+                # Add a small delay before reading
+                time.sleep(0.01)  # 10ms delay
+                
+                # Try to read the memory
                 data = self.memory[start_addr:start_addr + length]
                 if data is None or len(data) == 0:
                     logger.warning(f"Failed to read memory at {hex(start_addr)}")
@@ -773,7 +795,7 @@ class PokemonRedReader:
             except Exception as e:
                 logger.warning(f"Memory read attempt {attempt + 1} failed: {str(e)}")
                 if attempt < max_retries - 1:
-                    time.sleep(0.1)  # Small delay before retry
+                    time.sleep(0.1)  # 100ms delay before retry
                 continue
         return None
 

@@ -98,7 +98,8 @@ def create_environment(game_name_arg: str,
                        cache_dir_for_adapter: str,
                        navigation_enabled: bool = False,
                        enable_reasoning_aids: bool = False,
-                       runner_log_dir_base: Optional[str] = None):
+                       runner_log_dir_base: Optional[str] = None,
+                       harness_mode: bool = False):
     """Creates and returns a game environment instance based on the game name."""
     
     env_specific_config_path = os.path.join("gamingagent/envs", config_dir_name_for_env_cfg, "game_env_config.json")
@@ -129,7 +130,8 @@ def create_environment(game_name_arg: str,
             observation_mode_for_adapter=obs_mode_arg, 
             agent_cache_dir_for_adapter=cache_dir_for_adapter, 
             game_specific_config_path_for_adapter=env_specific_config_path, # This is path to its own config
-            max_stuck_steps_for_adapter=env_init_params.get('max_stuck_steps_for_adapter')
+            max_stuck_steps_for_adapter=env_init_params.get('max_stuck_steps_for_adapter'),
+            harness_mode=harness_mode
         )
         return env
     elif game_name_arg == "sokoban":
@@ -171,7 +173,8 @@ def create_environment(game_name_arg: str,
             observation_mode_for_adapter=obs_mode_arg, 
             agent_cache_dir_for_adapter=cache_dir_for_adapter, 
             game_specific_config_path_for_adapter=env_specific_config_path, 
-            max_stuck_steps_for_adapter=env_init_params.get('max_stuck_steps_for_adapter')
+            max_stuck_steps_for_adapter=env_init_params.get('max_stuck_steps_for_adapter'),
+            harness_mode=harness_mode
         )
         return env
     elif game_name_arg == "candy_crush":
@@ -217,6 +220,7 @@ def create_environment(game_name_arg: str,
             max_stuck_steps_for_adapter=env_init_params.get('max_stuck_steps_for_adapter'),
             # Other params potentially needed by CandyCrushEnv if not covered by game_specific_config_path_for_adapter
             # config_root_dir is already an arg to runner, CandyCrushEnv doesn't need it directly if path is absolute
+            harness_mode=harness_mode
         )
         return env
     elif game_name_arg == "tetris":
@@ -255,44 +259,55 @@ def create_environment(game_name_arg: str,
             observation_mode_for_adapter=obs_mode_arg,
             agent_cache_dir_for_adapter=cache_dir_for_adapter,
             game_specific_config_path_for_adapter=env_specific_config_path,
-            max_stuck_steps_for_adapter=env_init_params.get('max_stuck_steps_for_adapter')
+            max_stuck_steps_for_adapter=env_init_params.get('max_stuck_steps_for_adapter'),
+            harness_mode=harness_mode
             # seed will be passed during reset, not __init__ for TetrisEnv as per its definition
         )
         return env
     elif game_name_arg == "pokemon_red":
+        # Default ROM path
+        default_rom_path = "gamingagent/configs/custom_05_pokemon_red/rom/pokemon.gb"
+        
         # Load params specific to Pokemon Red
         if os.path.exists(env_specific_config_path):
             with open(env_specific_config_path, 'r') as f:
                 env_specific_config = json.load(f)
-                env_init_kwargs = env_specific_config.get('env_init_kwargs', {})
-                env_init_params['rom_path'] = env_init_kwargs.get('rom_path')
-                env_init_params['sound'] = env_init_kwargs.get('sound', False)
-                env_init_params['max_episode_steps'] = env_init_kwargs.get('max_episode_steps', 50000)
-                env_init_params['render_mode_for_make'] = env_specific_config.get('render_mode', 'human')
+                env_init_params['rom_path'] = env_specific_config.get('rom_path', default_rom_path)
+                env_init_params['render_mode'] = env_specific_config.get('render_mode', 'human')
+                env_init_params['sound'] = env_specific_config.get('sound', False)
+                env_init_params['max_episode_steps'] = env_specific_config.get('max_episode_steps', 50000)
                 env_init_params['max_stuck_steps_for_adapter'] = env_specific_config.get('max_unchanged_steps_for_termination', 20)
+                env_init_params['initial_state'] = "gamingagent/envs/custom_05_pokemon_red/states/initial.state"
         else:
-            print(f"Warning: {env_specific_config_path} for {game_name_arg} not found. Using default env parameters for Pokemon Red.")
-            env_init_params['rom_path'] = None
+            print(f"Warning: {env_specific_config_path} for {game_name_arg} not found. Using default env parameters.")
+            env_init_params['rom_path'] = default_rom_path
+            env_init_params['render_mode'] = 'human'
             env_init_params['sound'] = False
             env_init_params['max_episode_steps'] = 50000
-            env_init_params['render_mode_for_make'] = 'human'
             env_init_params['max_stuck_steps_for_adapter'] = 20
+            env_init_params['initial_state'] = "gamingagent/envs/custom_05_pokemon_red/states/initial.state"
+
+        # Verify ROM path exists
+        if not os.path.exists(env_init_params['rom_path']):
+            raise FileNotFoundError(f"ROM file not found at {env_init_params['rom_path']}")
 
         print(f"Initializing environment: {game_name_arg} with params: {env_init_params}")
         env = PokemonRedEnv(
-            render_mode=env_init_params.get('render_mode_for_make'),
+            render_mode=env_init_params.get('render_mode'),
             rom_path=env_init_params.get('rom_path'),
             sound=env_init_params.get('sound'),
             max_episode_steps=env_init_params.get('max_episode_steps'),
-            # Adapter related params
             game_name_for_adapter=game_name_arg,
             observation_mode_for_adapter=obs_mode_arg,
             agent_cache_dir_for_adapter=cache_dir_for_adapter,
             game_specific_config_path_for_adapter=env_specific_config_path,
             max_stuck_steps_for_adapter=env_init_params.get('max_stuck_steps_for_adapter'),
             navigation_enabled=navigation_enabled,
+            model_name=model_name_arg,
             enable_reasoning_aids=enable_reasoning_aids,
-            runner_log_dir_base=runner_log_dir_base
+            runner_log_dir_base=runner_log_dir_base,
+            initial_state=env_init_params.get('initial_state'),
+            harness_mode=harness_mode  # Enable harness mode to use _save_game_frame
         )
         return env
     elif game_name_arg == "super_mario_bros":
@@ -693,7 +708,8 @@ def main():
         cache_dir_for_adapter=runner_log_dir_base,
         navigation_enabled=args.navigation_enabled,
         enable_reasoning_aids=args.enable_reasoning_aids,
-        runner_log_dir_base=runner_log_dir_base
+        runner_log_dir_base=runner_log_dir_base,
+        harness_mode=args.harness
     )
 
     if game_env is None:

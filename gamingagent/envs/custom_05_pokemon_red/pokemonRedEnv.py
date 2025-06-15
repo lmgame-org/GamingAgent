@@ -8,10 +8,12 @@ from typing import Optional, Dict, Any, Tuple, List
 import os
 import json
 from datetime import datetime
-from PIL import Image, ImageDraw
+from PIL import Image, ImageDraw, ImageFont
 from pyboy import PyBoy
+import time
+import cv2
 
-from gamingagent.envs.custom_05_pokemon_red.memory_reader import PokemonRedReader, StatusCondition
+from gamingagent.envs.custom_05_pokemon_red.memory_reader import PokemonRedReader, StatusCondition, MapLocation
 from gymnasium import Env, spaces
 import numpy as np
 
@@ -45,7 +47,8 @@ class PokemonRedEnv(Env):
                  modal_url: Optional[str] = None,
                  enable_reasoning_aids=False,
                  runner_log_dir_base: Optional[str] = None,
-                 initial_state: Optional[str] = None):
+                 initial_state: Optional[str] = None,
+                 harness_mode: bool = False):
         super().__init__()
         
         # Store model configuration
@@ -55,6 +58,9 @@ class PokemonRedEnv(Env):
         
         # Store initial state path
         self.initial_state = initial_state
+        
+        # Store harness mode
+        self.harness_mode = harness_mode
         
         # Initialize adapter
         self.adapter = GymEnvAdapter(
@@ -67,7 +73,7 @@ class PokemonRedEnv(Env):
         
         # Gymnasium spaces
         self.action_space = spaces.Discrete(8)
-        self.observation_space = spaces.Box(low=0, high=255, shape=(240, 256, 3), dtype=np.uint8)
+        self.observation_space = spaces.Box(low=0, high=255, shape=(144, 160, 3), dtype=np.uint8)
         
         # Action mapping - ensure this matches game_env_config.json
         self.action_map = {
@@ -126,9 +132,73 @@ class PokemonRedEnv(Env):
             try:
                 self.load_state(self.initial_state)
                 logger.info(f"Loaded initial state from {self.initial_state}")
+                # Add delay to allow game to initialize
+                time.sleep(1.0)
+                # Verify game is running
+                if not self._verify_game_running():
+                    logger.error("Game failed to initialize properly")
+                    raise RuntimeError("Game initialization failed")
             except Exception as e:
                 logger.error(f"Failed to load initial state: {str(e)}")
                 logger.exception("Full traceback:")
+
+    def _verify_game_running(self) -> bool:
+        """Verify that the game is running and memory is accessible"""
+        try:
+            # Try to read a few known memory locations that should be initialized
+            # Check map ID (D35E) and player coordinates (D361, D362)
+            map_id = self._get_memory_value(0xD35E)
+            x_coord = self._get_memory_value(0xD362)
+            y_coord = self._get_memory_value(0xD361)
+            
+            # Check if any reads failed
+            if any(x is None for x in [map_id, x_coord, y_coord]):
+                logger.error("Failed to read critical memory addresses")
+                return False
+                
+            # Check if values are within expected ranges
+            if not (0 <= map_id <= 0xFF):
+                logger.error(f"Invalid map ID: {map_id}")
+                return False
+                
+            if not (0 <= x_coord <= 0xFF):
+                logger.error(f"Invalid X coordinate: {x_coord}")
+                return False
+                
+            if not (0 <= y_coord <= 0xFF):
+                logger.error(f"Invalid Y coordinate: {y_coord}")
+                return False
+                
+            # If we can read these values without error, game is running
+            return True
+        except Exception as e:
+            logger.error(f"Game verification failed: {str(e)}")
+            return False
+
+    def _get_memory_value(self, address: int, max_retries: int = 3) -> Optional[int]:
+        """Safely read a single byte from memory with retries"""
+        for attempt in range(max_retries):
+            try:
+                if not (0 <= address <= 0xFFFF):
+                    logger.warning(f"Invalid memory address: {hex(address)}")
+                    return None
+                    
+                # Add a small delay before reading
+                time.sleep(0.01)  # 10ms delay
+                
+                # Try to read the memory
+                value = self.pyboy.memory[address]
+                if value is None:
+                    logger.warning(f"Failed to read memory at {hex(address)}")
+                    return None
+                    
+                return value
+            except Exception as e:
+                logger.warning(f"Memory read attempt {attempt + 1} failed: {str(e)}")
+                if attempt < max_retries - 1:
+                    time.sleep(0.1)  # 100ms delay before retry
+                continue
+        return None
 
     def reset(self, *, seed: Optional[int] = None, options: Optional[Dict[str, Any]] = None, episode_id: int = 1) -> Tuple[Observation, Dict[str, Any]]:
         """Reset the environment to initial state"""
@@ -250,19 +320,24 @@ class PokemonRedEnv(Env):
                 screenshot = self.pyboy.screen.ndarray
                 if screenshot is not None:
                     # Save screenshot with grid overlay if in harness mode
+                    logger.info(f"Harness mode: {self.harness_mode}")  # Debug log
                     if hasattr(self, 'harness_mode') and self.harness_mode:
+                        logger.info("Using _save_game_frame for grid overlay")  # Debug log
                         img_path_for_adapter = self._save_game_frame(
                             screenshot,
                             self.adapter.current_episode_id,
                             self.adapter.current_step_num
                         )
+                        logger.info(f"Saved frame with grid to: {img_path_for_adapter}")  # Debug log
                     else:
+                        logger.info("Using basic screenshot save without grid")  # Debug log
                         # Save screenshot without grid overlay
                         img_path_for_adapter = self.adapter._create_agent_observation_path(
                             self.adapter.current_episode_id,
                             self.adapter.current_step_num
                         )
                         Image.fromarray(screenshot).save(img_path_for_adapter)
+                        logger.info(f"Saved basic frame to: {img_path_for_adapter}")  # Debug log
                     
                     # Get text representation
                     text_representation_for_adapter = self._get_text_representation()
@@ -292,88 +367,206 @@ class PokemonRedEnv(Env):
         return observation, reward, terminated, truncated, info, current_perf_score
 
     def _save_game_frame(self, frame, episode_id: int, step_num: int) -> str:
-        """Save a game frame with grid overlay."""
+        """Save a game frame with grid overlay (robust, reference-style)."""
         try:
-            # Use the adapter's path format
             frame_path = self.adapter._create_agent_observation_path(episode_id, step_num)
-            
-            # Ensure the directory exists
+            logger.info(f"Saving frame to: {frame_path}")
             save_dir = os.path.dirname(frame_path)
             os.makedirs(save_dir, exist_ok=True)
-            
-            # Clean up old frames if they exist
             if os.path.exists(frame_path):
                 try:
                     os.remove(frame_path)
                 except Exception as e:
                     logger.warning(f"Failed to remove old frame {frame_path}: {str(e)}")
-            
-            # Convert frame to PIL Image if it's not already
+
+            # Convert frame to numpy array if it's not already
             if isinstance(frame, np.ndarray):
-                # Ensure we have RGB format
-                if frame.shape[-1] == 4:  # If RGBA
-                    frame = frame[:, :, :3]  # Convert to RGB
-                # Ensure the array is uint8
-                if frame.dtype != np.uint8:
-                    frame = frame.astype(np.uint8)
-                frame = Image.fromarray(frame)
-            
-            # Create a copy for drawing
-            frame_with_grid = frame.copy()
-            draw = ImageDraw.Draw(frame_with_grid)
-            
-            # Get frame dimensions
-            width, height = frame_with_grid.size
-            
-            # Draw grid lines (16x16 pixel grid)
-            grid_size = 16
-            for x in range(0, width, grid_size):
-                draw.line([(x, 0), (x, height)], fill=(255, 0, 0), width=1)
-            for y in range(0, height, grid_size):
-                draw.line([(0, y), (width, y)], fill=(255, 0, 0), width=1)
-            
-            # Get collision map and draw terrain info
-            collision_map = self._get_collision_map()
-            if collision_map is not None:
-                # Scale collision map to match grid
-                scaled_map = self._downsample_array(collision_map)
-                for y in range(scaled_map.shape[0]):
-                    for x in range(scaled_map.shape[1]):
-                        # Draw terrain label (P for passable, I for impassable)
-                        label = "P" if scaled_map[y, x] == 0 else "I"
-                        color = (0, 255, 0) if scaled_map[y, x] == 0 else (255, 0, 0)
-                        draw.text((x * grid_size + 2, y * grid_size + 2), label, fill=color)
-            
-            # Draw player position
-            player_pos = self._get_player_position()
-            if player_pos:
-                x, y = player_pos
-                # Draw a red dot at player position
-                draw.ellipse([(x * grid_size + 4, y * grid_size + 4), 
-                             (x * grid_size + 12, y * grid_size + 12)], 
-                            fill=(255, 0, 0))
-            
-            # Save the frame with grid overlay
-            try:
-                # First try to save as PNG with compression
-                frame_with_grid.save(frame_path, format='PNG', optimize=True)
-            except Exception as e:
-                logger.error(f"Failed to save as PNG: {str(e)}")
+                # Convert RGBA to RGB if needed
+                if frame.shape[-1] == 4:
+                    frame = frame[:, :, :3]
+                
+                # Log original frame shape
+                logger.info(f"Original frame shape: {frame.shape}")
+                
+                # Target dimensions for Game Boy screen (scaled up for better visibility)
+                target_width = 320  # 2x original width
+                target_height = 288  # 2x original height
+                
+                # Only scale if dimensions don't match
+                if frame.shape[:2] != (target_height, target_width):
+                    logger.info("Scaling frame to target dimensions")
+                    # Get current dimensions
+                    h, w = frame.shape[:2]
+                    
+                    # Calculate scaling factors to fill the target dimensions
+                    scale_x = target_width / w
+                    scale_y = target_height / h
+                    
+                    # Use the larger scale to ensure we fill the space
+                    scale = max(scale_x, scale_y)
+                    
+                    # Calculate new dimensions
+                    new_w = int(w * scale)
+                    new_h = int(h * scale)
+                    
+                    # Resize the frame
+                    resized_frame = cv2.resize(frame, (new_w, new_h))
+                    
+                    # Calculate crop dimensions to center the resized image
+                    crop_x = (new_w - target_width) // 2
+                    crop_y = (new_h - target_height) // 2
+                    
+                    # Add extra padding at the top to center the game screen
+                    extra_padding = 32  # Add 32 pixels of padding at the top
+                    crop_y += extra_padding
+                    
+                    # Crop the resized image to target dimensions
+                    if crop_x > 0 and crop_y > 0:
+                        frame = resized_frame[crop_y:crop_y+target_height, crop_x:crop_x+target_width]
+                    else:
+                        # If no cropping needed, just copy the resized image
+                        frame = resized_frame[:target_height, :target_width]
+                else:
+                    logger.info("Using original frame dimensions")
+                
+                logger.info(f"Final frame shape: {frame.shape}")
+                
+                # Convert to PIL Image
+                img = Image.fromarray(frame)
+                logger.info(f"PIL Image size: {img.size}")
+
+                # --- Grid overlay logic ---
                 try:
-                    # If PNG fails, try JPEG with lower quality
-                    frame_path = frame_path.replace('.png', '.jpg')
-                    frame_with_grid.save(frame_path, format='JPEG', quality=85, optimize=True)
-                except Exception as e2:
-                    logger.error(f"Failed to save as JPEG: {str(e2)}")
-                    return ""
-            
-            logger.debug(f"Saved frame with grid overlay to {frame_path}")
-            return frame_path
-            
+                    if not hasattr(self, 'pyboy') or self.pyboy is None:
+                        logger.error("PyBoy instance not found")
+                        return None
+                        
+                    # Get player position and location using direct memory access
+                    x = self._get_memory_value(0xD362)
+                    y = self._get_memory_value(0xD361)
+                    map_id = self._get_memory_value(0xD35E)
+                    
+                    # Default values if memory read fails
+                    if x is None: x = 0
+                    if y is None: y = 0
+                    if map_id is None: map_id = 0
+                        
+                    # Get location name from map ID
+                    try:
+                        location = MapLocation(map_id).name.replace("_", " ")
+                    except ValueError:
+                        location = "unknown"
+                        
+                    logger.info(f"Player position: ({x}, {y}), Location: {location}")
+
+                    # Get collision map and sprite locations
+                    try:
+                        collision_map = self._get_collision_map()
+                        terrain = collision_map  # Use collision map
+                        sprite_locations = self._get_sprite_locations()
+                        
+                        # Log collision map info for debugging
+                        logger.info(f"Collision map shape: {terrain.shape}")
+                        logger.info(f"Collision map unique values: {np.unique(terrain)}")
+                        logger.info(f"Collision map sample: {terrain[:5, :5]}")
+                        
+                    except Exception as e:
+                        logger.error(f"Failed to get game data: {str(e)}")
+                        terrain = None
+                        sprite_locations = set()
+
+                    # Draw grid lines
+                    shape = img.size
+                    draw = ImageDraw.Draw(img)
+                    
+                    # Calculate tile size based on actual collision map dimensions
+                    # Game Boy screen is 160x144 pixels, with 20x18 tiles
+                    # Scale up tile size to match new dimensions
+                    tile_width = 16  # 320/20 = 16 pixels per tile
+                    tile_height = 16  # 288/18 = 16 pixels per tile
+                    
+                    logger.info(f"Image size: {shape}, Tile size: {tile_width}x{tile_height}")
+                    
+                    # Draw vertical lines (20 columns = 21 lines)
+                    for x in range(0, shape[0], tile_width):
+                        draw.line(((x, 0), (x, shape[1])), fill=(255, 0, 0))
+                    # Draw horizontal lines (18 rows = 19 lines)
+                    for y in range(0, shape[1], tile_height):
+                        draw.line(((0, y), (shape[0], y)), fill=(255, 0, 0))
+
+                    # Add minimal labels
+                    for row in range(min(terrain.shape[0], 18)):  # Limit to 18 rows
+                        for col in range(min(terrain.shape[1], 20)):  # Limit to 20 columns
+                            # Calculate text position with padding
+                            # Center the text in each tile
+                            # Adjust text position to align with game pixels
+                            text_x = col * tile_width + (tile_width // 2) - 6  # Center horizontally
+                            text_y = row * tile_height + (tile_height // 2) - 6  # Center vertically
+                            
+                            # Ensure text stays within bounds
+                            if text_x < 0 or text_x >= shape[0] or text_y < 0 or text_y >= shape[1]:
+                                continue
+                            
+                            # Draw the label with smaller font
+                            try:
+                                font = ImageFont.truetype("arial.ttf", 12)  # Larger font size for better visibility
+                            except:
+                                # Fallback to default font if arial.ttf not available
+                                font = ImageFont.load_default()
+                                
+                            # Draw text with black outline for better visibility
+                            outline_color = (0, 0, 0)  # Black outline
+                            text_color = (255, 0, 0)   # Red text
+                            
+                            # Simple label based on collision and sprites
+                            if terrain is not None and (col, row) not in sprite_locations:
+                                # In Pokemon Red, 0 means walkable, 1 means collision
+                                if terrain[row][col] == 1:
+                                    label = "X"  # Impassable
+                                else:
+                                    label = "O"  # Passable
+                            elif (col, row) in sprite_locations:
+                                label = "S"  # Sprite/NPC
+                            else:
+                                label = "?"
+                                
+                            # Draw outline
+                            for dx, dy in [(-1,-1), (-1,1), (1,-1), (1,1)]:
+                                draw.text(
+                                    (text_x + dx, text_y + dy),
+                                    label,
+                                    fill=outline_color,
+                                    font=font
+                                )
+                            
+                            # Draw main text
+                            draw.text(
+                                (text_x, text_y),
+                                label,
+                                fill=text_color,
+                                font=font
+                            )
+
+                except Exception as e:
+                    logger.error(f"Grid overlay failed: {str(e)}")
+                    logger.exception("Full traceback:")
+                # --- End grid overlay logic ---
+
+                try:
+                    # Save with original size and no modifications
+                    img.save(frame_path)
+                    logger.info(f"Successfully saved frame to {frame_path}")
+                    return frame_path
+                except Exception as e:
+                    logger.error(f"Failed to save frame: {str(e)}")
+                    return None
+            else:
+                logger.warning(f"Invalid frame type: {type(frame)}")
+                return None
         except Exception as e:
-            logger.error(f"Error saving game frame: {str(e)}")
+            logger.error(f"Failed to save game frame: {str(e)}")
             logger.exception("Full traceback:")
-            return ""
+            return None
 
     def _get_in_combat(self) -> bool:
         """Check if the player is in combat."""
@@ -416,205 +609,187 @@ class PokemonRedEnv(Env):
         # Default to reward as performance score
         return float(info.get('reward', 0.0))
 
-    def _get_player_position(self) -> Tuple[int, int]:
-        """Get player's current position with validation."""
+    def _get_player_position(self) -> Optional[tuple[int, int]]:
+        """Get player's current position."""
         try:
             if not self._verify_game_running():
-                return (0, 0)
+                return None
                 
-            # Use PokemonRedReader to get coordinates
+            # Use PokemonRedReader for memory access
             reader = PokemonRedReader(self.pyboy.memory)
-            x, y = reader.read_coordinates()
+            if not reader._verify_memory_access():
+                logger.warning("Memory access verification failed")
+                return None
+                
+            # Read X and Y coordinates
+            x_data = reader._safe_read_memory(0xD362)
+            y_data = reader._safe_read_memory(0xD361)
+            
+            if x_data is None or y_data is None or len(x_data) == 0 or len(y_data) == 0:
+                logger.warning("Failed to read player coordinates")
+                return None
+                
+            x, y = x_data[0], y_data[0]
             
             # Validate coordinates
-            if not isinstance(x, (int, np.integer)) or not isinstance(y, (int, np.integer)):
-                logger.warning(f"Invalid coordinate types: X={type(x)}, Y={type(y)}")
-                return (0, 0)
+            if not (0 <= x <= 0xFF and 0 <= y <= 0xFF):
+                logger.warning(f"Invalid player coordinates: ({x}, {y})")
+                return None
                 
-            # Convert to int if numpy types
-            x = int(x)
-            y = int(y)
-            
-            # Verify values are reasonable (0-20 range)
-            if 0 <= y < 20 and 0 <= x < 20:
-                logger.debug(f"Found valid position: ({x}, {y})")
-                return (x, y)
-            
-            logger.warning(f"Coordinates out of bounds: X={x}, Y={y}")
-            return (0, 0)
+            return (x, y)
             
         except Exception as e:
-            logger.warning(f"Error getting player position: {str(e)}")
-            logger.exception("Full traceback:")
-            return (0, 0)
+            logger.error(f"Failed to access game memory for position: {str(e)}")
+            return None
 
     def _get_player_direction(self) -> str:
         """Get player's current direction."""
         try:
             if not self._verify_game_running():
-                return "unknown"
+                return "down"
                 
-            # Get direction from sprite pattern
-            game_area = self.pyboy.game_wrapper.game_area()
-            direction = self._get_direction(game_area)
-            
-            if direction in ["up", "down", "left", "right"]:
-                return direction
+            # Use PokemonRedReader for memory access
+            reader = PokemonRedReader(self.pyboy.memory)
+            if not reader._verify_memory_access():
+                logger.warning("Memory access verification failed")
+                return "down"
                 
-            logger.warning(f"Invalid direction value: {direction}")
-            return "unknown"
-            
-        except Exception as e:
-            logger.warning(f"Error getting player direction: {str(e)}")
-            return "unknown"
-
-    def _get_direction(self, array):
-        """Determine the player's facing direction from the sprite pattern with validation."""
-        try:
-            if array is None or not isinstance(array, np.ndarray):
-                logger.warning("Invalid input array for direction detection")
-                return "no direction found"
+            # Read direction from memory
+            direction_data = reader._safe_read_memory(0xD367)
+            if direction_data is None or len(direction_data) == 0:
+                logger.warning("Failed to read player direction")
+                return "down"
                 
-            rows, cols = array.shape
-            logger.debug(f"Game area shape: {array.shape}")
+            direction = direction_data[0]
             
-            # Validate array dimensions
-            if rows < 2 or cols < 2:
-                logger.warning(f"Array too small for direction detection: {array.shape}")
-                return "no direction found"
-            
-            # Log the entire game area for debugging
-            logger.debug("Game area contents:")
-            for i in range(rows):
-                row = array[i].tolist()
-                logger.debug(f"Row {i}: {row}")
-
-            # Define direction patterns with more detailed logging
-            direction_patterns = {
-                "down": [0, 1, 2, 3],
-                "up": [4, 5, 6, 7],
-                "right": [9, 8, 11, 10],
-                "left": [8, 9, 10, 11]
+            # Map direction value to string
+            direction_map = {
+                0: "down",
+                1: "up",
+                2: "left",
+                3: "right"
             }
-
-            # Check center area first (most likely to contain player)
-            center_row = rows // 2
-            center_col = cols // 2
             
-            # Check a 3x3 area around center
-            for i in range(max(0, center_row-1), min(rows-1, center_row+2)):
-                for j in range(max(0, center_col-1), min(cols-1, center_col+2)):
-                    if i+1 >= rows or j+1 >= cols:
-                        continue
-                        
-                    try:
-                        # Get 2x2 grid and ensure it's a list of integers
-                        grid = array[i:i+2, j:j+2].flatten()
-                        grid_values = [int(x) for x in grid]
-                        logger.debug(f"Checking grid at ({i},{j}): {grid_values}")
-                        
-                        # Check each direction pattern
-                        for direction, pattern in direction_patterns.items():
-                            if grid_values == pattern:
-                                logger.debug(f"Found {direction.upper()} pattern at position ({i},{j})")
-                                logger.debug(f"Pattern values: {pattern}")
-                                logger.debug(f"Grid values: {grid_values}")
-                                return direction
-                    except Exception as e:
-                        logger.warning(f"Error checking grid at ({i},{j}): {str(e)}")
-                        continue
-
-            # If no pattern found in center area, check entire grid
-            for i in range(rows - 1):
-                for j in range(cols - 1):
-                    try:
-                        # Get 2x2 grid and ensure it's a list of integers
-                        grid = array[i:i+2, j:j+2].flatten()
-                        grid_values = [int(x) for x in grid]
-                        
-                        # Check each direction pattern
-                        for direction, pattern in direction_patterns.items():
-                            if grid_values == pattern:
-                                logger.debug(f"Found {direction.upper()} pattern at position ({i},{j})")
-                                logger.debug(f"Pattern values: {pattern}")
-                                logger.debug(f"Grid values: {grid_values}")
-                                return direction
-                    except Exception as e:
-                        logger.warning(f"Error checking grid at ({i},{j}): {str(e)}")
-                        continue
-
-            # If no pattern is found, log the entire grid for debugging
-            logger.warning("No direction pattern found in game area")
-            logger.debug("Full game area grid:")
-            for i in range(rows):
-                for j in range(cols):
-                    logger.debug(f"Position ({i},{j}): {array[i,j]}")
-            return "no direction found"
+            return direction_map.get(direction, "down")
             
         except Exception as e:
-            logger.error(f"Error determining direction: {str(e)}")
-            logger.exception("Full traceback:")
-            return "no direction found"
+            logger.error(f"Failed to access game memory for direction: {str(e)}")
+            return "down"
 
-    def _get_collision_map(self) -> Optional[np.ndarray]:
-        """Get collision map for current location."""
+    def _get_direction(self, array) -> str:
+        """Get direction from array of values."""
         try:
-            if not self._verify_game_running():
-                return None
+            if not isinstance(array, np.ndarray) or array.size == 0:
+                return "down"
                 
-            # Get collision data from game wrapper
-            collision_map = self.pyboy.game_wrapper.game_area_collision()
-            if collision_map is None:
-                logger.warning("Failed to get collision data from game")
-                return None
-                
-            # Downsample the collision map to 10x10
-            downsampled = self._downsample_array(collision_map)
+            # Get the center of the array
+            center_y, center_x = array.shape[0] // 2, array.shape[1] // 2
             
-            # Convert to binary collision map (0 = collision, 1 = walkable)
-            binary_map = np.zeros((10, 10), dtype=np.uint8)
-            for y in range(10):
-                for x in range(10):
-                    binary_map[y, x] = 1 if downsampled[y, x] == 0 else 0
-                    
-            return binary_map
+            # Check each direction
+            if array[center_y-1, center_x] == 0:  # Up
+                return "up"
+            elif array[center_y+1, center_x] == 0:  # Down
+                return "down"
+            elif array[center_y, center_x-1] == 0:  # Left
+                return "left"
+            elif array[center_y, center_x+1] == 0:  # Right
+                return "right"
+                
+            return "down"
             
         except Exception as e:
-            logger.warning(f"Failed to create collision map: {str(e)}")
-            return None
+            logger.error(f"Failed to get direction from array: {str(e)}")
+            logger.exception("Full traceback:")
+            return "down"
 
     def _get_map_data(self) -> Optional[np.ndarray]:
-        """Get the current map data."""
+        """Get the map data for the current area."""
         try:
             if not self._verify_game_running():
                 return None
                 
-            # Get map dimensions from game wrapper
-            try:
-                map_data = self.pyboy.game_wrapper.game_area()
-                if map_data is None:
-                    logger.warning("Failed to get map data from game wrapper")
-                    return None
-                    
-                # Convert to numpy array if not already
-                if not isinstance(map_data, np.ndarray):
-                    map_data = np.array(map_data)
-                    
-                # Ensure we have valid dimensions
-                if map_data.size == 0 or map_data.shape[0] == 0 or map_data.shape[1] == 0:
-                    logger.warning("Invalid map dimensions from game wrapper")
-                    return None
-                    
-                return map_data
-                
-            except Exception as e:
-                logger.warning(f"Error getting map data from game wrapper: {str(e)}")
-                return None
-                
+            # Create a 20x18 array for the map (Game Boy screen size in tiles)
+            map_data = np.zeros((18, 20), dtype=np.uint8)
+            
+            # Read map data from memory
+            # In Pokemon Red, map data is stored in VRAM at 0x9800-0x9BFF
+            for y in range(18):
+                for x in range(20):
+                    # Calculate VRAM address for this tile
+                    vram_addr = 0x9800 + (y * 32) + x
+                    tile_id = self._get_memory_value(vram_addr)
+                    if tile_id is not None:
+                        map_data[y, x] = tile_id
+                    else:
+                        logger.warning(f"Failed to read tile at ({x}, {y})")
+                        return None
+                        
+            return map_data
+            
         except Exception as e:
-            logger.error(f"Failed to get map data: {str(e)}")
+            logger.error(f"Error getting map data: {str(e)}")
             logger.exception("Full traceback:")
             return None
+
+    def _get_collision_map(self) -> Optional[np.ndarray]:
+        """Get the collision map for the current area."""
+        try:
+            if not self._verify_game_running():
+                return None
+                
+            # Get map data
+            map_data = self._get_map_data()
+            if map_data is None:
+                logger.warning("Failed to get map data")
+                return None
+                
+            # Create collision map based on map data
+            # In Pokemon Red, tiles 0x00-0x0F are walkable, 0x10-0xFF are not
+            collision_map = np.zeros_like(map_data, dtype=np.uint8)
+            
+            # Set collision for non-walkable tiles
+            collision_map[map_data >= 0x10] = 1
+            
+            # Log collision map info for debugging
+            logger.info(f"Collision map shape: {collision_map.shape}")
+            logger.info(f"Collision map unique values: {np.unique(collision_map)}")
+            logger.info(f"Collision map sample: {collision_map[:5, :5]}")
+            
+            return collision_map
+            
+        except Exception as e:
+            logger.error(f"Error getting collision map: {str(e)}")
+            logger.exception("Full traceback:")
+            return None
+
+    def _get_sprite_locations(self) -> set[tuple[int, int]]:
+        """Get locations of all sprites in the current map."""
+        try:
+            if not hasattr(self, 'pyboy') or self.pyboy is None:
+                return set()
+                
+            # Get sprite data from memory
+            sprite_data = []
+            
+            # Pokemon Red uses OAM (Object Attribute Memory) at 0xFE00-0xFE9F
+            # Each sprite takes 4 bytes: Y, X, tile, attributes
+            for i in range(0, 0xA0, 4):
+                sprite_y = self._get_memory_value(0xFE00 + i)
+                sprite_x = self._get_memory_value(0xFE01 + i)
+                sprite_tile = self._get_memory_value(0xFE02 + i)
+                
+                # Valid sprite if tile is non-zero and coordinates are within bounds
+                if sprite_tile != 0 and 0 < sprite_x < 160 and 0 < sprite_y < 144:
+                    # Convert to tile coordinates
+                    tile_x = sprite_x // 8
+                    tile_y = sprite_y // 8
+                    sprite_data.append((tile_x, tile_y))
+                    
+            return set(sprite_data)
+            
+        except Exception as e:
+            logger.warning(f"Failed to get sprite locations: {str(e)}")
+            return set()
 
     def _calculate_reward(self) -> float:
         """Calculate reward based on game state"""
@@ -861,6 +1036,9 @@ class PokemonRedEnv(Env):
                 logger.warning("Failed to get screenshot from PyBoy")
                 return np.zeros((144, 160, 3), dtype=np.uint8)
             
+            # Log original screen dimensions
+            logger.info(f"Original screen shape: {screen.shape}")
+            
             # Ensure the array is in the correct format
             if not isinstance(screen, np.ndarray):
                 screen = np.array(screen)
@@ -877,6 +1055,12 @@ class PokemonRedEnv(Env):
             if screen.dtype != np.uint8:
                 screen = screen.astype(np.uint8)
             
+            # Log screen info for debugging
+            logger.info(f"Processed screen shape: {screen.shape}")
+            logger.info(f"Screen min/max values: {screen.min()}/{screen.max()}")
+            
+            # Instead of removing borders, ensure we have the full screen
+            # This maintains consistent dimensions for grid overlay
             return screen
             
         except Exception as e:
@@ -954,36 +1138,7 @@ class PokemonRedEnv(Env):
             logger.exception("Full traceback:")
             return "unknown"
 
-    def _downsample_array(self, arr):
-        """Downsample an array by averaging 2x2 blocks with validation."""
-        try:
-            if not isinstance(arr, np.ndarray):
-                raise ValueError(f"Input must be numpy array, got {type(arr)}")
-                
-            rows, cols = arr.shape
-            if rows % 2 != 0 or cols % 2 != 0:
-                raise ValueError(f"Input array dimensions must be even, got {arr.shape}")
-                
-            # Calculate output dimensions
-            out_rows = rows // 2
-            out_cols = cols // 2
-            
-            # Create output array
-            result = np.zeros((out_rows, out_cols), dtype=arr.dtype)
-            
-            # Reshape and average
-            for i in range(out_rows):
-                for j in range(out_cols):
-                    block = arr[i*2:i*2+2, j*2:j*2+2]
-                    result[i, j] = np.mean(block)
-                    
-            return result
-            
-        except Exception as e:
-            logger.error(f"Error in downsampling: {str(e)}")
-            logger.exception("Full traceback:")
-            raise
-
+   
     def _get_valid_moves(self) -> List[str]:
         """Get list of valid moves based on current position and collision map."""
         try:
@@ -1097,121 +1252,110 @@ class PokemonRedEnv(Env):
         return bottom_sprite_tiles
 
     def find_path(self, target_row: int, target_col: int) -> tuple[str, list[str]]:
-        """Finds the most efficient path from the player's current position to the target position"""
-        collision_map = self.pyboy.game_wrapper.game_area_collision()
-        terrain = self._downsample_array(collision_map)
-        sprite_locations = self.get_sprites()
-
-        full_map = self.pyboy.game_wrapper._get_screen_background_tilemap()
-        reader = PokemonRedReader(self.pyboy.memory)
-        tileset = reader.read_tileset()
-
-        start = (4, 4)
-        end = (target_row, target_col)
-
-        if not (0 <= target_row < 9 and 0 <= target_col < 10):
-            return "Invalid target coordinates", []
-
-        def heuristic(a, b):
-            return abs(a[0] - b[0]) + abs(a[1] - b[1])
-
-        open_set = []
-        heapq.heappush(open_set, (0, start))
-        came_from = {}
-        g_score = {start: 0}
-        f_score = {start: heuristic(start, end)}
-
-        closest_point = start
-        min_distance = heuristic(start, end)
-
-        def reconstruct_path(current):
-            path = []
-            while current in came_from:
-                prev = came_from[current]
-                if prev[0] < current[0]:
-                    path.append("down")
-                elif prev[0] > current[0]:
-                    path.append("up")
-                elif prev[1] < current[1]:
-                    path.append("right")
-                else:
-                    path.append("left")
-                current = prev
-            path.reverse()
-            return path
-
-        while open_set:
-            _, current = heapq.heappop(open_set)
-
-            if current == end:
-                path = reconstruct_path(current)
-                is_wall = terrain[end[0]][end[1]] == 0
-                if is_wall:
-                    return (
-                        f"Partial Success: Your target location is a wall. In case this is intentional, attempting to navigate there.",
-                        path,
-                    )
-                else:
-                    return (
-                        f"Success: Found path to target at ({target_row}, {target_col}).",
-                        path,
-                    )
-
-            current_distance = heuristic(current, end)
-            if current_distance < min_distance:
-                closest_point = current
-                min_distance = current_distance
-
-            if (abs(current[0] - end[0]) + abs(current[1] - end[1])) == 1 and terrain[end[0]][end[1]] == 0:
-                path = reconstruct_path(current)
-                if end[0] > current[0]:
-                    path.append("down")
-                elif end[0] < current[0]:
-                    path.append("up")
-                elif end[1] > current[1]:
-                    path.append("right")
-                else:
-                    path.append("left")
-                return (
-                    f"Success: Found path to position adjacent to wall at ({target_row}, {target_col}).",
-                    path,
-                )
-
-            for dr, dc, direction in [
-                (1, 0, "down"), (-1, 0, "up"), (0, 1, "right"), (0, -1, "left"),
-            ]:
-                neighbor = (current[0] + dr, current[1] + dc)
-
-                if not (0 <= neighbor[0] < 9 and 0 <= neighbor[1] < 10):
-                    continue
-                if terrain[neighbor[0]][neighbor[1]] == 0 and neighbor != end:
-                    continue
-                if (neighbor[1], neighbor[0]) in sprite_locations and neighbor != end:
-                    continue
-
-                current_tile = full_map[current[0] * 2 + 1][current[1] * 2]
-                neighbor_tile = full_map[neighbor[0] * 2 + 1][neighbor[1] * 2]
-                if not self._can_move_between_tiles(current_tile, neighbor_tile, tileset):
-                    continue
-
-                tentative_g_score = g_score[current] + 1
-                if neighbor not in g_score or tentative_g_score < g_score[neighbor]:
-                    came_from[neighbor] = current
-                    g_score[neighbor] = tentative_g_score
-                    f_score[neighbor] = tentative_g_score + heuristic(neighbor, end)
-                    heapq.heappush(open_set, (f_score[neighbor], neighbor))
-
-        if closest_point != start:
-            path = reconstruct_path(closest_point)
-            return (
-                f"Partial Success: Could not reach the exact target, but found a path to the closest reachable point.",
-                path,
-            )
-
-        return (
-            "Failure: No path is visible to the chosen location. You may need to explore a totally different path to get where you're trying to go.",
-            [],
-        )
+        """Find a path to the target coordinates using A* algorithm."""
+        try:
+            # Get collision map
+            collision_map = self._get_collision_map()
+            if collision_map is None:
+                return "No collision map available", []
+                
+            # Get current position
+            current_pos = self._get_player_position()
+            if current_pos is None:
+                return "Could not determine current position", []
+                
+            current_row, current_col = current_pos
+            
+            # Validate target coordinates
+            if not (0 <= target_row < collision_map.shape[0] and 0 <= target_col < collision_map.shape[1]):
+                return f"Target coordinates ({target_row}, {target_col}) out of bounds", []
+                
+            # Check if target is walkable
+            if collision_map[target_row, target_col] == 0:
+                return f"Target position ({target_row}, {target_col}) is not walkable", []
+                
+            # Initialize A* search
+            start = (current_row, current_col)
+            goal = (target_row, target_col)
+            
+            # Priority queue for A* search
+            frontier = []
+            heapq.heappush(frontier, (0, start))
+            
+            # Keep track of where we came from
+            came_from = {start: None}
+            
+            # Keep track of cost so far
+            cost_so_far = {start: 0}
+            
+            def heuristic(a, b):
+                """Manhattan distance heuristic."""
+                return abs(a[0] - b[0]) + abs(a[1] - b[1])
+            
+            def reconstruct_path(current):
+                """Reconstruct path from start to current position."""
+                path = []
+                while current is not None:
+                    path.append(current)
+                    current = came_from[current]
+                path.reverse()
+                
+                # Convert path to actions
+                actions = []
+                for i in range(len(path) - 1):
+                    current = path[i]
+                    next_pos = path[i + 1]
+                    
+                    # Determine direction
+                    if next_pos[0] < current[0]:
+                        actions.append("up")
+                    elif next_pos[0] > current[0]:
+                        actions.append("down")
+                    elif next_pos[1] < current[1]:
+                        actions.append("left")
+                    elif next_pos[1] > current[1]:
+                        actions.append("right")
+                
+                return actions
+            
+            # A* search
+            while frontier:
+                _, current = heapq.heappop(frontier)
+                
+                if current == goal:
+                    actions = reconstruct_path(current)
+                    return "Path found", actions
+                
+                # Check all neighbors
+                for next_row, next_col in [
+                    (current[0] - 1, current[1]),  # up
+                    (current[0] + 1, current[1]),  # down
+                    (current[0], current[1] - 1),  # left
+                    (current[0], current[1] + 1)   # right
+                ]:
+                    # Check bounds
+                    if not (0 <= next_row < collision_map.shape[0] and 0 <= next_col < collision_map.shape[1]):
+                        continue
+                        
+                    # Check if walkable
+                    if collision_map[next_row, next_col] == 0:
+                        continue
+                        
+                    next_pos = (next_row, next_col)
+                    new_cost = cost_so_far[current] + 1
+                    
+                    if next_pos not in cost_so_far or new_cost < cost_so_far[next_pos]:
+                        cost_so_far[next_pos] = new_cost
+                        priority = new_cost + heuristic(goal, next_pos)
+                        heapq.heappush(frontier, (priority, next_pos))
+                        came_from[next_pos] = current
+            
+            return "No path found", []
+            
+        except Exception as e:
+            logger.error(f"Error finding path: {str(e)}")
+            logger.exception("Full traceback:")
+            return f"Error finding path: {str(e)}", []
 
     def get_state_from_memory(self) -> str:
         """Reads the game state from memory and returns a string representation"""
@@ -1277,54 +1421,6 @@ class PokemonRedEnv(Env):
             logger.error(f"Error getting game state: {str(e)}")
             logger.exception("Full traceback:")
             return "Error: Failed to read game state"
-
-    def _get_memory_value(self, address: int) -> int:
-        """Get value from memory address with validation."""
-        if not self.pyboy:
-            return 0
-            
-        try:
-            # Validate memory address (PyBoy memory is 0x0000-0xFFFF)
-            if not (0 <= address <= 0xFFFF):
-                logger.warning(f"Invalid memory address: {hex(address)}")
-                return 0
-                
-            # Use PokemonRedReader for consistent memory access
-            reader = PokemonRedReader(self.pyboy.memory)
-            data = reader._safe_read_memory(address)
-            
-            if data is None:
-                return 0
-                
-            value = data[0]
-            
-            # Ensure value is within valid range (0-255 for single byte)
-            if not (0 <= value <= 255):
-                logger.warning(f"Invalid memory value at {hex(address)}: {value}")
-                return 0
-                
-            return value
-            
-        except Exception as e:
-            logger.error(f"Error reading memory at {hex(address)}: {str(e)}")
-            return 0
-
-    def _verify_game_running(self) -> bool:
-        """Verify that the game is running and memory is accessible."""
-        try:
-            if not self.pyboy:
-                return False
-                
-            # Check if we can read from a known good address
-            # D35E: Current map number (should always be readable)
-            map_id = self._get_memory_value(0xD35E)
-            
-            # Just verify we can read memory, don't check value
-            # Map ID 0 is valid (PALLET TOWN)
-            return True
-        except Exception as e:
-            logger.warning(f"Error verifying game state: {e}")
-            return False
 
     def _get_inventory(self) -> Dict[str, int]:
         """Get current inventory items and quantities."""
@@ -1727,3 +1823,83 @@ class PokemonRedEnv(Env):
             logger.error(f"Error getting text representation: {str(e)}")
             logger.exception("Full traceback:")
             return "Error: Failed to get text representation"
+
+    def _save_game_state(self, episode_id: int, step_num: int) -> str:
+        """Save the current game state as an image."""
+        try:
+            if not hasattr(self, 'pyboy') or self.pyboy is None:
+                logger.error("PyBoy instance not found")
+                return None
+                
+            # Get the screen image
+            screen = self.pyboy.screen_image()
+            if screen is None:
+                logger.error("Failed to get screen image")
+                return None
+                
+            # Convert to numpy array
+            screen_array = np.array(screen)
+            logger.info(f"Original screen shape: {screen_array.shape}")
+            
+            # Convert RGBA to RGB if needed
+            if screen_array.shape[-1] == 4:
+                screen_array = screen_array[:, :, :3]
+                logger.info(f"Processed screen shape: {screen_array.shape}")
+            
+            # Log pixel value range
+            logger.info(f"Screen min/max values: {screen_array.min()}/{screen_array.max()}")
+            
+            # Target dimensions for Game Boy screen (scaled up for better visibility)
+            target_width = 320  # 2x original width
+            target_height = 288  # 2x original height
+            
+            # Get current dimensions
+            h, w = screen_array.shape[:2]
+            
+            # Calculate scaling factors to fill the target dimensions
+            scale_x = target_width / w
+            scale_y = target_height / h
+            
+            # Use the larger scale to ensure we fill the space
+            scale = max(scale_x, scale_y)
+            
+            # Calculate new dimensions
+            new_w = int(w * scale)
+            new_h = int(h * scale)
+            
+            # Resize the frame
+            resized_screen = cv2.resize(screen_array, (new_w, new_h))
+            
+            # Calculate crop dimensions to center the resized image
+            crop_x = (new_w - target_width) // 2
+            crop_y = (new_h - target_height) // 2
+            
+            # Crop the resized image to target dimensions
+            if crop_x > 0 and crop_y > 0:
+                new_frame = resized_screen[crop_y:crop_y+target_height, crop_x:crop_x+target_width]
+            else:
+                # If no cropping needed, just copy the resized image
+                new_frame = resized_screen[:target_height, :target_width]
+            
+            # Convert to PIL Image
+            img = Image.fromarray(new_frame)
+            
+            # Save the image
+            frame_path = self.adapter._create_agent_observation_path(episode_id, step_num)
+            save_dir = os.path.dirname(frame_path)
+            os.makedirs(save_dir, exist_ok=True)
+            
+            if os.path.exists(frame_path):
+                try:
+                    os.remove(frame_path)
+                except Exception as e:
+                    logger.warning(f"Failed to remove old frame {frame_path}: {str(e)}")
+            
+            img.save(frame_path)
+            logger.info(f"Successfully saved game state to {frame_path}")
+            return frame_path
+            
+        except Exception as e:
+            logger.error(f"Failed to save game state: {str(e)}")
+            logger.exception("Full traceback:")
+            return None

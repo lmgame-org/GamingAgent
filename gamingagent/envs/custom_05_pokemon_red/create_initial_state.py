@@ -295,9 +295,9 @@ def create_initial_state(rom_path: str, state_path: str):
         
         # Alternate between A and Start to advance dialogue
         logger.info("Alternating between A and Start to advance dialogue...")
-        for i in range(120):  # Keep pressing buttons
+        for i in range(110):  # Keep pressing buttons
             if i % 10 == 0:  # Only log every 10th press
-                logger.info(f"Press {i+1}/120")
+                logger.info(f"Press {i+1}/110")
                 save_frame(pyboy, f"press_{i+1}")
             
             # Alternate between A and Start
@@ -314,7 +314,7 @@ def create_initial_state(rom_path: str, state_path: str):
         # Handle rival name entry
         # handle_rival_name_entry(pyboy)
         
-          
+    
         # Wait a bit after all presses
         logger.info("Waiting for game to stabilize...")
         time.sleep(10)
