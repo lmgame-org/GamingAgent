@@ -773,18 +773,37 @@ class PokemonRedEnv(Env):
             # Get sprite data from memory
             sprite_data = []
             
-            # Pokemon Red uses OAM (Object Attribute Memory) at 0xFE00-0xFE9F
-            # Each sprite takes 4 bytes: Y, X, tile, attributes
-            for i in range(0, 0xA0, 4):
-                sprite_y = self._get_memory_value(0xFE00 + i)
-                sprite_x = self._get_memory_value(0xFE01 + i)
-                sprite_tile = self._get_memory_value(0xFE02 + i)
+            # Pokemon Red sprite data format (16 sprites, 16 bytes each)
+            # C100-C1FF: Primary sprite data
+            # C200-C2FF: Secondary sprite data
+            for sprite_id in range(16):  # 16 sprites total
+                # Get sprite status from C1x1
+                status = self._get_memory_value(0xC100 + sprite_id * 16 + 1)
                 
-                # Valid sprite if tile is non-zero and coordinates are within bounds
-                if sprite_tile != 0 and 0 < sprite_x < 160 and 0 < sprite_y < 144:
+                # Skip uninitialized sprites (status = 0)
+                if status == 0:
+                    continue
+                    
+                # Get Y position from C1x4 (in pixels)
+                sprite_y = self._get_memory_value(0xC100 + sprite_id * 16 + 4)
+                # Get X position from C1x6 (in pixels)
+                sprite_x = self._get_memory_value(0xC100 + sprite_id * 16 + 6)
+                
+                # Get movement status from C2x6
+                movement = self._get_memory_value(0xC200 + sprite_id * 16 + 6)
+                
+                # Valid sprite if:
+                # 1. Status is not 0 (uninitialized)
+                # 2. Movement byte is not 0xFF (not moving)
+                # 3. Coordinates are within bounds
+                if (status != 0 and 
+                    movement != 0xFF and 
+                    0 < sprite_x < 160 and 
+                    0 < sprite_y < 144):
                     # Convert to tile coordinates
+                    # Note: Y position is 4 pixels above grid
                     tile_x = sprite_x // 8
-                    tile_y = sprite_y // 8
+                    tile_y = (sprite_y - 4) // 8  # Adjust for 4-pixel offset
                     sprite_data.append((tile_x, tile_y))
                     
             return set(sprite_data)
