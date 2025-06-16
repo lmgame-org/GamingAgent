@@ -432,7 +432,7 @@ def run_game_episode(agent: BaseAgent, game_env: gym.Env, episode_id: int, args:
                 action_str = str(action_dict.get("action")).strip().lower()
                 
                 # For attack action, ensure it's always 8 frames
-                if action_str.startswith("attack"):
+                if "attack" in action_str:
                     action_str = "attack,8"
             else:
                 action_str = "none"
