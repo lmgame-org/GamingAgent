@@ -430,16 +430,10 @@ def run_game_episode(agent: BaseAgent, game_env: gym.Env, episode_id: int, args:
             # Handle action like test file
             if action_dict and action_dict.get("action") is not None:
                 action_str = str(action_dict.get("action")).strip().lower()
-                # Get available actions from environment
-                if hasattr(game_env, '_cfg'):
-                    available_actions = game_env._cfg.get("available_buttons", ["move_left", "move_right", "attack"])
-                else:
-                    available_actions = ["move_left", "move_right", "attack"]
-                    
-                # Validate action is one of the allowed actions
-                if action_str not in available_actions:
-                    print(f"Warning: Invalid action '{action_str}', using 'none'")
-                    action_str = "none"
+                
+                # For attack action, ensure it's always 8 frames
+                if action_str.startswith("attack"):
+                    action_str = "attack,8"
             else:
                 action_str = "none"
         

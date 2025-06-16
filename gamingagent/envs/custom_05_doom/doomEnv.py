@@ -338,13 +338,25 @@ class DoomEnvWrapper(gym.Env):
         """Convert action string to button presses.
         
         Args:
-            action_str: Action string to convert
+            action_str: Action string to convert (can include frame count like "move_right,5")
             
         Returns:
             List of boolean values representing button presses
         """
+        # Clean up the action string - remove brackets and quotes
+        action_str = action_str.strip("[]()\\\' ")
+        
+        # Split action and frame count if present
+        if "," in action_str:
+            action_str = action_str.split(",")[0]
+            
+        # Convert to lowercase for case-insensitive matching
+        action_str = action_str.lower()
+            
         if action_str not in self.button_mapping:
+            self.logger.warning(f"Unknown action: {action_str}")
             raise ValueError(f"Unknown action: {action_str}")
+            
         return self.button_mapping[action_str]
 
     def _extract_game_specific_info(self) -> Dict[str, Any]:
@@ -524,216 +536,243 @@ class DoomEnvWrapper(gym.Env):
         time_taken_s: float = 0.0,
         use_random_action: bool = False
     ) -> Tuple[Observation, float, bool, bool, Dict[str, Any], float]:
-        """Execute one step in the environment.
-        
-        Args:
-            agent_action_str: Action string from agent
-            thought_process: Agent's thought process
-            time_taken_s: Time taken by agent to decide
-            use_random_action: Whether to use random action
+        """Execute one step in the environment."""
+        try:
+            if not hasattr(self, 'game') or self.game is None:
+                raise RuntimeError("Game not initialized")
+                
+            self.adapter.increment_step()
             
-        Returns:
-            Tuple of (observation, reward, terminated, truncated, info, performance_score)
-        """
-        self._validate_game_state()
-        self.adapter.increment_step()
+            # Get current state before action
+            prev_info = self._get_game_state()
+            if prev_info is None:
+                prev_info = {}
+            prev_ammo = prev_info.get('ammo2', 0)
             
-        # Get current state before action
-        prev_info = self._get_game_state()
-        if prev_info is None:
-            prev_info = {}
-        prev_ammo = prev_info.get('ammo2', 0)
-        
-        # Convert action string to button list
-        if use_random_action:
-            action_str = random.choice(self._cfg.get("available_buttons", ["move_left", "move_right", "attack"]))
-        else:
+            # Parse action string to get action and frame count
             action_str = agent_action_str
+            frame_count = 1  # Default to 1 frame
             
-        buttons = self._buttons_from_str(action_str)
-        self.logger.info(f"[DoomEnvWrapper] Executing action '{action_str}' with buttons: {buttons}")
-
-        # Get the game's ticrate from config
-        ticrate = self._cfg.get("episode_settings", {}).get("ticrate", 20)
-        frame_time = 1.0 / ticrate
-
-        # Initialize variables for action execution
-        total_reward = 0
-        current_info = None
-        state_changed = False
-        max_wait_time = 5.0  # Maximum time to wait for state change in seconds
-        start_time = time.time()
-        tics_executed = 0
-        max_retries = 3  # Maximum number of retries for getting game state
-        retry_count = 0
-        frame_path = None  # Initialize frame_path
-        max_movement_attempts = 5  # Maximum number of movement attempts
-
-        # Execute action and wait for state change
-        movement_attempts = 0
-        while not state_changed and (time.time() - start_time) < max_wait_time:
-            # For movement actions, execute multiple tics to make movement more perceptible
-            if action_str in ["move_left", "move_right"]:
-                if movement_attempts >= max_movement_attempts:
-                    self.logger.info(f"Reached maximum movement attempts ({max_movement_attempts})")
-                    break
-                movement_attempts += 1
-                tics_to_execute = 3
-            else:
-                tics_to_execute = 8  # Execute 8 tics for attack
+            print(f"[DoomEnvWrapper] step input action_str: '{agent_action_str}'")
+            
+            if action_str:
+                # Clean up the action string first
+                action_str = action_str.strip("[]()\\\' ")
                 
-            # Execute action for specified number of tics
-            step_reward = self.game.make_action(buttons, tics=tics_to_execute)
+                # Try to parse action and frame count using regex
+                import re
+                match = re.match(r"(\w+(?:_\w+)*),\s*(\d+)", action_str)
+                if match:
+                    action_str = match.group(1)
+                    try:
+                        parsed_frame_count = int(match.group(2))
+                        if parsed_frame_count > 0:
+                            frame_count = parsed_frame_count
+                    except ValueError:
+                        pass
+                else:
+                    # If no frame count, just use the action name
+                    action_str = action_str.strip()
             
-            # Add negative rewards explicitly
-            if action_str == "attack":
-                total_reward -= 5  # -5 for each shot
-            total_reward -= tics_to_execute  # -1 for each tic alive
+            # Convert action string to button list
+            if use_random_action:
+                action_str = random.choice(self._cfg.get("available_buttons", ["move_left", "move_right", "attack"]))
             
-            tics_executed += tics_to_execute
+            print(f"[DoomEnvWrapper] Executing action '{action_str}' for {frame_count} frames")
+            buttons = self._buttons_from_str(action_str)
+            self.logger.info(f"[DoomEnvWrapper] Executing action '{action_str}' for {frame_count} frames with buttons: {buttons}")
             
-            # For attack actions, capture frame during the action
-            if action_str == "attack":
-                # Wait longer for attack state update
-                time.sleep(frame_time * 8)  # Wait 8 frames for attack state update
-                # Capture frame after state update
-                frame_path = self._capture_frame()
-                # Additional wait after frame capture
-                time.sleep(frame_time * 2)  # Wait 2 more frames for state to stabilize
-            else:
-                # For movement actions, capture frame after each small movement
-                time.sleep(frame_time * 8)  # Wait 8 frames for movement state update
-                frame_path = self._capture_frame()
-                time.sleep(frame_time * 2)  # Wait 2 more frames for state to stabilize
+            # Get the game's ticrate from config
+            ticrate = self._cfg.get("episode_settings", {}).get("ticrate", 20)
+            frame_time = 1.0 / ticrate
             
-            # Get new state with retries
-            state = None
+            # Initialize variables for action execution
+            total_reward = 0
+            current_info = None
+            state_changed = False
+            max_wait_time = 5.0
+            start_time = time.time()
+            tics_executed = 0
+            max_retries = 3  # Maximum number of retries for getting game state
             retry_count = 0
-            while state is None and retry_count < max_retries:
-                try:
-                    state = self.game.get_state()
-                    if state is None:
-                        self.logger.warning(f"Failed to get game state, attempt {retry_count + 1}/{max_retries}")
-                        time.sleep(frame_time * 8)  # Wait 8 frames before retrying
-                        retry_count += 1
-                except Exception as e:
-                    self.logger.error(f"Error getting game state: {str(e)}")
-                    time.sleep(frame_time * 8)
-                    retry_count += 1
-
-            if state is None:
-                self.logger.error("Failed to get game state after maximum retries")
-                # Use previous state if we can't get new state
-                current_info = prev_info
-                break
-                
-            # Update current state
-            current_info = self._get_game_state()
-            if current_info is None:
-                current_info = prev_info
-                break
+            frame_path = None  # Initialize frame_path
+            max_movement_attempts = 5  # Maximum number of movement attempts
             
-            # Verify state changed based on action type
-            if prev_info:
-                changes = []
-                if action_str == "attack":
-                    # For attack, only check ammo change
-                    if 'ammo2' in prev_info and 'ammo2' in current_info:
-                        if prev_info['ammo2'] != current_info['ammo2']:
-                            changes.append(f"ammo2: {prev_info['ammo2']} -> {current_info['ammo2']}")
-                            state_changed = True
+            # Execute action and wait for state change
+            movement_attempts = 0
+            while not state_changed and (time.time() - start_time) < max_wait_time:
+                # For movement actions, execute multiple tics to make movement more perceptible
+                if action_str in ["move_left", "move_right"]:
+                    if movement_attempts >= max_movement_attempts:
+                        self.logger.info(f"Reached maximum movement attempts ({max_movement_attempts})")
+                        break
+                    movement_attempts += 1
+                    tics_to_execute = frame_count  # Use parsed frame count
                 else:
-                    # For movement, check position_x change
-                    if 'position_x' in prev_info and 'position_x' in current_info:
-                        if prev_info['position_x'] != current_info['position_x']:
-                            changes.append(f"position_x: {prev_info['position_x']} -> {current_info['position_x']}")
-                            state_changed = True
+                    tics_to_execute = 8  # Execute 8 tics for attack, always
+                    
+                # Execute action for specified number of tics
+                step_reward = self.game.make_action(buttons, tics=tics_to_execute)
                 
-                if changes:
-                    self.logger.info(f"State changes detected after {tics_executed} tics: {', '.join(changes)}")
-                    break
+                # Add negative rewards explicitly
+                if action_str == "attack":
+                    total_reward -= 5  # -5 for each shot
+                total_reward -= tics_to_execute  # -1 for each tic alive
+                
+                tics_executed += tics_to_execute
+                
+                # For attack actions, capture frame during the action
+                if action_str == "attack":
+                    # Wait longer for attack state update
+                    time.sleep(frame_time * 8)  # Wait 8 frames for attack state update
+                    # Capture frame after state update
+                    frame_path = self._capture_frame()
+                    # Additional wait after frame capture
+                    time.sleep(frame_time * 2)  # Wait 2 more frames for state to stabilize
                 else:
-                    self.logger.debug("No state changes detected, waiting...")
-                    time.sleep(frame_time * 4)  # Wait 4 frames before retrying
-
-        if not state_changed:
-            self.logger.warning(f"No state changes detected after {max_wait_time} seconds and {tics_executed} tics")
-            current_info = prev_info  # Use previous state if no changes detected
-        
-        # Check if episode is done
-        is_episode_finished = self.game.is_episode_finished()
-        
-        
-        # Update game trajectory
-        ts = datetime.datetime.now().isoformat(timespec="seconds")
-        trajectory_entry = (
-            f"##Turn Hash\n[{ts}]\n"
-            f"###Obs\n{self._text_repr()}\n"
-            f"###Thought\n{thought_process}\n"
-            f"###Action\n{action_str}\n"
-        )
-        self.game_trajectory.add(trajectory_entry)
-        
-        # Format thought process for observation
-        formatted_thought = (
-            f"Current State:\n"
-            f"- Health: {current_info.get('health', 0)}\n"
-            f"- Ammo: {current_info.get('ammo2', 0)}\n"
-            f"- Position: ({current_info.get('position_x', 0)}, {current_info.get('position_y', 0)})\n"
-            f"- Angle: {current_info.get('angle', 0)}\n\n"
-            f"Action Analysis:\n"
-            f"- Action taken: {action_str}\n"
-            f"- Reward received: {total_reward} (over {tics_executed} tics)\n"
-            f"- State changes: {', '.join([f'{k}: {v}' for k, v in current_info.items() if k in ['health', 'ammo2', 'position_x', 'position_y', 'angle']])}\n\n"
-            f"Combat Strategy:\n{thought_process}"
-        )
-
-        # Create observation
-        observation = Observation(
-            img_path=frame_path,
-            game_trajectory=self.game_trajectory,
-            reflection=formatted_thought,
-            processed_visual_description=self._text_repr(),
-            textual_representation=None
-        )
-
-        # Store current observation for next step
-        self.last_observation = observation
-        
-        # Set the performance score as the total reward
-        performance_score = total_reward
-        
-        # Log step data using adapter
-        self.adapter.log_step_data(
-            agent_action_str=action_str,
-            thought_process=formatted_thought,
-            reward=total_reward,
-            info=current_info,
-            terminated=is_episode_finished,
-            truncated=False,
-            time_taken_s=time_taken_s,
-            perf_score=performance_score,
-            agent_observation=observation
-        )
-        
-        # If episode is finished or monster is defeated, handle ending
-        if is_episode_finished or ('monster_visible' in current_info and not current_info['monster_visible']):
-            frame_path, current_info = self._handle_episode_end(current_info, frame_time)
-            # Create a minimal observation for episode end
+                    # For movement actions, capture frame after each small movement
+                    time.sleep(frame_time * 8)  # Wait 8 frames for movement state update
+                    frame_path = self._capture_frame()
+                    time.sleep(frame_time * 2)  # Wait 2 more frames for state to stabilize
+                
+                # Get new state with retries
+                state = None
+                retry_count = 0
+                while state is None and retry_count < max_retries:
+                    try:
+                        state = self.game.get_state()
+                        if state is None:
+                            self.logger.warning(f"Failed to get game state, attempt {retry_count + 1}/{max_retries}")
+                            time.sleep(frame_time * 8)  # Wait 8 frames before retrying
+                            retry_count += 1
+                    except Exception as e:
+                        self.logger.error(f"Error getting game state: {str(e)}")
+                        time.sleep(frame_time * 8)
+                        retry_count += 1
+                
+                if state is None:
+                    self.logger.error("Failed to get game state after maximum retries")
+                    # Use previous state if we can't get new state
+                    current_info = prev_info
+                    break
+                    
+                # Update current state
+                current_info = self._get_game_state()
+                if current_info is None:
+                    current_info = prev_info
+                    continue
+                
+                # Verify state changed based on action type
+                if prev_info:
+                    changes = []
+                    if action_str == "attack":
+                        # For attack, only check ammo change
+                        if 'ammo2' in prev_info and 'ammo2' in current_info:
+                            if prev_info['ammo2'] != current_info['ammo2']:
+                                changes.append(f"ammo2: {prev_info['ammo2']} -> {current_info['ammo2']}")
+                                state_changed = True
+                    else:
+                        # For movement, check position_x change
+                        if 'position_x' in prev_info and 'position_x' in current_info:
+                                pos_diff = abs(current_info['position_x'] - prev_info['position_x'])
+                                if pos_diff > 0.1:  # Allow small position changes
+                                    changes.append(f"position_x: {prev_info['position_x']} -> {current_info['position_x']}")
+                                    state_changed = True
+                    
+                    if changes:
+                        self.logger.info(f"State changes detected after {tics_executed} tics: {', '.join(changes)}")
+                        break
+                    else:
+                        self.logger.debug("No state changes detected, waiting...")
+                        time.sleep(frame_time * 4)  # Wait 4 frames before retrying
+            
+            if not state_changed:
+                current_info = prev_info  # Use previous state if no changes detected
+            
+            # Check if episode is done
+            is_episode_finished = self.game.is_episode_finished()
+            
+            # Update game trajectory
+            ts = datetime.datetime.now().isoformat(timespec="seconds")
+            trajectory_entry = (
+                f"##Turn Hash\n[{ts}]\n"
+                f"###Obs\n{self._text_repr()}\n"
+                f"###Thought\n{thought_process}\n"
+                f"###Action\n{action_str}\n"
+            )
+            self.game_trajectory.add(trajectory_entry)
+            
+            # Format thought process for observation
+            formatted_thought = (
+                f"Current State:\n"
+                f"- Health: {current_info.get('health', 0)}\n"
+                f"- Ammo: {current_info.get('ammo2', 0)}\n"
+                f"- Position: ({current_info.get('position_x', 0)}, {current_info.get('position_y', 0)})\n"
+                f"- Angle: {current_info.get('angle', 0)}\n\n"
+                f"Action Analysis:\n"
+                f"- Action taken: {action_str} for {frame_count} frames\n"
+                f"- Reward received: {total_reward} (over {tics_executed} tics)\n"
+                f"- State changes: {', '.join([f'{k}: {v}' for k, v in current_info.items() if k in ['health', 'ammo2', 'position_x', 'position_y', 'angle']])}\n\n"
+                f"Combat Strategy:\n{thought_process}"
+            )
+            
+            # Create observation
             observation = Observation(
                 img_path=frame_path,
                 game_trajectory=self.game_trajectory,
-                reflection="Episode ended",
-                processed_visual_description="Episode ended",
+                reflection=formatted_thought,
+                processed_visual_description=self._text_repr(),
                 textual_representation=None
             )
             
-            total_reward += 106
-        
-            return observation, total_reward, True, False, current_info, total_reward
-        else:
-            # If episode is not finished, return the observation and reward as normal   
-            return observation, total_reward, is_episode_finished, False, current_info, performance_score
+            # Store current observation for next step
+            self.last_observation = observation
+            
+            # Set the performance score as the total reward
+            performance_score = total_reward
+            
+            # Log step data using adapter
+            self.adapter.log_step_data(
+                agent_action_str=action_str,
+                thought_process=formatted_thought,
+                reward=total_reward,
+                info=current_info,
+                terminated=is_episode_finished,
+                truncated=False,
+                time_taken_s=time_taken_s,
+                perf_score=performance_score,
+                agent_observation=observation
+            )
+            
+            # If episode is finished or monster is defeated, handle ending
+            if is_episode_finished or ('monster_visible' in current_info and not current_info['monster_visible']):
+                frame_path, current_info = self._handle_episode_end(current_info, frame_time)
+                # Create a minimal observation for episode end
+                observation = Observation(
+                    img_path=frame_path,
+                    game_trajectory=self.game_trajectory,
+                    reflection="Episode ended",
+                    processed_visual_description="Episode ended",
+                    textual_representation=None
+                )
+                
+                total_reward += 106
+            
+            return observation, total_reward, is_episode_finished, False, current_info, total_reward
+            
+        except Exception as e:
+            self.logger.error(f"Error during environment step: {str(e)}")
+            self.logger.exception("Full traceback:")
+            # Try to recover by reinitializing
+            try:
+                self.close()
+                self._init_game_components()
+                self.game.new_episode()
+                observation = self._get_game_state()
+                return observation, 0.0, True, False, {}, 0.0
+            except Exception as recovery_error:
+                self.logger.error(f"Failed to recover from step error: {str(recovery_error)}")
+                raise RuntimeError("Failed to step environment") from recovery_error
 
     def render(self) -> None:
         """Render the game.
