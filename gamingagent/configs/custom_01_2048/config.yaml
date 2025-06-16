@@ -24,6 +24,6 @@ agent:
 
     memory_module:
       max_memory: 10  # Maximum number of memory entries to store
-      use_reflection: False  # Whether to reflect on past memories
+      use_reflection: False  # Whether to reflect on past memories, default is True
     
     reasoning_module:
