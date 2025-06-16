@@ -29,6 +29,19 @@ TETRIS_COLORS = {
 # Sokoban Constants
 SOKOBAN_ASSET_DIR = "gamingagent/envs/custom_02_sokoban/assets/images"
 
+def load_font(size):
+    font_candidates = [
+        "arial.ttf",  # Windows
+        "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",  # Linux
+        "/System/Library/Fonts/Supplemental/Arial.ttf",  # macOS
+    ]
+    for font_path in font_candidates:
+        try:
+            return ImageFont.truetype(font_path, size)
+        except:
+            continue
+    return ImageFont.load_default()
+
 def load_sokoban_asset_image(path, size):
     """Load and resize a Sokoban asset image"""
     if not os.path.exists(path):
@@ -117,30 +130,9 @@ def visualize_tetris_frame(board: List[List[str]], extra_info: str = "", config_
     info_x_start = board_width + 40
     info_y_start = 30
     
-    try:
-        # Load larger fonts by scaling default font
-        from PIL import ImageFont
-        font_large = ImageFont.load_default()
-        font_small = ImageFont.load_default()
-        
-        # Try to create larger fonts - if this fails, fallback to default
-        try:
-            # For systems with truetype fonts available
-            font_large = ImageFont.truetype("arial.ttf", 24)  # 2x larger
-            font_small = ImageFont.truetype("arial.ttf", 20)   # 2x larger
-        except:
-            try:
-                # For Linux systems
-                font_large = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", 24)
-                font_small = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", 20)
-            except:
-                # Fallback to default but still usable
-                font_large = ImageFont.load_default()
-                font_small = ImageFont.load_default()
-    except:
-        font_large = None
-        font_small = None
-    
+    font_large = load_font(24)
+    font_small = load_font(20)
+
     # Draw title
     draw.text((info_x_start, info_y_start), "TETRIS", fill=(255, 255, 0), font=font_large)
     current_y = info_y_start + 40
@@ -353,25 +345,9 @@ def visualize_2048_frame(board: np.ndarray, extra_info: str = "", config_info: D
     info_x_start = board_size + 60
     info_y_start = board_y_offset  # Align with board position instead of fixed 30
     
-    try:
-        # Load fonts for info panel
-        try:
-            font_large = ImageFont.truetype("arial.ttf", 28)
-            font_medium = ImageFont.truetype("arial.ttf", 22)
-            font_small = ImageFont.truetype("arial.ttf", 18)
-        except:
-            try:
-                font_large = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", 28)
-                font_medium = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", 22)
-                font_small = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", 18)
-            except:
-                font_large = ImageFont.load_default()
-                font_medium = ImageFont.load_default()
-                font_small = ImageFont.load_default()
-    except:
-        font_large = ImageFont.load_default()
-        font_medium = ImageFont.load_default()
-        font_small = ImageFont.load_default()
+    font_large = load_font(28)
+    font_medium = load_font(22)
+    font_small = load_font(18)
     
     # Draw title with 2048 styling
     draw.text((info_x_start, info_y_start), "2048", fill=(119, 110, 101), font=font_large)
@@ -583,22 +559,8 @@ def visualize_sokoban_frame(elements: Dict[str, List[Tuple[int, int]]], extra_in
     info_x_start = board_width + 80  # Increased spacing from board
     info_y_start = board_y_offset  # Align with board position instead of fixed 50
     
-    try:
-        font_large = ImageFont.load_default()
-        font_small = ImageFont.load_default()
-        try:
-            font_large = ImageFont.truetype("arial.ttf", 32)  # Increased font size further
-            font_small = ImageFont.truetype("arial.ttf", 24)  # Increased font size further
-        except:
-            try:
-                font_large = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", 32)
-                font_small = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", 24)
-            except:
-                font_large = ImageFont.load_default()
-                font_small = ImageFont.load_default()
-    except:
-        font_large = None
-        font_small = None
+    font_large = load_font(24)
+    font_small = load_font(20)
     
     draw = ImageDraw.Draw(img)
     
@@ -730,22 +692,8 @@ def visualize_candy_crush_frame(board: List[List[str]], extra_info: str = "", co
     info_x_start = board_width + 40
     info_y_start = board_y_offset  # Align with board position instead of fixed 30
     
-    try:
-        font_large = ImageFont.load_default()
-        font_small = ImageFont.load_default()
-        try:
-            font_large = ImageFont.truetype("arial.ttf", 24)
-            font_small = ImageFont.truetype("arial.ttf", 20)
-        except:
-            try:
-                font_large = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", 24)
-                font_small = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", 20)
-            except:
-                font_large = ImageFont.load_default()
-                font_small = ImageFont.load_default()
-    except:
-        font_large = None
-        font_small = None
+    font_large = load_font(24)
+    font_small = load_font(20)
     
     # Draw title
     draw.text((info_x_start, info_y_start), "CANDY CRUSH", fill=(255, 255, 0), font=font_large)

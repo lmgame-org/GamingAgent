@@ -9,12 +9,12 @@ This script generates videos from episode logs using different methods:
 - retro: Use retro's official playback approach for retro games
 
 Usage:
-    python video_generation_script.py --agent_config_path <path> --episode_log_path <path> --method text [--output_path <path>] [--fps <fps>]
+    python eval/video_generation_script.py --agent_config_path <path> --episode_log_path <path> --method text [--output_path <path>] [--fps <fps>]
 
 Example:
-    python video_generation_script.py \
-        --agent_config_path configs/agent_configs/gpt4o_mini.json \
-        --episode_log_path runs_output/gpt4o_mini/2048/episode_001_log.json \
+    python eval/video_generation_script.py \
+        --agent_config_path cache/sokoban/gpt_4o_mini/xxxxx(timestamp)/agent_config.json \
+        --episode_log_path cache/sokoban/gpt_4o_mini/xxxxx(timestamp)/episode_001_log.jsonl \
         --method text \
         --output_path videos/2048_episode_001.mp4 \
         --fps 2
