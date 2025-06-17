@@ -26,7 +26,9 @@ class ReasoningModule(CoreModule):
                 use_memory=True,
                 use_cot=True,
                 token_limit=100000, 
-                reasoning_effort="high"
+                reasoning_effort="high",
+                vllm_url=None,
+                modal_url=None
         ):
         """
         Initialize the reasoning module.
@@ -52,7 +54,9 @@ class ReasoningModule(CoreModule):
             prompt=prompt,
             cache_dir=cache_dir,
             token_limit=token_limit,
-            reasoning_effort=reasoning_effort  # Always use high reasoning effort
+            reasoning_effort=reasoning_effort,  # Always use high reasoning effort
+            vllm_url=vllm_url,
+            modal_url=modal_url
         )
 
         self.observation_mode = observation_mode
@@ -154,7 +158,7 @@ class ReasoningModule(CoreModule):
             image_path=image_path,
             thinking=True,
             reasoning_effort=self.reasoning_effort,
-            token_limit=self.token_limit
+            token_limit=self.token_limit,
         )
         
         return response
@@ -188,7 +192,7 @@ class ReasoningModule(CoreModule):
             prompt=user_prompt,
             thinking=True,
             reasoning_effort=self.reasoning_effort,
-            token_limit=self.token_limit
+            token_limit=self.token_limit,
         )
         
         return response

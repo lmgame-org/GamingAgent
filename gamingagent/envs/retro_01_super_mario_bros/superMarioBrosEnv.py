@@ -242,16 +242,23 @@ class SuperMarioBrosEnvWrapper:
         #self.accumulated_reward_for_action_sequence = 0.0
         accumulated_perf_score_for_action_sequence = 0.0
         current_meta_episode_accumulated_reward = 0.0
-        meta_episode_terminated_this_step = False 
-        meta_episode_truncated_this_step = False
+        final_terminated = False
+        final_truncated = False
         
         last_agent_observation_in_loop = None
         current_game_info_frame = self.current_game_info 
+
+        # ad hoc to add a noop action to ensure following actions are executed
+        observation_data_frame, reward_frame, done_from_retro_frame, trunc_from_retro_frame, info_retro_frame = self.env.step(self.mario_action_mapping.get("noop", [0]*len(self.env.buttons if hasattr(self, 'env') and self.env else 9)))
 
         for frame_num in range(frame_count):
             self.adapter.increment_step() 
 
             observation_data_frame, reward_frame, done_from_retro_frame, trunc_from_retro_frame, info_retro_frame = self.env.step(env_action_buttons)
+
+            # Store the original env step results without modification
+            final_terminated = done_from_retro_frame
+            final_truncated = trunc_from_retro_frame
 
             current_game_info_frame = self._extract_game_specific_info(info_retro_frame)
 
@@ -274,35 +281,20 @@ class SuperMarioBrosEnvWrapper:
                 img_path=img_path_frame, text_representation="" 
             )
             last_agent_observation_in_loop = agent_observation_frame
-            
-            # Stuck detection is not used for meta-episode termination anymore
-            terminated_by_stuck_frame, _ = self.adapter.verify_termination(
-                agent_observation=agent_observation_frame,
-                current_terminated=done_from_retro_frame, 
-                current_truncated=trunc_from_retro_frame 
-            )
 
             self.adapter.log_step_data(
                 agent_action_str=base_action_name, 
                 thought_process=thought_process,  
                 reward=float(reward_frame),
                 info=current_game_info_frame, 
-                terminated=(done_from_retro_frame or terminated_by_stuck_frame), 
+                terminated=done_from_retro_frame,
                 truncated=trunc_from_retro_frame,
                 time_taken_s=time_taken_s if frame_num == 0 else 0.0,
                 perf_score=current_step_perf_score_frame,
                 agent_observation=agent_observation_frame
             )
-            
-            if current_game_info_frame.get("is_game_over", False):
-                print(f"[SuperMarioBrosEnvWrapper step] Meta-episode terminated: RAM indicates Game Over. Info: {self._build_textual_representation_for_log(current_game_info_frame)}")
-                meta_episode_terminated_this_step = True
-            
-            if trunc_from_retro_frame:
-                print(f"[SuperMarioBrosEnvWrapper step] Meta-episode truncated by retro env.")
-                meta_episode_truncated_this_step = True 
 
-            if meta_episode_terminated_this_step or meta_episode_truncated_this_step:
+            if done_from_retro_frame or trunc_from_retro_frame:
                 break 
         
         self.current_game_info = current_game_info_frame 
@@ -324,8 +316,8 @@ class SuperMarioBrosEnvWrapper:
         return (
             last_agent_observation_in_loop, 
             current_meta_episode_accumulated_reward, 
-            meta_episode_terminated_this_step, 
-            meta_episode_truncated_this_step, 
+            final_terminated, 
+            final_truncated, 
             self.current_game_info.copy(), 
             accumulated_perf_score_for_action_sequence 
         )
