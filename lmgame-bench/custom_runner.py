@@ -445,6 +445,11 @@ def run_game_episode(agent: BaseAgent, game_env: gym.Env, episode_id: int, args:
     agent_observation, last_info = game_env.reset(max_memory=args.max_memory, seed=args.seed, episode_id=episode_id)
     if args.seed is not None: args.seed += 1 # Increment seed for next potential run
 
+    # Initialize game trajectory if not present
+    if not hasattr(agent_observation, 'game_trajectory'):
+        from gamingagent.modules.core_module import GameTrajectory
+        agent_observation.game_trajectory = GameTrajectory(max_length=args.max_memory)
+
     total_reward_for_episode = 0.0
     total_perf_score_for_episode = 0.0
     final_step_num = 0
@@ -517,10 +522,6 @@ def run_game_episode(agent: BaseAgent, game_env: gym.Env, episode_id: int, args:
             
         total_reward_for_episode += reward
         total_perf_score_for_episode += current_step_perf_score
-
-        # --- DEBUG PRINT for reward ---
-        print(f"E{episode_id} S{final_step_num}: Action='{action_str_agent}', StepR={reward:.2f}, TotalR={total_reward_for_episode:.2f}, Perf={current_step_perf_score:.2f}, Term={terminated}, Trunc={truncated}")
-        # --- END DEBUG PRINT for reward ---
 
         if terminated or truncated:
             break
