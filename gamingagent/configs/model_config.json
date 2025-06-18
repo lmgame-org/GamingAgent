@@ -1,0 +1,70 @@
+{
+    "models": {
+        "gpt-4o": {
+            "name": "gpt-4o",
+            "provider": "openai",
+            "env_var": "OPENAI_API_KEY",
+            "supports_vision": true,
+            "supports_system_messages": true,
+            "max_tokens": 16384,
+            "supports_thinking": true,
+            "token_limit": 16384
+        },
+        "gpt-3.5-turbo": {
+            "name": "gpt-3.5-turbo",
+            "provider": "openai",
+            "env_var": "OPENAI_API_KEY",
+            "supports_vision": false,
+            "supports_system_messages": true,
+            "max_tokens": 4096,
+            "supports_thinking": true
+        },
+        "claude-3-7-sonnet": {
+            "name": "claude-3-7-sonnet-20240229",
+            "provider": "anthropic",
+            "env_var": "ANTHROPIC_API_KEY",
+            "supports_vision": true,
+            "supports_system_messages": true,
+            "max_tokens": 200000,
+            "supports_thinking": true
+        },
+        "claude-3-opus": {
+            "name": "claude-3-opus-20240229",
+            "provider": "anthropic",
+            "env_var": "ANTHROPIC_API_KEY",
+            "supports_vision": true,
+            "supports_system_messages": true,
+            "max_tokens": 200000,
+            "supports_thinking": false
+        },
+        "claude-3-sonnet": {
+            "name": "claude-3-sonnet-20240229",
+            "provider": "anthropic",
+            "env_var": "ANTHROPIC_API_KEY",
+            "supports_vision": true,
+            "supports_system_messages": true,
+            "max_tokens": 200000,
+            "supports_thinking": false
+        },
+        "gemini-2.0-flash": {
+            "name": "gemini-1.5-flash",
+            "provider": "google",
+            "env_var": "GOOGLE_API_KEY",
+            "supports_vision": true,
+            "supports_system_messages": true,
+            "max_tokens": 8192,
+            "supports_thinking": true
+        },
+        "grok": {
+            "name": "grok-3",
+            "provider": "xai",
+            "env_var": "XAI_API_KEY",
+            "supports_vision": false,
+            "supports_system_messages": true,
+            "max_tokens": 8192,
+            "supports_thinking": true
+        }
+    },
+    "default_model": "gpt-4o",
+    "default_provider": "openai"
+} 
