@@ -31,7 +31,7 @@ class PokemonRedEnv(Env):
                  game_name_for_adapter: str = "pokemon_red",
                  observation_mode_for_adapter: str = "vision",
                  agent_cache_dir_for_adapter: str = "cache/pokemon_red/default_run",
-                 game_specific_config_path_for_adapter: str = "gamingagent/envs/custom_05_pokemon_red/game_env_config.json",
+                 game_specific_config_path_for_adapter: str = "gamingagent/envs/custom_06_pokemon_red/game_env_config.json",
                  max_stuck_steps_for_adapter: Optional[int] = 20):
         super().__init__()
         
@@ -76,7 +76,7 @@ class PokemonRedEnv(Env):
         else:
             self.pyboy = PyBoy(self.rom_path, window="null", cgb=True)
 
-    def reset(self, *, seed: Optional[int] = None, options: Optional[Dict[str, Any]] = None, episode_id: int = 1) -> Tuple[Observation, Dict[str, Any]]:
+    def reset(self, *, max_memory: Optional[int] = 10, seed: Optional[int] = None, options: Optional[Dict[str, Any]] = None, episode_id: int = 1) -> Tuple[Observation, Dict[str, Any]]:
         """Reset the environment to initial state"""
         super().reset(seed=seed)
         
@@ -110,7 +110,8 @@ class PokemonRedEnv(Env):
 
         agent_observation = self.adapter.create_agent_observation(
             img_path=img_path_for_adapter,
-            text_representation=text_representation_for_adapter
+            text_representation=text_representation_for_adapter,
+            max_memory=max_memory,
         )
         
         return agent_observation, info

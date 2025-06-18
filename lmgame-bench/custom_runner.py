@@ -8,6 +8,7 @@ import yaml
 from typing import Any
 import sys
 import re
+import random
 
 import gymnasium as gym
 
@@ -20,20 +21,24 @@ from gamingagent.modules import PerceptionModule, ReasoningModule # Observation 
 from gamingagent.envs.custom_01_2048.twentyFortyEightEnv import TwentyFortyEightEnv
 from gamingagent.envs.custom_02_sokoban.sokobanEnv import SokobanEnv
 from gamingagent.envs.custom_03_candy_crush.candyCrushEnv import CandyCrushEnvWrapper
+from gamingagent.envs.custom_04_tetris.tetrisEnv import TetrisEnv
+from gamingagent.envs.custom_05_doom.doomEnv import DoomEnvWrapper
+from gamingagent.envs.custom_06_pokemon_red.pokemonRedEnv import PokemonRedEnv
+
 from gamingagent.envs.retro_01_super_mario_bros.superMarioBrosEnv import SuperMarioBrosEnvWrapper
 from gamingagent.envs.retro_02_ace_attorney.aceAttorneyEnv import AceAttorneyEnv
 from gamingagent.envs.retro_03_1942.NineteenFortyTwo_env import NineteenFortyTwoEnvWrapper
-from gamingagent.envs.custom_04_tetris.tetrisEnv import TetrisEnv
-from gamingagent.envs.custom_05_pokemon_red.pokemonRedEnv import PokemonRedEnv
 
 game_config_mapping = {"twenty_forty_eight": "custom_01_2048",
                        "sokoban": "custom_02_sokoban",
                        "candy_crush": "custom_03_candy_crush",
                        "tetris": "custom_04_tetris",
-                       "pokemon_red": "custom_05_pokemon_red",
+                       "doom": "custom_05_doom",
+                       "pokemon_red": "custom_06_pokemon_red",
                        "super_mario_bros":"retro_01_super_mario_bros",
                        "ace_attorney":"retro_02_ace_attorney",
-                       "nineteen_forty_two": "retro_03_1942"}
+                       "nineteen_forty_two": "retro_03_1942"
+                       }
 
 def parse_arguments(defaults_map=None, argv_to_parse=None):
     parser = argparse.ArgumentParser(description="Run GamingAgent for a specified Gym Environment.")
@@ -73,7 +78,7 @@ def parse_arguments(defaults_map=None, argv_to_parse=None):
 
     if defaults_map:
         parser.set_defaults(**defaults_map)
-        
+    
     if argv_to_parse:
         return parser.parse_args(argv_to_parse)
     return parser.parse_args()
@@ -400,15 +405,44 @@ def create_environment(game_name_arg: str,
         # import retro # No longer needed here as DefaultStates, etc. are imported above
         env = AceAttorneyEnv(**env_params_for_constructor)
         return env
+    elif game_name_arg == "doom":
+        # DoomEnvWrapper loads its specific configs internally.
+        # The runner primarily needs to provide paths and agent/run-level settings.
+        env_wrapper_config_dir = os.path.join("gamingagent/envs", config_dir_name_for_env_cfg)
+        
+        print(f"Initializing environment: {game_name_arg} using DoomEnvWrapper")
+        print(f"  Wrapper config dir: {env_wrapper_config_dir}")
+        print(f"  Model name for adapter: {model_name_arg}")
+        print(f"  Observation mode for adapter: {obs_mode_arg}")
+        print(f"  Base log dir for adapter: {cache_dir_for_adapter}")
+        print(f"  Config path: {env_specific_config_path}")
+
+        # Verify config file exists
+        if not os.path.exists(env_specific_config_path):
+            print(f"ERROR: Config file not found at {env_specific_config_path}")
+            return None
+
+        env = DoomEnvWrapper(
+            game_name="doom",  # Match test file
+            config_dir_path=os.path.dirname(env_specific_config_path),  # Use the directory containing the config file
+            observation_mode=obs_mode_arg,
+            base_log_dir=cache_dir_for_adapter,
+            render_mode_human=True,  # Enable human rendering
+            record_video=False,
+            video_dir="videos/doom",
+            model_name=model_name_arg,
+            headless=False,  # Allow display
+            debug=True  # Add debug mode to help track issues
+        )
+        return env
     else:
         print(f"ERROR: Game '{game_name_arg}' is not defined or implemented in custom_runner.py's create_environment function.")
         return None
 
 def run_game_episode(agent: BaseAgent, game_env: gym.Env, episode_id: int, args: argparse.Namespace):
-    print(f"Starting Episode {episode_id} for {args.game_name} with seed {args.seed if args.seed is not None else 'default'}...")
-
+    """Run a single episode of the game."""
     # Pass episode_id to env.reset
-    agent_observation, last_info = game_env.reset(seed=args.seed, episode_id=episode_id)
+    agent_observation, last_info = game_env.reset(max_memory=args.max_memory, seed=args.seed, episode_id=episode_id)
     if args.seed is not None: args.seed += 1 # Increment seed for next potential run
 
     total_reward_for_episode = 0.0
@@ -417,45 +451,67 @@ def run_game_episode(agent: BaseAgent, game_env: gym.Env, episode_id: int, args:
 
     for step_num in range(args.max_steps_per_episode):
         final_step_num = step_num + 1
-        # if game_env.render_mode == 'human':
         game_env.render() # Call env's render method directly
 
         start_time = time.time()
         action_dict, processed_agent_observation = agent.get_action(agent_observation)
         end_time = time.time()
         time_taken_s = end_time - start_time
-
-        # Ensure action_dict is not None and action is handled if None
-        raw_action_from_agent = None
-        if action_dict and action_dict.get("action") is not None:
-            raw_action_from_agent = action_dict.get("action")
+        # Special handling for Doom game
+        if isinstance(game_env, DoomEnvWrapper):
+            # Handle action like test file
+            if action_dict and action_dict.get("action") is not None:
+                action_str = str(action_dict.get("action")).strip().lower()
+                
+                # For attack action, ensure it's always 8 frames
+                if "attack" in action_str:
+                    action_str = "(attack, 8)"
+            else:
+                action_str = "none"
         
-        action_str_agent = "None" # Default to "None" string if no valid action
-        if raw_action_from_agent:
-            action_str_agent = str(raw_action_from_agent).strip().lower()
-        
-        thought_process = action_dict.get("thought", "") if action_dict else "No thought process due to API failure."
+            thought_process = action_dict.get("thought", "") if action_dict else "No thought process due to API failure."
 
-        # --- MODIFIED: Extract raw LLM output to pass to env.step ---
-        raw_llm_output_for_env = None
+            # Print action before step
+            print(f"\nExecuting action: '{action_str}'")
+            print(f"Thought process: {thought_process}")
+            print(f"Time taken: {time_taken_s:.2f}s")
+            print("-" * 50)
 
-        if action_dict:
-            if "raw_response_str" in action_dict and isinstance(action_dict["raw_response_str"], str):
-                raw_llm_output_for_env = action_dict["raw_response_str"]
+            # Step the environment with minimal parameters like test file
+            agent_observation, reward, terminated, truncated, last_info, current_step_perf_score = game_env.step(action_str)
         else:
-            print("[Runner DEBUG] action_dict is None") # DEBUG
-        
-        # Conditionally pass raw_llm_output_for_next_obs
-        step_args = {
-            "agent_action_str": action_str_agent,
-            "thought_process": thought_process,
-            "time_taken_s": time_taken_s
-        }
-        if args.game_name == "ace_attorney":
-            step_args["raw_llm_output_for_next_obs"] = raw_llm_output_for_env
-        
-        # Step the environment using the new signature, including agent action details
-        agent_observation, reward, terminated, truncated, last_info, current_step_perf_score = game_env.step(**step_args)
+            # Ensure action_dict is not None and action is handled if None
+            action_str = None
+            if action_dict and action_dict.get("action") is not None:
+                action_str = action_dict.get("action")
+            
+            action_str_agent = "None" # Default to "None" string if no valid action
+            if action_str:
+                action_str_agent = str(action_str).strip().lower()
+            
+            thought_process = action_dict.get("thought", "") if action_dict else "No thought process due to API failure."
+
+            # --- MODIFIED: Extract raw LLM output to pass to env.step ---
+            raw_llm_output_for_env = None
+
+            if action_dict:
+                if "raw_response_str" in action_dict and isinstance(action_dict["raw_response_str"], str):
+                    raw_llm_output_for_env = action_dict["raw_response_str"]
+            else:
+                print("[Runner DEBUG] action_dict is None") # DEBUG
+            
+            # Conditionally pass raw_llm_output_for_next_obs
+            step_args = {
+                "agent_action_str": action_str_agent,
+                "thought_process": thought_process,
+                "time_taken_s": time_taken_s
+            }
+            if args.game_name == "ace_attorney":
+                step_args["raw_llm_output_for_next_obs"] = raw_llm_output_for_env
+            
+            # Step the environment using the new signature, including agent action details
+            agent_observation, reward, terminated, truncated, last_info, current_step_perf_score = game_env.step(**step_args)
+
         # Inherit game trajectory
         agent_observation.game_trajectory = processed_agent_observation.game_trajectory
             

@@ -11,6 +11,10 @@ from typing import Optional, Any
 # Import modules
 from gamingagent.modules import BaseModule, PerceptionModule, MemoryModule, ReasoningModule, Observation
 
+GAMES_REQUIRE_HARNESS = [
+    "pokemon_red",
+]
+
 class BaseAgent(ABC):
     """
     Base agent class that provides the foundation for game-specific agents.
@@ -55,14 +59,24 @@ class BaseAgent(ABC):
         self.game_name = game_name
         self.model_name = model_name
         self.harness = harness
+        self.init_harness = harness
         self.use_custom_prompt = use_custom_prompt
         self.max_memory = max_memory
         self.observation_mode = observation_mode
         self.scaffolding = scaffolding
 
+        print(f"Initializing agent for game '{self.game_name}' with model '{self.model_name}'.")
+        print(f"Harness mode: {'ON' if self.harness else 'OFF'}")
+
         # Serving-related arguments
         self.vllm_url = vllm_url
         self.modal_url = modal_url
+
+        # initialize harness modules based on game titles
+        # for games like Pokemon, memory module is needed to make meaningful progress
+        if game_name.lower() in GAMES_REQUIRE_HARNESS:
+            self.init_harness = True
+            print("WARNING: Initializing minimal harness (memory, perception etc.) as it is required but not enabled for {game_name}.")
         
         # Set up cache directory following the specified pattern
         if cache_dir is None:
@@ -144,7 +158,6 @@ class BaseAgent(ABC):
                 print(f"Error loading config from {config_path}: {e}")
         return config, custom_prompt
 
-    
     def _initialize_modules(self, custom_modules=None):
         """
         Initialize the required modules based on agent configuration.
@@ -174,7 +187,7 @@ class BaseAgent(ABC):
         )
 
         # Initialize perception, memory, and reasoning modules if using harness
-        if self.harness:
+        if self.init_harness:
             # Perception module
             if custom_modules and "perception_module" in custom_modules:
                 perception_cls = custom_modules["perception_module"]
@@ -336,15 +349,15 @@ class BaseAgent(ABC):
             # Now, create the Observation object based on what we've gathered and the mode
             if self.observation_mode == "vision":
                 if img_path_for_observation:
-                    observation = Observation(img_path=img_path_for_observation)
+                    observation = Observation(img_path=img_path_for_observation, max_memory=self.max_memory)
                 else:
                     # Critical: In vision mode, but no image path was derived from input.
                     print(f"CRITICAL: Vision mode selected, but input '{observation}' could not be resolved to an image.")
                     raise ValueError("Vision mode requires a valid image path or image data.")
             elif self.observation_mode == "text":
-                observation = Observation(symbolic_representation=symbolic_representation_for_observation)
+                observation = Observation(symbolic_representation=symbolic_representation_for_observation, max_memory=self.max_memory)
             elif self.observation_mode == "both":
-                observation = Observation(img_path=img_path_for_observation, symbolic_representation=symbolic_representation_for_observation)
+                observation = Observation(img_path=img_path_for_observation, symbolic_representation=symbolic_representation_for_observation, max_memory=self.max_memory)
             else: # Should not happen if modes are validated
                 raise ValueError(f"Unsupported observation_mode: {self.observation_mode}")
         
@@ -352,8 +365,22 @@ class BaseAgent(ABC):
             # Unharness mode: Use base module directly with the Observation object
             print("Invoking WITHOUT HARNESS mode.")
 
-            action_plan = self.modules["base_module"].plan_action(observation=observation, custom_prompt=custom_prompt)
-            return action_plan, observation 
+            if "pokemon" in self.game_name.lower():
+                perception_module = self.modules.get("perception_module")
+                memory_module = self.modules.get("memory_module")
+
+                processed_observation = memory_module.update_observation_memory(observation)
+
+                action_plan = self.modules["base_module"].plan_action(observation=observation, custom_prompt=custom_prompt)
+
+                processed_observation = memory_module.update_action_memory(
+                    processed_observation, action=action_plan["action"], thought=action_plan["thought"],
+                )
+            else:
+                processed_observation = observation
+                action_plan = self.modules["base_module"].plan_action(observation=processed_observation, custom_prompt=custom_prompt)
+            
+            return action_plan, processed_observation 
         else:
             # Harness mode: Perception -> Memory -> Reasoning
             print("Invoking WITH HARNESS mode.")
@@ -369,18 +396,10 @@ class BaseAgent(ABC):
             
             # 1. Process observation with perception module (already an Observation)
             processed_observation = perception_module.process_observation(observation)
-            perception_data = perception_module.get_perception_summary(processed_observation)
 
-            # print("perception data:")
-            # print(perception_data)
-            
             # 2. Update memory with perception data
-            memory_summary = None
             if memory_module:
-                processed_observation = memory_module.process_observation(
-                    processed_observation, perception_data,
-                )
-                memory_summary = memory_module.get_memory_summary(processed_observation)
+                processed_observation = memory_module.process_observation(processed_observation)
             
             # print("memory data:")
             # print(memory_summary)

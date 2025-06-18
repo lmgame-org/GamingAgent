@@ -16,10 +16,13 @@ agent:
   harness: false        # Default to non-harness mode, set to true to use perception/reasoning modules
   observation_mode: "both" 
   
-  memory_module:
-    max_memory: 10
-
-  perception_module:
-
+  modules:
+    base_module:
     
-  reasoning_module:
+    memory_module:
+      max_memory: 100
+
+    perception_module:
+
+      
+    reasoning_module:

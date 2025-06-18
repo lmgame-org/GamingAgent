@@ -97,9 +97,7 @@ class MemoryModule(CoreModule):
         )
         return (m.group(1).strip() if m else actual_raw_text.strip()) or "No valid reflection produced."
 
-    def process_observation(self,
-                        observation: Observation,
-                        game_state: dict) -> str:
+    def process_observation(self, observation: Observation) -> str:
         """
         Main entry point called by the agent each turn.
         Generates reflection and pushes a compact line into the trajectory.
@@ -119,6 +117,8 @@ class MemoryModule(CoreModule):
         (inspired by LMAct)
         Maybe we can add demonstrations as well
         """
+        game_state = observation.get_perception_summary()
+
         prev_context = observation.game_trajectory.get() or ""
         if observation.game_trajectory.background is None and observation.trajectory_includes_background:
             observation.game_trajectory.set_background(observation.get_background() or "Background not available.")
@@ -127,6 +127,17 @@ class MemoryModule(CoreModule):
             prev_context=prev_context,
             current_state=str(game_state),
         )
+
+        observation = self.update_observation_memory(
+            observation=observation,
+            game_state=game_state
+        )
+        observation.reflection = reflection
+
+        return observation
+
+    def update_observation_memory(self, observation: Observation) -> str:
+        game_state = observation.get_perception_summary()
 
         ts = datetime.datetime.now().isoformat(timespec="seconds")
         game_state.pop("img_path")
@@ -146,8 +157,6 @@ class MemoryModule(CoreModule):
         observation.game_trajectory.add(line)
         # disk persistence
         self._append_to_log(line)
-
-        observation.reflection = reflection
 
         return observation
 
