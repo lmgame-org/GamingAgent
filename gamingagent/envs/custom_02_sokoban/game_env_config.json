@@ -1,7 +1,7 @@
 {
     "env_init_kwargs": {
         "dim_room": [10, 10],
-        "max_steps_episode": 200, 
+        "max_steps_per_level": 200,
         "num_boxes": 3,
         "num_gen_steps": null
     },
