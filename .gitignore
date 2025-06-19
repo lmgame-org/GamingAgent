@@ -86,3 +86,5 @@ perf/
 logs/
 
 eval/video_samples/*
+
+*.ini
