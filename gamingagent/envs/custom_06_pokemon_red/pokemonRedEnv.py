@@ -450,11 +450,16 @@ class PokemonRedEnv(Env):
     def _save_processed_screenshot(self, img_path_for_adapter: str):
         """
         Save screenshot with optional enhanced processing based on harness mode.
+        Also saves the original screenshot for video generation.
         
         Args:
             img_path_for_adapter: Path where the image should be saved
         """
         screenshot = self.get_screenshot()
+        
+        # Always save original screenshot for video generation
+        original_img_path = img_path_for_adapter.replace('.png', '_original.png')
+        Image.fromarray(screenshot).save(original_img_path)
         
         if self.harness:
             # Enhanced processing for harness mode with overlays and coordinate labels

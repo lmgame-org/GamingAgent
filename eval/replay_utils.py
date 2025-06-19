@@ -785,6 +785,58 @@ def visualize_candy_crush_frame(board: List[List[str]], extra_info: str = "", co
 
 # --- Main Video Generation Functions ---
 
+def extract_image_paths_from_jsonl(episode_log_path: str) -> List[str]:
+    """Extract image paths from episode log for Pokemon Red"""
+    image_paths = []
+    
+    with open(episode_log_path, 'r') as f:
+        for line in f:
+            try:
+                step_data = json.loads(line.strip())
+                if 'agent_observation' in step_data:
+                    obs = step_data['agent_observation']
+                    if isinstance(obs, str):
+                        obs = json.loads(obs)
+                    
+                    img_path = obs.get('img_path', '')
+                    if img_path:
+                        # Convert to original image path by replacing with _original suffix
+                        original_img_path = img_path.replace('.png', '_original.png')
+                        if os.path.exists(original_img_path):
+                            image_paths.append(original_img_path)
+                        elif os.path.exists(img_path):
+                            # Fallback to regular image if original doesn't exist
+                            image_paths.append(img_path)
+            except Exception as e:
+                print(f"Error parsing line in episode log: {e}")
+                continue
+    
+    return image_paths
+
+def generate_video_from_pokemon_red_images(
+    episode_log_path: str,
+    output_path: str,
+    fps: float = 1.0,
+    cleanup_frames: bool = True
+) -> bool:
+    """Generate video from Pokemon Red original screenshots"""
+    
+    # Extract image paths
+    print(f"Extracting image paths from {episode_log_path}")
+    image_paths = extract_image_paths_from_jsonl(episode_log_path)
+    
+    if not image_paths:
+        print("No image paths found in episode log")
+        return False
+    
+    print(f"Found {len(image_paths)} image files")
+    
+    # Create video directly from existing images
+    print(f"Creating video at {output_path}")
+    success = create_video_from_frames(image_paths, output_path, fps)
+    
+    return success
+
 def extract_textual_representations_from_jsonl(episode_log_path: str) -> List[Tuple[str, Dict]]:
     """Extract textual representations and metadata from episode log"""
     representations = []
@@ -835,7 +887,8 @@ def generate_frames_from_textual_representations(
         "tetris": "tetris",
         "sokoban": "sokoban",
         "candy_crush": "candy_crush",
-        "candycrush": "candy_crush"
+        "candycrush": "candy_crush",
+        "pokemon_red": "pokemon_red"
     }
     
     normalized_game_name = game_name_mapping.get(game_name.lower(), game_name)
@@ -909,6 +962,10 @@ def generate_frames_from_textual_representations(
                     frame_img = visualize_candy_crush_frame(board, extra_info, config_info)
                 else:
                     continue
+            elif normalized_game_name == "pokemon_red":
+                # For Pokemon Red, we skip textual processing and use image-based approach
+                # This will be handled by extract_image_paths_from_jsonl function
+                continue
             else:
                 print(f"Unsupported game: {game_name} (normalized: {normalized_game_name})")
                 continue
@@ -979,6 +1036,13 @@ def generate_video_from_textual_logs(
     config_info: Dict = None
 ) -> bool:
     """Main function to generate video from episode logs using textual representations"""
+    
+    # Special handling for Pokemon Red - use original images instead of textual representations
+    if game_name.lower() == "pokemon_red":
+        print(f"Pokemon Red detected - using image-based video generation")
+        return generate_video_from_pokemon_red_images(
+            episode_log_path, output_path, fps, cleanup_frames
+        )
     
     # Extract textual representations
     print(f"Extracting textual representations from {episode_log_path}")

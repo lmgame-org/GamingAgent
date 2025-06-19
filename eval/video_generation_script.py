@@ -436,7 +436,7 @@ Examples:
         print()
         
         # Check game type and provide appropriate messaging
-        supported_games = ['tetris', '2048', 'candy_crush', 'sokoban', 'ace_attorney', 'super_mario_bros']
+        supported_games = ['tetris', '2048', 'candy_crush', 'sokoban', 'ace_attorney', 'super_mario_bros', 'pokemon_red']
         if config_info['game_name'].lower() in supported_games:
             print(f"✓ Detected {config_info['game_name']} game - proceeding with video generation")
         else:
