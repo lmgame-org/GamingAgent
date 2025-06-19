@@ -8,13 +8,13 @@ import cv2
 import os
 import numpy as np
 
-def scale_image_up(image_path, maximum_scale=2048):
+def scale_image_up(image_path, maximum_scale=2000):
     """
     Scales an image up to a maximum dimension while maintaining aspect ratio.
     
     Args:
         image_path (str): Path to the input image
-        maximum_scale (int): Maximum dimension for both width and height (default: 2048)
+        maximum_scale (int): Maximum dimension for both width and height (default: 2000)
         
     Returns:
         str: Path to the scaled image
