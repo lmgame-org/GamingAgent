@@ -357,7 +357,7 @@ class AceAttorneyEnv(gym.Env):
 
         return img_path_component, current_dialogue_text_component, background_obs_component
 
-    def reset(self, *, seed: Optional[int]=None, options: Optional[Dict[str,Any]]=None, episode_id:int=1) -> Tuple[Observation, Dict[str,Any]]:
+    def reset(self, *, seed: Optional[int]=None, options: Optional[Dict[str,Any]]=None, max_memory: Optional[int] = 10, episode_id:int=1) -> Tuple[Observation, Dict[str,Any]]:
         # Always reset to the designated initial_retro_state_name for this environment instance.
         # Level progression is handled within step() by directly calling load_state().
         # print(f"[AceAttorneyEnv RESET] Initiating reset. Target initial state: '{self.initial_retro_state_name}'.")
@@ -376,7 +376,9 @@ class AceAttorneyEnv(gym.Env):
         self.current_retro_state_name = self.initial_retro_state_name # Ensure this is set before super().reset()
         
         # super().reset() handles the core emulator reset, provides initial RAM observation and info.
-        ram_observation, self.current_core_info = self.env.reset(seed=seed, options=options)
+        # Remove max_memory from options before passing to env.reset()
+        env_options = {k: v for k, v in (options or {}).items() if k != 'max_memory'}
+        ram_observation, self.current_core_info = self.env.reset(seed=seed, options=env_options)
         self.current_raw_frame = self.env.em.get_screen() # Get screen pixels after core reset
 
         # Reset internal game logic state variables to their initial values for this env instance.
@@ -392,7 +394,7 @@ class AceAttorneyEnv(gym.Env):
 
         # Build the first observation for the agent.
         img_path, txt_rep, bg_rep = self._build_agent_observation_components(agent_facing_info, skip_screenshot=False)
-        agent_obs = self.adapter.create_agent_observation(img_path=img_path, text_representation=txt_rep, background_info=bg_rep)
+        agent_obs = self.adapter.create_agent_observation(img_path=img_path, text_representation=txt_rep, background_info=bg_rep, max_memory=max_memory)
         
         initial_step_perf_score = self.adapter.calculate_perf_score(0.0, agent_facing_info)
         self.adapter.log_step_data(

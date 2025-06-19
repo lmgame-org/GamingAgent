@@ -128,9 +128,12 @@ class MemoryModule(CoreModule):
             current_state=str(game_state),
         )
 
+        # observation = self.update_observation_memory(
+        #     observation=observation,
+        #     game_state=game_state
+        # )
         observation = self.update_observation_memory(
             observation=observation,
-            game_state=game_state
         )
         observation.reflection = reflection
 

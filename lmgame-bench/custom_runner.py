@@ -17,6 +17,7 @@ from retro.enums import Actions, Observations, State # retro.data will be used d
 
 from gamingagent.agents.base_agent import BaseAgent
 from gamingagent.modules import PerceptionModule, ReasoningModule # Observation is imported by Env
+from tools.utils import draw_grid_on_image
 # Directly import the specific environment we are using
 from gamingagent.envs.custom_01_2048.twentyFortyEightEnv import TwentyFortyEightEnv
 from gamingagent.envs.custom_02_sokoban.sokobanEnv import SokobanEnv
@@ -445,11 +446,6 @@ def run_game_episode(agent: BaseAgent, game_env: gym.Env, episode_id: int, args:
     agent_observation, last_info = game_env.reset(max_memory=args.max_memory, seed=args.seed, episode_id=episode_id)
     if args.seed is not None: args.seed += 1 # Increment seed for next potential run
 
-    # Initialize game trajectory if not present
-    if not hasattr(agent_observation, 'game_trajectory'):
-        from gamingagent.modules.core_module import GameTrajectory
-        agent_observation.game_trajectory = GameTrajectory(max_length=args.max_memory)
-
     total_reward_for_episode = 0.0
     total_perf_score_for_episode = 0.0
     final_step_num = 0
@@ -686,19 +682,41 @@ def main():
     print(f"Agent and Environment cache directory: {runner_log_dir_base}")
 
     # Parse scaffolding parameter
-    scaffolding_tuple = None
+    scaffolding_dict = None
     if args.scaffolding:
         try:
-            # Handle both string formats: "(5,5)" or "5,5"
-            scaffolding_str = args.scaffolding.strip()
-            if scaffolding_str.startswith('(') and scaffolding_str.endswith(')'):
-                scaffolding_str = scaffolding_str[1:-1]  # Remove parentheses
-            parts = [int(x.strip()) for x in scaffolding_str.split(',')]
-            if len(parts) == 2:
-                scaffolding_tuple = tuple(parts)
-                print(f"Using scaffolding grid: {scaffolding_tuple}")
+            if isinstance(args.scaffolding, dict):
+                # New dictionary format from config
+                funcname = args.scaffolding.get('funcname')
+                funcArgs = args.scaffolding.get('funcArgs', {})
+                
+                # Map function names to actual function objects
+                function_mapping = {
+                    'draw_grid_on_image': draw_grid_on_image
+                }
+                
+                if funcname in function_mapping:
+                    scaffolding_dict = {
+                        'func': function_mapping[funcname],
+                        'funcArgs': funcArgs
+                    }
+                    print(f"Using scaffolding function: {funcname} with args: {funcArgs}")
+                else:
+                    print(f"Warning: Unknown scaffolding function '{funcname}'. Using None.")
             else:
-                print(f"Warning: Invalid scaffolding format '{args.scaffolding}'. Expected '(rows,cols)'. Using None.")
+                # Legacy tuple format for backward compatibility
+                scaffolding_str = str(args.scaffolding).strip()
+                if scaffolding_str.startswith('(') and scaffolding_str.endswith(')'):
+                    scaffolding_str = scaffolding_str[1:-1]  # Remove parentheses
+                parts = [int(x.strip()) for x in scaffolding_str.split(',')]
+                if len(parts) == 2:
+                    scaffolding_dict = {
+                        'func': draw_grid_on_image,
+                        'funcArgs': {'grid_dim': tuple(parts)}
+                    }
+                    print(f"Using legacy scaffolding grid: {tuple(parts)}")
+                else:
+                    print(f"Warning: Invalid scaffolding format '{args.scaffolding}'. Expected '(rows,cols)'. Using None.")
         except (ValueError, AttributeError) as e:
             print(f"Warning: Could not parse scaffolding '{args.scaffolding}': {e}. Using None.")
 
@@ -712,7 +730,7 @@ def main():
         max_memory=args.max_memory, 
         custom_modules=custom_modules_for_agent,
         observation_mode=args.observation_mode,
-        scaffolding=scaffolding_tuple,
+        scaffolding=scaffolding_dict,
         cache_dir=runner_log_dir_base,
         vllm_url=args.vllm_url,
         modal_url=args.modal_url

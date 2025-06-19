@@ -48,7 +48,10 @@ agent:
   token_limit: 16000
   harness: true
   observation_mode: "both"
-  scaffolding: (10, 10)  # Add 4x4 coordinate grid to game images
+  scaffolding:
+    funcname: "draw_grid_on_image"
+    funcArgs:
+      grid_dim: [10, 10]
   record_video: true
   video_dir: "videos/doom"
   log_level: "INFO"

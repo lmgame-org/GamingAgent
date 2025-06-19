@@ -1,7 +1,6 @@
 
 # TODO: Define reward for each step - Yuxuan
 import io
-import logging
 import pickle
 from collections import deque
 import heapq
@@ -16,8 +15,6 @@ import numpy as np
 
 from gamingagent.envs.gym_env_adapter import GymEnvAdapter
 from gamingagent.modules.core_module import Observation
-
-logger = logging.getLogger(__name__)
 
 
 class PokemonRedEnv(Env):
@@ -239,7 +236,7 @@ class PokemonRedEnv(Env):
                 'steps': self.num_env_steps
             }
         except Exception as e:
-            logger.warning(f"Error getting game info: {e}")
+            print(f"[PokemonRedEnv] Warning: Error getting game info: {e}")
             info = {'steps': self.num_env_steps}
             
         return info

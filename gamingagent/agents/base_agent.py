@@ -51,8 +51,9 @@ class BaseAgent(ABC):
             cache_dir (str, optional): Custom cache directory path
             custom_modules (dict, optional): Custom module classes to use
             observation_mode (str): Mode for processing observations ("vision", "text", or "both")
-            scaffolding (tuple, optional): Grid dimensions as (rows, cols) for drawing coordinate grid on images. 
-                                         Default is None (no grid). Example: (5, 5) for a 5x5 grid.
+            scaffolding (dict, optional): Scaffolding configuration dictionary with function and arguments.
+                                     Default is None (no scaffolding). 
+                                     Example: {"func": draw_grid_on_image, "funcArgs": {"grid_dim": [5, 5]}}
             vllm_url (str, optional): URL for vLLM inference endpoint
             modal_url (str, optional): URL for Modal inference endpoint
         """
@@ -247,13 +248,21 @@ class BaseAgent(ABC):
         """Save agent configuration for reference."""
         config_file = os.path.join(self.cache_dir, "agent_config.json")
         
+        # Handle scaffolding serialization (function objects are not JSON serializable)
+        scaffolding_serializable = None
+        if self.scaffolding:
+            scaffolding_serializable = {
+                "funcName": self.scaffolding.get('func').__name__ if callable(self.scaffolding.get('func')) else str(self.scaffolding.get('func')),
+                "funcArgs": self.scaffolding.get('funcArgs', {})
+            }
+        
         config_data = {
             "game_name": self.game_name,
             "model_name": self.model_name,
             "observation_mode": self.observation_mode,
             "harness": self.harness,
             "max_memory": self.max_memory,
-            "scaffolding": self.scaffolding,
+            "scaffolding": scaffolding_serializable,
             "cache_dir": self.cache_dir,
             "modules": {
                 module: module_instance.__class__.__name__ 

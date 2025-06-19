@@ -16,7 +16,10 @@ agent:
   token_limit: 100000
   harness: true
   observation_mode: "vision"
-  scaffolding: (5, 5)  # Add 5x5 coordinate grid to game images
+  scaffolding:
+    funcname: "draw_grid_on_image"
+    funcArgs:
+      grid_dim: [5, 5]
   # Module-specific settings
   modules:
     base_module:

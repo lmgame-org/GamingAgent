@@ -8,7 +8,7 @@ from .core_module import CoreModule, Observation
 
 import copy
 
-from tools.utils import scale_image_up, draw_grid_on_image
+from tools.utils import scale_image_up
 
 class PerceptionModule(CoreModule):
     """
@@ -44,8 +44,9 @@ class PerceptionModule(CoreModule):
             prompt (str): Default user prompt for perception module VLM calls.
             token_limit (int): Maximum number of tokens for VLM calls.
             reasoning_effort (str): Reasoning effort for reasoning VLM calls (low, medium, high).
-            scaffolding (tuple, optional): Grid dimensions as (rows, cols) for drawing coordinate grid on images. 
-                                         Default is None (no grid). Example: (5, 5) for a 5x5 grid.
+            scaffolding (dict, optional): Scaffolding configuration dictionary with function and arguments.
+                                     Default is None (no scaffolding). 
+                                     Example: {"func": draw_grid_on_image, "funcArgs": {"grid_dim": [5, 5]}}
         """
         super().__init__(
             module_name="perception_module",
@@ -117,9 +118,17 @@ class PerceptionModule(CoreModule):
             assert self.observation.img_path is not None, "to process from graphic representation, image should have been prepared and path should exist in observation."
             new_img_path = scale_image_up(self.observation.get_img_path())
             
-            # Apply scaffolding grid if specified
+            # Apply scaffolding function if specified
             if self.scaffolding is not None:
-                new_img_path = draw_grid_on_image(new_img_path, grid_dim=self.scaffolding)
+                scaffolding_func = self.scaffolding.get('func')
+                scaffolding_args = self.scaffolding.get('funcArgs', {})
+                if scaffolding_func and callable(scaffolding_func):
+                    try:
+                        new_img_path = scaffolding_func(new_img_path, **scaffolding_args)
+                    except Exception as e:
+                        print(f"Warning: Scaffolding function failed: {e}. Using original image.")
+                else:
+                    print("Warning: Invalid scaffolding configuration. Using original image.")
 
             processed_visual_description = self.api_manager.vision_text_completion(
                 model_name=self.model_name,
