@@ -5,10 +5,11 @@ from collections import deque
 import heapq
 from typing import Optional, Dict, Any, Tuple
 import os
+import base64
 
 from .memory_reader import PokemonRedReader, StatusCondition
 from .full_collision_map import LocationCollisionMap
-from PIL import Image
+from PIL import Image, ImageDraw
 from pyboy import PyBoy
 
 from gymnasium import Env, spaces
@@ -30,7 +31,8 @@ class PokemonRedEnv(Env):
                  observation_mode_for_adapter: str = "vision",
                  agent_cache_dir_for_adapter: str = "cache/pokemon_red/default_run",
                  game_specific_config_path_for_adapter: str = "gamingagent/envs/custom_06_pokemon_red/game_env_config.json",
-                 max_stuck_steps_for_adapter: Optional[int] = 20):
+                 max_stuck_steps_for_adapter: Optional[int] = 20,
+                 harness: bool = False):
         super().__init__()
         
         # Initialize adapter
@@ -65,6 +67,14 @@ class PokemonRedEnv(Env):
         
         # Full collision map tracking
         self.full_collision_maps: Dict[str, LocationCollisionMap] = {}
+        
+        # Harness mode for enhanced image processing
+        self.harness = harness
+        
+        # Initialize tracking data for enhanced processing (only used in harness mode)
+        self.location_history = set()  # Track visited locations
+        self.label_archive = {}  # Store location labels
+        self.location_tracker = {}  # Track explored tiles per location
         
         # Initialize emulator if rom_path provided
         if self.rom_path:
@@ -103,24 +113,40 @@ class PokemonRedEnv(Env):
             img_path_for_adapter = self.adapter._create_agent_observation_path(
                 self.adapter.current_episode_id, self.adapter.current_step_num
             )
-            screenshot = self.get_screenshot()
-            Image.fromarray(screenshot).save(img_path_for_adapter)
+            self._save_processed_screenshot(img_path_for_adapter)
         
         if self.adapter.observation_mode in ["text", "both"]:
             # Get basic game state from memory
             game_state = self.get_state_from_memory()
             
-            # Get collision map for spatial awareness
-            collision_map = self.get_collision_map()
-            
-            # Update and save full collision map
-            location = self.get_location()
-            coords = self.get_coordinates()
-            self.update_full_collision_map(location, coords)
-            self.save_collision_map_to_file(location, 0)  # Use step 0 for reset
-            
-            # Combine game state with collision map and explanation
-            text_representation_for_adapter = f"{game_state}\n\nSpatial Map:\n{collision_map}\n\nThe spatial map shows your current surroundings in a 9x10 grid. You are always at the center (position 4,4). Use this map to understand your environment and plan your movements. Walls (█) block movement, paths (·) are walkable, sprites (S) are NPCs or objects, and the arrow shows which direction you're facing."
+            if self.harness:
+                # Enhanced text representation for harness mode includes full collision map
+                location = self.get_location()
+                coords = self.get_coordinates()
+                self.update_full_collision_map(location, coords)
+                self.save_collision_map_to_file(location)
+                
+                # Load the full collision map from file
+                full_collision_map_text = self.get_full_collision_map_from_file(location)
+                if full_collision_map_text:
+                    text_representation_for_adapter = f"{game_state}\n\nFull Location Map:\n{full_collision_map_text}\n\nThis shows the complete explored map for {location} with detailed coordinate information and movement costs."
+                else:
+                    # Fallback to regular collision map
+                    collision_map = self.get_collision_map()
+                    text_representation_for_adapter = f"{game_state}\n\nSpatial Map:\n{collision_map}\n\nThe spatial map shows your current surroundings in a 9x10 grid. You are always at the center (position 4,4)."
+            else:
+                # Standard text representation
+                # Get collision map for spatial awareness
+                collision_map = self.get_collision_map()
+                
+                # Update and save full collision map
+                location = self.get_location()
+                coords = self.get_coordinates()
+                self.update_full_collision_map(location, coords)
+                self.save_collision_map_to_file(location)
+                
+                # Combine game state with collision map and explanation
+                text_representation_for_adapter = f"{game_state}\n\nSpatial Map:\n{collision_map}\n\nThe spatial map shows your current surroundings in a 9x10 grid. You are always at the center (position 4,4). Use this map to understand your environment and plan your movements. Walls (█) block movement, paths (·) are walkable, sprites (S) are NPCs or objects, and the arrow shows which direction you're facing."
 
         agent_observation = self.adapter.create_agent_observation(
             img_path=img_path_for_adapter,
@@ -192,24 +218,40 @@ class PokemonRedEnv(Env):
             img_path_for_adapter = self.adapter._create_agent_observation_path(
                 self.adapter.current_episode_id, self.adapter.current_step_num
             )
-            screenshot = self.get_screenshot()
-            Image.fromarray(screenshot).save(img_path_for_adapter)
+            self._save_processed_screenshot(img_path_for_adapter)
         
         if self.adapter.observation_mode in ["text", "both"]:
             # Get basic game state from memory
             game_state = self.get_state_from_memory()
             
-            # Get collision map for spatial awareness
-            collision_map = self.get_collision_map()
-            
-            # Update and save full collision map
-            location = self.get_location()
-            coords = self.get_coordinates()
-            self.update_full_collision_map(location, coords)
-            self.save_collision_map_to_file(location, self.adapter.current_step_num)
-            
-            # Combine game state with collision map and explanation
-            text_representation_for_adapter = f"{game_state}\n\nSpatial Map:\n{collision_map}\n\nThe spatial map shows your current surroundings in a 9x10 grid. You are always at the center (position 4,4). Use this map to understand your environment and plan your movements. Walls (█) block movement, paths (·) are walkable, sprites (S) are NPCs or objects, and the arrow shows which direction you're facing."
+            if self.harness:
+                # Enhanced text representation for harness mode includes full collision map
+                location = self.get_location()
+                coords = self.get_coordinates()
+                self.update_full_collision_map(location, coords)
+                self.save_collision_map_to_file(location)
+                
+                # Load the full collision map from file
+                full_collision_map_text = self.get_full_collision_map_from_file(location)
+                if full_collision_map_text:
+                    text_representation_for_adapter = f"{game_state}\n\nFull Location Map:\n{full_collision_map_text}\n\nThis shows the complete explored map for {location} with detailed coordinate information and movement costs."
+                else:
+                    # Fallback to regular collision map
+                    collision_map = self.get_collision_map()
+                    text_representation_for_adapter = f"{game_state}\n\nSpatial Map:\n{collision_map}\n\nThe spatial map shows your current surroundings in a 9x10 grid. You are always at the center (position 4,4)."
+            else:
+                # Standard text representation
+                # Get collision map for spatial awareness
+                collision_map = self.get_collision_map()
+                
+                # Update and save full collision map
+                location = self.get_location()
+                coords = self.get_coordinates()
+                self.update_full_collision_map(location, coords)
+                self.save_collision_map_to_file(location)
+                
+                # Combine game state with collision map and explanation
+                text_representation_for_adapter = f"{game_state}\n\nSpatial Map:\n{collision_map}\n\nThe spatial map shows your current surroundings in a 9x10 grid. You are always at the center (position 4,4). Use this map to understand your environment and plan your movements. Walls (█) block movement, paths (·) are walkable, sprites (S) are NPCs or objects, and the arrow shows which direction you're facing."
 
         agent_observation = self.adapter.create_agent_observation(
             img_path=img_path_for_adapter,
@@ -298,12 +340,147 @@ class PokemonRedEnv(Env):
         for _ in range(60):
             self.tick(60)
         self.pyboy.set_emulation_speed(1)
+        
+        # Skip game start sequence
+        self._skip_intro_sequence()
+
+    def _skip_intro_sequence(self):
+        """Skip the game intro sequence by pressing start/A buttons"""
+        print("[PokemonRedEnv] Skipping intro sequence...")
+        
+        # Wait a bit for the game to fully load
+        self.tick(60)
+        
+        # Press start button 3 times to skip the intro screens
+        for i in range(3):
+            print(f"[PokemonRedEnv] Pressing start button {i+1}/3")
+            self.press_buttons(["a"], wait=True)
+            # Add extra wait time between presses
+            self.tick(60)
+        
+        print("[PokemonRedEnv] Intro sequence skipped.")
+
 
     def get_screenshot(self):
         """Get the current screenshot as numpy array"""
         if not self.pyboy:
             return np.zeros((240, 256, 3), dtype=np.uint8)
         return np.array(self.pyboy.screen.ndarray)
+
+    def get_screenshot_base64(self, screenshot: Image.Image, upscale=1, add_coords: bool=True,
+                             player_coords: Optional[Tuple[int, int]]=None, location: Optional[str]=None, 
+                             relative_square_size=8):
+        """Convert PIL image to base64 string."""
+        # Resize if needed
+        if upscale > 1:
+            new_size = (screenshot.width * upscale, screenshot.height * upscale)
+            screenshot = screenshot.resize(new_size)
+
+        past_locations = self.location_history
+        location_labels = self.label_archive.get(location)
+        if location_labels is None:
+            # this sucks man
+            for key, value in self.label_archive.items():
+                if location and location.lower() == key.lower():
+                    location_labels = value
+                    break
+        if location_labels is None:
+            location_labels = {}
+        local_location_tracker = self.location_tracker.get(location, [])
+
+        collision_map = self.pyboy.game_wrapper.game_area_collision()
+        downsampled_terrain = self._downsample_array(collision_map)
+
+        sprite_locations = self.get_sprites()
+
+        if not self.get_in_combat():
+            shape = screenshot.size
+            # Draw some eye-searing lines across the image that nonetheless might make it more obvious to the LLM that this is a grid.
+            for x in range(0, shape[0], shape[0]//10):
+                ImageDraw.Draw(screenshot).line(((x, 0), (x, shape[1] - 1)), fill=(255, 0, 0))
+            for y in range(0, shape[1], shape[1]//9):
+                ImageDraw.Draw(screenshot).line(((0, y), (shape[0] - 1, y)), fill=(255, 0, 0))
+
+            # add coordinate labels (note: if scale is too small it may be unreadable)
+            # The assumption is the central square is the player's current location, which is 4, 4
+            # Rows 0 - 8, Cols 0 - 9
+            if add_coords:
+                assert player_coords is not None
+                tile_size = 16 * upscale
+                mid_length = tile_size/2
+                for row in range(0, 9):
+                    # For bad legacy reasons location labels is row first
+                    real_row = player_coords[1] + row - 4
+                    local_cols = location_labels.get(real_row, {})
+                    for col in range(0, 10):
+                        if row == 4 and col == 4:
+                            continue  # Skip the player themselves.
+                        real_col = player_coords[0] + col - 4
+                        label = local_cols.get(real_col, "")
+                        tile_label = f"{str(real_col)}, {str(real_row)}"
+                        if label:
+                            tile_label += "\n" + label
+                        if (col, row) not in sprite_locations:
+                            if downsampled_terrain[row][col] == 0:
+                                # ImageDraw.Draw(screenshot).rectangle(((col * tile_size + (relative_square_size - 1)*mid_length/relative_square_size, row * tile_size + (relative_square_size - 1)*mid_length/relative_square_size), (col * tile_size + (relative_square_size + 1)*mid_length/relative_square_size, row * tile_size + (relative_square_size + 1)*mid_length/relative_square_size)), (255, 0, 0))
+                                tile_label += "\n" + "IMPASSABLE"
+                            else:
+                                # ImageDraw.Draw(screenshot).rectangle(((col * tile_size + (relative_square_size - 1)*mid_length/relative_square_size, row * tile_size + (relative_square_size - 1)*mid_length/relative_square_size), (col * tile_size + (relative_square_size + 1)*mid_length/relative_square_size, row * tile_size + (relative_square_size + 1)*mid_length/relative_square_size)), (0, 255, 255))
+                                if local_location_tracker and real_col > -1 and real_row > -1 and real_col < len(local_location_tracker) and real_row < len(local_location_tracker[real_col]) and local_location_tracker[real_col][real_row]:
+                                    # ImageDraw.Draw(screenshot).rectangle(((col * tile_size + (relative_square_size - 1)*mid_length/relative_square_size, row * tile_size + (relative_square_size - 1)*mid_length/relative_square_size), (col * tile_size + (relative_square_size + 1)*mid_length/relative_square_size, row * tile_size + (relative_square_size + 1)*mid_length/relative_square_size)), (0, 0, 255))
+                                    tile_label += "\n" + "EXPLORED"
+                                elif (location, (real_col, real_row)) in past_locations:
+                                    # ImageDraw.Draw(screenshot).rectangle(((col * tile_size + (relative_square_size - 1)*mid_length/relative_square_size, row * tile_size + (relative_square_size - 1)*mid_length/relative_square_size), (col * tile_size + (relative_square_size + 1)*mid_length/relative_square_size, row * tile_size + (relative_square_size + 1)*mid_length/relative_square_size)), (0, 255, 0))         
+                                    tile_label += "\n" + "RECENTLY\nVISITED"
+                                else:
+                                    tile_label += "\n" + "CHECK\nHERE"
+                        else:
+                            # ImageDraw.Draw(screenshot).rectangle(((col * tile_size + (relative_square_size - 1)*mid_length/relative_square_size, row * tile_size + (relative_square_size - 1)*mid_length/relative_square_size), (col * tile_size + (relative_square_size + 1)*mid_length/relative_square_size, row * tile_size + (relative_square_size + 1)*mid_length/relative_square_size)), (255, 0, 255))
+                            tile_label += "\n" + "NPC/OBJECT"
+                        font_size = 8
+                        # The original SimpleAgent only uses larger font for GEMINI model
+                        # For better text readability, we'll keep the smaller font even with upscale=4
+                        ImageDraw.Draw(screenshot).text((col * tile_size + mid_length/2, row * tile_size + mid_length/2), tile_label, (255, 0, 0), font_size=font_size)
+
+        # Convert to base64
+        buffered = io.BytesIO()
+        screenshot.save(buffered, format="PNG")
+        return base64.standard_b64encode(buffered.getvalue()).decode()
+
+    def _save_processed_screenshot(self, img_path_for_adapter: str):
+        """
+        Save screenshot with optional enhanced processing based on harness mode.
+        
+        Args:
+            img_path_for_adapter: Path where the image should be saved
+        """
+        screenshot = self.get_screenshot()
+        
+        if self.harness:
+            # Enhanced processing for harness mode with overlays and coordinate labels
+            screenshot_pil = Image.fromarray(screenshot)
+            player_coords = self.get_coordinates()
+            location = self.get_location()
+            
+            # Update location tracking
+            self.location_history.add((location, player_coords))
+            
+            # Process the image with enhanced overlays
+            processed_screenshot = self.get_screenshot_base64(
+                screenshot_pil, 
+                upscale=4, 
+                add_coords=True, 
+                player_coords=player_coords, 
+                location=location
+            )
+            
+            # Save the enhanced image
+            enhanced_img_data = base64.b64decode(processed_screenshot)
+            with open(img_path_for_adapter, 'wb') as f:
+                f.write(enhanced_img_data)
+        else:
+            # Standard processing - just save the raw screenshot
+            Image.fromarray(screenshot).save(img_path_for_adapter)
 
     def load_state(self, state_filename):
         """Load a state from file"""
@@ -787,13 +964,11 @@ class PokemonRedEnv(Env):
 
     # ===================== Full Collision Map Methods =====================
 
-    def _create_collision_map_path(self, episode_id: int, step_num: int, location: str) -> str:
+    def _create_collision_map_path(self, location: str) -> str:
         """
-        Generate a unique file path for a collision map text file.
+        Generate a file path for a collision map text file.
         
         Args:
-            episode_id: Episode ID
-            step_num: Step number
             location: Location name
             
         Returns:
@@ -801,10 +976,12 @@ class PokemonRedEnv(Env):
         """
         # Clean location name for filename
         safe_location = "".join(c if c.isalnum() or c in '-_' else '_' for c in location)
-        return os.path.join(
-            self.adapter.agent_observations_dir, 
-            f"collision_map_e{episode_id:03d}_s{step_num:04d}_{safe_location}.txt"
-        )
+        
+        # Create collision_maps directory in agent cache dir (outside observations)
+        collision_maps_dir = os.path.join(self.adapter.agent_cache_dir, "collision_maps")
+        os.makedirs(collision_maps_dir, exist_ok=True)
+        
+        return os.path.join(collision_maps_dir, f"collision_map_{safe_location}.txt")
 
     def update_full_collision_map(self, location: str, coords: Tuple[int, int]) -> str:
         """
@@ -853,24 +1030,19 @@ class PokemonRedEnv(Env):
             return self.full_collision_maps[location].to_ascii(local_location_tracker)
         return None
 
-    def save_collision_map_to_file(self, location: str, step_num: int, local_location_tracker: Optional[list] = None):
+    def save_collision_map_to_file(self, location: str, local_location_tracker: Optional[list] = None):
         """
-        Save collision map to a text file in the adapter's cache directory.
+        Save collision map to a text file in the collision maps directory.
         
         Args:
             location: Location name
-            step_num: Current step number for file naming
             local_location_tracker: Optional tracker for visited locations
         """
         if location not in self.full_collision_maps:
             return
             
         # Create collision map file path
-        collision_map_path = self._create_collision_map_path(
-            self.adapter.current_episode_id, 
-            step_num, 
-            location
-        )
+        collision_map_path = self._create_collision_map_path(location)
         
         # Save the collision map
         self.full_collision_maps[location].save_to_file(
@@ -878,60 +1050,40 @@ class PokemonRedEnv(Env):
             local_location_tracker
         )
 
-    def get_full_collision_map_from_file(self, location: str, step_num: Optional[int] = None) -> Optional[str]:
+    def get_full_collision_map_from_file(self, location: str) -> Optional[str]:
         """
         Load collision map representation from a saved text file.
         
         Args:
             location: Location name
-            step_num: Step number for file naming. If None, uses current step number.
             
         Returns:
             String representation of the collision map or None if not found
         """
-        if step_num is None:
-            step_num = self.adapter.current_step_num
-            
-        collision_map_path = self._create_collision_map_path(
-            self.adapter.current_episode_id, 
-            step_num, 
-            location
-        )
-        
+        collision_map_path = self._create_collision_map_path(location)
         return LocationCollisionMap.load_from_file(collision_map_path)
 
-    def load_collision_map_from_file(self, location: str, step_num: int) -> Optional[str]:
+    def load_collision_map_from_file(self, location: str) -> Optional[str]:
         """
         Load collision map representation from a text file.
         
         Args:
             location: Location name
-            step_num: Step number for file naming
             
         Returns:
             String representation of the collision map or None if not found
         """
-        collision_map_path = self._create_collision_map_path(
-            self.adapter.current_episode_id, 
-            step_num, 
-            location
-        )
-        
+        collision_map_path = self._create_collision_map_path(location)
         return LocationCollisionMap.load_from_file(collision_map_path)
 
-    def get_collision_map_file_path(self, location: str, step_num: int) -> str:
+    def get_collision_map_file_path(self, location: str) -> str:
         """
         Get the file path for a collision map.
         
         Args:
             location: Location name
-            step_num: Step number for file naming
             
         Returns:
             File path for the collision map
         """
-        return self._create_collision_map_path(
-            self.adapter.current_episode_id, 
-            step_num, 
-            location
-        )
+        return self._create_collision_map_path(location)

@@ -45,7 +45,8 @@ class PerceptionModule(CoreModule):
             token_limit (int): Maximum number of tokens for VLM calls.
             reasoning_effort (str): Reasoning effort for reasoning VLM calls (low, medium, high).
             scaffolding (dict, optional): Scaffolding configuration dictionary with function and arguments.
-                                     Default is None (no scaffolding). 
+                                     Default is None (no scaffolding). The function should take an observation
+                                     and return a modified observation.
                                      Example: {"func": draw_grid_on_image, "funcArgs": {"grid_dim": [5, 5]}}
         """
         super().__init__(
@@ -71,6 +72,31 @@ class PerceptionModule(CoreModule):
         self.obs_dir = os.path.join(cache_dir, "observations")
         os.makedirs(self.obs_dir, exist_ok=True)
         
+    def _apply_scaffolding(self, observation):
+        """
+        Apply scaffolding function to the observation if specified.
+        
+        Args:
+            observation: The observation to process
+            
+        Returns:
+            observation: The potentially modified observation
+        """
+        if self.scaffolding is not None:
+            scaffolding_func = self.scaffolding.get('func')
+            scaffolding_args = self.scaffolding.get('funcArgs', {})
+            if scaffolding_func and callable(scaffolding_func):
+                try:
+                    # Pass the observation to the scaffolding function and get back a modified observation
+                    return scaffolding_func(observation, **scaffolding_args)
+                except Exception as e:
+                    print(f"Warning: Scaffolding function failed: {e}. Using original observation.")
+                    return observation
+            else:
+                print("Warning: Invalid scaffolding configuration. Using original observation.")
+                return observation
+        return observation
+
     def process_observation(self, observation):
         """
         Process a new observation to update the internal state.
@@ -113,28 +139,25 @@ class PerceptionModule(CoreModule):
             # TODO: add textual representation processing logic
             self.processed_observation.textual_representation = self.observation.textual_representation
 
+            # Apply scaffolding function if specified
+            self.processed_observation = self._apply_scaffolding(self.processed_observation)
+
             return self.processed_observation
         elif self.observation_mode in ["vision", "both"]:
             assert self.observation.img_path is not None, "to process from graphic representation, image should have been prepared and path should exist in observation."
+            
+            # First scale up the image
             new_img_path = scale_image_up(self.observation.get_img_path())
+            self.processed_observation.img_path = new_img_path
             
             # Apply scaffolding function if specified
-            if self.scaffolding is not None:
-                scaffolding_func = self.scaffolding.get('func')
-                scaffolding_args = self.scaffolding.get('funcArgs', {})
-                if scaffolding_func and callable(scaffolding_func):
-                    try:
-                        new_img_path = scaffolding_func(new_img_path, **scaffolding_args)
-                    except Exception as e:
-                        print(f"Warning: Scaffolding function failed: {e}. Using original image.")
-                else:
-                    print("Warning: Invalid scaffolding configuration. Using original image.")
+            self.processed_observation = self._apply_scaffolding(self.processed_observation)
 
             processed_visual_description = self.api_manager.vision_text_completion(
                 model_name=self.model_name,
                 system_prompt=self.system_prompt,
                 prompt=self.prompt,
-                image_path=new_img_path,
+                image_path=self.processed_observation.img_path,
                 thinking=True,
                 reasoning_effort=self.reasoning_effort,
                 token_limit=self.token_limit
@@ -143,7 +166,6 @@ class PerceptionModule(CoreModule):
             actual_processed_visual_description = processed_visual_description[0]
 
             self.processed_observation.processed_visual_description = actual_processed_visual_description
-            self.processed_observation.image_path = new_img_path
 
             return self.processed_observation
         else:
