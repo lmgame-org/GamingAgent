@@ -819,7 +819,7 @@ def generate_video_from_pokemon_red_images(
     fps: float = 1.0,
     cleanup_frames: bool = True
 ) -> bool:
-    """Generate video from Pokemon Red original screenshots"""
+    """Generate video from Pokemon Red original screenshots with scaling"""
     
     # Extract image paths
     print(f"Extracting image paths from {episode_log_path}")
@@ -831,11 +831,70 @@ def generate_video_from_pokemon_red_images(
     
     print(f"Found {len(image_paths)} image files")
     
-    # Create video directly from existing images
-    print(f"Creating video at {output_path}")
-    success = create_video_from_frames(image_paths, output_path, fps)
+    # Scale up images using temporary files
+    print("Scaling up images to 1500px maximum dimension...")
+    scaled_image_paths = []
     
-    return success
+    with tempfile.TemporaryDirectory() as temp_dir:
+        try:
+            for i, original_path in enumerate(image_paths):
+                if not os.path.exists(original_path):
+                    print(f"Warning: Image not found: {original_path}")
+                    continue
+                
+                # Read the original image
+                image = cv2.imread(original_path)
+                if image is None:
+                    print(f"Warning: Could not read image: {original_path}")
+                    continue
+                
+                # Get current dimensions
+                height, width = image.shape[:2]
+                
+                # Calculate scale factor to fit within 1500px maximum
+                maximum_scale = 1500
+                scale_factor = min(maximum_scale / width, maximum_scale / height)
+                
+                # Only scale up if necessary
+                if scale_factor > 1:
+                    # Calculate new dimensions
+                    new_width = int(width * scale_factor)
+                    new_height = int(height * scale_factor)
+                    
+                    # Resize the image
+                    scaled_image = cv2.resize(image, (new_width, new_height), interpolation=cv2.INTER_LINEAR)
+                    
+                    # Save to temporary file
+                    temp_path = os.path.join(temp_dir, f"scaled_frame_{i:04d}.png")
+                    cv2.imwrite(temp_path, scaled_image)
+                    scaled_image_paths.append(temp_path)
+                    
+                    if i == 0:  # Print scaling info for first image
+                        print(f"Scaled images from {width}x{height} to {new_width}x{new_height}")
+                else:
+                    # If no scaling needed, copy to temp directory for consistency
+                    temp_path = os.path.join(temp_dir, f"frame_{i:04d}.png")
+                    shutil.copy2(original_path, temp_path)
+                    scaled_image_paths.append(temp_path)
+            
+            if not scaled_image_paths:
+                print("No valid images found for video creation")
+                return False
+            
+            print(f"Successfully processed {len(scaled_image_paths)} images")
+            
+            # Create video from scaled images
+            print(f"Creating video at {output_path}")
+            success = create_video_from_frames(scaled_image_paths, output_path, fps)
+            
+            return success
+            
+        except ImportError:
+            print("Error: OpenCV (cv2) is required for image scaling. Install with: pip install opencv-python")
+            return False
+        except Exception as e:
+            print(f"Error during image scaling: {e}")
+            return False
 
 def extract_textual_representations_from_jsonl(episode_log_path: str) -> List[Tuple[str, Dict]]:
     """Extract textual representations and metadata from episode log"""

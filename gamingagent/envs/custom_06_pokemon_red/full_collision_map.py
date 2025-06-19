@@ -209,107 +209,72 @@ class LocationCollisionMap:
         base_str += (width - 1 - len(base_str)) * " "
         return f"|{base_str}"
 
-    def to_ascii(self, local_location_tracker: Optional[List[List[bool]]] = None) -> str:
+    def to_ascii(self, local_location_tracker: Optional[List[List[bool]]] = None, save_file_path: Optional[str] = None) -> str:
         """
-        Convert the collision map to ASCII representation.
+        Convert the collision map to ASCII representation (model version).
         
         Args:
             local_location_tracker: Optional tracker for visited locations
+            save_file_path: Optional path to save the collision map file
             
         Returns:
-            ASCII representation of the map
+            ASCII representation of the map for the model
         """
-        # We prepare two identical versions simultaneously: A readable nice ASCII for humans, and the long-winded one for models
         horizontal_labels = list(range(self.col_offset, self.col_offset + self.internal_map.shape[0]))
 
         row_width = 35
         horizontal_border = "       +" + "".join("Column " + str(x) + " " * (row_width - len(str(x)) - 7) for x in horizontal_labels) + "+"
-        horizontal_border_human = "       +" + "".join(str(x) + " " * (4 - len(str(x))) for x in horizontal_labels) + "+"
 
         lines = []
-        lines_human = []
-        
-        # Add legend to human version
-        if local_location_tracker:
-            lines_human.extend([
-                "",
-                "Legend:",
-                "██ - Wall/Obstacle",
-                "·· - CHECK HERE: Path/Walkable",
-                "SS - Sprite",
-                "PP - Player Character",
-                "xx - AVOID GOING HERE - Already Explored",
-                "uu - CHECK HERE: Blank = Unknown/Unvisited",
-                "Numbers - How many tiles away this tile is to reach."
-            ])
-        else:
-            lines_human.extend([
-                "",
-                "Legend:",
-                "██ - Wall/Obstacle",
-                "·· - Path/Walkable",
-                "SS - Sprite",
-                "PP - Player Character",
-                "uu - Blank = Unknown/Unvisited"
-            ])
-
         lines += [f"({self.col_offset}, {self.row_offset})", horizontal_border]
-        lines_human += [f"({self.col_offset}, {self.row_offset})", horizontal_border_human]
         
         for row_num, this_row in enumerate(self.internal_map.transpose()):  # transposing makes printing easier
             real_row = self.row_offset + row_num
             row = f"Row: {str(real_row) + ' ' * (2 - len(str(real_row)))}"
-            row_human = row + "|"
             
             for col_num, col in enumerate(this_row):
                 real_col = self.col_offset + col_num
                 
                 if col == -1:
                     row += self.make_ascii_segment("Check here", row_width, real_col, real_row)
-                    row_human += " uu "
                 elif col == 0:
                     row += self.make_ascii_segment("Impassable", row_width, real_col, real_row)
-                    row_human += " ██ "
                 elif col == 1: 
                     # Potentially place a distance marker:
                     row_piece = ""
-                    row_piece_human = ""
                     distance = self.distances.get((real_col, real_row))
-                    
                     if distance:  # removes 0 and None
                         row_piece += "StepsToReach:" + str(distance) + " " * (4 - len(str(distance))) + " "
-                        row_piece_human += str(distance) + " " * (4 - len(str(distance)))
                         
                     if (local_location_tracker and real_col > -1 and real_row > -1 and 
                         real_col < len(local_location_tracker) and real_row < len(local_location_tracker[real_col]) and 
                         local_location_tracker[real_col][real_row]):
                         row_piece += "Explored"
-                        if not row_piece_human:
-                            row_human += " xx "
                     else:
                         row_piece += "Passable"
-                        if not row_piece_human:
-                            row_human += " ·· "
-                            
+                        
                     row += self.make_ascii_segment(row_piece, row_width, real_col, real_row)
-                    row_human += row_piece_human
                 elif col == 2:
                     row += self.make_ascii_segment("NPC/Object", row_width, real_col, real_row)
-                    row_human += " SS "
                 elif col == 3:
                     row += self.make_ascii_segment("PLAYER", row_width, real_col, real_row)
-                    row_human += " PP "
                     
             row += f"|{str(real_row)}"
-            row_human += f"|{str(real_row)}"
             lines.append(row)
-            lines_human.append(row_human)
             
         lines.append(horizontal_border + f"({self.col_offset + self.internal_map.shape[0] - 1}, {self.row_offset + self.internal_map.shape[1] - 1})")
-        lines_human.append(horizontal_border_human + f"({self.col_offset + self.internal_map.shape[0] - 1}, {self.row_offset + self.internal_map.shape[1] - 1})")
 
         # Join all lines with newlines
         output = "\n".join(lines)
+        
+        # Save to file if path provided
+        if save_file_path:
+            os.makedirs(os.path.dirname(save_file_path), exist_ok=True)
+            human_readable = self.to_human_readable_ascii(local_location_tracker)
+            with open(save_file_path, "w", encoding="utf-8") as fw:
+                fw.write(human_readable)
+                fw.write("\n\n")
+                fw.write(output)
         
         return output
 
@@ -334,19 +299,18 @@ class LocationCollisionMap:
                 "",
                 "Legend:",
                 "██ - Wall/Obstacle",
-                "·· - CHECK HERE: Path/Walkable",
+                "Numbers - How many tiles away this tile is to reach",
                 "SS - Sprite",
                 "PP - Player Character",
                 "xx - AVOID GOING HERE - Already Explored",
-                "uu - CHECK HERE: Blank = Unknown/Unvisited",
-                "Numbers - How many tiles away this tile is to reach."
+                "uu - CHECK HERE: Blank = Unknown/Unvisited"
             ])
         else:
             lines_human.extend([
                 "",
                 "Legend:",
                 "██ - Wall/Obstacle",
-                "·· - Path/Walkable",
+                "Numbers - How many tiles away this tile is to reach",
                 "SS - Sprite",
                 "PP - Player Character",
                 "uu - Blank = Unknown/Unvisited"
@@ -394,22 +358,7 @@ class LocationCollisionMap:
 
         return "\n".join(lines_human)
 
-    def save_to_file(self, file_path: str, local_location_tracker: Optional[List[List[bool]]] = None):
-        """
-        Save the collision map to a text file.
-        
-        Args:
-            file_path: Path to save the file
-            local_location_tracker: Optional tracker for visited locations
-        """
-        os.makedirs(os.path.dirname(file_path), exist_ok=True)
-        
-        with open(file_path, "w", encoding="utf-8") as fw:
-            # Write human-readable version
-            fw.write(self.to_human_readable_ascii(local_location_tracker))
-            fw.write("\n\n" + "MODEL VERSION:" + "\n\n")
-            # Write model version
-            fw.write(self.to_ascii(local_location_tracker))
+
 
     @classmethod
     def load_from_file(cls, file_path: str) -> Optional[str]:

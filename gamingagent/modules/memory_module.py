@@ -17,7 +17,8 @@ class MemoryModule(CoreModule):
                  cache_dir: str = "cache",
                  system_prompt: str = "",
                  prompt: str = "",
-                 max_memory: int = 10):
+                 max_memory: int = 10,
+                 use_reflection: bool = True):
 
         super().__init__(
             module_name="memory_module",
@@ -28,6 +29,7 @@ class MemoryModule(CoreModule):
         )
 
         self.max_memory=max_memory
+        self.use_reflection = use_reflection
 
     def _load_trajectory(self) -> None:
         """Load and return trajectory entries (as already‑stringified lines) from disk."""
@@ -123,10 +125,13 @@ class MemoryModule(CoreModule):
         if observation.game_trajectory.background is None and observation.trajectory_includes_background:
             observation.game_trajectory.set_background(observation.get_background() or "Background not available.")
 
-        reflection = self._reflect(
-            prev_context=prev_context,
-            current_state=str(game_state),
-        )
+        if self.use_reflection:
+            reflection = self._reflect(
+                prev_context=prev_context,
+                current_state=str(game_state),
+            )
+        else:
+            reflection = None
 
         # observation = self.update_observation_memory(
         #     observation=observation,
@@ -135,7 +140,7 @@ class MemoryModule(CoreModule):
         observation = self.update_observation_memory(
             observation=observation,
         )
-        observation.reflection = reflection
+        observation.reflection = reflection if self.use_reflection else None
 
         return observation
 

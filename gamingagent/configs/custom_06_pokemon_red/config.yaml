@@ -14,7 +14,8 @@ agent:
   reasoning_effort: "high" # Example, if your agent uses this
   token_limit: 8000        # Example token limit
   harness: false        # Default to non-harness mode, set to true to use perception/reasoning modules
-  observation_mode: "both" 
+  observation_mode: "both"
+  use_reflection: true   # Enable reflection in memory module
   
   modules:
     base_module:

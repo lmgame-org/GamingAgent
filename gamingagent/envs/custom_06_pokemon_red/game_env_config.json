@@ -15,5 +15,5 @@
         "right": 7
     },
     "render_mode": "human",
-    "max_unchanged_steps_for_termination": 20
+    "max_unchanged_steps_for_termination": 100
 }

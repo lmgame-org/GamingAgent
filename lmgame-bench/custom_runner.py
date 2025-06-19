@@ -57,6 +57,7 @@ def parse_arguments(defaults_map=None, argv_to_parse=None):
     parser.add_argument("--observation_mode", type=str, default="vision",
                         choices=["vision", "text", "both"], help="Agent's observation mode.")
     parser.add_argument("--max_memory", type=int, default=20, help="Agent's max memory entries.")
+    parser.add_argument("--use_reflection", action="store_true", help="Enable reflection in memory module.")
     parser.add_argument("--max_steps_per_episode", type=int, default=1000, help="Max steps per episode.")
     parser.add_argument("--use_custom_prompt", action="store_true", help="If set, will use the custom prompt from module_prompts.json if present.")
     parser.add_argument("--scaffolding", type=str, default=None, help="Grid dimensions as '(rows,cols)' for coordinate grid on images, e.g., '(5,5)'. Default is None.")
@@ -609,7 +610,8 @@ def main():
                             agent_config_yaml = loaded_yaml['agent']
                             defaults_from_yaml['model_name'] = agent_config_yaml.get('model_name')
                             defaults_from_yaml['observation_mode'] = agent_config_yaml.get('observation_mode')
-                            defaults_from_yaml['use_custom_prompt'] = agent_config_yaml.get('observation_mode')
+                            defaults_from_yaml['use_custom_prompt'] = agent_config_yaml.get('use_custom_prompt')
+                            defaults_from_yaml['use_reflection'] = agent_config_yaml.get('use_reflection')
                             defaults_from_yaml['scaffolding'] = agent_config_yaml.get('scaffolding')
                             
                             # Still load max_memory from its specific module config if present
@@ -640,6 +642,7 @@ def main():
         'max_steps_per_episode',
         'seed',
         'max_memory',
+        'use_reflection',
         'scaffolding'
     }
 
@@ -729,7 +732,8 @@ def main():
         config_path=agent_prompts_config_path,
         harness=args.harness,
         use_custom_prompt=args.use_custom_prompt,
-        max_memory=args.max_memory, 
+        max_memory=args.max_memory,
+        use_reflection=args.use_reflection,
         custom_modules=custom_modules_for_agent,
         observation_mode=args.observation_mode,
         scaffolding=scaffolding_dict,
