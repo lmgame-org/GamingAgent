@@ -735,6 +735,28 @@ class PokemonRedReader:
         """Initialize with a PyBoy memory view object"""
         self.memory = memory_view
 
+    def get_warps(self) -> list[tuple[int, int]]:
+        """Get all the warps listed for the current map.
+        If necessary we can also get where these warps go, but later.
+        
+        Not sure this is all warps, but it works for Viridian Forest. Best effort. Also I can't figure out how to determine which _direction_ the warp is.
+        """
+        # This is the number of warps
+        num_warps = self.memory[0xD3AE]
+        # Each warp now comes in groups of 4, row col of location on this map and row col of where it goes in the _next_ map
+        warps = []  # this could be a set, but for something like this let's keep it simpler.
+        for n in range(num_warps):  # turning this to col, row
+            warps.append((
+                self.memory[0xD3AF + n * 4 + 1],
+                self.memory[0xD3AF + n * 4]
+            ))
+        return warps
+
+    def read_in_combat(self) -> bool:
+        """Are we in combat?"""
+        b = self.memory[0xD057]
+        return bool(b)
+
     def read_money(self) -> int:
         """Read the player's money in Binary Coded Decimal format"""
         b1 = self.memory[0xD349]  # Least significant byte
@@ -1204,3 +1226,79 @@ class PokemonRedReader:
             # Count set bits in this byte
             caught_count += bin(byte).count("1")
         return caught_count
+
+    def read_pokedex_seen_count(self) -> int:
+        """Read how many unique Pokemon species have been seen"""
+        # Pokedex seen flags are stored in D30A-D31C  
+        # Each byte contains 8 flags for 8 Pokemon
+        seen_count = 0
+        for addr in range(0xD30A, 0xD31D):
+            byte = self.memory[addr]
+            # Count set bits in this byte
+            seen_count += bin(byte).count("1")
+        return seen_count
+
+    def read_current_menu_selection(self) -> int:
+        """Read the currently selected menu item"""
+        return self.memory[0xCC26]
+
+    def read_current_map_id(self) -> int:
+        """Read the current map ID"""
+        return self.memory[0xD35E]
+
+    def read_facing_direction(self) -> str:
+        """Read which direction the player is facing"""
+        direction = self.memory[0xC109]
+        directions = {0: "down", 4: "up", 8: "left", 12: "right"}
+        return directions.get(direction, "unknown")
+
+    def read_steps_taken(self) -> int:
+        """Read total steps taken by player"""
+        # Steps are stored as 3-byte value
+        return (self.memory[0xDA53] << 16) + (self.memory[0xDA54] << 8) + self.memory[0xDA55]
+
+    def read_safari_steps_remaining(self) -> int:
+        """Read remaining steps in Safari Zone"""
+        return (self.memory[0xDA47] << 8) + self.memory[0xDA48]
+
+    def read_safari_balls_remaining(self) -> int:
+        """Read remaining Safari Balls"""
+        return self.memory[0xDA46]
+
+    def is_in_safari_zone(self) -> bool:
+        """Check if player is currently in Safari Zone"""
+        location_id = self.read_current_map_id()
+        safari_zones = [0xD9, 0xDA, 0xDB, 0xDC, 0xDD, 0xDE, 0xDF, 0xE0, 0xE1]  # Safari Zone map IDs
+        return location_id in safari_zones
+
+    def read_pc_box_count(self) -> int:
+        """Read number of Pokemon in current PC box"""
+        return self.memory[0xDA80]
+
+    def read_daycare_pokemon_count(self) -> int:
+        """Read number of Pokemon in daycare (0 or 1)"""
+        return 1 if self.memory[0xD2C7] != 0 else 0
+
+    def read_battle_type(self) -> str:
+        """Read current battle type"""
+        battle_type = self.memory[0xD05A]
+        types = {
+            0: "wild",
+            1: "trainer", 
+            2: "old_man_tutorial"
+        }
+        return types.get(battle_type, "unknown")
+
+    def read_enemy_pokemon_level(self) -> int:
+        """Read level of enemy Pokemon in battle"""
+        return self.memory[0xCFE8] if self.read_in_combat() else 0
+
+    def read_last_repel_used(self) -> str:
+        """Read the last repel item used"""
+        repel_id = self.memory[0xD72E]
+        repels = {0x1E: "REPEL", 0x38: "SUPER REPEL", 0x39: "MAX REPEL"}
+        return repels.get(repel_id, "NONE")
+
+    def read_repel_steps_remaining(self) -> int:
+        """Read remaining steps for active repel"""
+        return self.memory[0xD72D]

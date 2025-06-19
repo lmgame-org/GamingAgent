@@ -1,12 +1,13 @@
-
 # TODO: Define reward for each step - Yuxuan
 import io
 import pickle
 from collections import deque
 import heapq
 from typing import Optional, Dict, Any, Tuple
+import os
 
 from .memory_reader import PokemonRedReader, StatusCondition
+from .full_collision_map import LocationCollisionMap
 from PIL import Image
 from pyboy import PyBoy
 
@@ -62,6 +63,9 @@ class PokemonRedEnv(Env):
         self.num_env_steps = 0
         self.current_reward_last_step = 0.0
         
+        # Full collision map tracking
+        self.full_collision_maps: Dict[str, LocationCollisionMap] = {}
+        
         # Initialize emulator if rom_path provided
         if self.rom_path:
             self._init_emulator()
@@ -103,7 +107,20 @@ class PokemonRedEnv(Env):
             Image.fromarray(screenshot).save(img_path_for_adapter)
         
         if self.adapter.observation_mode in ["text", "both"]:
-            text_representation_for_adapter = self.get_state_from_memory()
+            # Get basic game state from memory
+            game_state = self.get_state_from_memory()
+            
+            # Get collision map for spatial awareness
+            collision_map = self.get_collision_map()
+            
+            # Update and save full collision map
+            location = self.get_location()
+            coords = self.get_coordinates()
+            self.update_full_collision_map(location, coords)
+            self.save_collision_map_to_file(location, 0)  # Use step 0 for reset
+            
+            # Combine game state with collision map and explanation
+            text_representation_for_adapter = f"{game_state}\n\nSpatial Map:\n{collision_map}\n\nThe spatial map shows your current surroundings in a 9x10 grid. You are always at the center (position 4,4). Use this map to understand your environment and plan your movements. Walls (█) block movement, paths (·) are walkable, sprites (S) are NPCs or objects, and the arrow shows which direction you're facing."
 
         agent_observation = self.adapter.create_agent_observation(
             img_path=img_path_for_adapter,
@@ -179,7 +196,20 @@ class PokemonRedEnv(Env):
             Image.fromarray(screenshot).save(img_path_for_adapter)
         
         if self.adapter.observation_mode in ["text", "both"]:
-            text_representation_for_adapter = self.get_state_from_memory()
+            # Get basic game state from memory
+            game_state = self.get_state_from_memory()
+            
+            # Get collision map for spatial awareness
+            collision_map = self.get_collision_map()
+            
+            # Update and save full collision map
+            location = self.get_location()
+            coords = self.get_coordinates()
+            self.update_full_collision_map(location, coords)
+            self.save_collision_map_to_file(location, self.adapter.current_step_num)
+            
+            # Combine game state with collision map and explanation
+            text_representation_for_adapter = f"{game_state}\n\nSpatial Map:\n{collision_map}\n\nThe spatial map shows your current surroundings in a 9x10 grid. You are always at the center (position 4,4). Use this map to understand your environment and plan your movements. Walls (█) block movement, paths (·) are walkable, sprites (S) are NPCs or objects, and the arrow shows which direction you're facing."
 
         agent_observation = self.adapter.create_agent_observation(
             img_path=img_path_for_adapter,
@@ -356,64 +386,108 @@ class PokemonRedEnv(Env):
         return arr.reshape(9, 2, 10, 2).mean(axis=(1, 3))
 
     def get_collision_map(self):
-        """Creates a simple ASCII map showing player position, direction, terrain and sprites"""
+        """
+        Creates a simple ASCII map showing player position, direction, terrain and sprites.
+        Returns:
+            str: A string representation of the ASCII map with legend
+        """
+        # Get the terrain and movement data
         full_map = self.pyboy.game_wrapper.game_area()
         collision_map = self.pyboy.game_wrapper.game_area_collision()
         downsampled_terrain = self._downsample_array(collision_map)
 
+        # Get sprite locations
         sprite_locations = self.get_sprites()
+
+        # Get character direction from the full map
         direction = self._get_direction(full_map)
-        
         if direction == "no direction found":
             return None
 
+        # Direction symbols
         direction_chars = {"up": "↑", "down": "↓", "left": "←", "right": "→"}
         player_char = direction_chars.get(direction, "P")
 
+        # Create the ASCII map
         horizontal_border = "+" + "-" * 10 + "+"
         lines = [horizontal_border]
 
+        # Create each row
         for i in range(9):
             row = "|"
             for j in range(10):
                 if i == 4 and j == 4:
+                    # Player position with direction
                     row += player_char
                 elif (j, i) in sprite_locations:
+                    # Sprite position
                     row += "S"
                 else:
+                    # Terrain representation
                     if downsampled_terrain[i][j] == 0:
-                        row += "█"
+                        row += "█"  # Wall
                     else:
-                        row += "·"
+                        row += "·"  # Path
             row += "|"
             lines.append(row)
 
+        # Add bottom border
         lines.append(horizontal_border)
-        lines.extend([
-            "",
-            "Legend:",
-            "█ - Wall/Obstacle",
-            "· - Path/Walkable",
-            "S - Sprite",
-            f"{direction_chars['up']}/{direction_chars['down']}/{direction_chars['left']}/{direction_chars['right']} - Player (facing direction)",
-        ])
 
+        # Add legend
+        lines.extend(
+            [
+                "",
+                "Legend:",
+                "█ - Wall/Obstacle",
+                "· - Path/Walkable",
+                "S - Sprite",
+                f"{direction_chars['up']}/{direction_chars['down']}/{direction_chars['left']}/{direction_chars['right']} - Player (facing direction)",
+            ]
+        )
+
+        # Join all lines with newlines
         return "\n".join(lines)
 
     def get_valid_moves(self):
-        """Returns a list of valid moves based on the collision map"""
+        """
+        Returns a list of valid moves (up, down, left, right) based on the collision map.
+        Returns:
+            list[str]: List of valid movement directions
+        """
+        # Get collision map
         collision_map = self.pyboy.game_wrapper.game_area_collision()
         terrain = self._downsample_array(collision_map)
 
+        # Player is always at position (4,4) in the 9x10 downsampled map
         valid_moves = []
 
-        if terrain[3][4] != 0:
+        # We need to check sprites too as they will block traversal
+        sprites = self.get_sprites()
+
+        # Special casing for warp tiles. If they're at a 0-coordinate we can safely assume the warp transition direction.
+        # otherwise I haven't figured out how to figure it out so we just tell the model all directions are valid and just
+        # deal with it.
+        reader = PokemonRedReader(self.pyboy.memory)
+        warp_coords = reader.get_warps()
+
+        # We need absolute coordinates to check warp.
+        player_coords = reader.read_coordinates()
+        if player_coords in warp_coords:
+            if player_coords[0] and player_coords[1]:  # They're both not 9
+                return ["up", "down", "left", "right"]  # I have no idea which directions are valid warps so we just fallback on yielding everything. Probably not even worth checking sprites.
+            if not player_coords[0]:
+                valid_moves.append("left")
+            if not player_coords[1]:  # there is a literal corner case where both are 0, but that never happens in Pokemon Red.
+                valid_moves.append("up")
+        # Check each direction
+        if terrain[3][4] != 0 and (4, 3) not in sprites:  # Up
             valid_moves.append("up")
-        if terrain[5][4] != 0:
+        if terrain[5][4] != 0 and (4, 5) not in sprites:  # Down
             valid_moves.append("down")
-        if terrain[4][3] != 0:
+        if terrain[4][3] != 0 and (3, 4) not in sprites:  # Left
             valid_moves.append("left")
-        if terrain[4][5] != 0:
+        if terrain[4][5] != 0 and (5, 4) not in sprites:  # Right
             valid_moves.append("right")
 
         return valid_moves
@@ -439,7 +513,11 @@ class PokemonRedEnv(Env):
         return True
 
     def get_sprites(self, debug=False):
-        """Get the location of all sprites on the screen"""
+        """
+        Get the location of all of the sprites on the screen.
+        returns set of coordinates that are (column, row)
+        """
+        # Group sprites by their exact Y coordinate
         sprites_by_y = {}
 
         for i in range(40):
@@ -453,6 +531,7 @@ class PokemonRedEnv(Env):
                     sprites_by_y[orig_y] = []
                 sprites_by_y[orig_y].append((x, y, i))
 
+        # Sort Y coordinates
         y_positions = sorted(sprites_by_y.keys())
         bottom_sprite_tiles = set()
 
@@ -466,16 +545,19 @@ class PokemonRedEnv(Env):
 
         SPRITE_HEIGHT = 8
 
+        # First, group sprites by X coordinate for each Y level
         for i in range(len(y_positions) - 1):
             y1 = y_positions[i]
             y2 = y_positions[i + 1]
 
             if y2 - y1 == SPRITE_HEIGHT:
-                sprites_at_y1 = {s[0]: s for s in sprites_by_y[y1]}
+                # Group sprites by X coordinate at each Y level
+                sprites_at_y1 = {s[0]: s for s in sprites_by_y[y1]}  # x -> sprite info
                 sprites_at_y2 = {s[0]: s for s in sprites_by_y[y2]}
 
+                # Only match sprites that share the same X coordinate
                 for x in sprites_at_y2:
-                    if x in sprites_at_y1:
+                    if x in sprites_at_y1:  # If there's a matching top sprite at this X
                         bottom_sprite = sprites_at_y2[x]
                         bottom_sprite_tiles.add((x, bottom_sprite[1]))
                         if debug:
@@ -484,21 +566,38 @@ class PokemonRedEnv(Env):
         return bottom_sprite_tiles
 
     def find_path(self, target_row: int, target_col: int) -> tuple[str, list[str]]:
-        """Finds the most efficient path from the player's current position to the target position"""
+        """
+        Finds the most efficient path from the player's current position (4,4) to the target position.
+        If the target is unreachable, finds path to nearest accessible spot.
+        Allows ending on a wall tile if that's the target.
+        Takes into account terrain, sprite collisions, and tile pair collisions.
+
+        Args:
+            target_row: Row index in the 9x10 downsampled map (0-8)
+            target_col: Column index in the 9x10 downsampled map (0-9)
+
+        Returns:
+            tuple[str, list[str]]: Status message and sequence of movements
+        """
+        # Get collision map, terrain, and sprites
         collision_map = self.pyboy.game_wrapper.game_area_collision()
         terrain = self._downsample_array(collision_map)
         sprite_locations = self.get_sprites()
 
+        # Get full map for tile values and current tileset
         full_map = self.pyboy.game_wrapper._get_screen_background_tilemap()
         reader = PokemonRedReader(self.pyboy.memory)
         tileset = reader.read_tileset()
 
+        # Start at player position (always 4,4 in the 9x10 grid)
         start = (4, 4)
         end = (target_row, target_col)
 
+        # Validate target position
         if not (0 <= target_row < 9 and 0 <= target_col < 10):
             return "Invalid target coordinates", []
 
+        # A* algorithm
         def heuristic(a, b):
             return abs(a[0] - b[0]) + abs(a[1] - b[1])
 
@@ -508,6 +607,7 @@ class PokemonRedEnv(Env):
         g_score = {start: 0}
         f_score = {start: heuristic(start, end)}
 
+        # Track closest reachable point
         closest_point = start
         min_distance = heuristic(start, end)
 
@@ -530,6 +630,7 @@ class PokemonRedEnv(Env):
         while open_set:
             _, current = heapq.heappop(open_set)
 
+            # Check if we've reached target
             if current == end:
                 path = reconstruct_path(current)
                 is_wall = terrain[end[0]][end[1]] == 0
@@ -544,13 +645,18 @@ class PokemonRedEnv(Env):
                         path,
                     )
 
+            # Track closest point
             current_distance = heuristic(current, end)
             if current_distance < min_distance:
                 closest_point = current
                 min_distance = current_distance
 
-            if (abs(current[0] - end[0]) + abs(current[1] - end[1])) == 1 and terrain[end[0]][end[1]] == 0:
+            # If we're next to target and target is a wall, we can end here
+            if (abs(current[0] - end[0]) + abs(current[1] - end[1])) == 1 and terrain[
+                end[0]
+            ][end[1]] == 0:
                 path = reconstruct_path(current)
+                # Add final move onto wall
                 if end[0] > current[0]:
                     path.append("down")
                 elif end[0] < current[0]:
@@ -564,21 +670,36 @@ class PokemonRedEnv(Env):
                     path,
                 )
 
+            # Check all four directions
             for dr, dc, direction in [
-                (1, 0, "down"), (-1, 0, "up"), (0, 1, "right"), (0, -1, "left"),
+                (1, 0, "down"),
+                (-1, 0, "up"),
+                (0, 1, "right"),
+                (0, -1, "left"),
             ]:
                 neighbor = (current[0] + dr, current[1] + dc)
 
+                # Check bounds
                 if not (0 <= neighbor[0] < 9 and 0 <= neighbor[1] < 10):
                     continue
+                # Skip walls unless it's the final destination
                 if terrain[neighbor[0]][neighbor[1]] == 0 and neighbor != end:
                     continue
+                # Skip sprites unless it's the final destination
                 if (neighbor[1], neighbor[0]) in sprite_locations and neighbor != end:
                     continue
 
-                current_tile = full_map[current[0] * 2 + 1][current[1] * 2]
-                neighbor_tile = full_map[neighbor[0] * 2 + 1][neighbor[1] * 2]
-                if not self._can_move_between_tiles(current_tile, neighbor_tile, tileset):
+                # Check tile pair collisions
+                # Get bottom-left tile of each 2x2 block
+                current_tile = full_map[current[0] * 2 + 1][
+                    current[1] * 2
+                ]  # Bottom-left tile of current block
+                neighbor_tile = full_map[neighbor[0] * 2 + 1][
+                    neighbor[1] * 2
+                ]  # Bottom-left tile of neighbor block
+                if not self._can_move_between_tiles(
+                    current_tile, neighbor_tile, tileset
+                ):
                     continue
 
                 tentative_g_score = g_score[current] + 1
@@ -588,6 +709,7 @@ class PokemonRedEnv(Env):
                     f_score[neighbor] = tentative_g_score + heuristic(neighbor, end)
                     heapq.heappush(open_set, (f_score[neighbor], neighbor))
 
+        # If target unreachable, return path to closest point
         if closest_point != start:
             path = reconstruct_path(closest_point)
             return (
@@ -599,9 +721,16 @@ class PokemonRedEnv(Env):
             "Failure: No path is visible to the chosen location. You may need to explore a totally different path to get where you're trying to go.",
             [],
         )
+    
+    def get_in_combat(self) -> bool:
+        """Check if the player is currently in combat"""
+        reader = PokemonRedReader(self.pyboy.memory)
+        return reader.read_in_combat()
 
     def get_state_from_memory(self) -> str:
-        """Reads the game state from memory and returns a string representation"""
+        """
+        Reads the game state from memory and returns a string representation of it.
+        """
         reader = PokemonRedReader(self.pyboy.memory)
         memory_str = ""
 
@@ -612,27 +741,34 @@ class PokemonRedEnv(Env):
         if rival_name == "SONY":
             rival_name = "Not yet set"
 
+        # Get valid moves
         valid_moves = self.get_valid_moves()
         valid_moves_str = ", ".join(valid_moves) if valid_moves else "None"
+
+        location = reader.read_location()
+        coords = reader.read_coordinates()  # This comes out col, row
 
         memory_str += f"Player: {name}\n"
         memory_str += f"Rival: {rival_name}\n"
         memory_str += f"Money: ${reader.read_money()}\n"
-        memory_str += f"Location: {reader.read_location()}\n"
-        memory_str += f"Coordinates: {reader.read_coordinates()}\n"
+        memory_str += f"RAM Location: {location}\n"
+        memory_str += f"Coordinates (Horizontal Position/column left-to-right, Vertical Position/row top-to-bottom): {coords}\n"
         memory_str += f"Valid Moves: {valid_moves_str}\n"
         memory_str += f"Badges: {', '.join(reader.read_badges())}\n"
 
+        # Inventory
         memory_str += "Inventory:\n"
         for item, qty in reader.read_items():
             memory_str += f"  {item} x{qty}\n"
 
+        # Dialog
         dialog = reader.read_dialog()
         if dialog:
             memory_str += f"Dialog: {dialog}\n"
         else:
             memory_str += "Dialog: None\n"
 
+        # Party Pokemon
         memory_str += "\nPokemon Party:\n"
         for pokemon in reader.read_party_pokemon():
             memory_str += f"\n{pokemon.nickname} ({pokemon.species_name}):\n"
@@ -644,3 +780,158 @@ class PokemonRedEnv(Env):
                 memory_str += f"Status: {pokemon.status.get_status_name()}\n"
 
         return memory_str
+
+    def stop(self):
+        """Stop the environment - placeholder for compatibility"""
+        self.close()
+
+    # ===================== Full Collision Map Methods =====================
+
+    def _create_collision_map_path(self, episode_id: int, step_num: int, location: str) -> str:
+        """
+        Generate a unique file path for a collision map text file.
+        
+        Args:
+            episode_id: Episode ID
+            step_num: Step number
+            location: Location name
+            
+        Returns:
+            File path for the collision map
+        """
+        # Clean location name for filename
+        safe_location = "".join(c if c.isalnum() or c in '-_' else '_' for c in location)
+        return os.path.join(
+            self.adapter.agent_observations_dir, 
+            f"collision_map_e{episode_id:03d}_s{step_num:04d}_{safe_location}.txt"
+        )
+
+    def update_full_collision_map(self, location: str, coords: Tuple[int, int]) -> str:
+        """
+        Update the full collision map for the current location and return ASCII representation.
+        
+        Args:
+            location: Current location name
+            coords: Current player coordinates (col, row)
+            
+        Returns:
+            ASCII representation of the updated collision map
+        """
+        # Get collision map and sprite data
+        collision_map = self.pyboy.game_wrapper.game_area_collision()
+        downsampled_terrain = self._downsample_array(collision_map)
+        sprite_locations = self.get_sprites()
+        
+        # Get or create collision map for this location
+        if location not in self.full_collision_maps:
+            self.full_collision_maps[location] = LocationCollisionMap(
+                downsampled_terrain, 
+                sprite_locations, 
+                coords
+            )
+        else:
+            self.full_collision_maps[location].update_map(
+                downsampled_terrain, 
+                sprite_locations, 
+                coords
+            )
+        
+        return self.full_collision_maps[location].to_ascii()
+
+    def get_full_collision_map_ascii(self, location: str, local_location_tracker: Optional[list] = None) -> Optional[str]:
+        """
+        Get ASCII representation of the full collision map for a location.
+        
+        Args:
+            location: Location name
+            local_location_tracker: Optional tracker for visited locations
+            
+        Returns:
+            ASCII representation or None if location not mapped
+        """
+        if location in self.full_collision_maps:
+            return self.full_collision_maps[location].to_ascii(local_location_tracker)
+        return None
+
+    def save_collision_map_to_file(self, location: str, step_num: int, local_location_tracker: Optional[list] = None):
+        """
+        Save collision map to a text file in the adapter's cache directory.
+        
+        Args:
+            location: Location name
+            step_num: Current step number for file naming
+            local_location_tracker: Optional tracker for visited locations
+        """
+        if location not in self.full_collision_maps:
+            return
+            
+        # Create collision map file path
+        collision_map_path = self._create_collision_map_path(
+            self.adapter.current_episode_id, 
+            step_num, 
+            location
+        )
+        
+        # Save the collision map
+        self.full_collision_maps[location].save_to_file(
+            collision_map_path, 
+            local_location_tracker
+        )
+
+    def get_full_collision_map_from_file(self, location: str, step_num: Optional[int] = None) -> Optional[str]:
+        """
+        Load collision map representation from a saved text file.
+        
+        Args:
+            location: Location name
+            step_num: Step number for file naming. If None, uses current step number.
+            
+        Returns:
+            String representation of the collision map or None if not found
+        """
+        if step_num is None:
+            step_num = self.adapter.current_step_num
+            
+        collision_map_path = self._create_collision_map_path(
+            self.adapter.current_episode_id, 
+            step_num, 
+            location
+        )
+        
+        return LocationCollisionMap.load_from_file(collision_map_path)
+
+    def load_collision_map_from_file(self, location: str, step_num: int) -> Optional[str]:
+        """
+        Load collision map representation from a text file.
+        
+        Args:
+            location: Location name
+            step_num: Step number for file naming
+            
+        Returns:
+            String representation of the collision map or None if not found
+        """
+        collision_map_path = self._create_collision_map_path(
+            self.adapter.current_episode_id, 
+            step_num, 
+            location
+        )
+        
+        return LocationCollisionMap.load_from_file(collision_map_path)
+
+    def get_collision_map_file_path(self, location: str, step_num: int) -> str:
+        """
+        Get the file path for a collision map.
+        
+        Args:
+            location: Location name
+            step_num: Step number for file naming
+            
+        Returns:
+            File path for the collision map
+        """
+        return self._create_collision_map_path(
+            self.adapter.current_episode_id, 
+            step_num, 
+            location
+        )
