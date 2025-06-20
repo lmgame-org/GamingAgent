@@ -145,32 +145,12 @@ class PokemonRedEnv(Env):
                 # Load the full collision map from file
                 full_collision_map_text = self.get_full_collision_map_from_file(location)
                 if full_collision_map_text:
-                    # Split based on coordinate pattern - the detailed map starts with coordinate pattern like "(12, 40)"
-                    lines = full_collision_map_text.split('\n')
-                    symbolic_lines = []
-                    model_lines = []
-                    found_model_start = False
-                    
-                    for line in lines:
-                        # Look for coordinate pattern that indicates start of detailed map
-                        if not found_model_start and line.strip().startswith('(') and ', ' in line and line.strip().endswith(')'):
-                            # Check if this is likely the start of detailed map (has coordinate pattern and comes after content)
-                            if symbolic_lines:  # Only if we already have some symbolic content
-                                found_model_start = True
-                                model_lines.append(line)
-                            else:
-                                symbolic_lines.append(line)
-                        elif found_model_start:
-                            model_lines.append(line)
-                        else:
-                            symbolic_lines.append(line)
-                    
-                    if model_lines:
-                        symbolic_map = '\n'.join(symbolic_lines).strip()
-                        model_version = '\n'.join(model_lines).strip()
-                        text_representation_for_adapter = f"{game_state}\n\nSymbolic Collision Map:\n{symbolic_map}\n\nDetailed Location Map:\n{model_version}\n\nThe symbolic map provides a quick visual overview, while the detailed map shows exact coordinate information and movement costs for {location}."
+                    # Split based on the marker to get only the detailed map section
+                    if "=== DETAILED MAP ===" in full_collision_map_text:
+                        detailed_map = full_collision_map_text.split("=== DETAILED MAP ===")[1].strip()
+                        text_representation_for_adapter = f"{game_state}\n\nDetailed Location Map:\n{detailed_map}\n\nThis detailed map shows exact coordinate information and movement costs for {location}."
                     else:
-                        # Fallback if parsing fails
+                        # Fallback if marker not found
                         text_representation_for_adapter = f"{game_state}\n\nFull Location Map:\n{full_collision_map_text}\n\nThis shows the complete explored map for {location} with coordinate information and movement costs."
                 else:
                     # Fallback to regular collision map
@@ -302,32 +282,12 @@ class PokemonRedEnv(Env):
                 # Load the full collision map from file
                 full_collision_map_text = self.get_full_collision_map_from_file(location)
                 if full_collision_map_text:
-                    # Split based on coordinate pattern - the detailed map starts with coordinate pattern like "(12, 40)"
-                    lines = full_collision_map_text.split('\n')
-                    symbolic_lines = []
-                    model_lines = []
-                    found_model_start = False
-                    
-                    for line in lines:
-                        # Look for coordinate pattern that indicates start of detailed map
-                        if not found_model_start and line.strip().startswith('(') and ', ' in line and line.strip().endswith(')'):
-                            # Check if this is likely the start of detailed map (has coordinate pattern and comes after content)
-                            if symbolic_lines:  # Only if we already have some symbolic content
-                                found_model_start = True
-                                model_lines.append(line)
-                            else:
-                                symbolic_lines.append(line)
-                        elif found_model_start:
-                            model_lines.append(line)
-                        else:
-                            symbolic_lines.append(line)
-                    
-                    if model_lines:
-                        symbolic_map = '\n'.join(symbolic_lines).strip()
-                        model_version = '\n'.join(model_lines).strip()
-                        text_representation_for_adapter = f"{game_state}\n\nSymbolic Collision Map:\n{symbolic_map}\n\nDetailed Location Map:\n{model_version}\n\nThe symbolic map provides a quick visual overview, while the detailed map shows exact coordinate information and movement costs for {location}."
+                    # Split based on the marker to get only the detailed map section
+                    if "=== DETAILED MAP ===" in full_collision_map_text:
+                        detailed_map = full_collision_map_text.split("=== DETAILED MAP ===")[1].strip()
+                        text_representation_for_adapter = f"{game_state}\n\nDetailed Location Map:\n{detailed_map}\n\nThis detailed map shows exact coordinate information and movement costs for {location}."
                     else:
-                        # Fallback if parsing fails
+                        # Fallback if marker not found
                         text_representation_for_adapter = f"{game_state}\n\nFull Location Map:\n{full_collision_map_text}\n\nThis shows the complete explored map for {location} with coordinate information and movement costs."
                 else:
                     # Fallback to regular collision map

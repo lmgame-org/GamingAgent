@@ -32,6 +32,7 @@ class BaseAgent(ABC):
             use_custom_prompt=False,
             max_memory=10,
             use_reflection=True,
+            use_perception=True,
             cache_dir=None,
             custom_modules=None, 
             observation_mode="vision",    # change the abstraction to with or without image
@@ -50,6 +51,7 @@ class BaseAgent(ABC):
                            If False, uses base module only
             max_memory (int): Maximum number of memory entries to store
             use_reflection (bool): If True, enables reflection in memory module; Defaults to True
+            use_perception (bool): If True, enables perception in perception module; Defaults to True
             cache_dir (str, optional): Custom cache directory path
             custom_modules (dict, optional): Custom module classes to use
             observation_mode (str): Mode for processing observations ("vision", "text", or "both")
@@ -66,6 +68,7 @@ class BaseAgent(ABC):
         self.use_custom_prompt = use_custom_prompt
         self.max_memory = max_memory
         self.use_reflection = use_reflection
+        self.use_perception = use_perception
         self.observation_mode = observation_mode
         self.scaffolding = scaffolding
 
@@ -201,7 +204,8 @@ class BaseAgent(ABC):
                     cache_dir=self.cache_dir,
                     system_prompt=self.config["perception_module"]["system_prompt"],
                     prompt=self.config["perception_module"]["prompt"],
-                    scaffolding=self.scaffolding
+                    scaffolding=self.scaffolding,
+                    use_perception=self.use_perception
                 )
             else:
                 # Can't use default PerceptionModule as it's abstract
@@ -268,6 +272,7 @@ class BaseAgent(ABC):
             "harness": self.harness,
             "max_memory": self.max_memory,
             "use_reflection": self.use_reflection,
+            "use_perception": self.use_perception,
             "scaffolding": scaffolding_serializable,
             "cache_dir": self.cache_dir,
             "modules": {

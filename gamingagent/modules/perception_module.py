@@ -27,7 +27,8 @@ class PerceptionModule(CoreModule):
                 prompt="",
                 token_limit=100000, 
                 reasoning_effort="high",
-                scaffolding=None
+                scaffolding=None,
+                use_perception=True
         ):
         """
         Initialize the perception module.
@@ -48,6 +49,7 @@ class PerceptionModule(CoreModule):
                                      Default is None (no scaffolding). The function should take an observation
                                      and return a modified observation.
                                      Example: {"func": draw_grid_on_image, "funcArgs": {"grid_dim": [5, 5]}}
+            use_perception (bool): Whether to use perception or not.
         """
         super().__init__(
             module_name="perception_module",
@@ -63,6 +65,7 @@ class PerceptionModule(CoreModule):
         assert observation_mode in valid_observation_modes, f"Invalid observation_mode: {observation_mode}, choose only from: {valid_observation_modes}"
         self.observation_mode = observation_mode
         self.scaffolding = scaffolding
+        self.use_perception = use_perception
         
         # Initialize observation
         self.observation = observation if observation is not None else Observation()
@@ -153,19 +156,22 @@ class PerceptionModule(CoreModule):
             # Apply scaffolding function if specified
             self.processed_observation = self._apply_scaffolding(self.processed_observation)
 
-            processed_visual_description = self.api_manager.vision_text_completion(
-                model_name=self.model_name,
-                system_prompt=self.system_prompt,
-                prompt=self.prompt,
-                image_path=self.processed_observation.img_path,
-                thinking=True,
-                reasoning_effort=self.reasoning_effort,
-                token_limit=self.token_limit
-            )
-            # returned API response should be a tuple
-            actual_processed_visual_description = processed_visual_description[0]
-
-            self.processed_observation.processed_visual_description = actual_processed_visual_description
+            if self.use_perception:
+                processed_visual_description = self.api_manager.vision_text_completion(
+                    model_name=self.model_name,
+                    system_prompt=self.system_prompt,
+                    prompt=self.prompt,
+                    image_path=self.processed_observation.img_path,
+                    thinking=True,
+                    reasoning_effort=self.reasoning_effort,
+                    token_limit=self.token_limit
+                )
+                # returned API response should be a tuple
+                actual_processed_visual_description = processed_visual_description[0]
+                self.processed_observation.processed_visual_description = actual_processed_visual_description
+            else:
+                # Skip perception API call - set to None or a default message
+                self.processed_observation.processed_visual_description = None
 
             return self.processed_observation
         else:

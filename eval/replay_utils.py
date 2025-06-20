@@ -8,6 +8,7 @@ import subprocess
 from typing import Optional, Dict, List, Tuple, Union
 import ast
 import re
+import cv2
 
 # Default seconds per frame for videos
 DEFAULT_SECONDS_PER_FRAME = 1.0

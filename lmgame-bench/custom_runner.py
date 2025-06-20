@@ -58,6 +58,7 @@ def parse_arguments(defaults_map=None, argv_to_parse=None):
                         choices=["vision", "text", "both"], help="Agent's observation mode.")
     parser.add_argument("--max_memory", type=int, default=20, help="Agent's max memory entries.")
     parser.add_argument("--use_reflection", action="store_true", help="Enable reflection in memory module.")
+    parser.add_argument("--use_perception", action="store_true", help="Enable perception API calls for image processing.")
     parser.add_argument("--max_steps_per_episode", type=int, default=1000, help="Max steps per episode.")
     parser.add_argument("--use_custom_prompt", action="store_true", help="If set, will use the custom prompt from module_prompts.json if present.")
     parser.add_argument("--scaffolding", type=str, default=None, help="Grid dimensions as '(rows,cols)' for coordinate grid on images, e.g., '(5,5)'. Default is None.")
@@ -612,6 +613,7 @@ def main():
                             defaults_from_yaml['observation_mode'] = agent_config_yaml.get('observation_mode')
                             defaults_from_yaml['use_custom_prompt'] = agent_config_yaml.get('use_custom_prompt')
                             defaults_from_yaml['use_reflection'] = agent_config_yaml.get('use_reflection')
+                            defaults_from_yaml['use_perception'] = agent_config_yaml.get('use_perception')
                             defaults_from_yaml['scaffolding'] = agent_config_yaml.get('scaffolding')
                             
                             # Still load max_memory from its specific module config if present
@@ -643,6 +645,7 @@ def main():
         'seed',
         'max_memory',
         'use_reflection',
+        'use_perception',
         'scaffolding'
     }
 
@@ -734,6 +737,7 @@ def main():
         use_custom_prompt=args.use_custom_prompt,
         max_memory=args.max_memory,
         use_reflection=args.use_reflection,
+        use_perception=args.use_perception,
         custom_modules=custom_modules_for_agent,
         observation_mode=args.observation_mode,
         scaffolding=scaffolding_dict,

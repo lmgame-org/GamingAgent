@@ -273,7 +273,7 @@ class LocationCollisionMap:
             human_readable = self.to_human_readable_ascii(local_location_tracker)
             with open(save_file_path, "w", encoding="utf-8") as fw:
                 fw.write(human_readable)
-                fw.write("\n\n")
+                fw.write("\n\n=== DETAILED MAP ===\n\n")
                 fw.write(output)
         
         return output
