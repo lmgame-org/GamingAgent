@@ -16,6 +16,8 @@ agent:
   token_limit: 100000
   harness: true # Whether to use the perception-memory-reasoning pipeline
   observation_mode: "text"
+  use_reflection: true
+  use_perception: true
   # Module-specific settings
   modules:
     base_module:

@@ -20,6 +20,8 @@ agent:
     funcname: "draw_grid_on_image"
     funcArgs:
       grid_dim: [5, 5]
+  use_reflection: true
+  use_perception: true
   # Module-specific settings
   modules:
     base_module:

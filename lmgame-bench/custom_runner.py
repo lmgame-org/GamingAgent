@@ -41,6 +41,17 @@ game_config_mapping = {"twenty_forty_eight": "custom_01_2048",
                        "nineteen_forty_two": "retro_03_1942"
                        }
 
+def str_to_bool(v):
+    """Convert string boolean values to actual booleans for argparse"""
+    if isinstance(v, bool):
+        return v
+    if v.lower() in ('yes', 'true', 't', 'y', '1'):
+        return True
+    elif v.lower() in ('no', 'false', 'f', 'n', '0'):
+        return False
+    else:
+        raise argparse.ArgumentTypeError('Boolean value expected.')
+
 def parse_arguments(defaults_map=None, argv_to_parse=None):
     parser = argparse.ArgumentParser(description="Run GamingAgent for a specified Gym Environment.")
     # Game name will be set by defaults_map from prelim_parser, so not strictly required here.
@@ -57,8 +68,9 @@ def parse_arguments(defaults_map=None, argv_to_parse=None):
     parser.add_argument("--observation_mode", type=str, default="vision",
                         choices=["vision", "text", "both"], help="Agent's observation mode.")
     parser.add_argument("--max_memory", type=int, default=20, help="Agent's max memory entries.")
-    parser.add_argument("--use_reflection", action="store_true", help="Enable reflection in memory module.")
-    parser.add_argument("--use_perception", action="store_true", help="Enable perception API calls for image processing.")
+    parser.add_argument("--use_reflection", type=str_to_bool, default=True, help="Enable reflection in memory module. Default is True.")
+    parser.add_argument("--use_perception", type=str_to_bool, default=True, help="Enable perception API calls for image processing. Default is True.")
+    parser.add_argument("--use_summary", type=str_to_bool, default=False, help="Enable trajectory summarization in memory module. Default is False.")
     parser.add_argument("--max_steps_per_episode", type=int, default=1000, help="Max steps per episode.")
     parser.add_argument("--use_custom_prompt", action="store_true", help="If set, will use the custom prompt from module_prompts.json if present.")
     parser.add_argument("--scaffolding", type=str, default=None, help="Grid dimensions as '(rows,cols)' for coordinate grid on images, e.g., '(5,5)'. Default is None.")
@@ -614,6 +626,7 @@ def main():
                             defaults_from_yaml['use_custom_prompt'] = agent_config_yaml.get('use_custom_prompt')
                             defaults_from_yaml['use_reflection'] = agent_config_yaml.get('use_reflection')
                             defaults_from_yaml['use_perception'] = agent_config_yaml.get('use_perception')
+                            defaults_from_yaml['use_summary'] = agent_config_yaml.get('use_summary')
                             defaults_from_yaml['scaffolding'] = agent_config_yaml.get('scaffolding')
                             
                             # Still load max_memory from its specific module config if present
@@ -646,6 +659,7 @@ def main():
         'max_memory',
         'use_reflection',
         'use_perception',
+        'use_summary',
         'scaffolding'
     }
 
@@ -738,6 +752,7 @@ def main():
         max_memory=args.max_memory,
         use_reflection=args.use_reflection,
         use_perception=args.use_perception,
+        use_summary=args.use_summary,
         custom_modules=custom_modules_for_agent,
         observation_mode=args.observation_mode,
         scaffolding=scaffolding_dict,

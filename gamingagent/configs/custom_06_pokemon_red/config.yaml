@@ -17,6 +17,7 @@ agent:
   observation_mode: "both"
   use_reflection: false  # Enable reflection in memory module
   use_perception: false   # Enable perception API calls for image processing
+  use_summary: true     # Enable trajectory summarization for long gameplay sessions
   
   modules:
     base_module:
