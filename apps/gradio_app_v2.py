@@ -1186,7 +1186,7 @@ def build_app():
                         minimum=1,
                         maximum=model_max_models,
                         step=1,
-                        value=min(3, model_max_models),
+                        value=min(5, model_max_models),
                         label=f"Number of Top Models to Display in All Views (max: {model_max_models})",
                         elem_classes="top-n-slider"
                     )
@@ -1266,7 +1266,7 @@ def build_app():
                     "Candy Crush": True,
                     "Tetris": True,
                     "Ace Attorney": True
-                }, limit_to_top_n=min(3, get_total_model_count(model_rank_data)))
+                }, limit_to_top_n=min(5, get_total_model_count(model_rank_data)))
                 
                 # Format the DataFrame for display
                 model_initial_display_df = prepare_dataframe_for_display(model_initial_df)
@@ -1330,8 +1330,8 @@ def build_app():
                 # Update leaderboard and visualizations when checkboxes change
                 for checkbox in model_checkbox_list:
                     checkbox.change(
-                        lambda *args: update_leaderboard(*args, top_n=3, data_source=model_rank_data),
-                        inputs=model_checkbox_list,
+                        lambda *args: update_leaderboard(*args, data_source=model_rank_data),
+                        inputs=model_checkbox_list + [model_top_n_slider],
                         outputs=[
                             model_leaderboard_df,
                             model_detailed_visualization,
@@ -1340,10 +1340,22 @@ def build_app():
                         ] + model_checkbox_list
                     )
                 
+                # Update when model top_n_slider changes
+                model_top_n_slider.change(
+                    lambda *args: update_leaderboard(*args, data_source=model_rank_data),
+                    inputs=model_checkbox_list + [model_top_n_slider],
+                    outputs=[
+                        model_leaderboard_df,
+                        model_detailed_visualization,
+                        model_radar_visualization,
+                        model_group_bar_visualization
+                    ] + model_checkbox_list
+                )
+                
                 # Update when clear button is clicked
                 model_clear_btn.click(
-                    lambda: clear_filters(top_n=3, data_source=model_rank_data),
-                    inputs=[],
+                    lambda *args: clear_filters(*args, data_source=model_rank_data),
+                    inputs=[model_top_n_slider],
                     outputs=[
                         model_leaderboard_df,
                         model_detailed_visualization,
