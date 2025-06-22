@@ -128,7 +128,7 @@ def create_radar_charts(df):
     categories = [c.replace(" Score", "") for c in game_cols]
 
     for col in game_cols:
-        vals = df[col].replace("n/a", 0).astype(float)
+        vals = df[col].replace("n/a", 0).infer_objects(copy=False).astype(float)
         mean, std = vals.mean(), vals.std()
         df[f"norm_{col}"] = normalize_values(vals, mean, std)
 
@@ -368,11 +368,17 @@ def create_single_radar_chart(df, selected_games=None, highlight_models=None, ch
     # Normalize using the full dataset but apply to the limited df
     for col in game_cols:
         # Get normalization parameters from full dataset
-        full_vals = normalization_df[col].replace("n/a", 0).infer_objects(copy=False).astype(float)
+        # Use where() to avoid FutureWarning about downcasting in replace()
+        full_series = normalization_df[col].copy()
+        full_series = full_series.where(full_series != "n/a", 0)
+        full_vals = full_series.astype(float)
         mean, std = full_vals.mean(), full_vals.std()
         
         # Apply normalization to the limited df
-        limited_vals = df[col].replace("n/a", 0).infer_objects(copy=False).astype(float)
+        # Use where() to avoid FutureWarning about downcasting in replace()
+        limited_series = df[col].copy()
+        limited_series = limited_series.where(limited_series != "n/a", 0)
+        limited_vals = limited_series.astype(float)
         df[f"norm_{col}"] = normalize_values(limited_vals, mean, std)
 
     # Group players by prefix and sort alphabetically
@@ -506,7 +512,7 @@ def create_organization_radar_chart(rank_data):
 
     avg_df = pd.DataFrame([
         {
-            **{col: df[df["Organization"] == org][col].replace("n/a", 0).infer_objects(copy=False).astype(float).mean() for col in game_cols},
+            **{col: df[df["Organization"] == org][col].where(df[df["Organization"] == org][col] != "n/a", 0).astype(float).mean() for col in game_cols},
             "Organization": org
         }
         for org in orgs
@@ -562,7 +568,10 @@ def create_top_players_radar_chart(rank_data, n=5):
 
     for col in game_cols:
         # Replace "n/a" with 0 and handle downcasting properly
-        vals = top_df[col].replace("n/a", 0).infer_objects(copy=False).astype(float)
+        # Use where() to avoid FutureWarning about downcasting in replace()
+        series = top_df[col].copy()
+        series = series.where(series != "n/a", 0)
+        vals = series.astype(float)
         mean, std = vals.mean(), vals.std()
         top_df[f"norm_{col}"] = normalize_values(vals, mean, std)
 
@@ -618,8 +627,15 @@ def create_player_radar_chart(rank_data, player_name):
 
     for col in game_cols:
         # Replace "n/a" with 0 and handle downcasting properly
-        vals = player_df[col].replace("n/a", 0).infer_objects(copy=False).astype(float)
-        mean, std = df[col].replace("n/a", 0).infer_objects(copy=False).astype(float).mean(), df[col].replace("n/a", 0).infer_objects(copy=False).astype(float).std()
+        # Use where() to avoid FutureWarning about downcasting in replace()
+        player_series = player_df[col].copy()
+        player_series = player_series.where(player_series != "n/a", 0)
+        vals = player_series.astype(float)
+        
+        df_series = df[col].copy()
+        df_series = df_series.where(df_series != "n/a", 0)
+        df_vals = df_series.astype(float)
+        mean, std = df_vals.mean(), df_vals.std()
         player_df[f"norm_{col}"] = normalize_values(vals, mean, std)
 
     fig = go.Figure()

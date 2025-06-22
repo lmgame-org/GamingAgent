@@ -389,7 +389,10 @@ def get_combined_leaderboard(rank_data, selected_games, limit_to_top_n=None):
             if score_col in df_results.columns:
                 game_score_columns.append(score_col)
                 # Get numeric values, replacing 'n/a' with NaN
-                numeric_scores = pd.to_numeric(df_results[score_col].replace('n/a', np.nan), errors='coerce')
+                # Use where() to avoid FutureWarning about downcasting in replace()
+                series = df_results[score_col].copy()
+                series = series.where(series != 'n/a', np.nan)
+                numeric_scores = pd.to_numeric(series, errors='coerce')
                 
                 # Skip games where all scores are NaN or 0
                 valid_scores = numeric_scores.dropna()
