@@ -56,7 +56,7 @@ agent:
   video_dir: "videos/doom"
   log_level: "INFO"
   observation_mode: "vision"
-
+  use_reflection: true
   modules:
     base_module:
       log_level: "INFO"
