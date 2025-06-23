@@ -71,7 +71,8 @@ class BaseAgent(ABC):
         self.max_memory = max_memory
         self.use_reflection = use_reflection
         self.use_perception = use_perception
-        self.use_summary = use_summary
+        # If harness is false, automatically disable summary functionality
+        self.use_summary = use_summary if harness else False
         self.observation_mode = observation_mode
         self.scaffolding = scaffolding
 
