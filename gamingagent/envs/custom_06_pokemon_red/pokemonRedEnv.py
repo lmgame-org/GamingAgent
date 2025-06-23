@@ -3,7 +3,7 @@ import io
 import pickle
 from collections import deque
 import heapq
-from typing import Optional, Dict, Any, Tuple
+from typing import Optional, Dict, Any, Tuple, List
 import os
 import base64
 
@@ -65,8 +65,8 @@ class PokemonRedEnv(Env):
         self.num_env_steps = 0
         self.current_reward_last_step = 0.0
         
-        # Full collision map tracking
-        self.full_collision_maps: Dict[str, LocationCollisionMap] = {}
+        # Universal collision map tracking per episode (ignoring location differences)
+        self.universal_collision_map: Optional[LocationCollisionMap] = None
         
         # Harness mode for enhanced image processing
         self.harness = harness
@@ -75,6 +75,10 @@ class PokemonRedEnv(Env):
         self.location_history = set()  # Track visited locations
         self.label_archive = {}  # Store location labels
         self.location_tracker = {}  # Track explored tiles per location
+        
+        # Additional tracking variables to match sample code
+        self.location_tracker_activated = False
+        self.last_location = None
         
         # Initialize emulator if rom_path provided
         if self.rom_path:
@@ -96,12 +100,24 @@ class PokemonRedEnv(Env):
         self.num_env_steps = 0
         self.current_reward_last_step = 0.0
         
-        # Initialize emulator if needed
-        if not self.pyboy:
-            if not self.rom_path:
-                raise ValueError("ROM path must be provided either in __init__ or reset")
-            self._init_emulator()
+        # Reset universal collision map for new episode
+        self.universal_collision_map = None
+        
+        # Reset tracking variables for harness mode
+        if self.harness:
+            self.location_history = set()
+            self.location_tracker_activated = False
+            self.last_location = None
+        
+        # Always restart the emulator for a clean reset
+        if self.pyboy:
+            self.pyboy.stop()
+            self.pyboy = None
             
+        # Initialize emulator fresh
+        if not self.rom_path:
+            raise ValueError("ROM path must be provided either in __init__ or reset")
+        self._init_emulator()
         self.initialize()
         info = self._get_info()
         
@@ -129,7 +145,13 @@ class PokemonRedEnv(Env):
                 # Load the full collision map from file
                 full_collision_map_text = self.get_full_collision_map_from_file(location)
                 if full_collision_map_text:
-                    text_representation_for_adapter = f"{game_state}\n\nFull Location Map:\n{full_collision_map_text}\n\nThis shows the complete explored map for {location} with detailed coordinate information and movement costs."
+                    # Split based on the marker to get only the detailed map section
+                    if "=== DETAILED MAP ===" in full_collision_map_text:
+                        detailed_map = full_collision_map_text.split("=== DETAILED MAP ===")[1].strip()
+                        text_representation_for_adapter = f"{game_state}\n\nDetailed Location Map:\n{detailed_map}\n\nThis detailed map shows exact coordinate information and movement costs for {location}."
+                    else:
+                        # Fallback if marker not found
+                        text_representation_for_adapter = f"{game_state}\n\nFull Location Map:\n{full_collision_map_text}\n\nThis shows the complete explored map for {location} with coordinate information and movement costs."
                 else:
                     # Fallback to regular collision map
                     collision_map = self.get_collision_map()
@@ -210,6 +232,32 @@ class PokemonRedEnv(Env):
         info = self._get_info()
         current_perf_score = self.calculate_perf_score(reward, info)
         
+        # Track location changes for harness mode
+        if self.harness:
+            location = self.get_location()
+            coords = self.get_coordinates()
+            
+            # Update location tracking similar to sample code
+            if self.location_tracker_activated and coords[0] >= 0 and coords[1] >= 0:
+                cols = self.location_tracker.setdefault(location, [])
+                # Expand the tracker array as needed (similar to sample code)
+                if coords[0] > len(cols) - 1:
+                    if len(cols) == 0:
+                        cols.extend(list() for _ in range(0, coords[0] + 1))
+                    else:
+                        cols.extend([False for _ in range(0, len(cols[0]))] for _ in range(len(cols), coords[0] + 1))
+                if len(cols) > 0 and coords[1] > len(cols[0]) - 1:
+                    for col in cols:
+                        col.extend(False for _ in range(len(col), coords[1] + 1))
+                cols[coords[0]][coords[1]] = True
+            
+            # Update location history
+            self.location_history.add((location, coords))
+            
+            # Track location changes
+            if self.last_location != location:
+                self.last_location = location
+        
         # Create observation for adapter
         img_path_for_adapter = None
         text_representation_for_adapter = None
@@ -234,7 +282,13 @@ class PokemonRedEnv(Env):
                 # Load the full collision map from file
                 full_collision_map_text = self.get_full_collision_map_from_file(location)
                 if full_collision_map_text:
-                    text_representation_for_adapter = f"{game_state}\n\nFull Location Map:\n{full_collision_map_text}\n\nThis shows the complete explored map for {location} with detailed coordinate information and movement costs."
+                    # Split based on the marker to get only the detailed map section
+                    if "=== DETAILED MAP ===" in full_collision_map_text:
+                        detailed_map = full_collision_map_text.split("=== DETAILED MAP ===")[1].strip()
+                        text_representation_for_adapter = f"{game_state}\n\nDetailed Location Map:\n{detailed_map}\n\nThis detailed map shows exact coordinate information and movement costs for {location}."
+                    else:
+                        # Fallback if marker not found
+                        text_representation_for_adapter = f"{game_state}\n\nFull Location Map:\n{full_collision_map_text}\n\nThis shows the complete explored map for {location} with coordinate information and movement costs."
                 else:
                     # Fallback to regular collision map
                     collision_map = self.get_collision_map()
@@ -988,12 +1042,29 @@ class PokemonRedEnv(Env):
         
         return os.path.join(collision_maps_dir, f"collision_map_{safe_location}.txt")
 
+    def _create_episode_collision_map_path(self) -> str:
+        """
+        Generate a file path for the universal episode collision map text file.
+        
+        Returns:
+            File path for the episode collision map
+        """
+        # Create collision_maps directory in agent cache dir
+        collision_maps_dir = os.path.join(self.adapter.agent_cache_dir, "collision_maps")
+        os.makedirs(collision_maps_dir, exist_ok=True)
+        
+        # Format episode ID with zero padding (e.g., episode_01, episode_02, etc.)
+        episode_str = f"episode_{self.adapter.current_episode_id:02d}"
+        
+        return os.path.join(collision_maps_dir, f"full_collision_map_{episode_str}.txt")
+
     def update_full_collision_map(self, location: str, coords: Tuple[int, int]) -> str:
         """
-        Update the full collision map for the current location and return ASCII representation.
+        Update the universal collision map for the current episode and return ASCII representation.
+        Ignores location differences and maintains one unified map per episode.
         
         Args:
-            location: Current location name
+            location: Current location name (ignored for universal map)
             coords: Current player coordinates (col, row)
             
         Returns:
@@ -1004,91 +1075,130 @@ class PokemonRedEnv(Env):
         downsampled_terrain = self._downsample_array(collision_map)
         sprite_locations = self.get_sprites()
         
-        # Get or create collision map for this location
-        if location not in self.full_collision_maps:
-            self.full_collision_maps[location] = LocationCollisionMap(
-                downsampled_terrain, 
-                sprite_locations, 
-                coords
-            )
-        else:
-            self.full_collision_maps[location].update_map(
-                downsampled_terrain, 
-                sprite_locations, 
-                coords
-            )
+        # Get local location tracker if available (combine all locations for universal map)
+        local_location_tracker = None
+        if self.harness and self.location_tracker:
+            # For universal map, we could combine all location trackers, but for simplicity keep it simple
+            local_location_tracker = self.location_tracker.get(location, [])
         
-        return self.full_collision_maps[location].to_ascii()
+        # Get or create universal collision map for this episode
+        if self.universal_collision_map is None:
+            self.universal_collision_map = LocationCollisionMap(
+                downsampled_terrain, 
+                sprite_locations, 
+                coords
+            )
+            return self.universal_collision_map.to_ascii(local_location_tracker)
+        else:
+            self.universal_collision_map.update_map(
+                downsampled_terrain, 
+                sprite_locations, 
+                coords
+            )
+            return self.universal_collision_map.to_ascii(local_location_tracker)
 
     def get_full_collision_map_ascii(self, location: str, local_location_tracker: Optional[list] = None) -> Optional[str]:
         """
-        Get ASCII representation of the full collision map for a location.
+        Get ASCII representation of the universal collision map for the current episode.
         
         Args:
-            location: Location name
+            location: Location name (ignored for universal map)
             local_location_tracker: Optional tracker for visited locations
             
         Returns:
-            ASCII representation or None if location not mapped
+            ASCII representation or None if no map exists
         """
-        if location in self.full_collision_maps:
-            return self.full_collision_maps[location].to_ascii(local_location_tracker)
+        if self.universal_collision_map is not None:
+            return self.universal_collision_map.to_ascii(local_location_tracker)
         return None
 
     def save_collision_map_to_file(self, location: str, local_location_tracker: Optional[list] = None):
         """
-        Save collision map to a text file in the collision maps directory.
+        Save universal collision map to an episode-specific text file in the collision maps directory.
         
         Args:
-            location: Location name
+            location: Location name (ignored for universal map)
             local_location_tracker: Optional tracker for visited locations
         """
-        if location not in self.full_collision_maps:
+        if self.universal_collision_map is None:
             return
             
-        # Create collision map file path
-        collision_map_path = self._create_collision_map_path(location)
+        # Create episode-specific collision map file path
+        collision_map_path = self._create_episode_collision_map_path()
         
-        # Save the collision map
-        self.full_collision_maps[location].save_to_file(
-            collision_map_path, 
-            local_location_tracker
+        # Save the collision map using the to_ascii method with file path
+        self.universal_collision_map.to_ascii(
+            local_location_tracker,
+            save_file_path=collision_map_path
         )
 
     def get_full_collision_map_from_file(self, location: str) -> Optional[str]:
         """
-        Load collision map representation from a saved text file.
+        Load universal collision map representation from a saved episode-specific text file.
         
         Args:
-            location: Location name
+            location: Location name (ignored for universal map)
             
         Returns:
             String representation of the collision map or None if not found
         """
-        collision_map_path = self._create_collision_map_path(location)
+        collision_map_path = self._create_episode_collision_map_path()
         return LocationCollisionMap.load_from_file(collision_map_path)
 
     def load_collision_map_from_file(self, location: str) -> Optional[str]:
         """
-        Load collision map representation from a text file.
+        Load universal collision map representation from an episode-specific text file.
         
         Args:
-            location: Location name
+            location: Location name (ignored for universal map)
             
         Returns:
             String representation of the collision map or None if not found
         """
-        collision_map_path = self._create_collision_map_path(location)
+        collision_map_path = self._create_episode_collision_map_path()
         return LocationCollisionMap.load_from_file(collision_map_path)
 
     def get_collision_map_file_path(self, location: str) -> str:
         """
-        Get the file path for a collision map.
+        Get the file path for the universal episode collision map.
+        
+        Args:
+            location: Location name (ignored for universal map)
+            
+        Returns:
+            File path for the episode collision map
+        """
+        return self._create_episode_collision_map_path()
+
+    def get_all_location_labels(self, location: str) -> List[Tuple[Tuple[int, int], str]]:
+        """
+        Get all labels for a given location (matches sample code approach).
         
         Args:
             location: Location name
             
         Returns:
-            File path for the collision map
+            List of tuples containing coordinates and labels
         """
-        return self._create_collision_map_path(location)
+        all_labels: List[Tuple[Tuple[int, int], str]] = []
+        this_location = self.label_archive.get(location.lower())
+        
+        if this_location is None:
+            # Case-insensitive lookup
+            for key, value in self.label_archive.items():
+                if location.lower() == key.lower():
+                    this_location = value
+                    break
+                    
+        if this_location is not None and this_location:
+            max_row = max(this_location.keys())
+            for nearby_row in range(max_row + 1):
+                this_row = this_location.get(nearby_row)
+                if this_row is not None:
+                    max_col = max(this_row.keys())
+                    for nearby_col in range(max_col + 1):
+                        this_col = this_row.get(nearby_col)
+                        if this_col is not None:
+                            all_labels.append(((nearby_col, nearby_row), this_col))
+                            
+        return all_labels

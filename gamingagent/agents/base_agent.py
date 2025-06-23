@@ -31,6 +31,9 @@ class BaseAgent(ABC):
             harness=True,
             use_custom_prompt=False,
             max_memory=10,
+            use_reflection=True,
+            use_perception=True,
+            use_summary=False,
             cache_dir=None,
             custom_modules=None, 
             observation_mode="vision",    # change the abstraction to with or without image
@@ -48,6 +51,9 @@ class BaseAgent(ABC):
             harness (bool): If True, uses perception-memory-reasoning pipeline;
                            If False, uses base module only
             max_memory (int): Maximum number of memory entries to store
+            use_reflection (bool): If True, enables reflection in memory module; Defaults to True
+            use_perception (bool): If True, enables perception in perception module; Defaults to True
+            use_summary (bool): If True, enables trajectory summarization in memory module; Defaults to False
             cache_dir (str, optional): Custom cache directory path
             custom_modules (dict, optional): Custom module classes to use
             observation_mode (str): Mode for processing observations ("vision", "text", or "both")
@@ -63,6 +69,9 @@ class BaseAgent(ABC):
         self.init_harness = harness
         self.use_custom_prompt = use_custom_prompt
         self.max_memory = max_memory
+        self.use_reflection = use_reflection
+        self.use_perception = use_perception
+        self.use_summary = use_summary
         self.observation_mode = observation_mode
         self.scaffolding = scaffolding
 
@@ -198,7 +207,8 @@ class BaseAgent(ABC):
                     cache_dir=self.cache_dir,
                     system_prompt=self.config["perception_module"]["system_prompt"],
                     prompt=self.config["perception_module"]["prompt"],
-                    scaffolding=self.scaffolding
+                    scaffolding=self.scaffolding,
+                    use_perception=self.use_perception
                 )
             else:
                 # Can't use default PerceptionModule as it's abstract
@@ -211,17 +221,25 @@ class BaseAgent(ABC):
                 modules["memory_module"] = memory_cls(
                     model_name=self.model_name,
                     cache_dir=self.cache_dir,
-                    system_prompt=self.config["memory_module"]["system_prompt"],
-                    prompt=self.config["memory_module"]["prompt"],
-                    max_memory=self.max_memory
+                    reflection_system_prompt=self.config["memory_module"].get("reflection", {}).get("system_prompt", ""),
+                    reflection_prompt=self.config["memory_module"].get("reflection", {}).get("prompt", ""),
+                    summary_system_prompt=self.config["memory_module"].get("summary", {}).get("system_prompt", ""),
+                    summary_prompt=self.config["memory_module"].get("summary", {}).get("prompt", ""),
+                    max_memory=self.max_memory,
+                    use_reflection=self.use_reflection,
+                    use_summary=self.use_summary
                 )
             else:
                 modules["memory_module"] = MemoryModule(
                     model_name=self.model_name,
                     cache_dir=self.cache_dir,
-                    system_prompt=self.config["memory_module"]["system_prompt"],
-                    prompt=self.config["memory_module"]["prompt"],
-                    max_memory=self.max_memory
+                    reflection_system_prompt=self.config["memory_module"].get("reflection", {}).get("system_prompt", ""),
+                    reflection_prompt=self.config["memory_module"].get("reflection", {}).get("prompt", ""),
+                    summary_system_prompt=self.config["memory_module"].get("summary", {}).get("system_prompt", ""),
+                    summary_prompt=self.config["memory_module"].get("summary", {}).get("prompt", ""),
+                    max_memory=self.max_memory,
+                    use_reflection=self.use_reflection,
+                    use_summary=self.use_summary
                 )
             
             # TODO: make token_limit and reasoning_effort configurable
@@ -262,6 +280,9 @@ class BaseAgent(ABC):
             "observation_mode": self.observation_mode,
             "harness": self.harness,
             "max_memory": self.max_memory,
+            "use_reflection": self.use_reflection,
+            "use_perception": self.use_perception,
+            "use_summary": self.use_summary,
             "scaffolding": scaffolding_serializable,
             "cache_dir": self.cache_dir,
             "modules": {

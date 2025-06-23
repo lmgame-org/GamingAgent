@@ -15,7 +15,8 @@ agent:
   token_limit: 8000        # Example token limit
   harness: false        # Default to non-harness mode, set to true to use perception/reasoning modules
   observation_mode: "vision" 
-  
+  use_reflection: true
+  use_perception: true
   modules:
     base_module:
     

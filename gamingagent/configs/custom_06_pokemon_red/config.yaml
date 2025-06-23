@@ -9,12 +9,15 @@ game_env:
 
 agent:
   name: "pokemon_red_agent"
-  model_name: "gemini-2.0-flash"   # Or your preferred model like gemini-2.0-flash
-  cache_dir: "cache/pokemon_red"   # Base cache directory for this agent/game
-  reasoning_effort: "high"         # Example, if your agent uses this
-  token_limit: 8000                # Example token limit
-  harness: false                   # Default to non-harness mode, set to true to use perception/reasoning modules
+  model_name: "gemini-2.0-flash" # Or your preferred model like gemini-2.0-flash
+  cache_dir: "cache/pokemon_red" # Base cache directory for this agent/game
+  reasoning_effort: "high" # Example, if your agent uses this
+  token_limit: 8000        # Example token limit
+  harness: false        # Default to non-harness mode, set to true to use perception/reasoning modules
   observation_mode: "both"
+  use_reflection: true    # Enable reflection in memory module
+  use_perception: false   # Enable perception API calls for image processing
+  use_summary: true     # Enable trajectory summarization for long gameplay sessions
   
   modules:
     base_module:
@@ -25,4 +28,3 @@ agent:
     perception_module:
 
       
-    reasoning_module:

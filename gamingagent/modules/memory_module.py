@@ -15,19 +15,28 @@ class MemoryModule(CoreModule):
     def __init__(self,
                  model_name: str = "claude-3-7-sonnet-latest",
                  cache_dir: str = "cache",
-                 system_prompt: str = "",
-                 prompt: str = "",
-                 max_memory: int = 10):
+                 reflection_system_prompt: str = "",
+                 reflection_prompt: str = "",
+                 summary_system_prompt: str = "",
+                 summary_prompt: str = "",
+                 max_memory: int = 10,
+                 use_reflection: bool = True,
+                 use_summary: bool = False):
 
         super().__init__(
             module_name="memory_module",
             model_name=model_name,
-            system_prompt=system_prompt,
-            prompt=prompt,
+            system_prompt=reflection_system_prompt,
+            prompt=reflection_prompt,
             cache_dir=cache_dir,
         )
 
-        self.max_memory=max_memory
+        self.max_memory = max_memory
+        self.use_reflection = use_reflection
+        self.use_summary = use_summary
+        self.summary_system_prompt = summary_system_prompt
+        self.summary_prompt = summary_prompt
+        self.current_summary = ""  # Store the current summary
 
     def _load_trajectory(self) -> None:
         """Load and return trajectory entries (as already‑stringified lines) from disk."""
@@ -43,6 +52,11 @@ class MemoryModule(CoreModule):
                     # expect the entry to have been stored as a ready‑to‑print line
                     if isinstance(e, str):
                         trajectory.add(e)
+                        # Check if this entry contains a summary and restore it
+                        if e.startswith("##TRAJECTORY SUMMARY\n"):
+                            summary_content = e.replace("##TRAJECTORY SUMMARY\n", "").strip()
+                            if summary_content:
+                                self.current_summary = summary_content
             except Exception as exc:
                 print(f"[MemoryModule] failed to load trajectory: {exc}")
         else:
@@ -97,6 +111,30 @@ class MemoryModule(CoreModule):
         )
         return (m.group(1).strip() if m else actual_raw_text.strip()) or "No valid reflection produced."
 
+    def _summarize(self, game_trajectory: str) -> str:
+        """
+        Generate a summary of the game trajectory when it exceeds max_memory length.
+        """
+        if not self.summary_prompt or not self.use_summary:
+            return ""
+            
+        formatted_prompt = self.summary_prompt.format(
+            game_trajectory=game_trajectory,
+            previous_summary=self.current_summary or "No previous summary."
+        )
+
+        raw = self.api_manager.text_only_completion(
+            model_name=self.model_name,
+            system_prompt=self.summary_system_prompt,
+            prompt=formatted_prompt,
+            thinking=False,
+            reasoning_effort=self.reasoning_effort,
+            token_limit=self.token_limit,
+        )
+        # returned API response should be a tuple
+        actual_raw_text = raw[0]
+        return actual_raw_text.strip() or "No valid summary produced."
+
     def process_observation(self, observation: Observation) -> str:
         """
         Main entry point called by the agent each turn.
@@ -123,10 +161,13 @@ class MemoryModule(CoreModule):
         if observation.game_trajectory.background is None and observation.trajectory_includes_background:
             observation.game_trajectory.set_background(observation.get_background() or "Background not available.")
 
-        reflection = self._reflect(
-            prev_context=prev_context,
-            current_state=str(game_state),
-        )
+        if self.use_reflection:
+            reflection = self._reflect(
+                prev_context=prev_context,
+                current_state=str(game_state),
+            )
+        else:
+            reflection = None
 
         # observation = self.update_observation_memory(
         #     observation=observation,
@@ -135,7 +176,7 @@ class MemoryModule(CoreModule):
         observation = self.update_observation_memory(
             observation=observation,
         )
-        observation.reflection = reflection
+        observation.reflection = reflection if self.use_reflection else None
 
         return observation
 
@@ -155,6 +196,35 @@ class MemoryModule(CoreModule):
             f"###Obs\n{game_state}\n"
         )
         #f"###Reflection\n{reflection}\n"
+
+        # Check if we need to summarize before adding new entry
+        if self.use_summary and len(observation.game_trajectory.trajectory) >= self.max_memory:
+            # Get current trajectory content for summarization
+            current_trajectory = observation.game_trajectory.get() or ""
+            
+            # Generate summary
+            new_summary = self._summarize(current_trajectory)
+            if new_summary:
+                self.current_summary = new_summary
+                
+                # Clear the trajectory and replace with summary
+                observation.game_trajectory.trajectory.clear()
+                
+                # Clear the disk file as well since we're starting fresh
+                try:
+                    with open(self.module_file, "w") as f:
+                        json.dump([], f, indent=2)
+                except Exception as exc:
+                    print(f"[MemoryModule] failed to clear log file: {exc}")
+                
+                # Add summary as the first entry
+                summary_line = f"##TRAJECTORY SUMMARY\n{self.current_summary}\n\n"
+                observation.game_trajectory.add(summary_line)
+                
+                # Persist summary to disk
+                self._append_to_log(summary_line)
+                
+                print(f"[MemoryModule] Generated summary and cleared trajectory. New summary length: {len(self.current_summary)} chars")
 
         # add to dequeue
         observation.game_trajectory.add(line)
@@ -204,8 +274,7 @@ class MemoryModule(CoreModule):
         return {
             "game_trajectory": past,
             "current_state": latest,   # includes (obs, action, thought)
-            "reflection": latest.split("Reflection:", 1)[-1].strip()
-                         if "Reflection:" in latest else "N/A",
+            "reflection": observation.reflection if hasattr(observation, 'reflection') and observation.reflection else "N/A",
         }
 
     def _parse_response(self, response):
