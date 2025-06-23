@@ -313,9 +313,12 @@ class PokemonRedEnv(Env):
         )
         
         # Check for stuck detection
-        final_terminated, final_truncated = self.adapter.verify_termination(
-            agent_observation, terminated, truncated
-        )
+        # final_terminated, final_truncated = self.adapter.verify_termination(
+        #     agent_observation, terminated, truncated
+        # )
+
+        final_terminated = terminated
+        final_truncated = truncated
 
         # Log step data
         self.adapter.log_step_data(
