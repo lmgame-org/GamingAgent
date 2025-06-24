@@ -786,15 +786,24 @@ def build_app():
             box-shadow: 0 4px 15px rgba(0,0,0,0.05);
         }
         
+        /* Dark mode support for welcome message */
+        .dark .welcome-message {
+            background: linear-gradient(135deg, #1a4a4f 0%, #4a1f3a 100%);
+            color: #e0e0e0;
+            box-shadow: 0 4px 15px rgba(255,255,255,0.05);
+        }
+        
         .welcome-message h3 {
             margin: 0 0 10px 0;
             font-size: 1.3em;
+            color: inherit;
         }
         
         .welcome-message p {
             margin: 0;
             font-size: 1.1em;
             line-height: 1.5;
+            color: inherit;
         }
     """) as demo:
         gr.Markdown("# 🎮 Lmgame Bench: Leaderboard 🎲")
