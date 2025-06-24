@@ -226,15 +226,20 @@ class MemoryModule(CoreModule):
         )
         #f"###Reflection\n{reflection}\n"
 
+        # Get current trajectory content for summarization
+        current_trajectory = observation.game_trajectory.get() or ""
+        char_len = len(current_trajectory)
+        est_tokens = char_len // 3
+
         # Check if we need to summarize before adding new entry
-        if self.use_summary and len(observation.game_trajectory.trajectory) >= self.max_memory:
-            # Get current trajectory content for summarization
-            current_trajectory = observation.game_trajectory.get() or ""
-            
+        if self.use_summary and len(observation.game_trajectory.trajectory) >= self.max_memory or (est_tokens > 10_000 and "o3" in self.model_name):
+            # Trigger summarisation if > 10 000 tokens
+
             # Only attempt summarization if we have substantial content
             if len(current_trajectory.strip()) > 50:  # Ensure we have meaningful content
-                print(f"[MemoryModule] Trajectory reached max_memory ({self.max_memory}). Attempting summarization...")
-                print(f"[MemoryModule] Current trajectory length: {len(current_trajectory)} chars")
+                print(f"[MemoryModule] Trajectory reached length: {len(observation.game_trajectory.trajectory)}.")
+                print(f"[MemoryModule] Current trajectory length: {char_len} chars")
+                print(f"[MemoryModule] Trajectory ≈ {est_tokens:,} tokens — summarizing…")
                 
                 # Generate summary
                 new_summary = self._summarize(current_trajectory)

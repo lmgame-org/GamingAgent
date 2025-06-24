@@ -15,7 +15,7 @@ agent:
   token_limit: 8000        # Example token limit
   harness: false        # Default to non-harness mode, set to true to use perception/reasoning modules
   observation_mode: "both"
-  use_reflection: true    # Enable reflection in memory module
+  use_reflection: false    # Enable reflection in memory module
   use_perception: false   # Enable perception API calls for image processing
   use_summary: true     # Enable trajectory summarization for long gameplay sessions
   
