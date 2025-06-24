@@ -3,7 +3,7 @@ game_env:
   description: "Pokemon Red game environment via Pokemon Red Gymnasium"
   env_type: "custom"
   render_mode: "human"  # Use "human" to watch, "rgb_array" for vision agent processing
-  max_steps: 50000         # Max steps per Pokemon Red episode (corrected from 5000)
+  max_steps: 50000          # Max steps per Tetris game episode
   seed: 42             # Set a specific seed for reproducibility, e.g., 42, or null for random
   num_runs: 3               # Number of game episodes to run
 
@@ -15,7 +15,7 @@ agent:
   token_limit: 8000        # Example token limit
   harness: false        # Default to non-harness mode, set to true to use perception/reasoning modules
   observation_mode: "both"
-  use_reflection: false  # Enable reflection in memory module
+  use_reflection: false    # Enable reflection in memory module
   use_perception: false   # Enable perception API calls for image processing
   use_summary: true     # Enable trajectory summarization for long gameplay sessions
   
@@ -23,9 +23,8 @@ agent:
     base_module:
     
     memory_module:
-      max_memory: 3
+      max_memory: 20
 
     perception_module:
 
       
-    reasoning_module:
