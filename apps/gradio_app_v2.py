@@ -38,11 +38,11 @@ TIME_POINTS = {
 }
 
 # Load the initial JSON file with rank data
-with open(TIME_POINTS["03/25/2025"], "r") as f:
+with open(TIME_POINTS["03/25/2025"], "r", encoding='utf-8') as f:
     rank_data = json.load(f)
 
 # Load the model leaderboard data
-with open("rank_single_model_03_25_2025.json", "r") as f:
+with open("rank_single_model_03_25_2025.json", "r", encoding='utf-8') as f:
     model_rank_data = json.load(f)
 
 # Add leaderboard state at the top level
@@ -72,17 +72,17 @@ leaderboard_state = {
 
 
 # Load video links and news data
-with open('assets/game_video_link.json', 'r') as f:
+with open('assets/game_video_link.json', 'r', encoding='utf-8') as f:
     VIDEO_LINKS = json.load(f)
 
-with open('assets/news.json', 'r') as f:
+with open('assets/news.json', 'r', encoding='utf-8') as f:
     NEWS_DATA = json.load(f)
 
 def load_rank_data(time_point):
     """Load rank data for a specific time point"""
     if time_point in TIME_POINTS:
         try:
-            with open(TIME_POINTS[time_point], "r") as f:
+            with open(TIME_POINTS[time_point], "r", encoding='utf-8') as f:
                 return json.load(f)
         except FileNotFoundError:
             return None

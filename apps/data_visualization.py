@@ -10,7 +10,7 @@ from leaderboard_utils import (
 )
 
 # Load model colors
-with open('assets/model_color.json', 'r') as f:
+with open('assets/model_color.json', 'r', encoding='utf-8') as f:
     MODEL_COLORS = json.load(f)
 
 GAME_SCORE_COLUMNS = {
