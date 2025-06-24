@@ -114,7 +114,6 @@ class MemoryModule(CoreModule):
     def _summarize(self, game_trajectory: str) -> str:
         """
         Generate a summary of the game trajectory when it exceeds max_memory length.
-        Retries up to 20 times until a valid summary is produced.
         """
         if not self.summary_prompt or not self.use_summary:
             return ""
@@ -124,45 +123,40 @@ class MemoryModule(CoreModule):
             previous_summary=self.current_summary or "No previous summary."
         )
 
-        max_retries = 20
-        for attempt in range(max_retries):
-            try:
-                print(f"[MemoryModule] Generating summary attempt {attempt + 1}/{max_retries}")
+        try:
+            print(f"[MemoryModule] Generating summary...")
+            
+            raw = self.api_manager.text_only_completion(
+                model_name=self.model_name,
+                system_prompt=self.summary_system_prompt,
+                prompt=formatted_prompt,
+                thinking=False,
+                reasoning_effort=self.reasoning_effort,
+                token_limit=self.token_limit,
+            )
+            
+            # returned API response should be a tuple
+            actual_raw_text = raw[0] if raw and len(raw) > 0 else ""
+            
+            # Clean and validate the response
+            summary = actual_raw_text.strip() if actual_raw_text else ""
+            
+            # Check if we got a valid summary (not empty and not an error message)
+            if summary and len(summary) > 10 and "no valid summary" not in summary.lower():
+                print(f"[MemoryModule] Successfully generated summary. Length: {len(summary)} chars")
+                return summary
+            else:
+                print(f"[MemoryModule] Generated invalid summary: '{summary[:100]}...'")
+                # Return a basic fallback summary
+                fallback_summary = f"FALLBACK SUMMARY: Game trajectory contained {len(game_trajectory)} characters of gameplay data. Previous summary: {self.current_summary[:200] if self.current_summary else 'None'}..."
+                return fallback_summary
                 
-                raw = self.api_manager.text_only_completion(
-                    model_name=self.model_name,
-                    system_prompt=self.summary_system_prompt,
-                    prompt=formatted_prompt,
-                    thinking=False,
-                    reasoning_effort=self.reasoning_effort,
-                    token_limit=self.token_limit,
-                )
-                
-                # returned API response should be a tuple
-                actual_raw_text = raw[0] if raw and len(raw) > 0 else ""
-                
-                # Clean and validate the response
-                summary = actual_raw_text.strip() if actual_raw_text else ""
-                
-                # Check if we got a valid summary (not empty and not an error message)
-                if summary and len(summary) > 10 and "no valid summary" not in summary.lower():
-                    print(f"[MemoryModule] Successfully generated summary on attempt {attempt + 1}. Length: {len(summary)} chars")
-                    return summary
-                else:
-                    print(f"[MemoryModule] Attempt {attempt + 1} produced invalid summary: '{summary[:100]}...'")
-                    
-            except Exception as e:
-                print(f"[MemoryModule] Error on summary attempt {attempt + 1}: {e}")
-                
-            # If not the last attempt, wait a bit before retrying
-            if attempt < max_retries - 1:
-                import time
-                time.sleep(1)
-        
-        # If all retries failed, return a basic fallback summary
-        fallback_summary = f"FALLBACK SUMMARY: Game trajectory contained {len(game_trajectory)} characters of gameplay data. Previous summary: {self.current_summary[:200] if self.current_summary else 'None'}..."
-        print(f"[MemoryModule] All {max_retries} summary attempts failed. Using fallback summary.")
-        return fallback_summary
+        except Exception as e:
+            print(f"[MemoryModule] Error generating summary: {e}")
+            # Return a basic fallback summary
+            fallback_summary = f"FALLBACK SUMMARY: Game trajectory contained {len(game_trajectory)} characters of gameplay data. Previous summary: {self.current_summary[:200] if self.current_summary else 'None'}..."
+            print(f"[MemoryModule] Using fallback summary due to error.")
+            return fallback_summary
 
     def process_observation(self, observation: Observation) -> str:
         """
