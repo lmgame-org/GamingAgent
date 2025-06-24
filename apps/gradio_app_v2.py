@@ -201,7 +201,7 @@ def update_leaderboard(# mario_overall, mario_details, # Commented out
                        # tetris_overall, tetris_details, # Commented out
                        tetris_plan_overall, tetris_plan_details,
                        ace_attorney_overall, ace_attorney_details,
-                       top_n=3,
+                       top_n=5,
                        data_source=None):
     global leaderboard_state
     
@@ -425,7 +425,7 @@ def get_initial_state():
         }
     }
 
-def clear_filters(top_n=3, data_source=None):
+def clear_filters(top_n=5, data_source=None):
     global leaderboard_state
     
     # Use provided data source or default to rank_data
@@ -977,7 +977,7 @@ def build_app():
                                 elem_classes="visualization-container"
                             )
                             gr.Markdown(
-                                    "*💡 Click a legend entry to isolate that model. Double-click additional ones to add them for comparison.*\n\n*⚔️ - Model with our gaming agent*",
+                                    "*💡 Click a legend entry to isolate that model. Double-click additional ones to add them for comparison.*\n\n*🎮 GamingAgent - Our specialized gaming agents*",
                                     elem_classes="radar-tip"
                                 )
                         with gr.Tab("📊 Group Bar Chart"):
@@ -986,7 +986,7 @@ def build_app():
                                 elem_classes="visualization-container"
                             )
                             gr.Markdown(
-                                    "*💡 Click a legend entry to isolate that model. Double-click additional ones to add them for comparison.*\n\n*⚔️ - Model with our gaming agent*",
+                                    "*💡 Click a legend entry to isolate that model. Double-click additional ones to add them for comparison.*\n\n*🎮 GamingAgent - Our specialized gaming agents*",
                                     elem_classes="radar-tip"
                                 )
 
@@ -1043,7 +1043,7 @@ def build_app():
                 with gr.Row():
                     gr.Markdown("### 📋 Detailed Results")
                 with gr.Row():
-                    gr.Markdown("*⚔️ - Model with our gaming agent*", elem_classes="radar-tip")
+                    gr.Markdown("*🎮 GamingAgent - Our specialized gaming agents*", elem_classes="radar-tip")
                 
                 # Welcome message for custom gaming agents
                 
@@ -1061,7 +1061,7 @@ def build_app():
                     # "Tetris(complete)": True, # Commented out
                     "Tetris": True,
                     "Ace Attorney": True
-                }, limit_to_top_n=min(3, get_total_model_count(rank_data)))
+                }, limit_to_top_n=5)
                 
                 # Format the DataFrame for display
                 initial_display_df = prepare_dataframe_for_display(initial_df)
@@ -1142,7 +1142,7 @@ def build_app():
                 # Update leaderboard and visualizations when checkboxes change
                 for checkbox in checkbox_list:
                     checkbox.change(
-                        lambda *args: update_leaderboard(*args, top_n=3, data_source=rank_data),
+                        lambda *args: update_leaderboard(*args, top_n=5, data_source=rank_data),
                         inputs=checkbox_list,
                         outputs=[
                             leaderboard_df,
@@ -1154,7 +1154,7 @@ def build_app():
                 
                 # Update when clear button is clicked
                 clear_btn.click(
-                    lambda: clear_filters(top_n=3, data_source=rank_data),
+                    lambda: clear_filters(top_n=5, data_source=rank_data),
                     inputs=[],
                     outputs=[
                         leaderboard_df,
@@ -1166,7 +1166,7 @@ def build_app():
                 
                 # Initialize the agent leaderboard (with top 5 limit)
                 demo.load(
-                    lambda: clear_filters(data_source=rank_data),
+                    lambda: clear_filters(top_n=5, data_source=rank_data),
                     inputs=[],
                     outputs=[
                         leaderboard_df,
@@ -1195,7 +1195,7 @@ def build_app():
                         minimum=1,
                         maximum=model_max_models,
                         step=1,
-                        value=min(5, model_max_models),
+                        value=model_max_models,
                         label=f"Number of Top Models to Display in All Views (max: {model_max_models})",
                         elem_classes="top-n-slider"
                     )
@@ -1275,7 +1275,7 @@ def build_app():
                     "Candy Crush": True,
                     "Tetris": True,
                     "Ace Attorney": True
-                }, limit_to_top_n=min(5, get_total_model_count(model_rank_data)))
+                }, limit_to_top_n=None)
                 
                 # Format the DataFrame for display
                 model_initial_display_df = prepare_dataframe_for_display(model_initial_df)
@@ -1373,9 +1373,9 @@ def build_app():
                     ] + model_checkbox_list
                 )
                 
-                # Initialize the model leaderboard (with default slider limit)
+                # Initialize the model leaderboard (with all models shown by default)
                 demo.load(
-                    lambda: clear_filters(data_source=model_rank_data),
+                    lambda: clear_filters(top_n=get_total_model_count(model_rank_data), data_source=model_rank_data),
                     inputs=[],
                     outputs=[
                         model_leaderboard_df,
