@@ -25,7 +25,6 @@ class PokemonRedEnv(Env):
                  # Pokemon Red specific params from game_env_config.json
                  rom_path: Optional[str] = None,
                  sound: bool = False,
-                 max_episode_steps: int = 50000,
                  # Adapter parameters
                  game_name_for_adapter: str = "pokemon_red",
                  observation_mode_for_adapter: str = "vision",
@@ -58,7 +57,6 @@ class PokemonRedEnv(Env):
         self.rom_path = rom_path
         self.render_mode = render_mode
         self.sound = sound
-        self.max_episode_steps = max_episode_steps
         self.pyboy = None
         
         # Episode tracking
@@ -313,12 +311,10 @@ class PokemonRedEnv(Env):
         )
         
         # Check for stuck detection
-        # final_terminated, final_truncated = self.adapter.verify_termination(
-        #     agent_observation, terminated, truncated
-        # )
+        final_terminated, final_truncated = self.adapter.verify_termination(
+            agent_observation, terminated, truncated
+        )
 
-        final_terminated = terminated
-        final_truncated = truncated
 
         # Log step data
         self.adapter.log_step_data(
@@ -344,8 +340,8 @@ class PokemonRedEnv(Env):
         return False
 
     def _check_truncated(self) -> bool:
-        """Check if episode should truncate"""
-        return self.num_env_steps >= self.max_episode_steps
+        """Check if episode should truncate - controlled by runner instead"""
+        return False
 
     def calculate_perf_score(self, reward: float, info: Dict[str, Any]) -> float:
         """Calculate performance score for this step"""

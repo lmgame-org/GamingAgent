@@ -1,8 +1,7 @@
 {
     "env_init_kwargs": {
         "rom_path": "gamingagent/configs/custom_06_pokemon_red/rom/pokemon.gb",
-        "sound": false,
-        "max_episode_steps": 50000
+        "sound": false
     },
     "action_mapping": {
         "a": 0,
