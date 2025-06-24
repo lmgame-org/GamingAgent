@@ -23,7 +23,7 @@ agent:
     base_module:
     
     memory_module:
-      max_memory: 20
+      max_memory: 3
 
     perception_module:
 

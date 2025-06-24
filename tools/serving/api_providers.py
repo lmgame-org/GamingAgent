@@ -14,7 +14,8 @@ import requests
 
 def retry_on_overload(func):
     """
-    A decorator to retry a function call on anthropic.APIStatusError with 'overloaded_error'.
+    A decorator to retry a function call on anthropic.APIStatusError with 'overloaded_error',
+    httpx.RemoteProtocolError, or when the API returns None/empty response.
     It uses exponential backoff with jitter.
     """
     @functools.wraps(func)
@@ -23,7 +24,22 @@ def retry_on_overload(func):
         base_delay = 2  # seconds
         for attempt in range(max_retries):
             try:
-                return func(*args, **kwargs)
+                result = func(*args, **kwargs)
+                
+                # Check if result is None or empty string
+                if result is None or (isinstance(result, str) and not result.strip()):
+                    if attempt < max_retries - 1:
+                        delay = base_delay * (2 ** attempt) + (os.urandom(1)[0] / 255.0)
+                        print(f"API returned None/empty response. Retrying in {delay:.2f} seconds... (Attempt {attempt + 1}/{max_retries})")
+                        time.sleep(delay)
+                        continue
+                    else:
+                        print(f"API still returning None/empty after {max_retries} attempts. Raising an error.")
+                        raise RuntimeError("API returned None/empty response after all retry attempts")
+                
+                # If we got a valid result, return it
+                return result
+                
             except anthropic.APIStatusError as e:
                 if e.body and e.body.get('error', {}).get('type') == 'overloaded_error':
                     if attempt < max_retries - 1:
