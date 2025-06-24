@@ -502,9 +502,7 @@ def deepseek_text_reasoning_completion(system_prompt, model_name, prompt, token_
         max_tokens=token_limit)
     
     for chunk in response:
-        if chunk.choices[0].delta.reasoning_content and chunk.choices[0].delta.reasoning_content:
-            reasoning_content += chunk.choices[0].delta.reasoning_content
-        elif hasattr(chunk.choices[0].delta, "content") and chunk.choices[0].delta.content:
+        if hasattr(chunk.choices[0].delta, "content") and chunk.choices[0].delta.content:
             content += chunk.choices[0].delta.content
     
     # generated_str = response.choices[0].message.content

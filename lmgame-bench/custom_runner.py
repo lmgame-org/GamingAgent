@@ -272,14 +272,12 @@ def create_environment(game_name_arg: str,
                 env_init_kwargs = env_specific_config.get('env_init_kwargs', {})
                 env_init_params['rom_path'] = env_init_kwargs.get('rom_path')
                 env_init_params['sound'] = env_init_kwargs.get('sound', False)
-                env_init_params['max_episode_steps'] = env_init_kwargs.get('max_episode_steps', 50000)
                 env_init_params['render_mode_for_make'] = env_specific_config.get('render_mode', 'human')
                 env_init_params['max_stuck_steps_for_adapter'] = env_specific_config.get('max_unchanged_steps_for_termination', 20)
         else:
             print(f"Warning: {env_specific_config_path} for {game_name_arg} not found. Using default env parameters for Pokemon Red.")
             env_init_params['rom_path'] = None
             env_init_params['sound'] = False
-            env_init_params['max_episode_steps'] = 50000
             env_init_params['render_mode_for_make'] = 'human'
             env_init_params['max_stuck_steps_for_adapter'] = 20
 
@@ -288,7 +286,6 @@ def create_environment(game_name_arg: str,
             render_mode=env_init_params.get('render_mode_for_make'),
             rom_path=env_init_params.get('rom_path'),
             sound=env_init_params.get('sound'),
-            max_episode_steps=env_init_params.get('max_episode_steps'),
             # Adapter related params
             game_name_for_adapter=game_name_arg,
             observation_mode_for_adapter=obs_mode_arg,

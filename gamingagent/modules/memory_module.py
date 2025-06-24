@@ -198,10 +198,6 @@ class MemoryModule(CoreModule):
         else:
             reflection = None
 
-        # observation = self.update_observation_memory(
-        #     observation=observation,
-        #     game_state=game_state
-        # )
         observation = self.update_observation_memory(
             observation=observation,
         )
