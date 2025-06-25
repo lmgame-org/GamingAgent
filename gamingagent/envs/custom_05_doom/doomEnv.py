@@ -432,7 +432,7 @@ class DoomEnvWrapper(gym.Env):
             self.logger.error(f"[DoomEnvWrapper] Error getting text representation: {e}")
             return "Error getting state information"
 
-    def reset(self, *, seed: int | None = None, episode_id: int = 1, **kwargs) -> Tuple[Observation, Dict[str, Any]]:
+    def reset(self, *, seed: int | None = None, max_memory: Optional[int] = 10, episode_id: int = 1, **kwargs) -> Tuple[Observation, Dict[str, Any]]:
         """Reset the environment for a new episode.
         
         Args:
@@ -465,7 +465,7 @@ class DoomEnvWrapper(gym.Env):
             cv2.imwrite(frame_path, blank_frame)
         
         # Initialize game trajectory
-        self.game_trajectory = GameTrajectory(max_length=100)
+        self.game_trajectory = GameTrajectory(max_length=max_memory or 100)
         
         # Create initial observation
         observation = Observation(

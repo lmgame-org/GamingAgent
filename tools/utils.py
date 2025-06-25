@@ -8,13 +8,13 @@ import cv2
 import os
 import numpy as np
 
-def scale_image_up(image_path, maximum_scale=2048):
+def scale_image_up(image_path, maximum_scale=1500):
     """
     Scales an image up to a maximum dimension while maintaining aspect ratio.
     
     Args:
         image_path (str): Path to the input image
-        maximum_scale (int): Maximum dimension for both width and height (default: 2048)
+        maximum_scale (int): Maximum dimension for both width and height (default: 1800)
         
     Returns:
         str: Path to the scaled image
@@ -53,21 +53,33 @@ def scale_image_up(image_path, maximum_scale=2048):
     # If no scaling was needed, return original path
     return image_path
 
-def draw_grid_on_image(image_path, grid_dim=(5, 5)):
+def draw_grid_on_image(observation, grid_dim=(5, 5)):
     """
-    Draws a coordinate grid on an image.
+    Draws a coordinate grid on an image from an observation.
     
     Args:
-        image_path (str): Path to the input image
+        observation: The observation object containing img_path
         grid_dim (tuple): Grid dimensions as (rows, cols) (default: (5, 5))
         
     Returns:
-        str: Path to the image with grid
+        observation: Updated observation with new image path containing grid
     """
+    import copy
+    
+    # Create a copy of the observation to avoid modifying the original
+    new_observation = copy.deepcopy(observation)
+    
+    # Get the image path from observation
+    image_path = observation.img_path
+    if image_path is None:
+        print("Warning: No image path found in observation. Returning original observation.")
+        return new_observation
+    
     # Read the input image
     image = cv2.imread(image_path)
     if image is None:
-        raise FileNotFoundError(f"Unable to read the image at {image_path}")
+        print(f"Warning: Unable to read the image at {image_path}. Returning original observation.")
+        return new_observation
     
     # Get image dimensions
     height, width = image.shape[:2]
@@ -143,7 +155,10 @@ def draw_grid_on_image(image_path, grid_dim=(5, 5)):
     cv2.imwrite(output_path, grid_image)
     print(f"Added {grid_dim[0]}x{grid_dim[1]} grid to image, saved as {output_path}")
     
-    return output_path
+    # Update the observation with the new image path
+    new_observation.img_path = output_path
+    
+    return new_observation
 
 def convert_numpy_to_python(item):
     """Recursively converts numpy arrays and numpy scalar types in a data structure to Python lists and base types."""

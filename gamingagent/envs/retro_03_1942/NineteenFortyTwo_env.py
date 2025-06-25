@@ -107,10 +107,12 @@ class NineteenFortyTwoEnvWrapper(gym.Env):
         return hashlib.md5(arr.tobytes()).hexdigest()
 
     # ───────────────────── Gym API ──────────────────────
-    def reset(self, *, seed: int | None = None, episode_id: int = 1, **kwargs):
+    def reset(self, *, seed: int | None = None, max_memory: Optional[int] = 10, episode_id: int = 1, **kwargs):
         self._initialize_env()
         self.adapter.reset_episode(episode_id)
-        self.current_frame, _ = self._raw_env.reset(seed=seed)
+        # Remove max_memory from kwargs before passing to env.reset()
+        env_kwargs = {k: v for k, v in kwargs.items() if k != 'max_memory'}
+        self.current_frame, _ = self._raw_env.reset(seed=seed, **env_kwargs)
         self.current_info = self._extract_info()
         self.current_info['total_score'] = self.current_info['score']
 
@@ -118,7 +120,7 @@ class NineteenFortyTwoEnvWrapper(gym.Env):
         if self.adapter.observation_mode in ("vision", "both"):
             img_path = self.adapter.save_frame_and_get_path(self.current_frame)
 
-        obs = self.adapter.create_agent_observation(img_path=img_path, text_representation=self._text_repr())
+        obs = self.adapter.create_agent_observation(img_path=img_path, text_representation=self._text_repr(), max_memory=max_memory)
         return obs, self.current_info.copy()
 
     def step(

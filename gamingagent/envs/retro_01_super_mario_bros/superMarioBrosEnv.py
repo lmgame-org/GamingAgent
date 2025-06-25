@@ -176,14 +176,15 @@ class SuperMarioBrosEnvWrapper:
         if game_info.get("is_game_over"): parts.append("RAM SAYS GAME OVER")
         return ", ".join(parts) if parts else None
 
-    def reset(self, episode_id: int, **kwargs) -> Tuple[Observation, Dict[str, Any]]:
+    def reset(self, episode_id: int, max_memory: Optional[int] = 10, **kwargs) -> Tuple[Observation, Dict[str, Any]]:
         self.adapter.reset_episode(episode_id) # GymEnvAdapter handles log file setup
         
         print(f"[SuperMarioBrosEnvWrapper reset] Starting meta-episode {episode_id}. Calling self.env.reset() ONCE.")
         # Removed initialization of explicit life counters
         
-        # after self.env.reset(...)
-        observation_data, retro_info = self.env.reset(**kwargs)
+        # after self.env.reset(...) - remove max_memory from kwargs before passing to env
+        env_kwargs = {k: v for k, v in kwargs.items() if k != 'max_memory'}
+        observation_data, retro_info = self.env.reset(**env_kwargs)
         raw_frame = observation_data
 
         self.current_game_info = self._extract_game_specific_info(retro_info)
@@ -196,7 +197,8 @@ class SuperMarioBrosEnvWrapper:
 
         agent_observation = self.adapter.create_agent_observation(
             img_path=img_path,
-            text_representation="" 
+            text_representation="",
+            max_memory=max_memory
         )
         
         self.current_episode_max_x_pos = self.current_game_info.get('x_pos')
