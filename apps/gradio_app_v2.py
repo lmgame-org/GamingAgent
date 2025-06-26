@@ -1062,6 +1062,10 @@ def build_app():
                 for _ in range(remaining_cols):
                     model_col_widths.append("120px")
                 
+                # Add reference to Jupyter notebook
+                with gr.Row():
+                    gr.Markdown("*All data analysis can be replicated by checking [this Jupyter notebook](https://colab.research.google.com/drive/1CYFiJGm3EoBXXI8vICPVR82J9qrmmRvc#scrollTo=qft1Oald-21J)*")
+                
                 # Create a standard DataFrame component with enhanced styling
                 with gr.Row():
                     model_leaderboard_df = gr.DataFrame(
@@ -1283,10 +1287,6 @@ def build_app():
                     gr.Markdown("*🎮 Model Name (GamingAgent) - Our specialized gaming agents*", elem_classes="radar-tip")
                 
                 # Welcome message for custom gaming agents
-                
-                # Add reference to Jupyter notebook
-                with gr.Row():
-                    gr.Markdown("*All data analysis can be replicated by checking [this Jupyter notebook](https://colab.research.google.com/drive/1CYFiJGm3EoBXXI8vICPVR82J9qrmmRvc#scrollTo=qft1Oald-21J)*")
                 
                 # Get initial leaderboard dataframe (limited by default slider value for agent leaderboard)
                 initial_df = get_combined_leaderboard(rank_data, {
