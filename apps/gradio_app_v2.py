@@ -935,15 +935,240 @@ def build_app():
         """)
         
         with gr.Tabs():
-            with gr.Tab("🏆 Agent Leaderboard"):
-                # Visualization section
-
+            
+            
+            with gr.Tab("🤖 Model Leaderboard"):
                 with gr.Row():
                     gr.Markdown("""
                     **🎮 Welcome to LMGame Bench!** 
                     
-                    We welcome everyone to implement their own gaming agents by replacing our baseAgent in `customer_runner.py` and test them on our benchmark. Join the competition and see how your agent performs!
+                    We invite developers to implement their own gaming agents by replacing our `baseAgent` in `customer_runner.py` and evaluate them on our comprehensive benchmark. Visit our repository at https://github.com/lmgame-org/GamingAgent to get started and join the competition to see how your agent performs!
                     """, elem_classes="welcome-message")
+                
+                # Visualization section
+                with gr.Row():
+                    gr.Markdown("### 📊 Data Visualization")
+                
+                # Detailed view visualization (single chart)
+                model_detailed_visualization = gr.Plot(
+                    label="Performance Visualization",
+                    visible=False,
+                    elem_classes="visualization-container"
+                )
+
+                with gr.Row():
+                    # Calculate dynamic maximum based on total models
+                    model_max_models = get_total_model_count(model_rank_data)
+                    model_top_n_slider = gr.Slider(
+                        minimum=1,
+                        maximum=model_max_models,
+                        step=1,
+                        value=model_max_models,
+                        label=f"Number of Top Models to Display in All Views (max: {model_max_models})",
+                        elem_classes="top-n-slider"
+                    )
+                
+
+                
+                with gr.Column(visible=True) as model_overall_visualizations:
+                    with gr.Tabs():
+                        with gr.Tab("📈 Radar Chart"):
+                            model_radar_visualization = gr.Plot(
+                                label="Comparative Analysis (Radar Chart)",
+                                elem_classes="visualization-container"
+                            )
+                            gr.Markdown(
+                                    "*💡 Click a legend entry to isolate that model. Double-click additional ones to add them for comparison.*",
+                                    elem_classes="radar-tip"
+                                )
+                        with gr.Tab("📊 Group Bar Chart"):
+                            model_group_bar_visualization = gr.Plot(
+                                label="Comparative Analysis (Group Bar Chart)",
+                                elem_classes="visualization-container"
+                            )
+                            gr.Markdown(
+                                    "*💡 Click a legend entry to isolate that model. Double-click additional ones to add them for comparison.*",
+                                    elem_classes="radar-tip"
+                                )
+
+                # Game selection section
+                with gr.Row():
+                    gr.Markdown("### 🕹️ Game Selection")
+                with gr.Row():
+                    with gr.Column():
+                        gr.Markdown("**🍄 Super Mario Bros**")
+                        model_mario_plan_overall = gr.Checkbox(label="Super Mario Bros Score", value=True)
+                        model_mario_plan_details = gr.Checkbox(label="Super Mario Bros Details", value=False)
+                    with gr.Column():
+                        gr.Markdown("**📦 Sokoban**")
+                        model_sokoban_overall = gr.Checkbox(label="Sokoban Score", value=True)
+                        model_sokoban_details = gr.Checkbox(label="Sokoban Details", value=False)
+                    with gr.Column():
+                        gr.Markdown("**🔢 2048**")
+                        model_2048_overall = gr.Checkbox(label="2048 Score", value=True)
+                        model_2048_details = gr.Checkbox(label="2048 Details", value=False)
+                    with gr.Column():
+                        gr.Markdown("**🍬 Candy Crush**")
+                        model_candy_overall = gr.Checkbox(label="Candy Crush Score", value=True)
+                        model_candy_details = gr.Checkbox(label="Candy Crush Details", value=False)
+                    with gr.Column():
+                        gr.Markdown("**🎯 Tetris**")
+                        model_tetris_plan_overall = gr.Checkbox(label="Tetris Score", value=True)
+                        model_tetris_plan_details = gr.Checkbox(label="Tetris Details", value=False)
+                    with gr.Column():
+                        gr.Markdown("**⚖️ Ace Attorney**")
+                        model_ace_attorney_overall = gr.Checkbox(label="Ace Attorney Score", value=True)
+                        model_ace_attorney_details = gr.Checkbox(label="Ace Attorney Details", value=False)
+                
+                # Controls
+                with gr.Row():
+                    with gr.Column(scale=2):
+                        gr.Markdown("**⏰ Time Tracker**")
+                        model_timeline = create_timeline_slider()
+                    with gr.Column(scale=1):
+                        gr.Markdown("**🔄 Controls**")
+                        model_clear_btn = gr.Button("Reset Filters", variant="secondary")
+                
+                # Leaderboard table
+                with gr.Row():
+                    gr.Markdown("### 📋 Detailed Results")
+                with gr.Row():
+                    gr.Markdown("*💡 The slider above controls how many top models are shown in the radar chart, bar chart, and data table.*", elem_classes="radar-tip")
+                
+                # Get initial leaderboard dataframe (limited by default slider value for model leaderboard)
+                model_initial_df = get_combined_leaderboard(model_rank_data, {
+                    "Super Mario Bros": True,
+                    "Sokoban": True,
+                    "2048": True,
+                    "Candy Crush": True,
+                    "Tetris": True,
+                    "Ace Attorney": True
+                }, limit_to_top_n=None)
+                
+                # Format the DataFrame for display
+                model_initial_display_df = prepare_dataframe_for_display(model_initial_df)
+                
+                # Custom column widths including row numbers for model leaderboard
+                model_col_widths = ["40px"]  # Row number column width
+                model_col_widths.append("230px")  # Player column - reduced by 20px
+                model_col_widths.append("120px")  # Organization column
+                
+                # Check if there's an Avg Normalized Score column
+                if any('Avg Normalized' in col for col in model_initial_display_df.columns):
+                    model_col_widths.append("140px")  # Avg Normalized Score column - slightly wider
+                
+                # Add game score columns
+                remaining_cols = len(model_initial_display_df.columns) - len(model_col_widths) + 1  # +1 because we subtracted row number column
+                for _ in range(remaining_cols):
+                    model_col_widths.append("120px")
+                
+                # Create a standard DataFrame component with enhanced styling
+                with gr.Row():
+                    model_leaderboard_df = gr.DataFrame(
+                        value=model_initial_display_df,
+                        interactive=True,
+                        elem_id="model-leaderboard-table",
+                        elem_classes="table-container",
+                        wrap=True,
+                        show_row_numbers=True,
+                        show_fullscreen_button=True,
+                        line_breaks=True,
+                        max_height=1000,
+                        show_search="search",
+                        column_widths=model_col_widths
+                    )
+                
+                # Add the score note below the table
+                with gr.Row():
+                    model_score_note = add_score_note()
+                
+                # List of all checkboxes for model leaderboard
+                model_checkbox_list = [
+                    model_mario_plan_overall, model_mario_plan_details,
+                    model_sokoban_overall, model_sokoban_details,
+                    model_2048_overall, model_2048_details,
+                    model_candy_overall, model_candy_details,
+                    model_tetris_plan_overall, model_tetris_plan_details,
+                    model_ace_attorney_overall, model_ace_attorney_details
+                ]
+                
+                # Update visualizations when checkboxes change
+                def update_model_visualizations(*checkbox_states):
+                    # Check if any details checkbox is selected
+                    is_details_view = any([
+                        checkbox_states[1], # Mario Plan details
+                        checkbox_states[3], # Sokoban details
+                        checkbox_states[5], # 2048 details
+                        checkbox_states[7], # Candy Crush details
+                        checkbox_states[9], # Tetris details
+                        checkbox_states[11]  # Ace Attorney details
+                    ])
+                    
+                    # Update visibility of visualization blocks
+                    return {
+                        model_detailed_visualization: gr.update(visible=is_details_view),
+                        model_overall_visualizations: gr.update(visible=not is_details_view)
+                    }
+                
+                # Add change event to all checkboxes
+                for checkbox in model_checkbox_list:
+                    checkbox.change(
+                        update_model_visualizations,
+                        inputs=model_checkbox_list,
+                        outputs=[model_detailed_visualization, model_overall_visualizations]
+                    )
+                
+                # Update leaderboard and visualizations when checkboxes change
+                for checkbox in model_checkbox_list:
+                    checkbox.change(
+                        lambda *args: update_leaderboard(*args, data_source=model_rank_data),
+                        inputs=model_checkbox_list + [model_top_n_slider],
+                        outputs=[
+                            model_leaderboard_df,
+                            model_detailed_visualization,
+                            model_radar_visualization,
+                            model_group_bar_visualization
+                        ] + model_checkbox_list
+                    )
+                
+                # Update when model top_n_slider changes
+                model_top_n_slider.change(
+                    lambda *args: update_leaderboard(*args, data_source=model_rank_data),
+                    inputs=model_checkbox_list + [model_top_n_slider],
+                    outputs=[
+                        model_leaderboard_df,
+                        model_detailed_visualization,
+                        model_radar_visualization,
+                        model_group_bar_visualization
+                    ] + model_checkbox_list
+                )
+                
+                # Update when clear button is clicked
+                model_clear_btn.click(
+                    lambda *args: clear_filters(*args, data_source=model_rank_data),
+                    inputs=[model_top_n_slider],
+                    outputs=[
+                        model_leaderboard_df,
+                        model_detailed_visualization,
+                        model_radar_visualization,
+                        model_group_bar_visualization
+                    ] + model_checkbox_list
+                )
+                
+                # Initialize the model leaderboard (with all models shown by default)
+                demo.load(
+                    lambda: clear_filters(top_n=get_total_model_count(model_rank_data), data_source=model_rank_data),
+                    inputs=[],
+                    outputs=[
+                        model_leaderboard_df,
+                        model_detailed_visualization,
+                        model_radar_visualization,
+                        model_group_bar_visualization
+                    ] + model_checkbox_list
+                )
+            
+            with gr.Tab("🏆 Agent Leaderboard"):
+                # Visualization section
 
                 with gr.Row():
                     # Calculate dynamic maximum based on total models
@@ -1198,215 +1423,6 @@ def build_app():
                         radar_visualization,
                         group_bar_visualization
                     ] + checkbox_list
-                )
-            
-            with gr.Tab("🤖 Model Leaderboard"):
-                # Visualization section
-                with gr.Row():
-                    gr.Markdown("### 📊 Data Visualization")
-                
-                # Detailed view visualization (single chart)
-                model_detailed_visualization = gr.Plot(
-                    label="Performance Visualization",
-                    visible=False,
-                    elem_classes="visualization-container"
-                )
-
-                with gr.Row():
-                    # Calculate dynamic maximum based on total models
-                    model_max_models = get_total_model_count(model_rank_data)
-                    model_top_n_slider = gr.Slider(
-                        minimum=1,
-                        maximum=model_max_models,
-                        step=1,
-                        value=model_max_models,
-                        label=f"Number of Top Models to Display in All Views (max: {model_max_models})",
-                        elem_classes="top-n-slider"
-                    )
-                
-
-                
-                with gr.Column(visible=True) as model_overall_visualizations:
-                    with gr.Tabs():
-                        with gr.Tab("📈 Radar Chart"):
-                            model_radar_visualization = gr.Plot(
-                                label="Comparative Analysis (Radar Chart)",
-                                elem_classes="visualization-container"
-                            )
-                            gr.Markdown(
-                                    "*💡 Click a legend entry to isolate that model. Double-click additional ones to add them for comparison.*",
-                                    elem_classes="radar-tip"
-                                )
-                        with gr.Tab("📊 Group Bar Chart"):
-                            model_group_bar_visualization = gr.Plot(
-                                label="Comparative Analysis (Group Bar Chart)",
-                                elem_classes="visualization-container"
-                            )
-                            gr.Markdown(
-                                    "*💡 Click a legend entry to isolate that model. Double-click additional ones to add them for comparison.*",
-                                    elem_classes="radar-tip"
-                                )
-
-                # Game selection section
-                with gr.Row():
-                    gr.Markdown("### 🕹️ Game Selection")
-                with gr.Row():
-                    with gr.Column():
-                        gr.Markdown("**🍄 Super Mario Bros**")
-                        model_mario_plan_overall = gr.Checkbox(label="Super Mario Bros Score", value=True)
-                        model_mario_plan_details = gr.Checkbox(label="Super Mario Bros Details", value=False)
-                    with gr.Column():
-                        gr.Markdown("**📦 Sokoban**")
-                        model_sokoban_overall = gr.Checkbox(label="Sokoban Score", value=True)
-                        model_sokoban_details = gr.Checkbox(label="Sokoban Details", value=False)
-                    with gr.Column():
-                        gr.Markdown("**🔢 2048**")
-                        model_2048_overall = gr.Checkbox(label="2048 Score", value=True)
-                        model_2048_details = gr.Checkbox(label="2048 Details", value=False)
-                    with gr.Column():
-                        gr.Markdown("**🍬 Candy Crush**")
-                        model_candy_overall = gr.Checkbox(label="Candy Crush Score", value=True)
-                        model_candy_details = gr.Checkbox(label="Candy Crush Details", value=False)
-                    with gr.Column():
-                        gr.Markdown("**🎯 Tetris**")
-                        model_tetris_plan_overall = gr.Checkbox(label="Tetris Score", value=True)
-                        model_tetris_plan_details = gr.Checkbox(label="Tetris Details", value=False)
-                    with gr.Column():
-                        gr.Markdown("**⚖️ Ace Attorney**")
-                        model_ace_attorney_overall = gr.Checkbox(label="Ace Attorney Score", value=True)
-                        model_ace_attorney_details = gr.Checkbox(label="Ace Attorney Details", value=False)
-                
-                # Controls
-                with gr.Row():
-                    with gr.Column(scale=2):
-                        gr.Markdown("**⏰ Time Tracker**")
-                        model_timeline = create_timeline_slider()
-                    with gr.Column(scale=1):
-                        gr.Markdown("**🔄 Controls**")
-                        model_clear_btn = gr.Button("Reset Filters", variant="secondary")
-                
-                # Leaderboard table
-                with gr.Row():
-                    gr.Markdown("### 📋 Detailed Results")
-                with gr.Row():
-                    gr.Markdown("*💡 The slider above controls how many top models are shown in the radar chart, bar chart, and data table.*", elem_classes="radar-tip")
-                
-                # Get initial leaderboard dataframe (limited by default slider value for model leaderboard)
-                model_initial_df = get_combined_leaderboard(model_rank_data, {
-                    "Super Mario Bros": True,
-                    "Sokoban": True,
-                    "2048": True,
-                    "Candy Crush": True,
-                    "Tetris": True,
-                    "Ace Attorney": True
-                }, limit_to_top_n=None)
-                
-                # Format the DataFrame for display
-                model_initial_display_df = prepare_dataframe_for_display(model_initial_df)
-                
-                # Create a standard DataFrame component with enhanced styling
-                with gr.Row():
-                    model_leaderboard_df = gr.DataFrame(
-                        value=model_initial_display_df,
-                        interactive=True,
-                        elem_id="model-leaderboard-table",
-                        elem_classes="table-container",
-                        wrap=True,
-                        show_row_numbers=True,
-                        show_fullscreen_button=True,
-                        line_breaks=True,
-                        max_height=1000,
-                        show_search="search",
-                        column_widths=col_widths
-                    )
-                
-                # Add the score note below the table
-                with gr.Row():
-                    model_score_note = add_score_note()
-                
-                # List of all checkboxes for model leaderboard
-                model_checkbox_list = [
-                    model_mario_plan_overall, model_mario_plan_details,
-                    model_sokoban_overall, model_sokoban_details,
-                    model_2048_overall, model_2048_details,
-                    model_candy_overall, model_candy_details,
-                    model_tetris_plan_overall, model_tetris_plan_details,
-                    model_ace_attorney_overall, model_ace_attorney_details
-                ]
-                
-                # Update visualizations when checkboxes change
-                def update_model_visualizations(*checkbox_states):
-                    # Check if any details checkbox is selected
-                    is_details_view = any([
-                        checkbox_states[1], # Mario Plan details
-                        checkbox_states[3], # Sokoban details
-                        checkbox_states[5], # 2048 details
-                        checkbox_states[7], # Candy Crush details
-                        checkbox_states[9], # Tetris details
-                        checkbox_states[11]  # Ace Attorney details
-                    ])
-                    
-                    # Update visibility of visualization blocks
-                    return {
-                        model_detailed_visualization: gr.update(visible=is_details_view),
-                        model_overall_visualizations: gr.update(visible=not is_details_view)
-                    }
-                
-                # Add change event to all checkboxes
-                for checkbox in model_checkbox_list:
-                    checkbox.change(
-                        update_model_visualizations,
-                        inputs=model_checkbox_list,
-                        outputs=[model_detailed_visualization, model_overall_visualizations]
-                    )
-                
-                # Update leaderboard and visualizations when checkboxes change
-                for checkbox in model_checkbox_list:
-                    checkbox.change(
-                        lambda *args: update_leaderboard(*args, data_source=model_rank_data),
-                        inputs=model_checkbox_list + [model_top_n_slider],
-                        outputs=[
-                            model_leaderboard_df,
-                            model_detailed_visualization,
-                            model_radar_visualization,
-                            model_group_bar_visualization
-                        ] + model_checkbox_list
-                    )
-                
-                # Update when model top_n_slider changes
-                model_top_n_slider.change(
-                    lambda *args: update_leaderboard(*args, data_source=model_rank_data),
-                    inputs=model_checkbox_list + [model_top_n_slider],
-                    outputs=[
-                        model_leaderboard_df,
-                        model_detailed_visualization,
-                        model_radar_visualization,
-                        model_group_bar_visualization
-                    ] + model_checkbox_list
-                )
-                
-                # Update when clear button is clicked
-                model_clear_btn.click(
-                    lambda *args: clear_filters(*args, data_source=model_rank_data),
-                    inputs=[model_top_n_slider],
-                    outputs=[
-                        model_leaderboard_df,
-                        model_detailed_visualization,
-                        model_radar_visualization,
-                        model_group_bar_visualization
-                    ] + model_checkbox_list
-                )
-                
-                # Initialize the model leaderboard (with all models shown by default)
-                demo.load(
-                    lambda: clear_filters(top_n=get_total_model_count(model_rank_data), data_source=model_rank_data),
-                    inputs=[],
-                    outputs=[
-                        model_leaderboard_df,
-                        model_detailed_visualization,
-                        model_radar_visualization,
-                        model_group_bar_visualization
-                    ] + model_checkbox_list
                 )
             
             with gr.Tab("🎥 Gallery"):
