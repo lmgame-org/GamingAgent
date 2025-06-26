@@ -944,6 +944,18 @@ def build_app():
                     
                     We welcome everyone to implement their own gaming agents by replacing our baseAgent in `customer_runner.py` and test them on our benchmark. Join the competition and see how your agent performs!
                     """, elem_classes="welcome-message")
+
+                with gr.Row():
+                    # Calculate dynamic maximum based on total models
+                    agent_max_models = get_total_model_count(rank_data)
+                    agent_top_n_slider = gr.Slider(
+                        minimum=1,
+                        maximum=agent_max_models,
+                        step=1,
+                        value=5,
+                        label=f"Number of Top Models to Display in All Views (max: {agent_max_models})",
+                        elem_classes="top-n-slider"
+                    )
                     
                 with gr.Row():
                     gr.Markdown("### 📊 Data Visualization")
@@ -977,7 +989,7 @@ def build_app():
                                 elem_classes="visualization-container"
                             )
                             gr.Markdown(
-                                    "*💡 Click a legend entry to isolate that model. Double-click additional ones to add them for comparison.*\n\n*🎮 GamingAgent - Our specialized gaming agents*",
+                                    "*💡 Click a legend entry to isolate that model. Double-click additional ones to add them for comparison.*\n\n*🎮 Model Name (GamingAgent) - Our specialized gaming agents*",
                                     elem_classes="radar-tip"
                                 )
                         with gr.Tab("📊 Group Bar Chart"):
@@ -986,7 +998,7 @@ def build_app():
                                 elem_classes="visualization-container"
                             )
                             gr.Markdown(
-                                    "*💡 Click a legend entry to isolate that model. Double-click additional ones to add them for comparison.*\n\n*🎮 GamingAgent - Our specialized gaming agents*",
+                                    "*💡 Click a legend entry to isolate that model. Double-click additional ones to add them for comparison.*\n\n*🎮 Model Name (GamingAgent) - Our specialized gaming agents*",
                                     elem_classes="radar-tip"
                                 )
 
@@ -1043,7 +1055,7 @@ def build_app():
                 with gr.Row():
                     gr.Markdown("### 📋 Detailed Results")
                 with gr.Row():
-                    gr.Markdown("*🎮 GamingAgent - Our specialized gaming agents*", elem_classes="radar-tip")
+                    gr.Markdown("*🎮 Model Name (GamingAgent) - Our specialized gaming agents*", elem_classes="radar-tip")
                 
                 # Welcome message for custom gaming agents
                 
@@ -1142,8 +1154,8 @@ def build_app():
                 # Update leaderboard and visualizations when checkboxes change
                 for checkbox in checkbox_list:
                     checkbox.change(
-                        lambda *args: update_leaderboard(*args, top_n=5, data_source=rank_data),
-                        inputs=checkbox_list,
+                        lambda *args: update_leaderboard(*args, data_source=rank_data),
+                        inputs=checkbox_list + [agent_top_n_slider],
                         outputs=[
                             leaderboard_df,
                             detailed_visualization,
@@ -1152,10 +1164,22 @@ def build_app():
                         ] + checkbox_list
                     )
                 
+                # Update when agent top_n_slider changes
+                agent_top_n_slider.change(
+                    lambda *args: update_leaderboard(*args, data_source=rank_data),
+                    inputs=checkbox_list + [agent_top_n_slider],
+                    outputs=[
+                        leaderboard_df,
+                        detailed_visualization,
+                        radar_visualization,
+                        group_bar_visualization
+                    ] + checkbox_list
+                )
+                
                 # Update when clear button is clicked
                 clear_btn.click(
-                    lambda: clear_filters(top_n=5, data_source=rank_data),
-                    inputs=[],
+                    lambda *args: clear_filters(*args, data_source=rank_data),
+                    inputs=[agent_top_n_slider],
                     outputs=[
                         leaderboard_df,
                         detailed_visualization,
