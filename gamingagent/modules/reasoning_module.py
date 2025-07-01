@@ -76,7 +76,7 @@ class ReasoningModule(CoreModule):
             dict: A dictionary containing action and thought
         """
         # Get the image path (prefer the passed parameter if available)
-        image_path = getattr(observation, "image_path", None)
+        image_path = getattr(observation, "img_path", None)
         textual_representation = getattr(observation, "textual_representation", "")
         
         # Get the description of visual elements from perception module

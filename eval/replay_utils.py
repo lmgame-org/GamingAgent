@@ -8,6 +8,7 @@ import subprocess
 from typing import Optional, Dict, List, Tuple, Union
 import ast
 import re
+import cv2
 
 # Default seconds per frame for videos
 DEFAULT_SECONDS_PER_FRAME = 1.0
@@ -785,6 +786,117 @@ def visualize_candy_crush_frame(board: List[List[str]], extra_info: str = "", co
 
 # --- Main Video Generation Functions ---
 
+def extract_image_paths_from_jsonl(episode_log_path: str) -> List[str]:
+    """Extract image paths from episode log for Pokemon Red"""
+    image_paths = []
+    
+    with open(episode_log_path, 'r') as f:
+        for line in f:
+            try:
+                step_data = json.loads(line.strip())
+                if 'agent_observation' in step_data:
+                    obs = step_data['agent_observation']
+                    if isinstance(obs, str):
+                        obs = json.loads(obs)
+                    
+                    img_path = obs.get('img_path', '')
+                    if img_path:
+                        # Convert to original image path by replacing with _original suffix
+                        original_img_path = img_path.replace('.png', '_original.png')
+                        if os.path.exists(original_img_path):
+                            image_paths.append(original_img_path)
+                        elif os.path.exists(img_path):
+                            # Fallback to regular image if original doesn't exist
+                            image_paths.append(img_path)
+            except Exception as e:
+                print(f"Error parsing line in episode log: {e}")
+                continue
+    
+    return image_paths
+
+def generate_video_from_pokemon_red_images(
+    episode_log_path: str,
+    output_path: str,
+    fps: float = 1.0,
+    cleanup_frames: bool = True
+) -> bool:
+    """Generate video from Pokemon Red original screenshots with scaling"""
+    
+    # Extract image paths
+    print(f"Extracting image paths from {episode_log_path}")
+    image_paths = extract_image_paths_from_jsonl(episode_log_path)
+    
+    if not image_paths:
+        print("No image paths found in episode log")
+        return False
+    
+    print(f"Found {len(image_paths)} image files")
+    
+    # Scale up images using temporary files
+    print("Scaling up images to 1500px maximum dimension...")
+    scaled_image_paths = []
+    
+    with tempfile.TemporaryDirectory() as temp_dir:
+        try:
+            for i, original_path in enumerate(image_paths):
+                if not os.path.exists(original_path):
+                    print(f"Warning: Image not found: {original_path}")
+                    continue
+                
+                # Read the original image
+                image = cv2.imread(original_path)
+                if image is None:
+                    print(f"Warning: Could not read image: {original_path}")
+                    continue
+                
+                # Get current dimensions
+                height, width = image.shape[:2]
+                
+                # Calculate scale factor to fit within 1500px maximum
+                maximum_scale = 1500
+                scale_factor = min(maximum_scale / width, maximum_scale / height)
+                
+                # Only scale up if necessary
+                if scale_factor > 1:
+                    # Calculate new dimensions
+                    new_width = int(width * scale_factor)
+                    new_height = int(height * scale_factor)
+                    
+                    # Resize the image
+                    scaled_image = cv2.resize(image, (new_width, new_height), interpolation=cv2.INTER_LINEAR)
+                    
+                    # Save to temporary file
+                    temp_path = os.path.join(temp_dir, f"scaled_frame_{i:04d}.png")
+                    cv2.imwrite(temp_path, scaled_image)
+                    scaled_image_paths.append(temp_path)
+                    
+                    if i == 0:  # Print scaling info for first image
+                        print(f"Scaled images from {width}x{height} to {new_width}x{new_height}")
+                else:
+                    # If no scaling needed, copy to temp directory for consistency
+                    temp_path = os.path.join(temp_dir, f"frame_{i:04d}.png")
+                    shutil.copy2(original_path, temp_path)
+                    scaled_image_paths.append(temp_path)
+            
+            if not scaled_image_paths:
+                print("No valid images found for video creation")
+                return False
+            
+            print(f"Successfully processed {len(scaled_image_paths)} images")
+            
+            # Create video from scaled images
+            print(f"Creating video at {output_path}")
+            success = create_video_from_frames(scaled_image_paths, output_path, fps)
+            
+            return success
+            
+        except ImportError:
+            print("Error: OpenCV (cv2) is required for image scaling. Install with: pip install opencv-python")
+            return False
+        except Exception as e:
+            print(f"Error during image scaling: {e}")
+            return False
+
 def extract_textual_representations_from_jsonl(episode_log_path: str) -> List[Tuple[str, Dict]]:
     """Extract textual representations and metadata from episode log"""
     representations = []
@@ -835,7 +947,8 @@ def generate_frames_from_textual_representations(
         "tetris": "tetris",
         "sokoban": "sokoban",
         "candy_crush": "candy_crush",
-        "candycrush": "candy_crush"
+        "candycrush": "candy_crush",
+        "pokemon_red": "pokemon_red"
     }
     
     normalized_game_name = game_name_mapping.get(game_name.lower(), game_name)
@@ -909,6 +1022,10 @@ def generate_frames_from_textual_representations(
                     frame_img = visualize_candy_crush_frame(board, extra_info, config_info)
                 else:
                     continue
+            elif normalized_game_name == "pokemon_red":
+                # For Pokemon Red, we skip textual processing and use image-based approach
+                # This will be handled by extract_image_paths_from_jsonl function
+                continue
             else:
                 print(f"Unsupported game: {game_name} (normalized: {normalized_game_name})")
                 continue
@@ -979,6 +1096,13 @@ def generate_video_from_textual_logs(
     config_info: Dict = None
 ) -> bool:
     """Main function to generate video from episode logs using textual representations"""
+    
+    # Special handling for Pokemon Red - use original images instead of textual representations
+    if game_name.lower() == "pokemon_red":
+        print(f"Pokemon Red detected - using image-based video generation")
+        return generate_video_from_pokemon_red_images(
+            episode_log_path, output_path, fps, cleanup_frames
+        )
     
     # Extract textual representations
     print(f"Extracting textual representations from {episode_log_path}")

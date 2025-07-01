@@ -1,0 +1,18 @@
+{
+    "env_init_kwargs": {
+        "rom_path": "gamingagent/configs/custom_06_pokemon_red/rom/pokemon.gb",
+        "sound": false
+    },
+    "action_mapping": {
+        "a": 0,
+        "b": 1,
+        "start": 2,
+        "select": 3,
+        "up": 4,
+        "down": 5,
+        "left": 6,
+        "right": 7
+    },
+    "render_mode": "human",
+    "max_unchanged_steps_for_termination": 100
+}

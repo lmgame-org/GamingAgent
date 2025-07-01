@@ -12,9 +12,50 @@ from together import Together
 
 import requests
 
+def _sleep_with_backoff(base_delay: int, attempt: int) -> None:
+    delay = base_delay * (2 ** attempt) + random.uniform(0, 1)
+    print(f"Retrying in {delay:.2f}s … (attempt {attempt + 1})")
+    time.sleep(delay)
+
+def retry_on_openai_error(func):
+    """
+    Retry wrapper for OpenAI SDK calls.
+    Retries on: RateLimitError, Timeout, APIConnectionError,
+                APIStatusError (5xx), httpx.RemoteProtocolError.
+    Immediately raises on: BadRequestError (400).
+    """
+    @functools.wraps(func)
+    def wrapper(*args, **kwargs):
+        max_retries = kwargs.pop("max_retries", 5)
+        base_delay  = kwargs.pop("base_delay", 2)
+
+        for attempt in range(max_retries):
+            try:
+                return func(*args, **kwargs)
+
+            # transient issues worth retrying
+            except (RateLimitError, APITimeoutError, APIConnectionError,
+                    httpx.RemoteProtocolError, BadRequestError) as e:
+                if attempt < max_retries - 1:
+                    print(f"OpenAI transient error: {e}")
+                    _sleep_with_backoff(base_delay, attempt)
+                    continue
+                raise
+
+            # server‑side 5xx response
+            except APIStatusError as e:
+                if 500 <= e.status_code < 600 and attempt < max_retries - 1:
+                    print(f"OpenAI server error {e.status_code}: {e.message}")
+                    _sleep_with_backoff(base_delay, attempt)
+                    continue
+                raise
+
+    return wrapper
+
 def retry_on_overload(func):
     """
-    A decorator to retry a function call on anthropic.APIStatusError with 'overloaded_error'.
+    A decorator to retry a function call on anthropic.APIStatusError with 'overloaded_error',
+    httpx.RemoteProtocolError, or when the API returns None/empty response.
     It uses exponential backoff with jitter.
     """
     @functools.wraps(func)
@@ -23,7 +64,22 @@ def retry_on_overload(func):
         base_delay = 2  # seconds
         for attempt in range(max_retries):
             try:
-                return func(*args, **kwargs)
+                result = func(*args, **kwargs)
+                
+                # Check if result is None or empty string
+                if result is None or (isinstance(result, str) and not result.strip()):
+                    if attempt < max_retries - 1:
+                        delay = base_delay * (2 ** attempt) + (os.urandom(1)[0] / 255.0)
+                        print(f"API returned None/empty response. Retrying in {delay:.2f} seconds... (Attempt {attempt + 1}/{max_retries})")
+                        time.sleep(delay)
+                        continue
+                    else:
+                        print(f"API still returning None/empty after {max_retries} attempts. Raising an error.")
+                        raise RuntimeError("API returned None/empty response after all retry attempts")
+                
+                # If we got a valid result, return it
+                return result
+                
             except anthropic.APIStatusError as e:
                 if e.body and e.body.get('error', {}).get('type') == 'overloaded_error':
                     if attempt < max_retries - 1:
@@ -291,16 +347,19 @@ def safe_headers_init(self, headers=None, encoding=None):
 # Apply the patch
 httpx.Headers.__init__ = safe_headers_init
 
-
+@retry_on_openai_error
 def openai_completion(system_prompt, model_name, base64_image, prompt, temperature=1, token_limit=30000, reasoning_effort="medium"):
     print(f"OpenAI vision-text API call: model={model_name}, reasoning_effort={reasoning_effort}")
     client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
     if "gpt-4o" in model_name:
         print("gpt-4o only supports 16384 tokens")
         token_limit = 16384
-    if "gpt-4.1" in model_name:
+    elif "gpt-4.1" in model_name:
         print("gpt-4.1 only supports 32768 tokens")
         token_limit = 32768
+    elif "o3" in model_name:
+        print("o3 only supports 32768 tokens")
+        token_limit = 10000
 
     # Force-clean headers to prevent UnicodeEncodeError
     client._client._headers.update({
@@ -342,15 +401,19 @@ def openai_completion(system_prompt, model_name, base64_image, prompt, temperatu
     response = client.chat.completions.create(**request_params)
     return response.choices[0].message.content
 
+@retry_on_openai_error
 def openai_text_completion(system_prompt, model_name, prompt, token_limit=30000, reasoning_effort="medium"):
     print(f"OpenAI text-only API call: model={model_name}, reasoning_effort={reasoning_effort}")
     client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
     if "gpt-4o" in model_name:
         print("gpt-4o only supports 16384 tokens")
         token_limit = 16384
-    if "gpt-4.1" in model_name:
+    elif "gpt-4.1" in model_name:
         print("gpt-4.1 only supports 32768 tokens")
         token_limit = 32768
+    elif "o3" in model_name:
+        print("o3 only supports 32768 tokens")
+        token_limit = 10000
 
     messages = [
             {
@@ -379,19 +442,32 @@ def openai_text_completion(system_prompt, model_name, prompt, token_limit=30000,
     else:
         request_params["temperature"] = 1
 
-    response = client.chat.completions.create(**request_params)
-    generated_str = response.choices[0].message.content
+    if model_name == "o3-pro":
+        messages[0]['content'][0]['type'] = "input_text"
+        response = client.responses.create(
+            model="o3-pro",
+            input=messages,
+        )
+        generated_str = response.output[1].content[0].text
+    else:
+        response = client.chat.completions.create(**request_params)
+        generated_str = response.choices[0].message.content
     return generated_str
 
+@retry_on_openai_error
 def openai_text_reasoning_completion(system_prompt, model_name, prompt, temperature=1, token_limit=30000, reasoning_effort="medium"):
     print(f"OpenAI text-reasoning API call: model={model_name}, reasoning_effort={reasoning_effort}")
+    
     client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
     if "gpt-4o" in model_name:
         print("gpt-4o only supports 16384 tokens")
         token_limit = 16384
-    if "gpt-4.1" in model_name:
+    elif "gpt-4.1" in model_name:
         print("gpt-4.1 only supports 32768 tokens")
         token_limit = 32768
+    elif "o3" in model_name:
+        print("o3 only supports 32768 tokens")
+        token_limit = 10000
     
     messages = [
         {
@@ -421,8 +497,16 @@ def openai_text_reasoning_completion(system_prompt, model_name, prompt, temperat
     else:
         request_params["temperature"] = temperature
 
-    response = client.chat.completions.create(**request_params)
-    generated_str = response.choices[0].message.content
+    if model_name == "o3-pro":
+        messages[0]['content'][0]['type'] = "input_text"
+        response = client.responses.create(
+            model="o3-pro",
+            input=messages,
+        )
+        generated_str = response.output[1].content[0].text
+    else:
+        response = client.chat.completions.create(**request_params)
+        generated_str = response.choices[0].message.content
     return generated_str
 
 def deepseek_text_reasoning_completion(system_prompt, model_name, prompt, token_limit=30000):
@@ -451,9 +535,7 @@ def deepseek_text_reasoning_completion(system_prompt, model_name, prompt, token_
         max_tokens=token_limit)
     
     for chunk in response:
-        if chunk.choices[0].delta.reasoning_content and chunk.choices[0].delta.reasoning_content:
-            reasoning_content += chunk.choices[0].delta.reasoning_content
-        elif hasattr(chunk.choices[0].delta, "content") and chunk.choices[0].delta.content:
+        if hasattr(chunk.choices[0].delta, "content") and chunk.choices[0].delta.content:
             content += chunk.choices[0].delta.content
     
     # generated_str = response.choices[0].message.content
@@ -497,15 +579,19 @@ def xai_grok_text_completion(system_prompt, model_name, prompt, reasoning_effort
     # Return just the content for consistency with other completion functions
     return completion.choices[0].message.content
 
+@retry_on_openai_error
 def openai_multiimage_completion(system_prompt, model_name, prompt, list_content, list_image_base64, token_limit=30000, reasoning_effort="medium"):
     print(f"OpenAI multi-image API call: model={model_name}, reasoning_effort={reasoning_effort}")
     client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
     if "gpt-4o" in model_name:
         print("gpt-4o only supports 16384 tokens")
         token_limit = 16384
-    if "gpt-4.1" in model_name:
+    elif "gpt-4.1" in model_name:
         print("gpt-4.1 only supports 32768 tokens")
         token_limit = 32768
+    elif "o3" in model_name:
+        print("o3 only supports 32768 tokens")
+        token_limit = 10000
 
     content_blocks = []
     

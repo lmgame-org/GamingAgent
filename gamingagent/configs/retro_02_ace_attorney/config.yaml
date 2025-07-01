@@ -12,7 +12,7 @@ agent:
   cache_dir: "cache/retro_ace_attorney" 
   harness: true
   observation_mode: "both" # "vision", "text", or "both"
-  
+  use_reflection: true
   modules:
     base_module:
     

@@ -5,11 +5,6 @@ from tools.utils import scale_image_up
 import re
 import os
 
-# TODO: 
-# 1. with visual state (vision only) 
-# 2. without visual state (text only) 
-# 3. with visual state + text state (both)
-
 class BaseModule(CoreModule):
     """
     Base module that directly processes visual/textual observations and returns actions.
@@ -57,7 +52,6 @@ class BaseModule(CoreModule):
             modal_url=modal_url
         )
         self.observation_mode = observation_mode
-        self.observation = Observation()  # Observation data class
             
     def plan_action(self, observation, custom_prompt=None):
         """
@@ -70,22 +64,18 @@ class BaseModule(CoreModule):
         Returns:
             dict: A dictionary containing 'action' and 'thought' keys
         """
-        # Update observation
-        if observation:
-            self.observation.set_perception_observation(observation)
-        
         # Validate observation based on mode
         if self.observation_mode in ["vision", "both"]:
-            assert self.observation.img_path is not None, "No vision observation available"
+            assert observation.img_path is not None, "No vision observation available"
         if self.observation_mode in ["text", "both"]: 
-            assert (self.observation.textual_representation is not None) or (self.observation.processed_visual_description is not None), "No textual representation available"
+            assert (observation.textual_representation is not None) or (observation.processed_visual_description is not None), "No textual representation available"
         
         # Create the full prompt with the text-based game state
         full_context = observation.get_complete_prompt(observation_mode=self.observation_mode, prompt_template=self.prompt)
 
         response = None
         if self.observation_mode in ["vision", "both"]:
-            image_path = scale_image_up(self.observation.get_img_path())
+            image_path = scale_image_up(observation.get_img_path())
             if not image_path:
                 print("Warning: No image path provided for vision API call. Using text-only API.")
             response = self._call_vision_api(full_context, image_path, custom_prompt)
@@ -94,7 +84,6 @@ class BaseModule(CoreModule):
         
         # returned API response should be a tuple
         response_string = response[0]
-        
         
         # Parse and log the response
         parsed_response = self._parse_response(response_string)

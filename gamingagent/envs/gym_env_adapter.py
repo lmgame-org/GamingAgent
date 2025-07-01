@@ -167,7 +167,11 @@ class GymEnvAdapter:
             print(f"[GymEnvAdapter] ERROR: Could not open episode log file {self.episode_log_file_path}: {e}")
             self.episode_log_file_handle = None
 
-    def create_agent_observation(self, img_path: Optional[str] = None, text_representation: Optional[str] = None, background_info: Optional[str] = None) -> Observation:
+    def create_agent_observation(self, 
+                                 img_path: Optional[str] = None, 
+                                 text_representation: Optional[str] = None, 
+                                 background_info: Optional[str] = None,
+                                 max_memory: Optional[int] = 10) -> Observation:
         """
         Creates an agent-facing Observation object from pre-defined image path, text representation, and background info.
         The environment is responsible for generating these components based on its state and
@@ -188,7 +192,8 @@ class GymEnvAdapter:
             img_path=img_path,
             textual_representation=text_representation,
             background=background_info,
-            trajectory_includes_background=trajectory_includes_bg
+            trajectory_includes_background=trajectory_includes_bg,
+            max_memory=max_memory
         )
         
         # Now, set perception-specific parts if any, without passing background again

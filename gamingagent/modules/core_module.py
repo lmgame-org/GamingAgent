@@ -15,7 +15,7 @@ import string
 @dataclass
 class GameTrajectory:
     def __init__(self, max_length: int = 10, need_background: bool = False, background_prefix_str: Optional[str] = "Game Background:"):
-        self.history_length = max_length
+        self.max_length = max_length
         self.trajectory = deque(maxlen=max_length)
         self.need_background = need_background
         self.background: Optional[str] = None
@@ -33,7 +33,7 @@ class GameTrajectory:
         if not self.trajectory:
             history_text_repr = ""
         else:
-            history_text_repr = f"Past {self.history_length} turn(s) game trajectory (each turn an unique hash)\n" + "\n".join(self.trajectory)
+            history_text_repr = f"Past {self.max_length} turn(s) game trajectory (each turn an unique hash)\n" + "\n".join(self.trajectory)
         
         if self.need_background and self.background is not None:
             if history_text_repr: # If there is history, add background before it
@@ -82,12 +82,14 @@ class Observation:
         processed_visual_description: Optional[str] = None,
         textual_representation: Optional[str] = None,
         background: Optional[str] = None,
-        trajectory_includes_background: bool = True
+        trajectory_includes_background: Optional[bool] = True,
+        max_memory: Optional[int] = 10,
     ):
         """
         Initialize an Observation instance.
         """
-        self.game_trajectory = game_trajectory or GameTrajectory(max_length=10, need_background=trajectory_includes_background)
+        self.max_memory = max_memory
+        self.game_trajectory = game_trajectory or GameTrajectory(max_length=self.max_memory, need_background=trajectory_includes_background)
         self.img_path = img_path
         self.reflection = reflection
         self.processed_visual_description = processed_visual_description
@@ -259,6 +261,41 @@ class Observation:
 
         return prompt_template.format(**harness_content_map)
 
+    def get_memory_summary(self) -> dict[str, str]:
+        """
+        Provide the reasoning module with:
+          • up‑to‑N past lines (already formatted by GameTrajectory)
+          • no extra metadata dance
+        """
+        past = self.game_trajectory.get() or "No previous game states available."
+        latest = self.game_trajectory.trajectory[-1] if self.game_trajectory.trajectory else "N/A"
+
+        result = {
+            "game_trajectory": past,
+            "current_state": latest,   # includes (obs, action, thought)
+            "reflection": latest.split("Reflection:", 1)[-1].strip()
+                         if "Reflection:" in latest else "N/A",
+        }
+        return result
+    
+    def get_perception_summary(self):
+        """
+        Get a summary of the current perception.
+        Uses Observation.get_textual_representation() to retrieve the symbolic representation.
+        
+        Returns:
+            dict: A dictionary containing 
+                1) img_path
+                2) textual_representation
+                3) visual_description
+        """
+        result = {
+            "img_path": self.img_path,
+            "textual_representation": self.get_textual_representation(),
+            "processed_visual_description": self.processed_visual_description
+        }
+        return result
+    
     def to_json_string(self) -> str:
         """
         Get a JSON string representation of the observation data.

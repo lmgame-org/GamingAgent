@@ -11,7 +11,9 @@ agent:
   harness: true
   token_limit: 100000
   reasoning_effort: "high"
-  observation_mode: "text" 
+  observation_mode: "vision" 
+  use_reflection: true
+  use_perception: true
 modules:
     base_module:
 
