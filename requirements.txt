@@ -19,3 +19,6 @@ gymnasium
 gymnasium_2048
 tile_match_gym
 tiktoken
+pyboy
+psutil
+vizdoom

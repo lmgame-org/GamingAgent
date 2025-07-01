@@ -108,8 +108,13 @@ Currently our evaluation suite composes of the following games using gym envrion
 - Tetris
 - 2048
 - Candy Crush
+- Pokemon Red
 
-all runnable out-of-the-box with no additional setup.
+Most games are runnable out-of-the-box with no additional setup. For Pokemon Red, you need to place the ROM file in the designated directory:
+
+**Pokemon Red Setup:**
+- Place the Pokemon Red ROM file (`pokemon.gb`) in: `gamingagent/configs/custom_06_pokemon_red/rom/`
+- We use pyboy as the Game Boy emulator to integrate Pokemon Red into the gymnasium environment
 
 ##### Retro Envrionments
 

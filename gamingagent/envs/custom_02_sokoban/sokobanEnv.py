@@ -367,7 +367,7 @@ class SokobanEnv(gym.Env):
             return False
 
 
-    def reset(self, *, seed: Optional[int] = None, options: Optional[Dict[str, Any]] = None, episode_id: int = 1) -> Tuple[Observation, Dict[str, Any]]:
+    def reset(self, *, seed: Optional[int] = None, options: Optional[Dict[str, Any]] = None, max_memory: Optional[int] = 10, episode_id: int = 1) -> Tuple[Observation, Dict[str, Any]]:
         super().reset(seed=seed)
         self.num_env_steps = 0
         self.current_reward_last_step = 0.0
@@ -407,7 +407,8 @@ class SokobanEnv(gym.Env):
 
         agent_observation = self.adapter.create_agent_observation(
             img_path=img_path_for_adapter,
-            text_representation=text_representation_for_adapter
+            text_representation=text_representation_for_adapter,
+            max_memory=max_memory
         )
 
         if self.render_mode == "human": self._render_frame()

@@ -426,7 +426,7 @@ class TetrisEnv(gym.Env):
         
         return rotations_text
 
-    def reset(self, *, seed: Optional[int]=None, options: Optional[Dict[str,Any]]=None, episode_id:int=1) -> Tuple[Observation, Dict[str,Any]]:
+    def reset(self, *, seed: Optional[int]=None, options: Optional[Dict[str,Any]]=None, max_memory: Optional[int] = 10, episode_id:int=1) -> Tuple[Observation, Dict[str,Any]]:
         super().reset(seed=seed)
         if seed is not None: self.rng = np.random.default_rng(seed)
         
@@ -477,7 +477,7 @@ class TetrisEnv(gym.Env):
                 f"Use 'rotate_right' or 'rotate_left' actions to achieve a rotation.\n"
             )
         
-        agent_obs = self.adapter.create_agent_observation(img_path, txt_rep)
+        agent_obs = self.adapter.create_agent_observation(img_path, txt_rep, max_memory=max_memory)
         if self.render_mode == "human": self.render()
         return agent_obs, self.current_info_dict
 

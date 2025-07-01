@@ -8,6 +8,7 @@ import yaml
 from typing import Any
 import sys
 import re
+import random
 
 import gymnasium as gym
 
@@ -16,22 +17,40 @@ from retro.enums import Actions, Observations, State # retro.data will be used d
 
 from gamingagent.agents.base_agent import BaseAgent
 from gamingagent.modules import PerceptionModule, ReasoningModule # Observation is imported by Env
+from tools.utils import draw_grid_on_image
 # Directly import the specific environment we are using
 from gamingagent.envs.custom_01_2048.twentyFortyEightEnv import TwentyFortyEightEnv
 from gamingagent.envs.custom_02_sokoban.sokobanEnv import SokobanEnv
 from gamingagent.envs.custom_03_candy_crush.candyCrushEnv import CandyCrushEnvWrapper
+from gamingagent.envs.custom_04_tetris.tetrisEnv import TetrisEnv
+from gamingagent.envs.custom_05_doom.doomEnv import DoomEnvWrapper
+from gamingagent.envs.custom_06_pokemon_red.pokemonRedEnv import PokemonRedEnv
+
 from gamingagent.envs.retro_01_super_mario_bros.superMarioBrosEnv import SuperMarioBrosEnvWrapper
 from gamingagent.envs.retro_02_ace_attorney.aceAttorneyEnv import AceAttorneyEnv
 from gamingagent.envs.retro_03_1942.NineteenFortyTwo_env import NineteenFortyTwoEnvWrapper
-from gamingagent.envs.custom_04_tetris.tetrisEnv import TetrisEnv
 
 game_config_mapping = {"twenty_forty_eight": "custom_01_2048",
                        "sokoban": "custom_02_sokoban",
                        "candy_crush": "custom_03_candy_crush",
                        "tetris": "custom_04_tetris",
+                       "doom": "custom_05_doom",
+                       "pokemon_red": "custom_06_pokemon_red",
                        "super_mario_bros":"retro_01_super_mario_bros",
                        "ace_attorney":"retro_02_ace_attorney",
-                       "nineteen_forty_two": "retro_03_1942"}
+                       "nineteen_forty_two": "retro_03_1942"
+                       }
+
+def str_to_bool(v):
+    """Convert string boolean values to actual booleans for argparse"""
+    if isinstance(v, bool):
+        return v
+    if v.lower() in ('yes', 'true', 't', 'y', '1'):
+        return True
+    elif v.lower() in ('no', 'false', 'f', 'n', '0'):
+        return False
+    else:
+        raise argparse.ArgumentTypeError('Boolean value expected.')
 
 def parse_arguments(defaults_map=None, argv_to_parse=None):
     parser = argparse.ArgumentParser(description="Run GamingAgent for a specified Gym Environment.")
@@ -49,14 +68,32 @@ def parse_arguments(defaults_map=None, argv_to_parse=None):
     parser.add_argument("--observation_mode", type=str, default="vision",
                         choices=["vision", "text", "both"], help="Agent's observation mode.")
     parser.add_argument("--max_memory", type=int, default=20, help="Agent's max memory entries.")
+    parser.add_argument("--use_reflection", type=str_to_bool, default=True, help="Enable reflection in memory module. Default is True.")
+    parser.add_argument("--use_perception", type=str_to_bool, default=True, help="Enable perception API calls for image processing. Default is True.")
+    parser.add_argument("--use_summary", type=str_to_bool, default=False, help="Enable trajectory summarization in memory module. Default is False.")
     parser.add_argument("--max_steps_per_episode", type=int, default=1000, help="Max steps per episode.")
     parser.add_argument("--use_custom_prompt", action="store_true", help="If set, will use the custom prompt from module_prompts.json if present.")
+    parser.add_argument("--scaffolding", type=str, default=None, help="Grid dimensions as '(rows,cols)' for coordinate grid on images, e.g., '(5,5)'. Default is None.")
     parser.add_argument("--seed", type=int, default=None, help="Random seed for environment.")
     # Env type is fixed to custom gym for this runner
 
+    # Serving-related arguments
+    parser.add_argument(
+        "--modal_url",
+        type=str,
+        default=None,
+        help="Optional URL for a Modal‑hosted inference endpoint passed to BaseAgent.",
+    )
+    parser.add_argument(
+        "--vllm_url",
+        type=str,
+        default=None,
+        help="Optional URL for a vLLM inference endpoint passed to BaseAgent.",
+    )
+
     if defaults_map:
         parser.set_defaults(**defaults_map)
-        
+    
     if argv_to_parse:
         return parser.parse_args(argv_to_parse)
     return parser.parse_args()
@@ -65,7 +102,8 @@ def create_environment(game_name_arg: str,
                        model_name_arg: str,
                        obs_mode_arg: str, 
                        config_dir_name_for_env_cfg: str, # For loading game_env_config.json
-                       cache_dir_for_adapter: str):
+                       cache_dir_for_adapter: str,
+                       harness: bool = False):
     """Creates and returns a game environment instance based on the game name."""
     
     env_specific_config_path = os.path.join("gamingagent/envs", config_dir_name_for_env_cfg, "game_env_config.json")
@@ -226,6 +264,37 @@ def create_environment(game_name_arg: str,
             # seed will be passed during reset, not __init__ for TetrisEnv as per its definition
         )
         return env
+    elif game_name_arg == "pokemon_red":
+        # Load params specific to Pokemon Red
+        if os.path.exists(env_specific_config_path):
+            with open(env_specific_config_path, 'r') as f:
+                env_specific_config = json.load(f)
+                env_init_kwargs = env_specific_config.get('env_init_kwargs', {})
+                env_init_params['rom_path'] = env_init_kwargs.get('rom_path')
+                env_init_params['sound'] = env_init_kwargs.get('sound', False)
+                env_init_params['render_mode_for_make'] = env_specific_config.get('render_mode', 'human')
+                env_init_params['max_stuck_steps_for_adapter'] = env_specific_config.get('max_unchanged_steps_for_termination', 20)
+        else:
+            print(f"Warning: {env_specific_config_path} for {game_name_arg} not found. Using default env parameters for Pokemon Red.")
+            env_init_params['rom_path'] = None
+            env_init_params['sound'] = False
+            env_init_params['render_mode_for_make'] = 'human'
+            env_init_params['max_stuck_steps_for_adapter'] = 20
+
+        print(f"Initializing environment: {game_name_arg} with params: {env_init_params}")
+        env = PokemonRedEnv(
+            render_mode=env_init_params.get('render_mode_for_make'),
+            rom_path=env_init_params.get('rom_path'),
+            sound=env_init_params.get('sound'),
+            # Adapter related params
+            game_name_for_adapter=game_name_arg,
+            observation_mode_for_adapter=obs_mode_arg,
+            agent_cache_dir_for_adapter=cache_dir_for_adapter,
+            game_specific_config_path_for_adapter=env_specific_config_path,
+            max_stuck_steps_for_adapter=env_init_params.get('max_stuck_steps_for_adapter'),
+            harness=harness
+        )
+        return env
     elif game_name_arg == "super_mario_bros":
         # SuperMarioBrosEnvWrapper loads its specific configs internally.
         # The runner primarily needs to provide paths and agent/run-level settings.
@@ -350,15 +419,44 @@ def create_environment(game_name_arg: str,
         # import retro # No longer needed here as DefaultStates, etc. are imported above
         env = AceAttorneyEnv(**env_params_for_constructor)
         return env
+    elif game_name_arg == "doom":
+        # DoomEnvWrapper loads its specific configs internally.
+        # The runner primarily needs to provide paths and agent/run-level settings.
+        env_wrapper_config_dir = os.path.join("gamingagent/envs", config_dir_name_for_env_cfg)
+        
+        print(f"Initializing environment: {game_name_arg} using DoomEnvWrapper")
+        print(f"  Wrapper config dir: {env_wrapper_config_dir}")
+        print(f"  Model name for adapter: {model_name_arg}")
+        print(f"  Observation mode for adapter: {obs_mode_arg}")
+        print(f"  Base log dir for adapter: {cache_dir_for_adapter}")
+        print(f"  Config path: {env_specific_config_path}")
+
+        # Verify config file exists
+        if not os.path.exists(env_specific_config_path):
+            print(f"ERROR: Config file not found at {env_specific_config_path}")
+            return None
+
+        env = DoomEnvWrapper(
+            game_name="doom",  # Match test file
+            config_dir_path=os.path.dirname(env_specific_config_path),  # Use the directory containing the config file
+            observation_mode=obs_mode_arg,
+            base_log_dir=cache_dir_for_adapter,
+            render_mode_human=True,  # Enable human rendering
+            record_video=False,
+            video_dir="videos/doom",
+            model_name=model_name_arg,
+            headless=False,  # Allow display
+            debug=True  # Add debug mode to help track issues
+        )
+        return env
     else:
         print(f"ERROR: Game '{game_name_arg}' is not defined or implemented in custom_runner.py's create_environment function.")
         return None
 
 def run_game_episode(agent: BaseAgent, game_env: gym.Env, episode_id: int, args: argparse.Namespace):
-    print(f"Starting Episode {episode_id} for {args.game_name} with seed {args.seed if args.seed is not None else 'default'}...")
-
+    """Run a single episode of the game."""
     # Pass episode_id to env.reset
-    agent_observation, last_info = game_env.reset(seed=args.seed, episode_id=episode_id)
+    agent_observation, last_info = game_env.reset(max_memory=args.max_memory, seed=args.seed, episode_id=episode_id)
     if args.seed is not None: args.seed += 1 # Increment seed for next potential run
 
     total_reward_for_episode = 0.0
@@ -367,54 +465,72 @@ def run_game_episode(agent: BaseAgent, game_env: gym.Env, episode_id: int, args:
 
     for step_num in range(args.max_steps_per_episode):
         final_step_num = step_num + 1
-        # if game_env.render_mode == 'human':
         game_env.render() # Call env's render method directly
 
         start_time = time.time()
         action_dict, processed_agent_observation = agent.get_action(agent_observation)
         end_time = time.time()
         time_taken_s = end_time - start_time
-
-        # Ensure action_dict is not None and action is handled if None
-        raw_action_from_agent = None
-        if action_dict and action_dict.get("action") is not None:
-            raw_action_from_agent = action_dict.get("action")
+        # Special handling for Doom game
+        if isinstance(game_env, DoomEnvWrapper):
+            # Handle action like test file
+            if action_dict and action_dict.get("action") is not None:
+                action_str = str(action_dict.get("action")).strip().lower()
+                
+                # For attack action, ensure it's always 8 frames
+                if "attack" in action_str:
+                    action_str = "(attack, 8)"
+            else:
+                action_str = "none"
         
-        action_str_agent = "None" # Default to "None" string if no valid action
-        if raw_action_from_agent:
-            action_str_agent = str(raw_action_from_agent).strip().lower()
-        
-        thought_process = action_dict.get("thought", "") if action_dict else "No thought process due to API failure."
+            thought_process = action_dict.get("thought", "") if action_dict else "No thought process due to API failure."
 
-        # --- MODIFIED: Extract raw LLM output to pass to env.step ---
-        raw_llm_output_for_env = None
+            # Print action before step
+            print(f"\nExecuting action: '{action_str}'")
+            print(f"Thought process: {thought_process}")
+            print(f"Time taken: {time_taken_s:.2f}s")
+            print("-" * 50)
 
-        if action_dict:
-            if "raw_response_str" in action_dict and isinstance(action_dict["raw_response_str"], str):
-                raw_llm_output_for_env = action_dict["raw_response_str"]
+            # Step the environment with minimal parameters like test file
+            agent_observation, reward, terminated, truncated, last_info, current_step_perf_score = game_env.step(action_str)
         else:
-            print("[Runner DEBUG] action_dict is None") # DEBUG
-        
-        # Conditionally pass raw_llm_output_for_next_obs
-        step_args = {
-            "agent_action_str": action_str_agent,
-            "thought_process": thought_process,
-            "time_taken_s": time_taken_s
-        }
-        if args.game_name == "ace_attorney":
-            step_args["raw_llm_output_for_next_obs"] = raw_llm_output_for_env
-        
-        # Step the environment using the new signature, including agent action details
-        agent_observation, reward, terminated, truncated, last_info, current_step_perf_score = game_env.step(**step_args)
+            # Ensure action_dict is not None and action is handled if None
+            action_str = None
+            if action_dict and action_dict.get("action") is not None:
+                action_str = action_dict.get("action")
+            
+            action_str_agent = "None" # Default to "None" string if no valid action
+            if action_str:
+                action_str_agent = str(action_str).strip().lower()
+            
+            thought_process = action_dict.get("thought", "") if action_dict else "No thought process due to API failure."
+
+            # --- MODIFIED: Extract raw LLM output to pass to env.step ---
+            raw_llm_output_for_env = None
+
+            if action_dict:
+                if "raw_response_str" in action_dict and isinstance(action_dict["raw_response_str"], str):
+                    raw_llm_output_for_env = action_dict["raw_response_str"]
+            else:
+                print("[Runner DEBUG] action_dict is None") # DEBUG
+            
+            # Conditionally pass raw_llm_output_for_next_obs
+            step_args = {
+                "agent_action_str": action_str_agent,
+                "thought_process": thought_process,
+                "time_taken_s": time_taken_s
+            }
+            if args.game_name == "ace_attorney":
+                step_args["raw_llm_output_for_next_obs"] = raw_llm_output_for_env
+            
+            # Step the environment using the new signature, including agent action details
+            agent_observation, reward, terminated, truncated, last_info, current_step_perf_score = game_env.step(**step_args)
+
         # Inherit game trajectory
         agent_observation.game_trajectory = processed_agent_observation.game_trajectory
             
         total_reward_for_episode += reward
         total_perf_score_for_episode += current_step_perf_score
-
-        # --- DEBUG PRINT for reward ---
-        print(f"E{episode_id} S{final_step_num}: Action='{action_str_agent}', StepR={reward:.2f}, TotalR={total_reward_for_episode:.2f}, Perf={current_step_perf_score:.2f}, Term={terminated}, Trunc={truncated}")
-        # --- END DEBUG PRINT for reward ---
 
         if terminated or truncated:
             break
@@ -504,7 +620,11 @@ def main():
                             agent_config_yaml = loaded_yaml['agent']
                             defaults_from_yaml['model_name'] = agent_config_yaml.get('model_name')
                             defaults_from_yaml['observation_mode'] = agent_config_yaml.get('observation_mode')
-                            defaults_from_yaml['use_custom_prompt'] = agent_config_yaml.get('observation_mode')
+                            defaults_from_yaml['use_custom_prompt'] = agent_config_yaml.get('use_custom_prompt')
+                            defaults_from_yaml['use_reflection'] = agent_config_yaml.get('use_reflection')
+                            defaults_from_yaml['use_perception'] = agent_config_yaml.get('use_perception')
+                            defaults_from_yaml['use_summary'] = agent_config_yaml.get('use_summary')
+                            defaults_from_yaml['scaffolding'] = agent_config_yaml.get('scaffolding')
                             
                             # Still load max_memory from its specific module config if present
                             if agent_config_yaml.get('modules'):
@@ -533,7 +653,11 @@ def main():
         'num_runs', 
         'max_steps_per_episode',
         'seed',
-        'max_memory'
+        'max_memory',
+        'use_reflection',
+        'use_perception',
+        'use_summary',
+        'scaffolding'
     }
 
     if config_file_path and os.path.exists(config_file_path):
@@ -576,6 +700,45 @@ def main():
     os.makedirs(runner_log_dir_base, exist_ok=True)
     print(f"Agent and Environment cache directory: {runner_log_dir_base}")
 
+    # Parse scaffolding parameter
+    scaffolding_dict = None
+    if args.scaffolding:
+        try:
+            if isinstance(args.scaffolding, dict):
+                # New dictionary format from config
+                funcname = args.scaffolding.get('funcname')
+                funcArgs = args.scaffolding.get('funcArgs', {})
+                
+                # Map function names to actual function objects
+                function_mapping = {
+                    'draw_grid_on_image': draw_grid_on_image
+                }
+                
+                if funcname in function_mapping:
+                    scaffolding_dict = {
+                        'func': function_mapping[funcname],
+                        'funcArgs': funcArgs
+                    }
+                    print(f"Using scaffolding function: {funcname} with args: {funcArgs}")
+                else:
+                    print(f"Warning: Unknown scaffolding function '{funcname}'. Using None.")
+            else:
+                # Legacy tuple format for backward compatibility
+                scaffolding_str = str(args.scaffolding).strip()
+                if scaffolding_str.startswith('(') and scaffolding_str.endswith(')'):
+                    scaffolding_str = scaffolding_str[1:-1]  # Remove parentheses
+                parts = [int(x.strip()) for x in scaffolding_str.split(',')]
+                if len(parts) == 2:
+                    scaffolding_dict = {
+                        'func': draw_grid_on_image,
+                        'funcArgs': {'grid_dim': tuple(parts)}
+                    }
+                    print(f"Using legacy scaffolding grid: {tuple(parts)}")
+                else:
+                    print(f"Warning: Invalid scaffolding format '{args.scaffolding}'. Expected '(rows,cols)'. Using None.")
+        except (ValueError, AttributeError) as e:
+            print(f"Warning: Could not parse scaffolding '{args.scaffolding}': {e}. Using None.")
+
     # --- Then Create Agent, passing the environment ---
     agent = BaseAgent(
         game_name=args.game_name,
@@ -583,10 +746,16 @@ def main():
         config_path=agent_prompts_config_path,
         harness=args.harness,
         use_custom_prompt=args.use_custom_prompt,
-        max_memory=args.max_memory, 
+        max_memory=args.max_memory,
+        use_reflection=args.use_reflection,
+        use_perception=args.use_perception,
+        use_summary=args.use_summary,
         custom_modules=custom_modules_for_agent,
         observation_mode=args.observation_mode,
-        cache_dir=runner_log_dir_base # Ensure agent uses the same cache_dir
+        scaffolding=scaffolding_dict,
+        cache_dir=runner_log_dir_base,
+        vllm_url=args.vllm_url,
+        modal_url=args.modal_url
     )
     
     # runner_log_dir = agent.cache_dir # Agent already sets its cache_dir, this can be removed or used for verification
@@ -599,7 +768,8 @@ def main():
         model_name_arg=args.model_name,
         obs_mode_arg=args.observation_mode,
         config_dir_name_for_env_cfg=config_dir_name,
-        cache_dir_for_adapter=runner_log_dir_base
+        cache_dir_for_adapter=runner_log_dir_base,
+        harness=args.harness
     )
 
     if game_env is None:

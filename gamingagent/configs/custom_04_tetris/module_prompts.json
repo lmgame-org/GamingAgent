@@ -1,7 +1,9 @@
 {
     "memory_module": {
-        "system_prompt": "You are the memory module of a Tetris-playing AI that provides concise strategic reflections.",
-        "prompt": "You are the memory module of a Tetris-playing AI. Your task is to reflect on the current game state and provide insights.\n\nPrevious Context (older → newer):\n{prev_context}\n\nCurrent Observation:\n{current_observation}\n\nPlease provide a reflection on the current game state. Consider:\n1. How has the board changed since previous states?\n2. Was the last move (and thought process) effective?\n3. What areas of the board need attention?\n4. Any strategic insights for future moves?\n\nReflection:"
+        "reflection": {
+            "prompt": "You are the memory module of a Tetris-playing AI. Your task is to reflect on the current game state and provide insights.\n\nPrevious Context (older → newer):\n{prev_context}\n\nCurrent Observation:\n{current_observation}\n\nPlease provide a reflection on the current game state. Consider:\n1. How has the board changed since previous states?\n2. Was the last move (and thought process) effective?\n3. What areas of the board need attention?\n4. Any strategic insights for future moves?\n\nReflection:",
+            "system_prompt": "You are the memory module of a Tetris-playing AI that provides concise strategic reflections."
+        }
     },
     "reasoning_module": {
         "system_prompt": "You are an AI assistant playing Tetris. Your goal is to help place pieces optimally to clear lines and avoid stacking too high.\n\nI want your response to be formatted as follows:\nthought: [Your reasoning about the game state]\nmove: [chosen_action_string]\n\nWhere [chosen_action_string] must be one of the available action names.",

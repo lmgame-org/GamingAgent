@@ -1,0 +1,79 @@
+game_env:
+  name: "doom"
+  description: "Doom game environment"
+  env_type: "custom"
+  render_mode: "human"
+  max_steps: 600
+  seed: 42
+  num_runs: 1
+  doom_scenario_path: "basic.wad"
+  doom_map: "map01"
+  living_reward: -1
+  screen_resolution: "RES_320X240"
+  screen_format: "RGB24"
+  render_hud: true
+  render_crosshair: false
+  render_weapon: true
+  render_decals: true
+  render_particles: true
+  render_effects_sprites: true
+  render_messages: false
+  render_corpses: false
+  render_screen_flashes: true
+  render_minimal_hud: false
+  window_visible: true
+  episode_start_time: 14
+  available_buttons:
+    - move_left
+    - move_right
+    - attack
+  available_game_variables:
+    - ammo2
+    - position_x
+    - position_y
+    - angle
+    - health
+  mode: "player"
+  doom_skill: 3
+  rewards:
+    kill_monster: 106
+    shot_penalty: -5
+    living_reward: -1
+
+agent:
+  name: "doom_agent"
+  model_name: "gpt-4"
+  cache_dir: "cache/doom"
+  reasoning_effort: "high"
+  token_limit: 16000
+  harness: true
+  observation_mode: "both"
+  scaffolding:
+    funcname: "draw_grid_on_image"
+    funcArgs:
+      grid_dim: [10, 10]
+  record_video: true
+  video_dir: "videos/doom"
+  log_level: "INFO"
+  observation_mode: "vision"
+  use_reflection: true
+  modules:
+    base_module:
+      log_level: "INFO"
+
+    perception_module:
+      log_level: "INFO"
+      token_limit: 8000
+
+    memory_module:
+      max_memory: 10
+      log_level: "INFO"
+      token_limit: 4000
+
+    reasoning_module:
+      use_perception: true
+      use_memory: true
+      use_cot: true
+      log_level: "INFO"
+      token_limit: 4000
+      observation_mode: "both"

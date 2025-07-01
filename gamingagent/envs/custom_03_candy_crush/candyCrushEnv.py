@@ -390,7 +390,7 @@ class CandyCrushEnvWrapper(gym.Env):
         return raw_observation, reward, terminated, False, info
 
     # Runner-facing Methods
-    def reset(self, seed: Optional[int] = None, episode_id: int = 1, options: Optional[dict] = None) -> Tuple[Observation, Dict[str, Any]]:
+    def reset(self, seed: Optional[int] = None, episode_id: int = 1, options: Optional[dict] = None, max_memory: Optional[int] = 10) -> Tuple[Observation, Dict[str, Any]]:
         self.adapter.reset_episode(episode_id)
         
         gym_options = options if options is not None else {}
@@ -432,7 +432,8 @@ class CandyCrushEnvWrapper(gym.Env):
 
         agent_observation = self.adapter.create_agent_observation(
             img_path=img_path_for_adapter,
-            text_representation=text_representation_for_adapter
+            text_representation=text_representation_for_adapter,
+            max_memory=max_memory
         )
         
         # Store symbolic representation for stuck detection by adapter

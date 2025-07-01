@@ -33,7 +33,10 @@ dependencies = [
     "gymnasium",
     "gymnasium_2048",
     "tile_match_gym",
-    "tiktoken"
+    "tiktoken",
+    "pyboy",
+    "psutil",
+    "vizdoom"
 ]
 license = {text = "MIT"}
 repository = "https://github.com/lmgame-org/GamingAgent"
