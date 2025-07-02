@@ -36,7 +36,8 @@ dependencies = [
     "tiktoken",
     "pyboy",
     "psutil",
-    "vizdoom"
+    "vizdoom",
+    "pettingzoo"
 ]
 license = {text = "MIT"}
 repository = "https://github.com/lmgame-org/GamingAgent"

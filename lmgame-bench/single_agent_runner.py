@@ -12,6 +12,8 @@ import random
 
 import gymnasium as gym
 
+from typing import Any, Dict
+
 import retro
 from retro.enums import Actions, Observations, State # retro.data will be used directly for Integrations
 
@@ -21,14 +23,16 @@ from tools.utils import draw_grid_on_image
 # Directly import the specific environment we are using
 from gamingagent.envs.custom_01_2048.twentyFortyEightEnv import TwentyFortyEightEnv
 from gamingagent.envs.custom_02_sokoban.sokobanEnv import SokobanEnv
-from gamingagent.envs.custom_03_candy_crush.candyCrushEnv import CandyCrushEnvWrapper
+from gamingagent.envs.custom_03_candy_crush.candyCrushEnv import CandyCrushEnv
 from gamingagent.envs.custom_04_tetris.tetrisEnv import TetrisEnv
-from gamingagent.envs.custom_05_doom.doomEnv import DoomEnvWrapper
+from gamingagent.envs.custom_05_doom.doomEnv import DoomEnv
 from gamingagent.envs.custom_06_pokemon_red.pokemonRedEnv import PokemonRedEnv
 
-from gamingagent.envs.retro_01_super_mario_bros.superMarioBrosEnv import SuperMarioBrosEnvWrapper
+from gamingagent.envs.retro_01_super_mario_bros.superMarioBrosEnv import SuperMarioBrosEnv
 from gamingagent.envs.retro_02_ace_attorney.aceAttorneyEnv import AceAttorneyEnv
-from gamingagent.envs.retro_03_1942.NineteenFortyTwo_env import NineteenFortyTwoEnvWrapper
+from gamingagent.envs.retro_03_1942.NineteenFortyTwo_env import NineteenFortyTwoEnv
+
+from gamingagent.envs.zoo_01_tictactoe.TicTacToeEnv import SingleTicTacToeEnv
 
 game_config_mapping = {"twenty_forty_eight": "custom_01_2048",
                        "sokoban": "custom_02_sokoban",
@@ -38,7 +42,8 @@ game_config_mapping = {"twenty_forty_eight": "custom_01_2048",
                        "pokemon_red": "custom_06_pokemon_red",
                        "super_mario_bros":"retro_01_super_mario_bros",
                        "ace_attorney":"retro_02_ace_attorney",
-                       "nineteen_forty_two": "retro_03_1942"
+                       "nineteen_forty_two": "retro_03_1942",
+                       "tictactoe": "zoo_01_tictactoe",
                        }
 
 def str_to_bool(v):
@@ -64,6 +69,8 @@ def parse_arguments(defaults_map=None, argv_to_parse=None):
                         help="Name of the model for the agent.")
     parser.add_argument("--harness", action="store_true",
                         help="Use perception-memory-reasoning pipeline (harness mode). Default is False.")
+    parser.add_argument("--multiagent_arg", type=str, default="single",
+                        choices=["single", "multi"], help="Multi-agent mode configuration.")
     parser.add_argument("--num_runs", type=int, default=1, help="Number of game episodes.")
     parser.add_argument("--observation_mode", type=str, default="vision",
                         choices=["vision", "text", "both"], help="Agent's observation mode.")
@@ -103,27 +110,26 @@ def create_environment(game_name_arg: str,
                        obs_mode_arg: str, 
                        config_dir_name_for_env_cfg: str, # For loading game_env_config.json
                        cache_dir_for_adapter: str,
-                       harness: bool = False):
+                       harness: bool = False,
+                       multiagent_arg: str = "single"):
     """Creates and returns a game environment instance based on the game name."""
     
+    # TODO: directly add `config_dir_name_for_env_cfg` support to all environments
     env_specific_config_path = os.path.join("gamingagent/envs", config_dir_name_for_env_cfg, "game_env_config.json")
     env_init_params = {} # Will be populated based on the specific game
 
+    if not os.path.exists(env_specific_config_path):
+            print(f"ERROR: Config file not found at {env_specific_config_path}")
+            return None
+
     if game_name_arg == "twenty_forty_eight":
         # Load params specific to 2048
-        if os.path.exists(env_specific_config_path):
-            with open(env_specific_config_path, 'r') as f:
-                env_specific_config = json.load(f)
-                env_init_params['size'] = env_specific_config.get('env_init_kwargs', {}).get('size', 4)
-                env_init_params['max_pow'] = env_specific_config.get('env_init_kwargs', {}).get('max_pow', 16)
-                env_init_params['render_mode'] = env_specific_config.get('render_mode_gym_make', 'human')
-                env_init_params['max_stuck_steps_for_adapter'] = env_specific_config.get('max_unchanged_steps_for_termination', 10)
-        else:
-            print(f"Warning: {env_specific_config_path} for {game_name_arg} not found. Using default env parameters.")
-            env_init_params['size'] = 4
-            env_init_params['max_pow'] = 16
-            env_init_params['render_mode'] = 'human'
-            env_init_params['max_stuck_steps_for_adapter'] = 10
+        with open(env_specific_config_path, 'r') as f:
+            env_specific_config = json.load(f)
+            env_init_params['size'] = env_specific_config.get('env_init_kwargs', {}).get('size', 4)
+            env_init_params['max_pow'] = env_specific_config.get('env_init_kwargs', {}).get('max_pow', 16)
+            env_init_params['render_mode'] = env_specific_config.get('render_mode_gym_make', 'human')
+            env_init_params['max_stuck_steps_for_adapter'] = env_specific_config.get('max_unchanged_steps_for_termination', 10)
 
         print(f"Initializing environment: {game_name_arg} with params: {env_init_params}")
         env = TwentyFortyEightEnv(
@@ -139,30 +145,18 @@ def create_environment(game_name_arg: str,
         return env
     elif game_name_arg == "sokoban":
         # Load params specific to Sokoban
-        if os.path.exists(env_specific_config_path):
-            with open(env_specific_config_path, 'r') as f:
-                env_specific_config = json.load(f)
-                env_init_kwargs = env_specific_config.get('env_init_kwargs', {})
-                env_init_params['dim_room'] = env_init_kwargs.get('dim_room', (10,10))
-                env_init_params['max_steps_episode'] = env_init_kwargs.get('max_steps_episode', 200)
-                env_init_params['num_boxes'] = env_init_kwargs.get('num_boxes', 3)
-                env_init_params['num_gen_steps'] = env_init_kwargs.get('num_gen_steps') # Can be None
-                env_init_params['level_to_load'] = env_specific_config.get('level_to_load') # Can be None
-                env_init_params['render_mode'] = env_specific_config.get('render_mode', 'human')
-                env_init_params['tile_size_for_render'] = env_specific_config.get('tile_size_for_render', 32)
-                env_init_params['max_stuck_steps_for_adapter'] = env_specific_config.get('max_unchanged_steps_for_termination', 20)
-        else:
-            print(f"Warning: {env_specific_config_path} for {game_name_arg} not found. Using default env parameters for Sokoban.")
-            env_init_params['dim_room'] = (10,10)
-            env_init_params['max_steps_episode'] = 200
-            env_init_params['num_boxes'] = 3
-            env_init_params['num_gen_steps'] = None
-            env_init_params['level_to_load'] = None
-            env_init_params['render_mode'] = 'human'
-            env_init_params['tile_size_for_render'] = 32
-            env_init_params['max_stuck_steps_for_adapter'] = 20
+        with open(env_specific_config_path, 'r') as f:
+            env_specific_config = json.load(f)
+            env_init_kwargs = env_specific_config.get('env_init_kwargs', {})
+            env_init_params['dim_room'] = env_init_kwargs.get('dim_room', (10,10))
+            env_init_params['max_steps_episode'] = env_init_kwargs.get('max_steps_episode', 200)
+            env_init_params['num_boxes'] = env_init_kwargs.get('num_boxes', 3)
+            env_init_params['num_gen_steps'] = env_init_kwargs.get('num_gen_steps') # Can be None
+            env_init_params['level_to_load'] = env_specific_config.get('level_to_load') # Can be None
+            env_init_params['render_mode'] = env_specific_config.get('render_mode', 'human')
+            env_init_params['tile_size_for_render'] = env_specific_config.get('tile_size_for_render', 32)
+            env_init_params['max_stuck_steps_for_adapter'] = env_specific_config.get('max_unchanged_steps_for_termination', 20)
 
-        
         print(f"Initializing environment: {game_name_arg} with params: {env_init_params}")
         env = SokobanEnv(
             render_mode=env_init_params.get('render_mode'),
@@ -182,32 +176,22 @@ def create_environment(game_name_arg: str,
     elif game_name_arg == "candy_crush":
         # Load params specific to Candy Crush
         # The config_dir_name_for_env_cfg for candy_crush will be "custom_03_candy_crush"
-        if os.path.exists(env_specific_config_path):
-            with open(env_specific_config_path, 'r') as f:
-                env_specific_config = json.load(f)
-                env_init_kwargs = env_specific_config.get('env_init_kwargs', {})
-                # Parameters for CandyCrushEnv's internal TileMatchEnv
-                env_init_params['num_rows'] = env_init_kwargs.get('num_rows', 8)
-                env_init_params['num_cols'] = env_init_kwargs.get('num_cols', 8)
-                env_init_params['num_colours'] = env_init_kwargs.get('num_colours', 4)
-                env_init_params['num_moves'] = env_init_kwargs.get('num_moves', 50)
-                # render_mode is for the wrapper's internal renderer if used, not GymEnvAdapter
-                env_init_params['render_mode_for_make'] = env_specific_config.get('render_mode_for_make', 'string') 
-                env_init_params['tile_size_for_render'] = env_specific_config.get('tile_size_for_render', 32)
-                # max_stuck_steps_for_adapter for GymEnvAdapter instance
-                env_init_params['max_stuck_steps_for_adapter'] = env_specific_config.get('max_unchanged_steps_for_termination', 20) # Default from Sokoban
-        else:
-            print(f"Warning: {env_specific_config_path} for {game_name_arg} not found. Using default env parameters for Candy Crush.")
-            env_init_params['num_rows'] = 8
-            env_init_params['num_cols'] = 8
-            env_init_params['num_colours'] = 4
-            env_init_params['num_moves'] = 50
-            env_init_params['render_mode_for_make'] = 'string'
-            env_init_params['tile_size_for_render'] = 32
-            env_init_params['max_stuck_steps_for_adapter'] = 20
+        with open(env_specific_config_path, 'r') as f:
+            env_specific_config = json.load(f)
+            env_init_kwargs = env_specific_config.get('env_init_kwargs', {})
+            # Parameters for CandyCrushEnv's internal TileMatchEnv
+            env_init_params['num_rows'] = env_init_kwargs.get('num_rows', 8)
+            env_init_params['num_cols'] = env_init_kwargs.get('num_cols', 8)
+            env_init_params['num_colours'] = env_init_kwargs.get('num_colours', 4)
+            env_init_params['num_moves'] = env_init_kwargs.get('num_moves', 50)
+            # render_mode is for the wrapper's internal renderer if used, not GymEnvAdapter
+            env_init_params['render_mode_for_make'] = env_specific_config.get('render_mode_for_make', 'string') 
+            env_init_params['tile_size_for_render'] = env_specific_config.get('tile_size_for_render', 32)
+            # max_stuck_steps_for_adapter for GymEnvAdapter instance
+            env_init_params['max_stuck_steps_for_adapter'] = env_specific_config.get('max_unchanged_steps_for_termination', 20) # Default from Sokoban
 
         print(f"Initializing environment: {game_name_arg} with params: {env_init_params}")
-        env = CandyCrushEnvWrapper(
+        env = CandyCrushEnv(
             # Parameters for CandyCrushEnv -> TileMatchEnv core
             num_rows_override=env_init_params.get('num_rows'),
             num_cols_override=env_init_params.get('num_cols'),
@@ -226,26 +210,16 @@ def create_environment(game_name_arg: str,
         return env
     elif game_name_arg == "tetris":
         # Load params specific to Tetris
-        if os.path.exists(env_specific_config_path):
-            with open(env_specific_config_path, 'r') as f:
-                env_specific_config = json.load(f)
-                env_init_kwargs = env_specific_config.get('env_init_kwargs', {})
-                env_init_params['board_width'] = env_init_kwargs.get('board_width', 10)
-                env_init_params['board_height'] = env_init_kwargs.get('board_height', 20)
-                env_init_params['gravity'] = env_init_kwargs.get('gravity', True)
-                env_init_params['render_upscale'] = env_init_kwargs.get('render_upscale', 25)
-                env_init_params['queue_size'] = env_init_kwargs.get('queue_size', 4)
-                env_init_params['render_mode_for_make'] = env_specific_config.get('render_mode_for_make', 'human') # Corresponds to TetrisEnv render_mode
-                env_init_params['max_stuck_steps_for_adapter'] = env_specific_config.get('max_unchanged_steps_for_termination', 30)
-        else:
-            print(f"Warning: {env_specific_config_path} for {game_name_arg} not found. Using default env parameters for Tetris.")
-            env_init_params['board_width'] = 10
-            env_init_params['board_height'] = 20
-            env_init_params['gravity'] = True
-            env_init_params['render_upscale'] = 25
-            env_init_params['queue_size'] = 4
-            env_init_params['render_mode_for_make'] = 'human'
-            env_init_params['max_stuck_steps_for_adapter'] = 30
+        with open(env_specific_config_path, 'r') as f:
+            env_specific_config = json.load(f)
+            env_init_kwargs = env_specific_config.get('env_init_kwargs', {})
+            env_init_params['board_width'] = env_init_kwargs.get('board_width', 10)
+            env_init_params['board_height'] = env_init_kwargs.get('board_height', 20)
+            env_init_params['gravity'] = env_init_kwargs.get('gravity', True)
+            env_init_params['render_upscale'] = env_init_kwargs.get('render_upscale', 25)
+            env_init_params['queue_size'] = env_init_kwargs.get('queue_size', 4)
+            env_init_params['render_mode_for_make'] = env_specific_config.get('render_mode_for_make', 'human') # Corresponds to TetrisEnv render_mode
+            env_init_params['max_stuck_steps_for_adapter'] = env_specific_config.get('max_unchanged_steps_for_termination', 30)
 
         print(f"Initializing environment: {game_name_arg} with params: {env_init_params}")
         env = TetrisEnv(
@@ -266,20 +240,13 @@ def create_environment(game_name_arg: str,
         return env
     elif game_name_arg == "pokemon_red":
         # Load params specific to Pokemon Red
-        if os.path.exists(env_specific_config_path):
-            with open(env_specific_config_path, 'r') as f:
-                env_specific_config = json.load(f)
-                env_init_kwargs = env_specific_config.get('env_init_kwargs', {})
-                env_init_params['rom_path'] = env_init_kwargs.get('rom_path')
-                env_init_params['sound'] = env_init_kwargs.get('sound', False)
-                env_init_params['render_mode_for_make'] = env_specific_config.get('render_mode', 'human')
-                env_init_params['max_stuck_steps_for_adapter'] = env_specific_config.get('max_unchanged_steps_for_termination', 20)
-        else:
-            print(f"Warning: {env_specific_config_path} for {game_name_arg} not found. Using default env parameters for Pokemon Red.")
-            env_init_params['rom_path'] = None
-            env_init_params['sound'] = False
-            env_init_params['render_mode_for_make'] = 'human'
-            env_init_params['max_stuck_steps_for_adapter'] = 20
+        with open(env_specific_config_path, 'r') as f:
+            env_specific_config = json.load(f)
+            env_init_kwargs = env_specific_config.get('env_init_kwargs', {})
+            env_init_params['rom_path'] = env_init_kwargs.get('rom_path')
+            env_init_params['sound'] = env_init_kwargs.get('sound', False)
+            env_init_params['render_mode_for_make'] = env_specific_config.get('render_mode', 'human')
+            env_init_params['max_stuck_steps_for_adapter'] = env_specific_config.get('max_unchanged_steps_for_termination', 20)
 
         print(f"Initializing environment: {game_name_arg} with params: {env_init_params}")
         env = PokemonRedEnv(
@@ -300,13 +267,13 @@ def create_environment(game_name_arg: str,
         # The runner primarily needs to provide paths and agent/run-level settings.
         env_wrapper_config_dir = os.path.join("gamingagent/envs", config_dir_name_for_env_cfg)
         
-        print(f"Initializing environment: {game_name_arg} using SuperMarioBrosEnvWrapper")
+        print(f"Initializing environment: {game_name_arg} using SuperMarioBrosEnv")
         print(f"  Wrapper config dir: {env_wrapper_config_dir}")
         print(f"  Model name for adapter: {model_name_arg}")
         print(f"  Observation mode for adapter: {obs_mode_arg}")
         print(f"  Base log dir for adapter: {cache_dir_for_adapter}")
 
-        env = SuperMarioBrosEnvWrapper(
+        env = SuperMarioBrosEnv(
             game_name=game_name_arg,
             config_dir_path=env_wrapper_config_dir, # e.g., "gamingagent/envs/retro_01_super_mario_bros"
             observation_mode=obs_mode_arg,
@@ -318,13 +285,13 @@ def create_environment(game_name_arg: str,
         # The runner primarily needs to provide paths and agent/run-level settings.
         env_wrapper_config_dir = os.path.join("gamingagent/envs", config_dir_name_for_env_cfg)
         
-        print(f"Initializing environment: {game_name_arg} using NineteenFortyTwoEnvWrapper")
+        print(f"Initializing environment: {game_name_arg} using NineteenFortyTwoEnv")
         print(f"  Wrapper config dir: {env_wrapper_config_dir}")
         print(f"  Model name for adapter: {model_name_arg}")
         print(f"  Observation mode for adapter: {obs_mode_arg}")
         print(f"  Base log dir for adapter: {cache_dir_for_adapter}")
 
-        env = NineteenFortyTwoEnvWrapper(
+        env = NineteenFortyTwoEnv(
             game_name=game_name_arg,
             config_dir_path=env_wrapper_config_dir, # e.g., "gamingagent/envs/retro_03_1942"
             observation_mode=obs_mode_arg,
@@ -337,81 +304,66 @@ def create_environment(game_name_arg: str,
         # Some will directly go to retro.Env.__init__ via super() call
         # Others are for the adapter or wrapper behavior
         env_params_for_constructor = {}
-        if os.path.exists(env_specific_config_path):
-            with open(env_specific_config_path, 'r') as f:
-                env_cfg_json = json.load(f)
-                # Params for retro.Env base class
-                retro_init_kwargs = env_cfg_json.get('env_init_kwargs', {})
-                env_params_for_constructor['game'] = retro_init_kwargs.get('retro_game_name', 'AceAttorney-GbAdvance')
-                env_params_for_constructor['state'] = retro_init_kwargs.get('retro_state_name', State.DEFAULT) # From retro.enums
-                env_params_for_constructor['scenario'] = retro_init_kwargs.get('scenario') 
-                env_params_for_constructor['info'] = retro_init_kwargs.get('info') 
-                
-                use_restricted_val = retro_init_kwargs.get('use_restricted_actions', "FILTERED") # Get the value
-                if isinstance(use_restricted_val, str):
-                    use_restricted_str_upper = use_restricted_val.upper()
-                    if use_restricted_str_upper == "DISCRETE":
-                        env_params_for_constructor['use_restricted_actions'] = Actions.DISCRETE
-                    elif use_restricted_str_upper == "MULTI_DISCRETE":
-                        env_params_for_constructor['use_restricted_actions'] = Actions.MULTI_DISCRETE
-                    elif use_restricted_str_upper == "ALL":
-                        env_params_for_constructor['use_restricted_actions'] = Actions.ALL
-                    # Default to FILTERED if string is "FILTERED" or unrecognized
-                    else: 
-                        env_params_for_constructor['use_restricted_actions'] = Actions.FILTERED
-                elif isinstance(use_restricted_val, int):
-                    # Pass integer directly, assuming it corresponds to retro.Actions enum values
-                    env_params_for_constructor['use_restricted_actions'] = use_restricted_val
+
+        with open(env_specific_config_path, 'r') as f:
+            env_cfg_json = json.load(f)
+            # Params for retro.Env base class
+            retro_init_kwargs = env_cfg_json.get('env_init_kwargs', {})
+            env_params_for_constructor['game'] = retro_init_kwargs.get('retro_game_name', 'AceAttorney-GbAdvance')
+            env_params_for_constructor['state'] = retro_init_kwargs.get('retro_state_name', State.DEFAULT) # From retro.enums
+            env_params_for_constructor['scenario'] = retro_init_kwargs.get('scenario') 
+            env_params_for_constructor['info'] = retro_init_kwargs.get('info') 
+            
+            use_restricted_val = retro_init_kwargs.get('use_restricted_actions', "FILTERED") # Get the value
+            if isinstance(use_restricted_val, str):
+                use_restricted_str_upper = use_restricted_val.upper()
+                if use_restricted_str_upper == "DISCRETE":
+                    env_params_for_constructor['use_restricted_actions'] = Actions.DISCRETE
+                elif use_restricted_str_upper == "MULTI_DISCRETE":
+                    env_params_for_constructor['use_restricted_actions'] = Actions.MULTI_DISCRETE
+                elif use_restricted_str_upper == "ALL":
+                    env_params_for_constructor['use_restricted_actions'] = Actions.ALL
+                # Default to FILTERED if string is "FILTERED" or unrecognized
                 else: 
-                    # Fallback for unexpected types, default to FILTERED
-                    print(f"Warning: Unexpected type for use_restricted_actions: {type(use_restricted_val)}. Defaulting to FILTERED.")
                     env_params_for_constructor['use_restricted_actions'] = Actions.FILTERED
-                
-                env_params_for_constructor['record'] = retro_init_kwargs.get('record', False)
-                env_params_for_constructor['players'] = retro_init_kwargs.get('players', 1)
-                
-                inttype_str = retro_init_kwargs.get('inttype', "ALL").upper()
-                if inttype_str == "CUSTOM":
-                     env_params_for_constructor['inttype'] = retro.data.Integrations.CUSTOM
-                elif inttype_str == "STABLE":
-                     env_params_for_constructor['inttype'] = retro.data.Integrations.STABLE
-                elif inttype_str == "EXPERIMENTAL":
-                     env_params_for_constructor['inttype'] = retro.data.Integrations.EXPERIMENTAL
-                elif inttype_str == "ALL":
-                     env_params_for_constructor['inttype'] = retro.data.Integrations.ALL
-                else:
-                     env_params_for_constructor['inttype'] = retro.data.Integrations.ALL
-                
-                obs_type_str = retro_init_kwargs.get('obs_type', "IMAGE").upper()
-                if obs_type_str == "RAM":
-                    env_params_for_constructor['obs_type'] = Observations.RAM
-                else: 
-                    env_params_for_constructor['obs_type'] = Observations.IMAGE
+            elif isinstance(use_restricted_val, int):
+                # Pass integer directly, assuming it corresponds to retro.Actions enum values
+                env_params_for_constructor['use_restricted_actions'] = use_restricted_val
+            else: 
+                # Fallback for unexpected types, default to FILTERED
+                print(f"Warning: Unexpected type for use_restricted_actions: {type(use_restricted_val)}. Defaulting to FILTERED.")
+                env_params_for_constructor['use_restricted_actions'] = Actions.FILTERED
+            
+            env_params_for_constructor['record'] = retro_init_kwargs.get('record', False)
+            env_params_for_constructor['players'] = retro_init_kwargs.get('players', 1)
+            
+            inttype_str = retro_init_kwargs.get('inttype', "ALL").upper()
+            if inttype_str == "CUSTOM":
+                    env_params_for_constructor['inttype'] = retro.data.Integrations.CUSTOM
+            elif inttype_str == "STABLE":
+                    env_params_for_constructor['inttype'] = retro.data.Integrations.STABLE
+            elif inttype_str == "EXPERIMENTAL":
+                    env_params_for_constructor['inttype'] = retro.data.Integrations.EXPERIMENTAL
+            elif inttype_str == "ALL":
+                    env_params_for_constructor['inttype'] = retro.data.Integrations.ALL
+            else:
+                    env_params_for_constructor['inttype'] = retro.data.Integrations.ALL
+            
+            obs_type_str = retro_init_kwargs.get('obs_type', "IMAGE").upper()
+            if obs_type_str == "RAM":
+                env_params_for_constructor['obs_type'] = Observations.RAM
+            else: 
+                env_params_for_constructor['obs_type'] = Observations.IMAGE
 
-                # Params for GymEnvAdapter instance within AceAttorneyEnv
-                env_params_for_constructor['adapter_game_name'] = game_name_arg # Should be "ace_attorney"
-                env_params_for_constructor['adapter_observation_mode'] = obs_mode_arg
-                env_params_for_constructor['adapter_agent_cache_dir'] = cache_dir_for_adapter
-                env_params_for_constructor['adapter_config_path'] = env_specific_config_path
-                env_params_for_constructor['adapter_max_stuck_steps'] = env_cfg_json.get('max_unchanged_steps_for_termination', 50)
-                
-                # Parameter for AceAttorneyEnv wrapper itself (e.g. render mode)
-                env_params_for_constructor['wrapper_render_mode'] = env_cfg_json.get('render_mode_gym_adapter', 'rgb_array')
-
-        else:
-            print(f"Warning: {env_specific_config_path} for {game_name_arg} not found. Using default parameters for AceAttorneyEnv.")
-            # Fill with defaults if config is missing
-            env_params_for_constructor['game'] = 'AceAttorney-GbAdvance'
-            env_params_for_constructor['state'] = State.DEFAULT
-            env_params_for_constructor['use_restricted_actions'] = Actions.FILTERED
-            env_params_for_constructor['obs_type'] = Observations.IMAGE
-            env_params_for_constructor['inttype'] = retro.data.Integrations.ALL
-            env_params_for_constructor['adapter_game_name'] = game_name_arg
+            # Params for GymEnvAdapter instance within AceAttorneyEnv
+            env_params_for_constructor['adapter_game_name'] = game_name_arg # Should be "ace_attorney"
             env_params_for_constructor['adapter_observation_mode'] = obs_mode_arg
             env_params_for_constructor['adapter_agent_cache_dir'] = cache_dir_for_adapter
             env_params_for_constructor['adapter_config_path'] = env_specific_config_path
-            env_params_for_constructor['adapter_max_stuck_steps'] = 50
-            env_params_for_constructor['wrapper_render_mode'] = 'rgb_array'
+            env_params_for_constructor['adapter_max_stuck_steps'] = env_cfg_json.get('max_unchanged_steps_for_termination', 50)
+            
+            # Parameter for AceAttorneyEnv wrapper itself (e.g. render mode)
+            env_params_for_constructor['wrapper_render_mode'] = env_cfg_json.get('render_mode_gym_adapter', 'rgb_array')
 
         print(f"Initializing environment: AceAttorneyEnv with combined params: { {k:v for k,v in env_params_for_constructor.items() if k not in ['adapter_agent_cache_dir']} }")
         
@@ -424,19 +376,14 @@ def create_environment(game_name_arg: str,
         # The runner primarily needs to provide paths and agent/run-level settings.
         env_wrapper_config_dir = os.path.join("gamingagent/envs", config_dir_name_for_env_cfg)
         
-        print(f"Initializing environment: {game_name_arg} using DoomEnvWrapper")
+        print(f"Initializing environment: {game_name_arg} using DoomEnv")
         print(f"  Wrapper config dir: {env_wrapper_config_dir}")
         print(f"  Model name for adapter: {model_name_arg}")
         print(f"  Observation mode for adapter: {obs_mode_arg}")
         print(f"  Base log dir for adapter: {cache_dir_for_adapter}")
         print(f"  Config path: {env_specific_config_path}")
 
-        # Verify config file exists
-        if not os.path.exists(env_specific_config_path):
-            print(f"ERROR: Config file not found at {env_specific_config_path}")
-            return None
-
-        env = DoomEnvWrapper(
+        env = DoomEnv(
             game_name="doom",  # Match test file
             config_dir_path=os.path.dirname(env_specific_config_path),  # Use the directory containing the config file
             observation_mode=obs_mode_arg,
@@ -449,6 +396,36 @@ def create_environment(game_name_arg: str,
             debug=True  # Add debug mode to help track issues
         )
         return env
+    elif game_name_arg == "tictactoe":
+        env_wrapper_config_dir = os.path.join("gamingagent/envs", config_dir_name_for_env_cfg)
+        print(f"Initializing environment: {game_name_arg} ({multiagent_arg})")
+        print(f"  Wrapper config dir: {env_wrapper_config_dir}")
+        print(f"  Model name for adapter: {model_name_arg}")
+        print(f"  Observation mode for adapter: {obs_mode_arg}")
+        print(f"  Base log dir for adapter: {cache_dir_for_adapter}")
+        print(f"  Config path: {env_specific_config_path}")
+
+        with open(env_specific_config_path, "r") as f:
+            env_json = json.load(f)
+        env_init_kwargs: Dict[str, Any] = env_json.get("env_init_kwargs", {})
+
+        render_mode = env_init_kwargs.get("render_mode", "human")
+
+        # single‑agent
+        assert multiagent_arg == "single", "this script only supports single-agent TicTacToe."
+
+        opponent_policy = env_init_kwargs.get("opponent_policy", "random")
+        env = SingleTicTacToeEnv(
+            render_mode=render_mode,
+            opponent_policy=opponent_policy,
+            # adapter
+            game_name_for_adapter="single_tictactoe",
+            observation_mode_for_adapter=obs_mode_arg,
+            agent_cache_dir_for_adapter=cache_dir_for_adapter,
+            game_specific_config_path_for_adapter=env_specific_config_path,
+        )
+        return env
+
     else:
         print(f"ERROR: Game '{game_name_arg}' is not defined or implemented in custom_runner.py's create_environment function.")
         return None
@@ -472,7 +449,7 @@ def run_game_episode(agent: BaseAgent, game_env: gym.Env, episode_id: int, args:
         end_time = time.time()
         time_taken_s = end_time - start_time
         # Special handling for Doom game
-        if isinstance(game_env, DoomEnvWrapper):
+        if isinstance(game_env, DoomEnv):
             # Handle action like test file
             if action_dict and action_dict.get("action") is not None:
                 action_str = str(action_dict.get("action")).strip().lower()
@@ -769,7 +746,8 @@ def main():
         obs_mode_arg=args.observation_mode,
         config_dir_name_for_env_cfg=config_dir_name,
         cache_dir_for_adapter=runner_log_dir_base,
-        harness=args.harness
+        harness=args.harness,
+        multiagent_arg=args.multiagent_arg,
     )
 
     if game_env is None:

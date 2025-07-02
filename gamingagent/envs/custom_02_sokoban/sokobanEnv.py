@@ -9,7 +9,7 @@ import re # For parsing levels.txt
 
 from gamingagent.envs.gym_env_adapter import GymEnvAdapter
 from gamingagent.modules.core_module import Observation
-from gymnasium.spaces import Discrete, Box 
+from gymnasium.spaces import Discrete, Box
 from gymnasium.core import RenderFrame
 
 # It's better to move create_board_image_sokoban to env_utils if it's generic enough,
