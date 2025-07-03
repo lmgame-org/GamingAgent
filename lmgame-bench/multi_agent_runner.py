@@ -225,6 +225,23 @@ def play_episode(env, agents, eid, max_turns, seed):
         f"Episode {eid}: turns={t+1} X={totals['player_1']:.1f} | O={totals['player_2']:.1f}"
     )
 
+    if (hasattr(env, 'adapter_p1') and hasattr(env, 'adapter_p2')) and (env.adapter_p1 and env.adapter_p2):
+        env.adapter_p1.record_episode_result(
+            episode_id=eid,
+            score=totals["player_1"],
+            steps=t+1,
+            total_reward=totals["player_1"],
+            total_perf_score=totals["player_1"] # Potentially overwritten
+        )
+
+        env.adapter_p2.record_episode_result(
+            episode_id=eid,
+            score=totals["player_2"],
+            steps=t+1,
+            total_reward=totals["player_2"],
+            total_perf_score=totals["player_2"] # Potentially overwritten
+        )
+
 ###############################################################################
 # CLI
 ###############################################################################
