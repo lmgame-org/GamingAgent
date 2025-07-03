@@ -68,7 +68,8 @@ class BaseModule(CoreModule):
         if self.observation_mode in ["vision", "both"]:
             assert observation.img_path is not None, "No vision observation available"
         if self.observation_mode in ["text", "both"]: 
-            assert (observation.textual_representation is not None) or (observation.processed_visual_description is not None), "No textual representation available"
+            print("observation.textual_representation:", observation.textual_representation)
+            assert (observation.textual_representation is not None) or (observation.processed_visual_description is not None), f"Observation mode set to: {self.observation_mode}, but no textual representation available"
         
         # Create the full prompt with the text-based game state
         full_context = observation.get_complete_prompt(observation_mode=self.observation_mode, prompt_template=self.prompt)

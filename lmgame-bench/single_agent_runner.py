@@ -106,7 +106,6 @@ def parse_arguments(defaults_map=None, argv_to_parse=None):
     return parser.parse_args()
 
 def create_environment(game_name_arg: str, 
-                       model_name_arg: str,
                        obs_mode_arg: str, 
                        config_dir_name_for_env_cfg: str, # For loading game_env_config.json
                        cache_dir_for_adapter: str,
@@ -117,6 +116,9 @@ def create_environment(game_name_arg: str,
     # TODO: directly add `config_dir_name_for_env_cfg` support to all environments
     env_specific_config_path = os.path.join("gamingagent/envs", config_dir_name_for_env_cfg, "game_env_config.json")
     env_init_params = {} # Will be populated based on the specific game
+
+    # single‑agent
+    assert multiagent_arg == "single", "This script only supports single-agent games."
 
     if not os.path.exists(env_specific_config_path):
             print(f"ERROR: Config file not found at {env_specific_config_path}")
@@ -269,7 +271,6 @@ def create_environment(game_name_arg: str,
         
         print(f"Initializing environment: {game_name_arg} using SuperMarioBrosEnv")
         print(f"  Wrapper config dir: {env_wrapper_config_dir}")
-        print(f"  Model name for adapter: {model_name_arg}")
         print(f"  Observation mode for adapter: {obs_mode_arg}")
         print(f"  Base log dir for adapter: {cache_dir_for_adapter}")
 
@@ -287,7 +288,6 @@ def create_environment(game_name_arg: str,
         
         print(f"Initializing environment: {game_name_arg} using NineteenFortyTwoEnv")
         print(f"  Wrapper config dir: {env_wrapper_config_dir}")
-        print(f"  Model name for adapter: {model_name_arg}")
         print(f"  Observation mode for adapter: {obs_mode_arg}")
         print(f"  Base log dir for adapter: {cache_dir_for_adapter}")
 
@@ -378,7 +378,6 @@ def create_environment(game_name_arg: str,
         
         print(f"Initializing environment: {game_name_arg} using DoomEnv")
         print(f"  Wrapper config dir: {env_wrapper_config_dir}")
-        print(f"  Model name for adapter: {model_name_arg}")
         print(f"  Observation mode for adapter: {obs_mode_arg}")
         print(f"  Base log dir for adapter: {cache_dir_for_adapter}")
         print(f"  Config path: {env_specific_config_path}")
@@ -391,16 +390,13 @@ def create_environment(game_name_arg: str,
             render_mode_human=True,  # Enable human rendering
             record_video=False,
             video_dir="videos/doom",
-            model_name=model_name_arg,
             headless=False,  # Allow display
             debug=True  # Add debug mode to help track issues
         )
         return env
     elif game_name_arg == "tictactoe":
         env_wrapper_config_dir = os.path.join("gamingagent/envs", config_dir_name_for_env_cfg)
-        print(f"Initializing environment: {game_name_arg} ({multiagent_arg})")
         print(f"  Wrapper config dir: {env_wrapper_config_dir}")
-        print(f"  Model name for adapter: {model_name_arg}")
         print(f"  Observation mode for adapter: {obs_mode_arg}")
         print(f"  Base log dir for adapter: {cache_dir_for_adapter}")
         print(f"  Config path: {env_specific_config_path}")
@@ -410,9 +406,6 @@ def create_environment(game_name_arg: str,
         env_init_kwargs: Dict[str, Any] = env_json.get("env_init_kwargs", {})
 
         render_mode = env_init_kwargs.get("render_mode", "human")
-
-        # single‑agent
-        assert multiagent_arg == "single", "this script only supports single-agent TicTacToe."
 
         opponent_policy = env_init_kwargs.get("opponent_policy", "random")
         env = SingleTicTacToeEnv(
@@ -425,9 +418,8 @@ def create_environment(game_name_arg: str,
             game_specific_config_path_for_adapter=env_specific_config_path,
         )
         return env
-
     else:
-        print(f"ERROR: Game '{game_name_arg}' is not defined or implemented in custom_runner.py's create_environment function.")
+        print(f"ERROR: Game '{game_name_arg}' is not defined or implemented in single_agent_runner.py's create_environment function.")
         return None
 
 def run_game_episode(agent: BaseAgent, game_env: gym.Env, episode_id: int, args: argparse.Namespace):
@@ -528,7 +520,7 @@ def run_game_episode(agent: BaseAgent, game_env: gym.Env, episode_id: int, args:
         current_checkpoint_score = 0
         if hasattr(game_env, 'calculate_final_performance_score'):
             try:
-                # This will read the cumulative dialogue log up to this point in this execution of custom_runner.py
+                # This will read the cumulative dialogue log up to this point in this execution of the script
                 current_checkpoint_score = game_env.calculate_final_performance_score()
                 print(f"[Runner] Ace Attorney Episode {episode_id}: Checkpoint score calculated: {current_checkpoint_score}. Overwriting episode summary values.")
                 effective_total_reward = float(current_checkpoint_score)
@@ -742,7 +734,6 @@ def main():
     # Env params are now loaded inside create_environment
     game_env = create_environment(
         game_name_arg=args.game_name,
-        model_name_arg=args.model_name,
         obs_mode_arg=args.observation_mode,
         config_dir_name_for_env_cfg=config_dir_name,
         cache_dir_for_adapter=runner_log_dir_base,

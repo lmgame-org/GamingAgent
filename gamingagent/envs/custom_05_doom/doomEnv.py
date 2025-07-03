@@ -61,7 +61,6 @@ class DoomEnv(gym.Env):
         observation_mode (str): Mode of observation ("vision", "text", or "both")
         base_log_dir (str): Base directory for logging
         render_mode (str): Rendering mode
-        model_name (str): Name of the model
         headless (bool): Whether to run in headless mode
         record_video (bool): Whether to record video
         video_dir (str): Directory to save videos
@@ -76,7 +75,6 @@ class DoomEnv(gym.Env):
         observation_mode: str = "vision",
         base_log_dir: str = "cache/doom",
         render_mode: str | None = None,
-        model_name: str = "default",
         headless: bool = True,
         record_video: bool = False,
         video_dir: str | None = None,
@@ -91,7 +89,6 @@ class DoomEnv(gym.Env):
             observation_mode: Mode of observation ("vision", "text", or "both")
             base_log_dir: Base directory for logging
             render_mode: Rendering mode
-            model_name: Name of the model
             headless: Whether to run in headless mode
             record_video: Whether to record video
             video_dir: Directory to save videos
@@ -121,7 +118,6 @@ class DoomEnv(gym.Env):
         self.observation_mode = observation_mode.lower()
         self.base_log_dir = base_log_dir
         self.render_mode = "human" if render_mode_human else render_mode
-        self.model_name = model_name
         self.headless = headless
         self.record_video = record_video
         self.video_dir = video_dir
