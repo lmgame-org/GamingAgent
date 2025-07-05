@@ -242,7 +242,8 @@ class SingleTicTacToeEnv(gym.Env):
             cell = env_act_idx - 1
             self.pz_env.step(cell)
         else:
-            self.pz_env.step(None)  # no‑op or illegal
+            # Use a valid no-op action (0) instead of None
+            self.pz_env.step(0)  # no-op action
 
     def step(
         self,
@@ -320,9 +321,13 @@ class SingleTicTacToeEnv(gym.Env):
 
     # Rendering
     def _render_frame_rgb(self) -> Optional[np.ndarray]:
-        # Always use the current single-agent board, not self.current_player
-        board = self._current_board_state()
-        temp_path = os.path.join(self.adapter.agent_cache_dir, "_temp_render.png")
+        # Always update before rendering
+        self._update_current_board_state()
+        # Use player_1's perspective for consistent rendering (1=X, 2=O)
+        board = self._board_for("player_1")
+        temp_path = os.path.join(
+            self._adapters["player_1"].agent_cache_dir, "_temp_render.png"
+        )
         create_board_image_tictactoe(board, temp_path, self.tile_size_for_render)
         if os.path.exists(temp_path):
             arr = np.array(Image.open(temp_path).convert("RGB"))
@@ -424,10 +429,22 @@ class MultiTicTacToeEnv(SingleTicTacToeEnv):
         }
 
     def _update_current_board_state(self):
-        self._board_state_dict = {
-            "player_1": _convert_obs(self.pz_env.observe("player_1")),
-            "player_2": _convert_obs(self.pz_env.observe("player_2")),
-        }
+        # Get the actual board state from PettingZoo
+        p1_obs = self.pz_env.observe("player_1")
+        p2_obs = self.pz_env.observe("player_2")
+        
+        # For player_1: use standard conversion (1=X, 2=O)
+        self._board_state_dict["player_1"] = _convert_obs(p1_obs)
+        
+        # For player_2: we need to swap the perspective
+        # In PettingZoo, player_2's plane 0 is their own pieces, plane 1 is opponent's pieces
+        # But _convert_obs assumes plane 0 = agent, plane 1 = opponent
+        # So we need to swap the planes for player_2
+        planes = p2_obs["observation"]
+        player_2_board = np.zeros((3, 3), dtype=np.uint8)
+        player_2_board[planes[:, :, 0] == 1] = 1  # player_2's pieces (O)
+        player_2_board[planes[:, :, 1] == 1] = 2  # player_1's pieces (X)
+        self._board_state_dict["player_2"] = player_2_board
 
     def _board_for(self, agent_name: str) -> np.ndarray:
         return self._board_state_dict[agent_name]
@@ -529,9 +546,10 @@ class MultiTicTacToeEnv(SingleTicTacToeEnv):
     def _render_frame_rgb(self) -> Optional[np.ndarray]:
         # Always update before rendering
         self._update_current_board_state()
-        board = self._board_for(self.current_player)
+        # Use player_1's perspective for consistent rendering (1=X, 2=O)
+        board = self._board_for("player_1")
         temp_path = os.path.join(
-            self._adapters[self.current_player].agent_cache_dir, "_temp_render.png"
+            self._adapters["player_1"].agent_cache_dir, "_temp_render.png"
         )
         create_board_image_tictactoe(board, temp_path, self.tile_size_for_render)
         if os.path.exists(temp_path):
