@@ -5,16 +5,15 @@
     "opponent_policy": "random"
   },
   "action_mapping": {
-    "no_op": 0,
-    "place 0": 1,
-    "place 1": 2,
-    "place 2": 3,
-    "place 3": 4,
-    "place 4": 5,
-    "place 5": 6,
-    "place 6": 7,
-    "place 7": 8,
-    "place 8": 9
+    "place 0": 0,
+    "place 1": 1,
+    "place 2": 2,
+    "place 3": 3,
+    "place 4": 4,
+    "place 5": 5,
+    "place 6": 6,
+    "place 7": 7,
+    "place 8": 8
   },
   "render_mode": "human",              
   "max_unchanged_steps_for_termination": 5

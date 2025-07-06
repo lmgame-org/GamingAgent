@@ -1082,6 +1082,10 @@ def modal_vllm_text_completion(
         messages.append({"role": "system", "content": system_prompt})
     messages.append({"role": "user", "content": prompt})
 
+    if "Qwen2.5-7B" in model_name and token_limit > 20000:
+        print("Qwen2.5 7B only supports 32768 tokens")
+        token_limit = 20000
+    
     response = client.chat.completions.create(
         model=model_name,
         messages=messages,
@@ -1127,6 +1131,10 @@ def modal_vllm_completion(
         messages.append({"role": "system", "content": system_prompt})
     messages.append({"role": "user", "content": user_content})
     
+    if "Qwen-2.5-7B" in model_name and token_limit > 20000:
+        print("Qwen-2.5 7B only supports 32768 tokens")
+        token_limit = 20000
+
     response = client.chat.completions.create(
         model=model_name,
         messages=messages,
@@ -1171,6 +1179,10 @@ def modal_vllm_multiimage_completion(
     if system_prompt:
         messages.append({"role": "system", "content": system_prompt})
     messages.append({"role": "user", "content": user_content})
+
+    if "Qwen-2.5-7B" in model_name and token_limit > 20000:
+        print("Qwen-2.5 7B only supports 32768 tokens")
+        token_limit = 20000
 
     response = client.chat.completions.create(
         model=model_name,

@@ -41,8 +41,7 @@ from gamingagent.envs.gym_env_adapter import GymEnvAdapter
 from gamingagent.modules.core_module import Observation
 
 # Action lookup table & geometry
-ACTION_LOOKUP: Dict[int, str] = {0: "no operation"}
-ACTION_LOOKUP.update({i + 1: f"place {i}" for i in range(9)})  # 1‑9 → cells 0‑8
+ACTION_LOOKUP: Dict[int, str] = {i: f"place {i}" for i in range(9)}  # 0-8 → cells 0‑8
 
 # Board layout (row, col) coordinates for each cell index
 CELL_INDEX_TO_COORD = {
@@ -87,12 +86,8 @@ def _create_text_representation(board: np.ndarray, action_mask: np.ndarray, curr
     legal_moves = []
     for i in range(len(action_mask)):
         if action_mask[i] == 1:
-            if i == 0:
-                legal_moves.append("no operation")
-            else:
-                cell_idx = i - 1
-                row, col = cell_idx // 3, cell_idx % 3
-                legal_moves.append(f"place {cell_idx} (row {row}, col {col})")
+                row, col = i // 3, i % 3
+                legal_moves.append(f"place {i} (row {row}, col {col})")
     
     board_lines.append("")
     board_lines.append(f"Current Player: {current_player}")
@@ -162,8 +157,6 @@ class SingleTicTacToeEnv(gym.Env):
     -----
     * **single** – agent controls *player_1* (X); *player_2* is a pluggable
       opponent policy (random by default).
-    * **self_play** – single agent controls both players, making it suitable
-      for self‑play algorithms without spawning a second process.
     """
 
     metadata = {"render_modes": ["human", "rgb_array", "raw"], "render_fps": 4}
@@ -171,7 +164,7 @@ class SingleTicTacToeEnv(gym.Env):
     def __init__(
         self,
         render_mode: Optional[str] = None,
-        env_type: str = "self_play",  # "single" | "self_play"
+        env_type: str = "single",  # "single"
         opponent_policy: str | Callable | None = "random",
         tile_size_for_render: int = 64,
         # Adapter plumbing
@@ -183,7 +176,7 @@ class SingleTicTacToeEnv(gym.Env):
     ):
         super().__init__()
 
-        assert env_type in {"single", "self_play"}, "env_type must be 'single' or 'self_play'"
+        assert env_type in {"single"}, "env_type must be 'single'"
         self.env_type = env_type
         self.render_mode = render_mode
         self.tile_size_for_render = tile_size_for_render
@@ -192,8 +185,10 @@ class SingleTicTacToeEnv(gym.Env):
         # Underlying PettingZoo env
         self.pz_env = tictactoe_v3.env(render_mode=None)
 
-        # Gym‑style spaces (extra no‑op slot)
-        self.action_space = Discrete(10)
+        self.current_player: str = "player_1"
+
+        # Gym‑style spaces
+        self.action_space = Discrete(9)
         self.observation_space = Box(low=0, high=2, shape=(3, 3), dtype=np.uint8)
 
         # Adapter initialisation
@@ -228,8 +223,8 @@ class SingleTicTacToeEnv(gym.Env):
                 "Use 'random' or implement your own."
             )
 
-    def _current_board_state(self) -> np.ndarray:
-        return _convert_obs(self.pz_env.observe("player_1"))
+    def _current_board_state(self, player: str = "player_1") -> np.ndarray:
+        return _convert_obs(self.pz_env.observe(player))
 
     def _get_info(self) -> Dict[str, Any]:
         return {
@@ -256,9 +251,13 @@ class SingleTicTacToeEnv(gym.Env):
         self.current_reward_last_step = 0.0
 
         self.pz_env.reset(seed=seed)
+        self.current_player = "player_1"
+
+        board = self._current_board_state(self.current_player)
+        obs_pz = self.pz_env.observe(self.current_player)
+
         self.adapter.reset_episode(episode_id)
 
-        board = self._current_board_state()
         info = self._get_info()
 
         img_path = text_repr = None
@@ -269,7 +268,9 @@ class SingleTicTacToeEnv(gym.Env):
             create_board_image_tictactoe(board, img_path, self.tile_size_for_render, self.cumulative_perf_score)
         
         if self.adapter.observation_mode in {"text", "both"}:
-            text_repr = _create_text_representation(board, self.pz_env.observe("player_1")["action_mask"], "player_1")
+            text_repr = _create_text_representation(
+                board, obs_pz["action_mask"], self.current_player
+            )
 
         agent_obs = self.adapter.create_agent_observation(
             img_path=img_path, text_representation=text_repr, max_memory=max_memory
@@ -281,12 +282,7 @@ class SingleTicTacToeEnv(gym.Env):
 
     def _apply_action(self, env_act_idx: Optional[int]):
         """Helper to apply a mapped Gym action to whichever agent is active."""
-        if env_act_idx is not None and 1 <= env_act_idx <= 9:
-            cell = env_act_idx - 1
-            self.pz_env.step(cell)
-        else:
-            # Use a valid no-op action (0) instead of None
-            self.pz_env.step(0)  # no-op action
+        self.pz_env.step(env_act_idx)
 
     def step(
         self,
@@ -306,8 +302,11 @@ class SingleTicTacToeEnv(gym.Env):
             # Opponent move if game not over
             if not self.pz_env.terminations["player_1"]:
                 self._default_opponent_move(self.opponent_policy)
-        else:  # self_play
-            self._apply_action(env_act_idx)
+            self.current_player = self.pz_env.agent_selection
+        else:
+            raise NotImplementedError(
+                f"Environment type '{self.env_type}' not implemented. "
+            )
 
         # Reward & termination info (perspective of player_1)
         reward = float(self.pz_env.rewards["player_1"])
@@ -324,9 +323,10 @@ class SingleTicTacToeEnv(gym.Env):
         truncated = self.pz_env.truncations["player_1"]
         self.num_env_steps += 1
 
-        board = self._current_board_state()
+        board = self._current_board_state(self.current_player)
+        obs_pz = self.pz_env.observe(self.current_player)
+        
         info = self._get_info()
-
         img_path = text_repr = None
         if self.adapter.observation_mode in {"vision", "both"}:
             img_path = self.adapter._create_agent_observation_path(
@@ -335,8 +335,11 @@ class SingleTicTacToeEnv(gym.Env):
             create_board_image_tictactoe(
                 board, img_path, self.tile_size_for_render, perf, agent_action_str
             )
+        
         if self.adapter.observation_mode in {"text", "both"}:
-            text_repr = _create_text_representation(board, self.pz_env.observe("player_1")["action_mask"], "player_1")
+            text_repr = _create_text_representation(
+                board, obs_pz["action_mask"], self.current_player
+            )
 
         agent_obs = self.adapter.create_agent_observation(
             img_path=img_path, text_representation=text_repr
@@ -364,12 +367,9 @@ class SingleTicTacToeEnv(gym.Env):
 
     # Rendering
     def _render_frame_rgb(self) -> Optional[np.ndarray]:
-        # Always update before rendering
-        self._update_current_board_state()
-        # Use player_1's perspective for consistent rendering (1=X, 2=O)
-        board = self._board_for("player_1")
+        board = self._current_board_state(self.current_player)
         temp_path = os.path.join(
-            self._adapters["player_1"].agent_cache_dir, "_temp_render.png"
+            self.adapter.agent_cache_dir, "_temp_render.png"
         )
         create_board_image_tictactoe(board, temp_path, self.tile_size_for_render)
         if os.path.exists(temp_path):
@@ -403,7 +403,7 @@ class SingleTicTacToeEnv(gym.Env):
             self._render_frame()
             return None
         elif self.render_mode == "raw":
-            return self._current_board_state()
+            return self._current_board_state(self.current_player)
         return None
 
     def close(self):
@@ -436,7 +436,7 @@ class MultiTicTacToeEnv(SingleTicTacToeEnv):
     ):
         super().__init__(
             render_mode=render_mode,
-            env_type="self_play",
+            env_type="single",
             opponent_policy=None,
             tile_size_for_render=tile_size_for_render,
             game_name_for_adapter=game_name_for_adapter,
