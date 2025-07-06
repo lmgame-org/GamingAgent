@@ -40,6 +40,7 @@ class BaseAgent(ABC):
             scaffolding=None,
             vllm_url=None,
             modal_url=None,
+            token_limit=100000,
         ):
         """
         Initialize the agent with base parameters and modules.
@@ -75,6 +76,7 @@ class BaseAgent(ABC):
         self.use_summary = use_summary if harness else False
         self.observation_mode = observation_mode
         self.scaffolding = scaffolding
+        self.token_limit = token_limit
 
         print(f"Initializing agent for game '{self.game_name}' with model '{self.model_name}'.")
         print(f"Harness mode: {'ON' if self.harness else 'OFF'}")
@@ -195,7 +197,7 @@ class BaseAgent(ABC):
             system_prompt=self.config["base_module"]["system_prompt"],
             prompt=self.config["base_module"]["prompt"],
             observation_mode=self.observation_mode,
-            token_limit=100000,
+            token_limit=self.token_limit,
             reasoning_effort="high",
             vllm_url=self.vllm_url,
             modal_url=self.modal_url
