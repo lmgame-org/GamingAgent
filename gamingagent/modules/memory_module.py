@@ -13,15 +13,17 @@ class MemoryModule(CoreModule):
     """
 
     def __init__(self,
-                 model_name: str = "claude-3-7-sonnet-latest",
-                 cache_dir: str = "cache",
-                 reflection_system_prompt: str = "",
-                 reflection_prompt: str = "",
-                 summary_system_prompt: str = "",
-                 summary_prompt: str = "",
-                 max_memory: int = 10,
-                 use_reflection: bool = True,
-                 use_summary: bool = False):
+                model_name: str = "claude-3-7-sonnet-latest",
+                cache_dir: str = "cache",
+                reflection_system_prompt: str = "",
+                reflection_prompt: str = "",
+                summary_system_prompt: str = "",
+                summary_prompt: str = "",
+                max_memory: int = 10,
+                use_reflection: bool = True,
+                use_summary: bool = False,
+                vllm_url=None,
+                modal_url=None):
 
         super().__init__(
             module_name="memory_module",
@@ -29,6 +31,8 @@ class MemoryModule(CoreModule):
             system_prompt=reflection_system_prompt,
             prompt=reflection_prompt,
             cache_dir=cache_dir,
+            vllm_url=vllm_url,
+            modal_url=modal_url
         )
 
         self.max_memory = max_memory

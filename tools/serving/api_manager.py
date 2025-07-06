@@ -100,6 +100,10 @@ class APIManager:
 
         self.vllm_url = vllm_url
         self.modal_url = modal_url
+
+        print("API manager initialization parameters:")
+        print("vllm_url:", self.vllm_url)
+        print("modal_url:", self.modal_url)
         
         # Create timestamp for this session (use from info if provided)
         self.timestamp = self.info.get('datetime', datetime.datetime.now().strftime("%Y%m%d_%H%M%S"))

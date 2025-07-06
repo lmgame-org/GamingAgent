@@ -28,7 +28,9 @@ class PerceptionModule(CoreModule):
                 token_limit=100000, 
                 reasoning_effort="high",
                 scaffolding=None,
-                use_perception=True
+                use_perception=True,
+                vllm_url=None,
+                modal_url=None
         ):
         """
         Initialize the perception module.
@@ -58,7 +60,9 @@ class PerceptionModule(CoreModule):
             prompt=prompt,
             cache_dir=cache_dir,
             token_limit=token_limit,
-            reasoning_effort=reasoning_effort
+            reasoning_effort=reasoning_effort,
+            vllm_url=vllm_url,
+            modal_url=modal_url
         )
 
         valid_observation_modes = ["vision", "text", "both"]

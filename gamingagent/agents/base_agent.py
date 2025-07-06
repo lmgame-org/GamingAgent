@@ -83,6 +83,10 @@ class BaseAgent(ABC):
         self.vllm_url = vllm_url
         self.modal_url = modal_url
 
+        print("BaseAgent initialization parameters:")
+        print("vllm_url:", self.vllm_url)
+        print("modal_url:", self.modal_url)
+
         # initialize harness modules based on game titles
         # for games like Pokemon, memory module is needed to make meaningful progress
         if game_name.lower() in GAMES_REQUIRE_HARNESS:
@@ -209,7 +213,9 @@ class BaseAgent(ABC):
                     system_prompt=self.config["perception_module"]["system_prompt"],
                     prompt=self.config["perception_module"]["prompt"],
                     scaffolding=self.scaffolding,
-                    use_perception=self.use_perception
+                    use_perception=self.use_perception,
+                    vllm_url=self.vllm_url,
+                    modal_url=self.modal_url
                 )
             else:
                 # Can't use default PerceptionModule as it's abstract
@@ -228,7 +234,9 @@ class BaseAgent(ABC):
                     summary_prompt=self.config["memory_module"].get("summary", {}).get("prompt", ""),
                     max_memory=self.max_memory,
                     use_reflection=self.use_reflection,
-                    use_summary=self.use_summary
+                    use_summary=self.use_summary,
+                    vllm_url=self.vllm_url,
+                    modal_url=self.modal_url
                 )
             else:
                 modules["memory_module"] = MemoryModule(
@@ -240,7 +248,9 @@ class BaseAgent(ABC):
                     summary_prompt=self.config["memory_module"].get("summary", {}).get("prompt", ""),
                     max_memory=self.max_memory,
                     use_reflection=self.use_reflection,
-                    use_summary=self.use_summary
+                    use_summary=self.use_summary,
+                    vllm_url=self.vllm_url,
+                    modal_url=self.modal_url
                 )
             
             # TODO: make token_limit and reasoning_effort configurable

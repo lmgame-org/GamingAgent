@@ -1119,7 +1119,7 @@ def modal_vllm_completion(
     if system_prompt:
         messages.append({"role": "system", "content": system_prompt})
     messages.append({"role": "user", "content": user_content})
-
+    
     response = client.chat.completions.create(
         model=model_name,
         messages=messages,

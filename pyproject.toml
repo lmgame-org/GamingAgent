@@ -17,7 +17,7 @@ dependencies = [
     "anthropic==0.49.0",
     "mss==10.0.0",
     "numpy==1.24.4",
-    "openai==1.65.4",
+    "openai",
     "opencv_python",
     "opencv_python_headless",
     "protobuf==5.29.3",

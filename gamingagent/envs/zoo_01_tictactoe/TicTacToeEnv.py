@@ -128,7 +128,7 @@ class SingleTicTacToeEnv(gym.Env):
     def __init__(
         self,
         render_mode: Optional[str] = None,
-        env_type: str = "single",  # "single" | "self_play"
+        env_type: str = "self_play",  # "single" | "self_play"
         opponent_policy: str | Callable | None = "random",
         tile_size_for_render: int = 64,
         # Adapter plumbing
