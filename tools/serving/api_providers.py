@@ -14,7 +14,7 @@ import requests
 
 def _sleep_with_backoff(base_delay: int, attempt: int) -> None:
     delay = base_delay * (2 ** attempt) + random.uniform(0, 1)
-    print(f"Retrying in {delay:.2f}s … (attempt {attempt + 1})")
+    print(f"Retrying in {delay:.2f}s … (attempt {attempt + 1})")
     time.sleep(delay)
 
 def retry_on_openai_error(func):
@@ -1066,8 +1066,11 @@ def modal_vllm_text_completion(
 ):
     model_name = parse_modal_model_name(model_name)
 
+    # Ensure URL ends with /v1
+    if not url.endswith('/v1'):
+        url = url + '/v1'
+
     print(f"calling modal_vllm_text_completion...\nmodel_name: {model_name}\nurl: {url}\n")
-    #complete_url = f"{url}:{port}/v1"
 
     if api_key:
         client = OpenAI(api_key=api_key, base_url=url)
@@ -1099,7 +1102,11 @@ def modal_vllm_completion(
     url: str = "https://your-modal-url.modal.run/v1",
 ):
     model_name = parse_modal_model_name(model_name)
-    #complete_url = f"{url}:{port}/v1"
+    
+    # Ensure URL ends with /v1
+    if not url.endswith('/v1'):
+        url = url + '/v1'
+    
     print(f"calling modal_vllm_completion...\nmodel_name: {model_name}\nurl: {url}\n")
     
     if api_key:
@@ -1140,7 +1147,11 @@ def modal_vllm_multiimage_completion(
     url: str = "https://your-modal-url.modal.run/v1",
 ):
     model_name = parse_modal_model_name(model_name)
-    #complete_url = f"{url}:{port}/v1"
+    
+    # Ensure URL ends with /v1
+    if not url.endswith('/v1'):
+        url = url + '/v1'
+    
     print(f"calling modal_multiimage_vllm_completion...\nmodel_name: {model_name}\nurl: {url}\n")
     
     if api_key:

@@ -60,6 +60,49 @@ def _convert_obs(pz_obs: Dict[str, np.ndarray]) -> np.ndarray:
     board[planes[:, :, 1] == 1] = 2  # opponent (O)
     return board
 
+# Helper: create informative text representation including action mask
+def _create_text_representation(board: np.ndarray, action_mask: np.ndarray, current_player: str) -> str:
+    """Create a comprehensive text representation including legal moves."""
+    # Create a visual board representation
+    board_lines = []
+    board_lines.append("Current Board:")
+    board_lines.append("  0 1 2")
+    for i in range(3):
+        row_str = f"{i} "
+        for j in range(3):
+            cell_val = board[i, j]
+            if cell_val == 0:
+                row_str += ". "
+            elif cell_val == 1:
+                row_str += "X "
+            else:  # cell_val == 2
+                row_str += "O "
+        board_lines.append(row_str)
+    
+    # Add legend
+    board_lines.append("")
+    board_lines.append("Legend: X=Player 1, O=Player 2, .=Empty")
+    
+    # Add legal moves information
+    legal_moves = []
+    for i in range(len(action_mask)):
+        if action_mask[i] == 1:
+            if i == 0:
+                legal_moves.append("no operation")
+            else:
+                cell_idx = i - 1
+                row, col = cell_idx // 3, cell_idx % 3
+                legal_moves.append(f"place {cell_idx} (row {row}, col {col})")
+    
+    board_lines.append("")
+    board_lines.append(f"Current Player: {current_player}")
+    board_lines.append(f"Legal Actions: {', '.join(legal_moves)}")
+    board_lines.append("")
+    board_lines.append("Action Format: Use 'place X' where X is the cell number (0-8)")
+    board_lines.append("Cell numbering: 0=top-left, 1=top-center, 2=top-right, 3=middle-left, etc.")
+    
+    return "\n".join(board_lines)
+
 # Utility: render board to PNG
 def create_board_image_tictactoe(
     board_state: np.ndarray,
@@ -226,7 +269,7 @@ class SingleTicTacToeEnv(gym.Env):
             create_board_image_tictactoe(board, img_path, self.tile_size_for_render, self.cumulative_perf_score)
         
         if self.adapter.observation_mode in {"text", "both"}:
-            text_repr = "\n".join(" ".join(str(cell) for cell in row) for row in board)
+            text_repr = _create_text_representation(board, self.pz_env.observe("player_1")["action_mask"], "player_1")
 
         agent_obs = self.adapter.create_agent_observation(
             img_path=img_path, text_representation=text_repr, max_memory=max_memory
@@ -293,7 +336,7 @@ class SingleTicTacToeEnv(gym.Env):
                 board, img_path, self.tile_size_for_render, perf, agent_action_str
             )
         if self.adapter.observation_mode in {"text", "both"}:
-            text_repr = "\n".join(" ".join(str(cell) for cell in row) for row in board)
+            text_repr = _create_text_representation(board, self.pz_env.observe("player_1")["action_mask"], "player_1")
 
         agent_obs = self.adapter.create_agent_observation(
             img_path=img_path, text_representation=text_repr
@@ -470,7 +513,7 @@ class MultiTicTacToeEnv(SingleTicTacToeEnv):
             create_board_image_tictactoe(board, img_path, self.tile_size_for_render)
             text_repr = None
             if adap.observation_mode in {"text", "both"}:
-                text_repr = "\n".join(" ".join(str(cell) for cell in row) for row in board)
+                text_repr = _create_text_representation(board, self.pz_env.observe(agent_name)["action_mask"], agent_name)
             obs_dict[agent_name] = adap.create_agent_observation(
                 img_path=img_path, text_representation=text_repr
             )
@@ -514,7 +557,7 @@ class MultiTicTacToeEnv(SingleTicTacToeEnv):
             create_board_image_tictactoe(board, img_path, self.tile_size_for_render)
             text_repr = None
             if adap.observation_mode in {"text", "both"}:
-                text_repr = "\n".join(" ".join(str(cell) for cell in row) for row in board)
+                text_repr = _create_text_representation(board, self.pz_env.observe(agent_name)["action_mask"], agent_name)
             next_obs[agent_name] = adap.create_agent_observation(
                 img_path=img_path, text_representation=text_repr
             )

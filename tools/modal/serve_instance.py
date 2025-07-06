@@ -6,16 +6,16 @@ import os
 # --------
 def get_env_args():
     return {
-        "gpus": int(os.environ.get("N_GPU", 8)),
+        "gpus": int(os.environ.get("N_GPU", 1)),
         "gpu_type": os.environ.get("GPU_TYPE", "H100"),
-        "model": os.environ.get("MODEL_NAME", "google/gemma-3-27b-it"),
-        "revision": os.environ.get("MODEL_REVISION", "005ad3404e59d6023443cb575daa05336842228a"),
+        "model": os.environ.get("MODEL_NAME", "Qwen/Qwen2.5-7B-Instruct"),
+        "revision": os.environ.get("MODEL_REVISION", "a09a354"),
         "api_key": os.environ.get("API_KEY", "DUMMY_TOKEN"),
         "port": int(os.environ.get("VLLM_PORT", 8000)),
         "hf_cache_vol": os.environ.get("HF_CACHE_VOL", "huggingface-cache"),
         "vllm_cache_vol": os.environ.get("VLLM_CACHE_VOL", "vllm-cache"),
         "minutes": int(os.environ.get("MINUTES", 60)),
-        "hf_token": str(os.environ.get("HF_TOKEN", "your_huggingface_token")),
+        "hf_token": str(os.environ.get("HF_TOKEN", "")),
     }
 
 args = get_env_args()
@@ -36,7 +36,7 @@ vllm_image = (
 hf_cache_vol = modal.Volume.from_name(args["hf_cache_vol"], create_if_missing=True)
 vllm_cache_vol = modal.Volume.from_name(args["vllm_cache_vol"], create_if_missing=True)
 
-app = modal.App("vllm-serving-engine-gemma3-27b-it-8h100-test")
+app = modal.App("vllm-serving-engine-qwen2.5-7b-it-8h100-test")
 @app.function(
     image=vllm_image,
     gpu=f"{args['gpu_type']}:{args['gpus']}",
