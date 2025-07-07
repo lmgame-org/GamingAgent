@@ -211,19 +211,53 @@ def create_environment(
 def play_episode(env, agents, eid, max_turns, seed):
     obs, _ = env.reset(seed=seed, episode_id=eid)
     totals = {"player_1": 0.0, "player_2": 0.0}
+    moves_log = []
+    
     for t in range(max_turns):
         cur = env.current_player
         ad, _ = agents[cur].get_action(obs[cur])
         act = None if ad is None else ad.get("action")
+        moves_log.append(f"Turn {t+1}: {cur} -> {act}")
         obs, rew, term, trunc, *_ = env.step(cur, act)
         totals["player_1"] += rew["player_1"]
         totals["player_2"] += rew["player_2"]
         env.render()
         if term or trunc:
             break
-    print(
-        f"Episode {eid}: turns={t+1} X={totals['player_1']:.1f} | O={totals['player_2']:.1f}"
-    )
+    
+    # Print detailed game summary
+    print(f"\n{'='*60}")
+    print(f"GAME {eid} SUMMARY")
+    print(f"{'='*60}")
+    print(f"Total turns: {t+1}")
+    print(f"Player 1 (X) total reward: {totals['player_1']:.1f}")
+    print(f"Player 2 (O) total reward: {totals['player_2']:.1f}")
+    
+    # Determine game result
+    illegal = False
+    illegal_player = None
+    if totals['player_1'] == -1.0 and totals['player_2'] == 0.0:
+        result = "ILLEGAL MOVE by Player 1 (X)"
+        illegal = True
+        illegal_player = "player_1"
+    elif totals['player_2'] == -1.0 and totals['player_1'] == 0.0:
+        result = "ILLEGAL MOVE by Player 2 (O)"
+        illegal = True
+        illegal_player = "player_2"
+    elif totals['player_1'] > 0 and totals['player_2'] < 0:
+        result = "Player 1 (X) WINS!"
+    elif totals['player_2'] > 0 and totals['player_1'] < 0:
+        result = "Player 2 (O) WINS!"
+    else:
+        result = "DRAW/TIE"
+    print(f"Result: {result}")
+    
+    # Show move history
+    print(f"\nMove History:")
+    for move in moves_log:
+        print(f"  {move}")
+    
+    print(f"{'='*60}\n")
 
     if (hasattr(env, 'adapter_p1') and hasattr(env, 'adapter_p2')) and (env.adapter_p1 and env.adapter_p2):
         env.adapter_p1.record_episode_result(
@@ -241,6 +275,9 @@ def play_episode(env, agents, eid, max_turns, seed):
             total_reward=totals["player_2"],
             total_perf_score=totals["player_2"] # Potentially overwritten
         )
+    
+    # Return both totals and illegal info for main summary
+    return {"player_1": totals["player_1"], "player_2": totals["player_2"], "illegal": illegal, "illegal_player": illegal_player}
 
 ###############################################################################
 # CLI
@@ -318,10 +355,36 @@ def main(argv: Optional[list[str]] = None):
     }
 
     cseed = args.seed
+    game_results = {"player_1_wins": 0, "player_2_wins": 0, "draws": 0, "illegal_moves": 0}
+    
     for eid in range(1, args.num_runs + 1):
-        play_episode(env, agents, eid, args.max_steps, cseed)
+        result = play_episode(env, agents, eid, args.max_steps, cseed)
+        if result:
+            if result["illegal"]:
+                game_results["illegal_moves"] += 1
+            elif result["player_1"] > 0 and result["player_2"] < 0:
+                game_results["player_1_wins"] += 1
+            elif result["player_2"] > 0 and result["player_1"] < 0:
+                game_results["player_2_wins"] += 1
+            else:
+                game_results["draws"] += 1
         cseed = None if cseed is None else cseed + 1
         time.sleep(1)
+    
+    # Print overall summary 
+    if args.num_runs > 1:
+        print(f"\n{'#'*70}")
+        print(f"OVERALL SUMMARY ({args.num_runs} games)")
+        print(f"{'#'*70}")
+        print(f"Player 1 (X) wins: {game_results['player_1_wins']}")
+        print(f"Player 2 (O) wins: {game_results['player_2_wins']}")
+        print(f"Draws: {game_results['draws']}")
+        print(f"Games ended by illegal moves: {game_results['illegal_moves']}")
+        print(f"Player 1 win rate: {game_results['player_1_wins']/args.num_runs*100:.1f}%")
+        print(f"Player 2 win rate: {game_results['player_2_wins']/args.num_runs*100:.1f}%")
+        print(f"Illegal move rate: {game_results['illegal_moves']/args.num_runs*100:.1f}%")
+        print(f"{'#'*70}")
+    
     env.close()
 
 if __name__ == "__main__":

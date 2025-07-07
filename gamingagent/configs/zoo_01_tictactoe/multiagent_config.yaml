@@ -1,6 +1,6 @@
 # gamingagent/configs/zoo_01_tictactoe/multiagent_config.yaml
 
-num_runs: 3
+num_runs: 1
 max_steps: 50
 observation_mode: both
 seed: 42
