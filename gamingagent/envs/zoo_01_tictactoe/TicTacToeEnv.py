@@ -185,7 +185,7 @@ class SingleTicTacToeEnv(gym.Env):
         # Underlying PettingZoo env
         self.pz_env = tictactoe_v3.env(render_mode=None)
 
-        self.current_player: str = "player_1"
+        self.current_player = "player_1" # default
 
         # Gym‑style spaces
         self.action_space = Discrete(9)
@@ -251,7 +251,7 @@ class SingleTicTacToeEnv(gym.Env):
         self.current_reward_last_step = 0.0
 
         self.pz_env.reset(seed=seed)
-        self.current_player = "player_1"
+        self.current_player = self.pz_env.agent_selection
 
         board = self._current_board_state(self.current_player)
         obs_pz = self.pz_env.observe(self.current_player)
@@ -462,7 +462,7 @@ class MultiTicTacToeEnv(SingleTicTacToeEnv):
         self._adapters = {"player_1": self.adapter_p1, "player_2": self.adapter_p2}
 
         self.perf_scores = {"player_1": 0.0, "player_2": 0.0}
-        self.current_player: str = "player_1"
+        self.current_player = "player_1" # default
         self.step_id = 0
 
         # Ensure board state is always present, even before reset
@@ -493,27 +493,33 @@ class MultiTicTacToeEnv(SingleTicTacToeEnv):
         return self._board_state_dict[agent_name]
 
     def reset(self, *, seed: int | None = None, episode_id: int = 1, **kwargs):
+        for adap in self._adapters.values():
+            adap.reset_episode(episode_id)
+
         super().reset(seed=seed)
-        self.pz_env.reset(seed=seed)
-        self.current_player = self.pz_env.agent_selection
+
         self.step_id = 0
         self.current_episode_id = episode_id
         self.perf_scores = {"player_1": 0.0, "player_2": 0.0}
 
-        for adap in self._adapters.values():
-            adap.reset_episode(episode_id)
-
         # Must update board state right after env reset
         self._update_current_board_state()
-        
+
         obs_dict = {}
         for agent_name, adap in self._adapters.items():
             board = self._board_for(agent_name)
             img_path = adap._create_agent_observation_path(episode_id, 0)
             create_board_image_tictactoe(board, img_path, self.tile_size_for_render)
-            text_repr = None
+            obs_pz = self.pz_env.observe(agent_name)
+            is_active = (self.pz_env.agent_selection == agent_name)
             if adap.observation_mode in {"text", "both"}:
-                text_repr = _create_text_representation(board, self.pz_env.observe(agent_name)["action_mask"], agent_name)
+                if is_active:
+                    action_mask = obs_pz["action_mask"]
+                else:
+                    action_mask = np.zeros_like(obs_pz["action_mask"])
+                text_repr = _create_text_representation(board, action_mask, agent_name)
+            else:
+                text_repr = None
             obs_dict[agent_name] = adap.create_agent_observation(
                 img_path=img_path, text_representation=text_repr
             )
@@ -522,13 +528,32 @@ class MultiTicTacToeEnv(SingleTicTacToeEnv):
             self._render_frame_multi()
         return obs_dict, {}
 
+
     def step(self, agent_name: str, action_str: Optional[str]):
         assert agent_name == self.current_player, (
             f"It is {self.current_player}'s turn, not {agent_name}")
-
         adap = self._adapters[agent_name]
+        
         env_act_idx = adap.map_agent_action_to_env_action(action_str)
-        self._apply_action(env_act_idx)
+        # Try to apply the action, catching illegal move errors
+        try:
+            self._apply_action(env_act_idx)
+        except Exception as e:
+            # Log error and treat as forced termination (PettingZoo usually terminates here)
+            print(f"[ERROR] Step failed or illegal move for agent {agent_name}: {e}")
+            # self.pz_env.terminations = {"player_1": True, "player_2": True}
+            rewards = {
+                "player_1": float(self.pz_env.rewards["player_1"]),
+                "player_2": float(self.pz_env.rewards["player_2"]),
+            }
+            return (
+                {},  # obs
+                rewards,
+                True,  # terminations
+                True,  # truncations
+                {},    # info
+                self.perf_scores.copy(),
+            )
 
         self.current_player = self.pz_env.agent_selection
         self.step_id += 1

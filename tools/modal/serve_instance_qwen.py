@@ -6,7 +6,7 @@ import os
 # --------
 def get_env_args():
     return {
-        "gpus": int(os.environ.get("N_GPU", 2)),
+        "gpus": int(os.environ.get("N_GPU", 1)),
         "gpu_type": os.environ.get("GPU_TYPE", "H100"),
         "model": os.environ.get("MODEL_NAME", "Qwen/Qwen2.5-7B-Instruct"),
         "revision": os.environ.get("MODEL_REVISION", "a09a354"),
@@ -36,7 +36,7 @@ vllm_image = (
 hf_cache_vol = modal.Volume.from_name(args["hf_cache_vol"], create_if_missing=True)
 vllm_cache_vol = modal.Volume.from_name(args["vllm_cache_vol"], create_if_missing=True)
 
-app = modal.App("vllm-serving-engine-qwen-2.5-7b-it-4h100-test")
+app = modal.App("vllm-serving-engine-qwen2.5-7b-it-1h100")
 @app.function(
     image=vllm_image,
     gpu=f"{args['gpu_type']}:{args['gpus']}",
@@ -48,13 +48,10 @@ app = modal.App("vllm-serving-engine-qwen-2.5-7b-it-4h100-test")
     },
     secrets=[modal.Secret.from_name("lmgame-secret")]
 )
-
 @modal.concurrent(max_inputs=100)
 @modal.web_server(port=args['port'], startup_timeout=120 * args['minutes'])
 def serve():
     import subprocess
-
-    hf_cmd = f"huggingface-cli login --token {args['hf_token']}"
     vllm_cmd = (
         f"vllm serve "
         f"--uvicorn-log-level=info "
@@ -67,7 +64,7 @@ def serve():
         f"--api-key {os.environ['LMGAME_SECRET']}"
     )
 
-    full_cmd = f"{hf_cmd} && {vllm_cmd}"
+    full_cmd = f"{vllm_cmd}"
 
     print("Running merged command:", full_cmd)
     proc = subprocess.Popen(full_cmd, shell=True)

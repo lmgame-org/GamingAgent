@@ -321,8 +321,7 @@ def main(argv: Optional[list[str]] = None):
     for eid in range(1, args.num_runs + 1):
         play_episode(env, agents, eid, args.max_steps, cseed)
         cseed = None if cseed is None else cseed + 1
-        if eid < args.num_runs:
-            time.sleep(1)
+        time.sleep(1)
     env.close()
 
 if __name__ == "__main__":
