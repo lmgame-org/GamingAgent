@@ -8,8 +8,8 @@ def get_env_args():
     return {
         "gpus": int(os.environ.get("N_GPU", 1)),
         "gpu_type": os.environ.get("GPU_TYPE", "H100"),
-        "model": os.environ.get("MODEL_NAME", "Qwen/Qwen2.5-7B-Instruct"),
-        "revision": os.environ.get("MODEL_REVISION", "a09a354"),
+        "model": os.environ.get("MODEL_NAME", "Qwen/Qwen2.5-72B-Instruct"),
+        "revision": os.environ.get("MODEL_REVISION", "main"),
         "api_key": os.environ.get("API_KEY", "DUMMY_TOKEN"),
         "port": int(os.environ.get("VLLM_PORT", 8000)),
         "hf_cache_vol": os.environ.get("HF_CACHE_VOL", "huggingface-cache"),
@@ -30,13 +30,18 @@ vllm_image = (
         "huggingface_hub[hf_transfer]==0.32.0",
         extra_index_url="https://flashinfer.ai/whl/cu124/torch2.5",
     )
-    .env({"HF_HUB_ENABLE_HF_TRANSFER": "1", "VLLM_USE_V1": "1"})
+    .env({
+        "HF_HUB_ENABLE_HF_TRANSFER": "1",
+        "VLLM_USE_V1": "1",
+        "HF_TOKEN": args["hf_token"],
+        "HUGGINGFACE_HUB_TOKEN": args["hf_token"],
+    })
 )
 
 hf_cache_vol = modal.Volume.from_name(args["hf_cache_vol"], create_if_missing=True)
 vllm_cache_vol = modal.Volume.from_name(args["vllm_cache_vol"], create_if_missing=True)
 
-app = modal.App("vllm-serving-engine-qwen2.5-7b-it-1h100")
+app = modal.App("vllm-serving-engine-qwen2.5-72b-it-1h100")
 @app.function(
     image=vllm_image,
     gpu=f"{args['gpu_type']}:{args['gpus']}",
@@ -61,7 +66,9 @@ def serve():
         f"--tensor_parallel_size {args['gpus']} "
         f"--host 0.0.0.0 "
         f"--port {args['port']} "
-        f"--api-key {os.environ['LMGAME_SECRET']}"
+        f"--api-key {os.environ['LMGAME_SECRET']} "
+        f"--max-model-len 12000 "
+        f"--gpu-memory-utilization 0.95"
     )
 
     full_cmd = f"{vllm_cmd}"

@@ -1086,6 +1086,16 @@ def modal_vllm_text_completion(
         print("Qwen2.5 7B only supports 32768 tokens")
         token_limit = 20000
     
+    if "Qwen2.5-14B" in model_name and token_limit > 30000:
+        print("Qwen2.5 14B only supports 32768 tokens")
+        token_limit = 30000
+
+    if "Qwen2.5-32B" in model_name and token_limit > 10000:
+        token_limit = 10000
+
+    if "Qwen2.5-72B" in model_name and token_limit > 8000:
+        token_limit = 8000
+
     response = client.chat.completions.create(
         model=model_name,
         messages=messages,

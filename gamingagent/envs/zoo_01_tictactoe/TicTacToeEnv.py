@@ -92,6 +92,7 @@ def _create_text_representation(board: np.ndarray, action_mask: np.ndarray, curr
     board_lines.append("")
     board_lines.append(f"Current Player: {current_player}")
     board_lines.append(f"Legal Actions: {', '.join(legal_moves)}")
+    board_lines.append("CHOOSING ANY OTHER ACTION WILL CAUSE IMMEDIATE GAME TERMINATION")
     board_lines.append("")
     board_lines.append("Action Format: Use 'place X' where X is the cell number (0-8)")
     board_lines.append("Cell numbering: 0=top-left, 1=top-center, 2=top-right, 3=middle-left, etc.")
@@ -517,7 +518,9 @@ class MultiTicTacToeEnv(SingleTicTacToeEnv):
                     action_mask = obs_pz["action_mask"]
                 else:
                     action_mask = np.zeros_like(obs_pz["action_mask"])
-                text_repr = _create_text_representation(board, action_mask, agent_name)
+                # Use the actual current player (whose turn it is) for the text representation
+                current_player_turn = self.pz_env.agent_selection
+                text_repr = _create_text_representation(board, action_mask, current_player_turn)
             else:
                 text_repr = None
             obs_dict[agent_name] = adap.create_agent_observation(
@@ -541,11 +544,15 @@ class MultiTicTacToeEnv(SingleTicTacToeEnv):
         except Exception as e:
             # Log error and treat as forced termination (PettingZoo usually terminates here)
             print(f"[ERROR] Step failed or illegal move for agent {agent_name}: {e}")
-            # self.pz_env.terminations = {"player_1": True, "player_2": True}
-            rewards = {
-                "player_1": float(self.pz_env.rewards["player_1"]),
-                "player_2": float(self.pz_env.rewards["player_2"]),
-            }
+            
+            # Set rewards: illegal move maker loses (-1), other player gets 0
+            if agent_name == "player_1":
+                rewards = {"player_1": -1.0, "player_2": 0.0}
+                self.perf_scores["player_1"] -= 1  # penalty for illegal move
+            else:  # agent_name == "player_2"
+                rewards = {"player_1": 0.0, "player_2": -1.0}
+                self.perf_scores["player_2"] -= 1  # penalty for illegal move
+            
             return (
                 {},  # obs
                 rewards,
@@ -582,7 +589,9 @@ class MultiTicTacToeEnv(SingleTicTacToeEnv):
             create_board_image_tictactoe(board, img_path, self.tile_size_for_render)
             text_repr = None
             if adap.observation_mode in {"text", "both"}:
-                text_repr = _create_text_representation(board, self.pz_env.observe(agent_name)["action_mask"], agent_name)
+                # Use the actual current player (whose turn it is) for the text representation
+                current_player_turn = self.pz_env.agent_selection
+                text_repr = _create_text_representation(board, self.pz_env.observe(agent_name)["action_mask"], current_player_turn)
             next_obs[agent_name] = adap.create_agent_observation(
                 img_path=img_path, text_representation=text_repr
             )
