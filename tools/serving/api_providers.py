@@ -1093,8 +1093,8 @@ def modal_vllm_text_completion(
     if "Qwen2.5-32B" in model_name and token_limit > 10000:
         token_limit = 10000
 
-    if "Qwen2.5-72B" in model_name and token_limit > 10000:
-        token_limit = 10000
+    if "Qwen2.5-72B" in model_name and token_limit > 8000:
+        token_limit = 8000
 
     response = client.chat.completions.create(
         model=model_name,
