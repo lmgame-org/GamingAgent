@@ -1,0 +1,30 @@
+game_env:
+  name: "texasholdem"
+  description: "Texas Hold'em game environment"
+  env_type: "custom"
+  render_mode: "human"
+  max_steps: 50
+  seed: 42
+  num_runs: 3
+
+agent:
+  # Global agent settings
+  name: "texasholdem_agent"
+  model_name: "claude-3-7-sonnet-latest"
+  cache_dir: "cache/texasholdem"
+  reasoning_effort: "high"
+  token_limit: 100000
+  harness: true  # Whether to use the perception-memory-reasoning pipeline
+  observation_mode: "both"  # Options: "vision", "text", "both"
+  use_reflection: true
+  use_perception: true
+  # Module-specific settings
+  modules:
+    base_module:
+    
+    perception_module:
+
+    memory_module:
+      max_memory: 10  # Maximum number of memory entries to store
+    
+    reasoning_module:

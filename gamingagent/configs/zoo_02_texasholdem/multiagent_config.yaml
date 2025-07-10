@@ -1,0 +1,37 @@
+# gamingagent/configs/zoo_01_tictactoe/multiagent_config.yaml
+
+num_runs: 3
+max_steps: 50
+observation_mode: both
+seed: 42
+#use_custom_prompt: false
+
+# models to use
+model_x: gemini-2.5-flash
+model_o: claude-3-7-sonnet-latest
+
+# agent defaults
+agent_defaults:
+  #reasoning_effort: high   # TODO: support configurable reasoning effort
+  #token_limit: 100000      # TODO: support configurable reasoning effort
+  use_perception: true
+  use_reflection: true
+  # each module may have further params
+  modules:
+    base_module: {}
+    perception_module: {}
+    memory_module:
+      max_memory: 10
+    reasoning_module: {}
+
+# top-priority agent-specific config
+agent_x:
+  # model_name: gemini-2.5-flash
+  # observation_mode: text
+  # max_memory: 20
+
+agent_o:
+  # model_name: claude-3.7-sonnet
+  # observation_mode: vision
+  # max_memory: 15
+
