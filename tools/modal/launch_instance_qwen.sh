@@ -3,7 +3,7 @@
 # === CONFIGURATION ===
 export N_GPU=1
 export GPU_TYPE="H100"
-export MODEL_NAME="Qwen/Qwen2.5-7B-Instruct"
+export MODEL_NAME="Qwen/Qwen2.5-72B-Instruct"
 export MODEL_REVISION="main"
 export API_KEY="DUMMY_TOKEN"
 export VLLM_PORT=8000
