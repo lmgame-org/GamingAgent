@@ -4,7 +4,7 @@ numpy==1.24.4
 openai
 opencv_python==4.8.1.78
 opencv_python_headless==4.11.0.86
-protobuf==5.29.3
+protobuf
 pyautogui==0.9.54
 pygame==2.6.1
 PyGetWindow==0.0.9
@@ -23,3 +23,4 @@ pyboy
 psutil
 vizdoom
 pettingzoo
+xai_sdk

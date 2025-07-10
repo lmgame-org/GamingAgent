@@ -333,7 +333,7 @@ class CoreModule(ABC):
                 prompt="", 
                 cache_dir="cache",
                 token_limit=100000, 
-                reasoning_effort="medium",
+                reasoning_effort="high",
                 vllm_url=None,
                 modal_url=None
         ):
