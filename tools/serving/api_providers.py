@@ -540,12 +540,13 @@ def deepseek_text_reasoning_completion(system_prompt, model_name, prompt, token_
     # generated_str = response.choices[0].message.content
     
     return content
-    
+
 
 def xai_grok_text_completion(system_prompt, model_name, prompt, reasoning_effort="high", token_limit=30000, temperature=1):
     print(f"XAI Grok text API call: model={model_name}, reasoning_effort={reasoning_effort}")
     from xai_sdk import Client
     from xai_sdk.chat import user, system
+    import grpc
 
     client = Client(
     api_host="api.x.ai",
@@ -566,10 +567,28 @@ def xai_grok_text_completion(system_prompt, model_name, prompt, reasoning_effort
     chat.append(system(system_prompt))
     chat.append(user(prompt))
 
-    response = chat.sample()
+    # ================== TEMPORARY FIX FOR XAI GROK RATE LIMITS ================== #
+    retries = 0
+    backoff = 5  # initial backoff in seconds
+
+    while True:
+        try:
+            response = chat.sample()
+            return response.content
+        except grpc._channel._InactiveRpcError as e:
+            code = e.code() if hasattr(e, "code") else None
+            if code in [grpc.StatusCode.RESOURCE_EXHAUSTED, grpc.StatusCode.DEADLINE_EXCEEDED]:
+                # token per min: 16k
+                # DEADLINE_EXCEEDED
+
+                retries += 1
+                print(f"Rate limit hit! Sleeping {backoff} seconds and retrying (attempt {retries})...")
+                time.sleep(backoff)
+                backoff = min(backoff * 2, 20)  # exponential backoff, cap at 30s
+            else:
+                raise Exception(e)
     
-    # Return just the content for consistency with other completion functions
-    return response.content
+    # ================== TEMPORARY FIX FOR XAI GROK RATE LIMITS ================== #
 
 @retry_on_openai_error
 def openai_multiimage_completion(system_prompt, model_name, prompt, list_content, list_image_base64, token_limit=30000, reasoning_effort="medium"):

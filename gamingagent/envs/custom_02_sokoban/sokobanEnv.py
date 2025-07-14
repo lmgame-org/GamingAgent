@@ -187,7 +187,7 @@ class SokobanEnv(gym.Env):
         self.level_to_load = level_to_load
         self.tile_size_for_render = tile_size_for_render
         self.current_level = level_to_load if level_to_load is not None else 1
-        self.max_level = 6  # Maximum level number in levels.txt
+        self.max_level = 6  # Maximum level number in levels.txt. TODO: automate max level detection from levels.txt
         
         if num_gen_steps is None and not self.level_to_load : 
             self.num_gen_steps = int(1.7 * (self.dim_room[0] + self.dim_room[1]))
@@ -339,7 +339,6 @@ class SokobanEnv(gym.Env):
 
     def _generate_procedural_level(self):
         # This uses the generate_room from gym_sokoban if available
-        # Adapted from sokoban_env_old.py
         try:
             from gym_sokoban.envs.room_utils import generate_room as gr_func
             self.room_fixed, self.room_state, self.box_mapping = gr_func(
@@ -369,6 +368,7 @@ class SokobanEnv(gym.Env):
 
     def reset(self, *, seed: Optional[int] = None, options: Optional[Dict[str, Any]] = None, max_memory: Optional[int] = 10, episode_id: int = 1) -> Tuple[Observation, Dict[str, Any]]:
         super().reset(seed=seed)
+        self.current_level = 0
         self.num_env_steps = 0
         self.current_reward_last_step = 0.0
         
