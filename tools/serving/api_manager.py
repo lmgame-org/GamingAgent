@@ -39,6 +39,12 @@ from .api_providers import (
     modal_vllm_text_completion,
     modal_vllm_completion,
     modal_vllm_multiimage_completion,
+    moonshot_text_completion,
+    moonshot_completion,
+    moonshot_multiimage_completion,
+    openrouter_kimi_text_completion,
+    openrouter_kimi_completion,
+    openrouter_kimi_multiimage_completion,
 )
 
 # Import cost calculator utilities
@@ -489,6 +495,37 @@ class APIManager:
                     temperature=temperature,
                     token_limit=token_limit
                 )
+            elif "moonshot" in model_name.lower() or "kimi" in model_name.lower():
+                # Handle both direct Moonshot API models and Kimi variants
+                if "kimi-k2" in model_name.lower() and "preview" in model_name.lower():
+                    # Use direct Moonshot API for Kimi K2 preview models
+                    completion = moonshot_completion(
+                        system_prompt=system_prompt,
+                        model_name=model_name,
+                        base64_image=base64_image,
+                        prompt=prompt,
+                        temperature=temperature,
+                        token_limit=token_limit
+                    )
+                else:
+                    # Standard Moonshot models
+                    completion = moonshot_completion(
+                        system_prompt=system_prompt,
+                        model_name=model_name,
+                        base64_image=base64_image,
+                        prompt=prompt,
+                        temperature=temperature,
+                        token_limit=token_limit
+                    )
+            elif model_name == "moonshotai/kimi-k2":
+                completion = openrouter_kimi_completion(
+                    system_prompt=system_prompt,
+                    model_name=model_name,
+                    base64_image=base64_image,
+                    prompt=prompt,
+                    temperature=temperature,
+                    token_limit=token_limit
+                )
             else:
                 raise ValueError(f"Unsupported model: {model_name}")
             
@@ -609,6 +646,23 @@ class APIManager:
                     base64_image=base64_image,
                     temperature=temperature,
                     url=self.modal_url
+                )
+            elif "moonshot" in model_name.lower() or "kimi" in model_name.lower():
+                # Handle both direct Moonshot API models and Kimi variants
+                completion = moonshot_completion(
+                    system_prompt=system_prompt,
+                    model_name=model_name,
+                    base64_image=base64_image,
+                    prompt=empty_prompt,
+                    temperature=temperature
+                )
+            elif model_name == "moonshotai/kimi-k2":
+                completion = openrouter_kimi_completion(
+                    system_prompt=system_prompt,
+                    model_name=model_name,
+                    base64_image=base64_image,
+                    prompt=empty_prompt,
+                    temperature=temperature
                 )
             else:
                 raise ValueError(f"Unsupported model: {model_name}")
@@ -765,6 +819,34 @@ class APIManager:
                     token_limit=token_limit,
                     temperature=temperature,
                     reasoning_effort=reasoning_effort
+                )
+            elif "moonshot" in model_name.lower() or "kimi" in model_name.lower():
+                # Handle both direct Moonshot API models and Kimi variants
+                if "kimi-k2" in model_name.lower() and "preview" in model_name.lower():
+                    # Use direct Moonshot API for Kimi K2 preview models
+                    completion = moonshot_text_completion(
+                        system_prompt=system_prompt,
+                        model_name=model_name,
+                        prompt=prompt,
+                        temperature=temperature,
+                        token_limit=token_limit
+                    )
+                else:
+                    # Standard Moonshot models
+                    completion = moonshot_text_completion(
+                        system_prompt=system_prompt,
+                        model_name=model_name,
+                        prompt=prompt,
+                        temperature=temperature,
+                        token_limit=token_limit
+                    )
+            elif model_name == "moonshotai/kimi-k2":
+                completion = openrouter_kimi_text_completion(
+                    system_prompt=system_prompt,
+                    model_name=model_name,
+                    prompt=prompt,
+                    temperature=temperature,
+                    token_limit=token_limit
                 )
             else:
                 raise ValueError(f"Unsupported model: {model_name}")
@@ -1001,6 +1083,25 @@ class APIManager:
                     base64_image=list_image_base64,
                     temperature=temperature,
                     url=self.modal_url,
+                )
+            elif "moonshot" in model_name.lower() or "kimi" in model_name.lower():
+                # Handle both direct Moonshot API models and Kimi variants
+                completion = moonshot_multiimage_completion(
+                    system_prompt=system_prompt,
+                    model_name=model_name,
+                    prompt=prompt,
+                    list_content=list_content,
+                    list_image_base64=list_image_base64,
+                    temperature=temperature
+                )
+            elif model_name == "moonshotai/kimi-k2":
+                completion = openrouter_kimi_multiimage_completion(
+                    system_prompt=system_prompt,
+                    model_name=model_name,
+                    prompt=prompt,
+                    list_content=list_content,
+                    list_image_base64=list_image_base64,
+                    temperature=temperature
                 )
             else:
                 raise ValueError(f"Unsupported model: {model_name}")

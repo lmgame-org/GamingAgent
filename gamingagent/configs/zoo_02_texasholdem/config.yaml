@@ -1,6 +1,6 @@
 game_env:
   name: "texasholdem"
-  description: "Texas Hold'em game environment"
+  description: "Texas Hold'em classical game environment"
   env_type: "custom"
   render_mode: "human"
   max_steps: 50

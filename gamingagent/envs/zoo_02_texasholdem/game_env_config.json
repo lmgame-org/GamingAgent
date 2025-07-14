@@ -1,0 +1,17 @@
+{
+  "env_init_kwargs": {
+    "env_type": "single",           
+    "num_players": 2,
+    "opponent_policy": "random",
+    "observation_mode_for_adapter": "both",
+    "table_size_for_render": [800, 600]
+  },
+  "action_mapping": {
+    "call": 0,
+    "raise": 1,
+    "fold": 2,
+    "check": 3
+  },
+  "render_mode": "human",              
+  "max_unchanged_steps_for_termination": 50
+}
