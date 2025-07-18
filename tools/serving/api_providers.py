@@ -1287,9 +1287,14 @@ def retry_on_moonshot_error(func):
             try:
                 return func(*args, **kwargs)
 
+            # BadRequestError should NOT be retried - it indicates invalid request
+            except BadRequestError as e:
+                print(f"Moonshot AI BadRequestError (not retrying): {e}")
+                raise
+
             # transient issues worth retrying
             except (RateLimitError, APITimeoutError, APIConnectionError,
-                    httpx.RemoteProtocolError, BadRequestError) as e:
+                    httpx.RemoteProtocolError) as e:
                 if attempt < max_retries - 1:
                     print(f"Moonshot AI transient error: {e}")
                     _sleep_with_backoff(base_delay, attempt)
@@ -1339,9 +1344,9 @@ def moonshot_text_completion(system_prompt, model_name, prompt, temperature=1, t
     elif "128k" in model_name and token_limit > 128000:
         print("moonshot-v1-128k supports up to 128K tokens")
         token_limit = 128000
-    elif "kimi-k2" in model_name.lower() and token_limit > 63000:
+    elif "kimi-k2" in model_name.lower() and token_limit > 128000:
         print("kimi-k2 models support up to 63K tokens")
-        token_limit = 63000
+        token_limit = 128000
 
     messages = []
     if system_prompt:
@@ -1354,6 +1359,16 @@ def moonshot_text_completion(system_prompt, model_name, prompt, temperature=1, t
         max_tokens=token_limit,
         temperature=temperature,
     )
+    
+    # Debug: Print the response structure
+    print(f"Moonshot API response: {response}")
+    
+    # Validate response structure
+    if not hasattr(response, 'choices') or not response.choices:
+        raise ValueError(f"Invalid response from Moonshot API: no choices found. Response: {response}")
+    
+    if not hasattr(response.choices[0], 'message') or not hasattr(response.choices[0].message, 'content'):
+        raise ValueError(f"Invalid response structure from Moonshot API. Choice: {response.choices[0]}")
     
     return response.choices[0].message.content
 
@@ -1413,6 +1428,16 @@ def moonshot_completion(system_prompt, model_name, base64_image, prompt, tempera
         max_tokens=token_limit,
         temperature=temperature,
     )
+    
+    # Debug: Print the response structure
+    print(f"Moonshot vision API response: {response}")
+    
+    # Validate response structure
+    if not hasattr(response, 'choices') or not response.choices:
+        raise ValueError(f"Invalid response from Moonshot API: no choices found. Response: {response}")
+    
+    if not hasattr(response.choices[0], 'message') or not hasattr(response.choices[0].message, 'content'):
+        raise ValueError(f"Invalid response structure from Moonshot API. Choice: {response.choices[0]}")
     
     return response.choices[0].message.content
 
@@ -1489,6 +1514,16 @@ def moonshot_multiimage_completion(system_prompt, model_name, prompt, list_conte
         max_tokens=token_limit,
         temperature=temperature,
     )
+    
+    # Debug: Print the response structure
+    print(f"Moonshot multiimage API response: {response}")
+    
+    # Validate response structure
+    if not hasattr(response, 'choices') or not response.choices:
+        raise ValueError(f"Invalid response from Moonshot API: no choices found. Response: {response}")
+    
+    if not hasattr(response.choices[0], 'message') or not hasattr(response.choices[0].message, 'content'):
+        raise ValueError(f"Invalid response structure from Moonshot API. Choice: {response.choices[0]}")
     
     return response.choices[0].message.content
 
