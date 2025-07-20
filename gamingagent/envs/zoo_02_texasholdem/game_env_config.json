@@ -4,7 +4,16 @@
     "num_players": 2,
     "opponent_policy": "random",
     "observation_mode_for_adapter": "both",
-    "table_size_for_render": [800, 600]
+    "table_size_for_render": [1000, 700],
+    "enable_player_elimination": false,
+    "starting_chips": 1000,
+    "big_blind": 20,
+    "small_blind": 10,
+    "ai_opponents": {
+      "_comment": "Example AI opponents - uncomment and modify as needed",
+      "_player_2": "aggressive",
+      "_player_3": "conservative"
+    }
   },
   "action_mapping": {
     "call": 0,

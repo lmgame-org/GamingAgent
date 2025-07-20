@@ -4,6 +4,7 @@ from .core_module import CoreModule, Observation
 from tools.utils import scale_image_up
 import re
 import os
+import time
 
 class BaseModule(CoreModule):
     """
@@ -74,24 +75,44 @@ class BaseModule(CoreModule):
         # Create the full prompt with the text-based game state
         full_context = observation.get_complete_prompt(observation_mode=self.observation_mode, prompt_template=self.prompt)
 
-        response = None
-        if self.observation_mode in ["vision", "both"]:
-            image_path = scale_image_up(observation.get_img_path())
-            if not image_path:
-                print("Warning: No image path provided for vision API call. Using text-only API.")
-            response = self._call_vision_api(full_context, image_path, custom_prompt)
-        else:
-            response = self._call_text_api(full_context, custom_prompt)
-        
-        # returned API response should be a tuple
-        response_string = response[0]
-        
-        # Parse and log the response
-        parsed_response = self._parse_response(response_string)
-        if parsed_response is None:
-            parsed_response = {}
-        parsed_response["raw_response_str"] = response_string
+        # Retry logic for failed responses
+        max_retries = 3
+        for attempt in range(max_retries):
+            response = None
+            if self.observation_mode in ["vision", "both"]:
+                image_path = scale_image_up(observation.get_img_path())
+                if not image_path:
+                    print("Warning: No image path provided for vision API call. Using text-only API.")
+                response = self._call_vision_api(full_context, image_path, custom_prompt)
+            else:
+                response = self._call_text_api(full_context, custom_prompt)
+            
+            # returned API response should be a tuple
+            response_string = response[0]
+            
+            # Parse and log the response
+            parsed_response = self._parse_response(response_string)
+            if parsed_response is None:
+                parsed_response = {}
+            parsed_response["raw_response_str"] = response_string
 
+            # Check if we got a valid response (not "No response received")
+            if (parsed_response.get("action") is not None and 
+                parsed_response.get("thought") != "No response received"):
+                # Valid response, break out of retry loop
+                break
+            else:
+                print(f"Attempt {attempt + 1}/{max_retries}: Got invalid response, retrying...")
+                if attempt < max_retries - 1:
+                    time.sleep(1)  # Wait 1 second before retrying
+                else:
+                    print(f"All {max_retries} attempts failed. Using fallback response.")
+                    # Use a fallback response
+                    parsed_response = {
+                        "action": "noop",  # or appropriate default action for your game
+                        "thought": "API failed after multiple retries, using fallback action",
+                        "raw_response_str": response_string
+                    }
 
         self.log({
             "response": response_string,
