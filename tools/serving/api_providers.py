@@ -1324,10 +1324,11 @@ def retry_on_moonshot_error(func):
 def moonshot_text_completion(system_prompt, model_name, prompt, temperature=1, token_limit=30000):
     """
     Moonshot AI Kimi text completion API call.
+    Supports only kimi-k2 and kimi-thinking-preview models.
     
     Args:
         system_prompt (str): System prompt
-        model_name (str): Model name (e.g., "moonshot-v1-8k", "moonshot-v1-32k", "moonshot-v1-128k")
+        model_name (str): Model name (e.g., "kimi-k2", "kimi-thinking-preview")
         prompt (str): User prompt
         temperature (float): Temperature parameter (0-1)
         token_limit (int): Maximum number of tokens for the completion response
@@ -1335,7 +1336,11 @@ def moonshot_text_completion(system_prompt, model_name, prompt, temperature=1, t
     Returns:
         str: Generated text
     """
-    print(f"Moonshot AI text API call: model={model_name}")
+    print(f"Moonshot AI Kimi text API call: model={model_name}")
+    
+    # Validate supported models
+    if model_name not in ["kimi-k2", "kimi-thinking-preview"]:
+        raise ValueError(f"Unsupported Kimi model: {model_name}. Only 'kimi-k2' and 'kimi-thinking-preview' are supported.")
     
     # Use OpenAI client with Moonshot base URL
     client = OpenAI(
@@ -1343,101 +1348,30 @@ def moonshot_text_completion(system_prompt, model_name, prompt, temperature=1, t
         base_url="https://api.moonshot.ai/v1"
     )
     
-    # Determine model's total context limit
-    total_context_limit = 8000
-    if "8k" in model_name:
-        total_context_limit = 8000
-    elif "32k" in model_name:
-        total_context_limit = 32000
-    elif "128k" in model_name:
-        total_context_limit = 128000
-    elif "kimi-k2" in model_name.lower():
-        total_context_limit = 128000
-    elif "kimi-thinking-preview" in model_name.lower():
-        total_context_limit = 128000
-
+    # Build messages in proper format
     messages = []
     if system_prompt:
         messages.append({"role": "system", "content": system_prompt})
     messages.append({"role": "user", "content": prompt})
 
-    # Estimate input token count
-    total_input_text = (system_prompt or "") + prompt
-    estimated_input_tokens = estimate_token_count(total_input_text)
+    response = client.chat.completions.create(
+        model=model_name,
+        messages=messages,
+        max_tokens=token_limit,
+        temperature=temperature,
+    )
     
-    # Calculate available tokens for output (leave some buffer)
-    buffer_tokens = 100  # Safety buffer
-    available_output_tokens = total_context_limit - estimated_input_tokens - buffer_tokens
-    
-    # Adjust token_limit to not exceed available space
-    if available_output_tokens <= 0:
-        # Input is too long, truncate the prompt
-        max_input_tokens = total_context_limit - token_limit - buffer_tokens
-        if max_input_tokens <= 0:
-            max_input_tokens = total_context_limit // 2  # Use half for input, half for output
-            token_limit = total_context_limit - max_input_tokens - buffer_tokens
-        
-        # Truncate the user prompt (keep system prompt intact)
-        max_prompt_chars = max_input_tokens * 4 - len(system_prompt or "")
-        if max_prompt_chars > 0:
-            truncated_prompt = prompt[:max_prompt_chars]
-            print(f"Warning: Prompt truncated from {len(prompt)} to {len(truncated_prompt)} characters to fit context limit")
-            messages = []
-            if system_prompt:
-                messages.append({"role": "system", "content": system_prompt})
-            messages.append({"role": "user", "content": truncated_prompt})
-        else:
-            raise ValueError(f"System prompt too long ({len(system_prompt)} chars) for model {model_name}")
-    else:
-        # Limit output tokens to available space
-        token_limit = min(token_limit, available_output_tokens)
-    
-    print(f"Model: {model_name}, Context limit: {total_context_limit}, Estimated input tokens: {estimated_input_tokens}, Output token limit: {token_limit}")
-
-    try:
-        response = client.chat.completions.create(
-            model=model_name,
-            messages=messages,
-            max_tokens=token_limit,
-            temperature=temperature,
-        )
-        
-        # Debug: Print the response structure
-        print(f"Moonshot API response: {response}")
-        
-        # Validate response structure
-        if not hasattr(response, 'choices') or not response.choices:
-            raise ValueError(f"Invalid response from Moonshot API: no choices found. Response: {response}")
-        
-        if not hasattr(response.choices[0], 'message') or not hasattr(response.choices[0].message, 'content'):
-            raise ValueError(f"Invalid response structure from Moonshot API. Choice: {response.choices[0]}")
-        
-        return response.choices[0].message.content
-        
-    except BadRequestError as e:
-        if "token limit" in str(e).lower():
-            # If we still hit token limit, try with even smaller output limit
-            reduced_token_limit = token_limit // 2
-            print(f"Hit token limit, retrying with reduced output limit: {reduced_token_limit}")
-            
-            response = client.chat.completions.create(
-                model=model_name,
-                messages=messages,
-                max_tokens=reduced_token_limit,
-                temperature=temperature,
-            )
-            return response.choices[0].message.content
-        else:
-            raise  # Re-raise if it's not a token limit error
+    return response.choices[0].message.content
 
 @retry_on_moonshot_error  
 def moonshot_completion(system_prompt, model_name, base64_image, prompt, temperature=1, token_limit=30000):
     """
     Moonshot AI Kimi vision-text completion API call.
+    Only kimi-thinking-preview supports vision. kimi-k2 is text-only.
     
     Args:
         system_prompt (str): System prompt
-        model_name (str): Model name (e.g., "moonshot-v1-8k", "moonshot-v1-32k", "moonshot-v1-128k")
+        model_name (str): Model name (should be "kimi-thinking-preview")
         base64_image (str): Base64-encoded image data
         prompt (str): User prompt
         temperature (float): Temperature parameter (0-1)
@@ -1446,11 +1380,14 @@ def moonshot_completion(system_prompt, model_name, base64_image, prompt, tempera
     Returns:
         str: Generated text
     """
-    print(f"Moonshot AI vision-text API call: model={model_name}")
+    print(f"Moonshot AI Kimi vision-text API call: model={model_name}")
     
     # Check if model supports vision
-    if "kimi-k2" in model_name.lower():
+    if model_name == "kimi-k2":
         raise ValueError(f"Model {model_name} does not support vision functionality. Use text-only completion instead.")
+    
+    if model_name not in ["kimi-thinking-preview"]:
+        raise ValueError(f"Unsupported Kimi vision model: {model_name}. Only 'kimi-thinking-preview' supports vision.")
     
     # Use OpenAI client with Moonshot base URL
     client = OpenAI(
@@ -1458,449 +1395,7 @@ def moonshot_completion(system_prompt, model_name, base64_image, prompt, tempera
         base_url="https://api.moonshot.ai/v1"
     )
     
-    # Determine model's total context limit
-    total_context_limit = 8000
-    if "8k" in model_name:
-        total_context_limit = 8000
-    elif "32k" in model_name:
-        total_context_limit = 32000
-    elif "128k" in model_name:
-        total_context_limit = 128000
-    elif "kimi-k2" in model_name.lower():
-        total_context_limit = 128000
-    elif "kimi-thinking-preview" in model_name.lower():
-        total_context_limit = 128000
-
-    messages = []
-    if system_prompt:
-        messages.append({"role": "system", "content": system_prompt})
-    
-    messages.append({
-        "role": "user",
-        "content": [
-            {"type": "image_url", "image_url": {"url": f"data:image/png;base64,{base64_image}"}},
-            {"type": "text", "text": prompt},
-        ],
-    })
-
-    # Estimate input token count (images typically use ~1000-2000 tokens)
-    estimated_image_tokens = 1500  # Conservative estimate for image tokens
-    total_input_text = (system_prompt or "") + prompt
-    estimated_text_tokens = estimate_token_count(total_input_text)
-    estimated_input_tokens = estimated_text_tokens + estimated_image_tokens
-    
-    # Calculate available tokens for output (leave some buffer)
-    buffer_tokens = 200  # Larger buffer for vision tasks
-    available_output_tokens = total_context_limit - estimated_input_tokens - buffer_tokens
-    
-    # Adjust token_limit to not exceed available space
-    if available_output_tokens <= 0:
-        # Input is too long, truncate the prompt
-        max_input_tokens = total_context_limit - token_limit - buffer_tokens
-        if max_input_tokens <= estimated_image_tokens:
-            # Even with truncation, we can't fit the image
-            max_input_tokens = total_context_limit // 2  # Use half for input, half for output
-            token_limit = total_context_limit - max_input_tokens - buffer_tokens
-        
-        # Truncate the user prompt (keep system prompt and image intact)
-        max_prompt_chars = (max_input_tokens - estimated_image_tokens) * 4 - len(system_prompt or "")
-        if max_prompt_chars > 0:
-            truncated_prompt = prompt[:max_prompt_chars]
-            print(f"Warning: Prompt truncated from {len(prompt)} to {len(truncated_prompt)} characters to fit context limit")
-            messages = []
-            if system_prompt:
-                messages.append({"role": "system", "content": system_prompt})
-            messages.append({
-                "role": "user",
-                "content": [
-                    {"type": "image_url", "image_url": {"url": f"data:image/png;base64,{base64_image}"}},
-                    {"type": "text", "text": truncated_prompt},
-                ],
-            })
-        else:
-            raise ValueError(f"System prompt and image too large for model {model_name}")
-    else:
-        # Limit output tokens to available space
-        token_limit = min(token_limit, available_output_tokens)
-    
-    print(f"Model: {model_name}, Context limit: {total_context_limit}, Estimated input tokens: {estimated_input_tokens} (text: {estimated_text_tokens}, image: {estimated_image_tokens}), Output token limit: {token_limit}")
-
-    try:
-        response = client.chat.completions.create(
-            model=model_name,
-            messages=messages,
-            max_tokens=token_limit,
-            temperature=temperature,
-        )
-        
-        # Debug: Print the response structure
-        print(f"Moonshot vision API response: {response}")
-        
-        # Validate response structure
-        if not hasattr(response, 'choices') or not response.choices:
-            raise ValueError(f"Invalid response from Moonshot API: no choices found. Response: {response}")
-        
-        if not hasattr(response.choices[0], 'message') or not hasattr(response.choices[0].message, 'content'):
-            raise ValueError(f"Invalid response structure from Moonshot API. Choice: {response.choices[0]}")
-        
-        return response.choices[0].message.content
-        
-    except BadRequestError as e:
-        if "token limit" in str(e).lower():
-            # If we still hit token limit, try with even smaller output limit
-            reduced_token_limit = token_limit // 2
-            print(f"Hit token limit, retrying with reduced output limit: {reduced_token_limit}")
-            
-            response = client.chat.completions.create(
-                model=model_name,
-                messages=messages,
-                max_tokens=reduced_token_limit,
-                temperature=temperature,
-            )
-            return response.choices[0].message.content
-        else:
-            raise  # Re-raise if it's not a token limit error
-
-@retry_on_moonshot_error
-def moonshot_multiimage_completion(system_prompt, model_name, prompt, list_content, list_image_base64, temperature=1, token_limit=30000):
-    """
-    Moonshot AI Kimi multi-image completion API call.
-    
-    Args:
-        system_prompt (str): System prompt
-        model_name (str): Model name (e.g., "moonshot-v1-8k", "moonshot-v1-32k", "moonshot-v1-128k")
-        prompt (str): User prompt
-        list_content (List[str]): List of text content corresponding to each image
-        list_image_base64 (List[str]): List of base64-encoded image data
-        temperature (float): Temperature parameter (0-1)
-        token_limit (int): Maximum number of tokens for the completion response
-        
-    Returns:
-        str: Generated text
-    """
-    print(f"Moonshot AI multi-image API call: model={model_name}")
-    
-    # Check if model supports vision
-    if "kimi-k2" in model_name.lower():
-        raise ValueError(f"Model {model_name} does not support vision functionality. Use text-only completion instead.")
-    
-    # Use OpenAI client with Moonshot base URL
-    client = OpenAI(
-        api_key=os.getenv("MOONSHOT_API_KEY"),
-        base_url="https://api.moonshot.ai/v1"
-    )
-    
-    # Determine model's total context limit
-    total_context_limit = 8000
-    if "8k" in model_name:
-        total_context_limit = 8000
-    elif "32k" in model_name:
-        total_context_limit = 32000
-    elif "128k" in model_name:
-        total_context_limit = 128000
-    elif "kimi-k2" in model_name.lower():
-        total_context_limit = 128000
-    elif "kimi-thinking-preview" in model_name.lower():
-        total_context_limit = 128000
-
-    content_blocks = []
-    
-    # Add text content and corresponding images
-    for text_item, base64_image in zip(list_content, list_image_base64):
-        content_blocks.append({
-            "type": "text",
-            "text": text_item,
-        })
-        content_blocks.append({
-            "type": "image_url",
-            "image_url": {"url": f"data:image/png;base64,{base64_image}"}
-        })
-    
-    # Add final prompt
-    content_blocks.append({
-        "type": "text",
-        "text": prompt
-    })
-
-    messages = []
-    if system_prompt:
-        messages.append({"role": "system", "content": system_prompt})
-    
-    messages.append({
-        "role": "user",
-        "content": content_blocks,
-    })
-
-    # Estimate input token count
-    num_images = len(list_image_base64)
-    estimated_image_tokens = num_images * 1500  # Conservative estimate per image
-    total_input_text = (system_prompt or "") + prompt + " ".join(list_content)
-    estimated_text_tokens = estimate_token_count(total_input_text)
-    estimated_input_tokens = estimated_text_tokens + estimated_image_tokens
-    
-    # Calculate available tokens for output (leave some buffer)
-    buffer_tokens = 300  # Larger buffer for multi-image tasks
-    available_output_tokens = total_context_limit - estimated_input_tokens - buffer_tokens
-    
-    # Adjust token_limit to not exceed available space
-    if available_output_tokens <= 0:
-        # Input is too long, try to reduce
-        max_input_tokens = total_context_limit - token_limit - buffer_tokens
-        if max_input_tokens <= estimated_image_tokens:
-            # Even with truncation, we can't fit all images
-            max_input_tokens = total_context_limit // 2  # Use half for input, half for output
-            token_limit = total_context_limit - max_input_tokens - buffer_tokens
-        
-        # Try to reduce the number of images or truncate text
-        if num_images > 1 and estimated_image_tokens > max_input_tokens // 2:
-            # Reduce number of images
-            max_images = max(1, (max_input_tokens // 2) // 1500)
-            print(f"Warning: Reducing images from {num_images} to {max_images} to fit context limit")
-            list_image_base64 = list_image_base64[:max_images]
-            list_content = list_content[:max_images]
-            
-            # Rebuild content blocks with fewer images
-            content_blocks = []
-            for text_item, base64_image in zip(list_content, list_image_base64):
-                content_blocks.append({
-                    "type": "text",
-                    "text": text_item,
-                })
-                content_blocks.append({
-                    "type": "image_url",
-                    "image_url": {"url": f"data:image/png;base64,{base64_image}"}
-                })
-            content_blocks.append({
-                "type": "text",
-                "text": prompt
-            })
-            
-            # Update messages
-            messages = []
-            if system_prompt:
-                messages.append({"role": "system", "content": system_prompt})
-            messages.append({
-                "role": "user",
-                "content": content_blocks,
-            })
-            
-            # Recalculate tokens
-            estimated_image_tokens = len(list_image_base64) * 1500
-            estimated_input_tokens = estimated_text_tokens + estimated_image_tokens
-        
-        # If still too large, truncate text content
-        available_text_tokens = max_input_tokens - estimated_image_tokens
-        if estimated_text_tokens > available_text_tokens:
-            # Truncate text content proportionally
-            reduction_factor = available_text_tokens / estimated_text_tokens
-            truncated_content = []
-            for text_item in list_content:
-                truncated_length = int(len(text_item) * reduction_factor)
-                truncated_content.append(text_item[:truncated_length])
-            
-            truncated_prompt_length = int(len(prompt) * reduction_factor)
-            truncated_prompt = prompt[:truncated_prompt_length]
-            
-            print(f"Warning: Text content truncated by factor {reduction_factor:.2f} to fit context limit")
-            
-            # Rebuild content blocks with truncated text
-            content_blocks = []
-            for text_item, base64_image in zip(truncated_content, list_image_base64):
-                content_blocks.append({
-                    "type": "text",
-                    "text": text_item,
-                })
-                content_blocks.append({
-                    "type": "image_url",
-                    "image_url": {"url": f"data:image/png;base64,{base64_image}"}
-                })
-            content_blocks.append({
-                "type": "text",
-                "text": truncated_prompt
-            })
-            
-            # Update messages
-            messages = []
-            if system_prompt:
-                messages.append({"role": "system", "content": system_prompt})
-            messages.append({
-                "role": "user",
-                "content": content_blocks,
-            })
-    else:
-        # Limit output tokens to available space
-        token_limit = min(token_limit, available_output_tokens)
-    
-    print(f"Model: {model_name}, Context limit: {total_context_limit}, Estimated input tokens: {estimated_input_tokens} (text: {estimated_text_tokens}, images: {estimated_image_tokens}), Output token limit: {token_limit}")
-
-    try:
-        response = client.chat.completions.create(
-            model=model_name,
-            messages=messages,
-            max_tokens=token_limit,
-            temperature=temperature,
-        )
-        
-        # Debug: Print the response structure
-        print(f"Moonshot multiimage API response: {response}")
-        
-        # Validate response structure
-        if not hasattr(response, 'choices') or not response.choices:
-            raise ValueError(f"Invalid response from Moonshot API: no choices found. Response: {response}")
-        
-        if not hasattr(response.choices[0], 'message') or not hasattr(response.choices[0].message, 'content'):
-            raise ValueError(f"Invalid response structure from Moonshot API. Choice: {response.choices[0]}")
-        
-        return response.choices[0].message.content
-        
-    except BadRequestError as e:
-        if "token limit" in str(e).lower():
-            # If we still hit token limit, try with even smaller output limit
-            reduced_token_limit = max(100, token_limit // 2)  # Ensure minimum viable output
-            print(f"Hit token limit, retrying with reduced output limit: {reduced_token_limit}")
-            
-            response = client.chat.completions.create(
-                model=model_name,
-                messages=messages,
-                max_tokens=reduced_token_limit,
-                temperature=temperature,
-            )
-            return response.choices[0].message.content
-        else:
-            raise  # Re-raise if it's not a token limit error
-
-# ======== OPENROUTER KIMI K2 INTEGRATION ========
-
-@retry_on_openai_error
-def openrouter_kimi_text_completion(system_prompt, model_name, prompt, temperature=1, token_limit=30000):
-    """
-    OpenRouter Kimi K2 text completion API call.
-    
-    Args:
-        system_prompt (str): System prompt
-        model_name (str): Model name (should be "moonshotai/kimi-k2")
-        prompt (str): User prompt
-        temperature (float): Temperature parameter (0-1)
-        token_limit (int): Maximum number of tokens for the completion response
-        
-    Returns:
-        str: Generated text
-    """
-    print(f"OpenRouter Kimi K2 text API call: model={model_name}")
-    
-    # Use OpenAI client with OpenRouter base URL
-    client = OpenAI(
-        api_key=os.getenv("OPENROUTER_API_KEY"),
-        base_url="https://openrouter.ai/api/v1"
-    )
-    
-    # Determine model's total context limit
-    total_context_limit = 128000  # Default for Kimi models
-    if "kimi-k2" in model_name.lower():
-        total_context_limit = 128000
-    elif "kimi-thinking-preview" in model_name.lower():
-        total_context_limit = 128000
-
-    messages = []
-    if system_prompt:
-        messages.append({"role": "system", "content": system_prompt})
-    messages.append({"role": "user", "content": prompt})
-
-    # Estimate input token count
-    total_input_text = (system_prompt or "") + prompt
-    estimated_input_tokens = estimate_token_count(total_input_text)
-    
-    # Calculate available tokens for output (leave some buffer)
-    buffer_tokens = 100  # Safety buffer
-    available_output_tokens = total_context_limit - estimated_input_tokens - buffer_tokens
-    
-    # Adjust token_limit to not exceed available space
-    if available_output_tokens <= 0:
-        # Input is too long, truncate the prompt
-        max_input_tokens = total_context_limit - token_limit - buffer_tokens
-        if max_input_tokens <= 0:
-            max_input_tokens = total_context_limit // 2  # Use half for input, half for output
-            token_limit = total_context_limit - max_input_tokens - buffer_tokens
-        
-        # Truncate the user prompt (keep system prompt intact)
-        max_prompt_chars = max_input_tokens * 4 - len(system_prompt or "")
-        if max_prompt_chars > 0:
-            truncated_prompt = prompt[:max_prompt_chars]
-            print(f"Warning: Prompt truncated from {len(prompt)} to {len(truncated_prompt)} characters to fit context limit")
-            messages = []
-            if system_prompt:
-                messages.append({"role": "system", "content": system_prompt})
-            messages.append({"role": "user", "content": truncated_prompt})
-        else:
-            raise ValueError(f"System prompt too long ({len(system_prompt)} chars) for model {model_name}")
-    else:
-        # Limit output tokens to available space
-        token_limit = min(token_limit, available_output_tokens)
-    
-    print(f"Model: {model_name}, Context limit: {total_context_limit}, Estimated input tokens: {estimated_input_tokens}, Output token limit: {token_limit}")
-
-    try:
-        response = client.chat.completions.create(
-            model=model_name,
-            messages=messages,
-            max_tokens=token_limit,
-            temperature=temperature,
-        )
-        
-        return response.choices[0].message.content
-        
-    except BadRequestError as e:
-        if "token limit" in str(e).lower():
-            # If we still hit token limit, try with even smaller output limit
-            reduced_token_limit = token_limit // 2
-            print(f"Hit token limit, retrying with reduced output limit: {reduced_token_limit}")
-            
-            response = client.chat.completions.create(
-                model=model_name,
-                messages=messages,
-                max_tokens=reduced_token_limit,
-                temperature=temperature,
-            )
-            return response.choices[0].message.content
-        else:
-            raise  # Re-raise if it's not a token limit error
-
-@retry_on_openai_error
-def openrouter_kimi_completion(system_prompt, model_name, base64_image, prompt, temperature=1, token_limit=30000):
-    """
-    OpenRouter Kimi K2 vision-text completion API call.
-    
-    Args:
-        system_prompt (str): System prompt
-        model_name (str): Model name (should be "moonshotai/kimi-k2")
-        base64_image (str): Base64-encoded image data
-        prompt (str): User prompt
-        temperature (float): Temperature parameter (0-1)
-        token_limit (int): Maximum number of tokens for the completion response
-        
-    Returns:
-        str: Generated text
-    """
-    print(f"OpenRouter Kimi K2 vision-text API call: model={model_name}")
-    
-    # Check if model supports vision
-    if "kimi-k2" in model_name.lower():
-        raise ValueError(f"Model {model_name} does not support vision functionality. Use text-only completion instead.")
-    
-    # Use OpenAI client with OpenRouter base URL
-    client = OpenAI(
-        api_key=os.getenv("OPENROUTER_API_KEY"),
-        base_url="https://openrouter.ai/api/v1"
-    )
-    
-    # Kimi K2 supports up to 63K context, but we'll be conservative with output tokens
-    if token_limit > 128000:
-        print("Kimi K2 supports up to 63K context, limiting output tokens to 128K for safety")
-        token_limit = 128000
-    elif "kimi-thinking-preview" in model_name.lower() and token_limit > 128000:
-        print("kimi-thinking-preview supports up to 128K context, limiting output tokens to 128K")
-        token_limit = 128000
-
+    # Build messages with image content
     messages = []
     if system_prompt:
         messages.append({"role": "system", "content": system_prompt})
@@ -1922,14 +1417,15 @@ def openrouter_kimi_completion(system_prompt, model_name, base64_image, prompt, 
     
     return response.choices[0].message.content
 
-@retry_on_openai_error
-def openrouter_kimi_multiimage_completion(system_prompt, model_name, prompt, list_content, list_image_base64, temperature=1, token_limit=30000):
+@retry_on_moonshot_error
+def moonshot_multiimage_completion(system_prompt, model_name, prompt, list_content, list_image_base64, temperature=1, token_limit=30000):
     """
-    OpenRouter Kimi K2 multi-image completion API call.
+    Moonshot AI Kimi multi-image completion API call.
+    Only kimi-thinking-preview supports vision. kimi-k2 is text-only.
     
     Args:
         system_prompt (str): System prompt
-        model_name (str): Model name (should be "moonshotai/kimi-k2")
+        model_name (str): Model name (should be "kimi-thinking-preview")
         prompt (str): User prompt
         list_content (List[str]): List of text content corresponding to each image
         list_image_base64 (List[str]): List of base64-encoded image data
@@ -1939,26 +1435,22 @@ def openrouter_kimi_multiimage_completion(system_prompt, model_name, prompt, lis
     Returns:
         str: Generated text
     """
-    print(f"OpenRouter Kimi K2 multi-image API call: model={model_name}")
+    print(f"Moonshot AI Kimi multi-image API call: model={model_name}")
     
     # Check if model supports vision
-    if "kimi-k2" in model_name.lower():
+    if model_name == "kimi-k2":
         raise ValueError(f"Model {model_name} does not support vision functionality. Use text-only completion instead.")
     
-    # Use OpenAI client with OpenRouter base URL
+    if model_name not in ["kimi-thinking-preview"]:
+        raise ValueError(f"Unsupported Kimi vision model: {model_name}. Only 'kimi-thinking-preview' supports vision.")
+    
+    # Use OpenAI client with Moonshot base URL
     client = OpenAI(
-        api_key=os.getenv("OPENROUTER_API_KEY"),
-        base_url="https://openrouter.ai/api/v1"
+        api_key=os.getenv("MOONSHOT_API_KEY"),
+        base_url="https://api.moonshot.ai/v1"
     )
     
-    # Kimi K2 supports up to 63K context, but we'll be conservative with output tokens
-    if token_limit > 128000:
-        print("Kimi K2 supports up to 128K context, limiting output tokens to 128K for safety")
-        token_limit = 128000
-    elif "kimi-thinking-preview" in model_name.lower() and token_limit > 128000:
-        print("kimi-thinking-preview supports up to 128K context, limiting output tokens to 128K")
-        token_limit = 128000
-
+    # Build content blocks with text and images
     content_blocks = []
     
     # Add text content and corresponding images
