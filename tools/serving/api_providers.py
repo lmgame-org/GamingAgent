@@ -1,16 +1,27 @@
 import os
-
+import random
 import time
 import functools
 import httpx
 
 from openai import OpenAI
+from openai import RateLimitError, APITimeoutError, APIConnectionError, APIStatusError, BadRequestError
 import anthropic
 import google.generativeai as genai
 from google.generativeai import types
 from together import Together
 
 import requests
+import grpc
+
+def estimate_token_count(text: str) -> int:
+    """
+    Rough estimation of token count for text.
+    Uses a simple heuristic of ~4 characters per token.
+    """
+    if not text:
+        return 0
+    return len(text) // 4
 
 def _sleep_with_backoff(base_delay: int, attempt: int) -> None:
     delay = base_delay * (2 ** attempt) + random.uniform(0, 1)
@@ -33,9 +44,14 @@ def retry_on_openai_error(func):
             try:
                 return func(*args, **kwargs)
 
+            # BadRequestError should NOT be retried - it indicates invalid request
+            except BadRequestError as e:
+                print(f"OpenAI BadRequestError (not retrying): {e}")
+                raise
+
             # transient issues worth retrying
             except (RateLimitError, APITimeoutError, APIConnectionError,
-                    httpx.RemoteProtocolError, BadRequestError) as e:
+                    httpx.RemoteProtocolError) as e:
                 if attempt < max_retries - 1:
                     print(f"OpenAI transient error: {e}")
                     _sleep_with_backoff(base_delay, attempt)
@@ -1215,4 +1231,215 @@ def modal_vllm_multiimage_completion(
         max_tokens=token_limit,
         temperature=temperature,
     )
+    return response.choices[0].message.content
+
+
+# ======== MOONSHOT AI KIMI API INTEGRATION ========
+
+def retry_on_moonshot_error(func):
+    """
+    Retry wrapper for Moonshot AI SDK calls.
+    Retries on: RateLimitError, Timeout, APIConnectionError,
+                APIStatusError (5xx), httpx.RemoteProtocolError.
+    Immediately raises on: BadRequestError (400).
+    """
+    @functools.wraps(func)
+    def wrapper(*args, **kwargs):
+        max_retries = kwargs.pop("max_retries", 5)
+        base_delay  = kwargs.pop("base_delay", 2)
+
+        for attempt in range(max_retries):
+            try:
+                return func(*args, **kwargs)
+
+            # BadRequestError should NOT be retried - it indicates invalid request
+            except BadRequestError as e:
+                print(f"Moonshot AI BadRequestError (not retrying): {e}")
+                raise
+
+            # transient issues worth retrying
+            except (RateLimitError, APITimeoutError, APIConnectionError,
+                    httpx.RemoteProtocolError) as e:
+                if attempt < max_retries - 1:
+                    print(f"Moonshot AI transient error: {e}")
+                    _sleep_with_backoff(base_delay, attempt)
+                    continue
+                raise
+
+            # server‑side 5xx response
+            except APIStatusError as e:
+                if 500 <= e.status_code < 600 and attempt < max_retries - 1:
+                    print(f"Moonshot AI server error {e.status_code}: {e.message}")
+                    _sleep_with_backoff(base_delay, attempt)
+                    continue
+                raise
+
+    return wrapper
+
+@retry_on_moonshot_error
+def moonshot_text_completion(system_prompt, model_name, prompt, temperature=1, token_limit=30000):
+    """
+    Moonshot AI Kimi text completion API call.
+    Supports only kimi-k2 and kimi-thinking-preview models.
+    
+    Args:
+        system_prompt (str): System prompt
+        model_name (str): Model name (e.g., "kimi-k2", "kimi-thinking-preview")
+        prompt (str): User prompt
+        temperature (float): Temperature parameter (0-1)
+        token_limit (int): Maximum number of tokens for the completion response
+        
+    Returns:
+        str: Generated text
+    """
+    print(f"Moonshot AI Kimi text API call: model={model_name}")
+    
+    # Validate supported models
+    if model_name not in ["kimi-k2", "kimi-thinking-preview"]:
+        raise ValueError(f"Unsupported Kimi model: {model_name}. Only 'kimi-k2' and 'kimi-thinking-preview' are supported.")
+    
+    # Use OpenAI client with Moonshot base URL
+    client = OpenAI(
+        api_key=os.getenv("MOONSHOT_API_KEY"),
+        base_url="https://api.moonshot.ai/v1"
+    )
+    
+    # Build messages in proper format
+    messages = []
+    if system_prompt:
+        messages.append({"role": "system", "content": system_prompt})
+    messages.append({"role": "user", "content": prompt})
+
+    response = client.chat.completions.create(
+        model=model_name,
+        messages=messages,
+        max_tokens=token_limit,
+        temperature=temperature,
+    )
+    
+    return response.choices[0].message.content
+
+@retry_on_moonshot_error  
+def moonshot_completion(system_prompt, model_name, base64_image, prompt, temperature=1, token_limit=30000):
+    """
+    Moonshot AI Kimi vision-text completion API call.
+    Only kimi-thinking-preview supports vision. kimi-k2 is text-only.
+    
+    Args:
+        system_prompt (str): System prompt
+        model_name (str): Model name (should be "kimi-thinking-preview")
+        base64_image (str): Base64-encoded image data
+        prompt (str): User prompt
+        temperature (float): Temperature parameter (0-1)
+        token_limit (int): Maximum number of tokens for the completion response
+        
+    Returns:
+        str: Generated text
+    """
+    print(f"Moonshot AI Kimi vision-text API call: model={model_name}")
+    
+    # Check if model supports vision
+    if model_name == "kimi-k2":
+        raise ValueError(f"Model {model_name} does not support vision functionality. Use text-only completion instead.")
+    
+    if model_name not in ["kimi-thinking-preview"]:
+        raise ValueError(f"Unsupported Kimi vision model: {model_name}. Only 'kimi-thinking-preview' supports vision.")
+    
+    # Use OpenAI client with Moonshot base URL
+    client = OpenAI(
+        api_key=os.getenv("MOONSHOT_API_KEY"),
+        base_url="https://api.moonshot.ai/v1"
+    )
+    
+    # Build messages with image content
+    messages = []
+    if system_prompt:
+        messages.append({"role": "system", "content": system_prompt})
+    
+    messages.append({
+        "role": "user",
+        "content": [
+            {"type": "image_url", "image_url": {"url": f"data:image/png;base64,{base64_image}"}},
+            {"type": "text", "text": prompt},
+        ],
+    })
+
+    response = client.chat.completions.create(
+        model=model_name,
+        messages=messages,
+        max_tokens=token_limit,
+        temperature=temperature,
+    )
+    
+    return response.choices[0].message.content
+
+@retry_on_moonshot_error
+def moonshot_multiimage_completion(system_prompt, model_name, prompt, list_content, list_image_base64, temperature=1, token_limit=30000):
+    """
+    Moonshot AI Kimi multi-image completion API call.
+    Only kimi-thinking-preview supports vision. kimi-k2 is text-only.
+    
+    Args:
+        system_prompt (str): System prompt
+        model_name (str): Model name (should be "kimi-thinking-preview")
+        prompt (str): User prompt
+        list_content (List[str]): List of text content corresponding to each image
+        list_image_base64 (List[str]): List of base64-encoded image data
+        temperature (float): Temperature parameter (0-1)
+        token_limit (int): Maximum number of tokens for the completion response
+        
+    Returns:
+        str: Generated text
+    """
+    print(f"Moonshot AI Kimi multi-image API call: model={model_name}")
+    
+    # Check if model supports vision
+    if model_name == "kimi-k2":
+        raise ValueError(f"Model {model_name} does not support vision functionality. Use text-only completion instead.")
+    
+    if model_name not in ["kimi-thinking-preview"]:
+        raise ValueError(f"Unsupported Kimi vision model: {model_name}. Only 'kimi-thinking-preview' supports vision.")
+    
+    # Use OpenAI client with Moonshot base URL
+    client = OpenAI(
+        api_key=os.getenv("MOONSHOT_API_KEY"),
+        base_url="https://api.moonshot.ai/v1"
+    )
+    
+    # Build content blocks with text and images
+    content_blocks = []
+    
+    # Add text content and corresponding images
+    for text_item, base64_image in zip(list_content, list_image_base64):
+        content_blocks.append({
+            "type": "text",
+            "text": text_item,
+        })
+        content_blocks.append({
+            "type": "image_url",
+            "image_url": {"url": f"data:image/png;base64,{base64_image}"}
+        })
+    
+    # Add final prompt
+    content_blocks.append({
+        "type": "text",
+        "text": prompt
+    })
+
+    messages = []
+    if system_prompt:
+        messages.append({"role": "system", "content": system_prompt})
+    
+    messages.append({
+        "role": "user",
+        "content": content_blocks,
+    })
+
+    response = client.chat.completions.create(
+        model=model_name,
+        messages=messages,
+        max_tokens=token_limit,
+        temperature=temperature,
+    )
+    
     return response.choices[0].message.content

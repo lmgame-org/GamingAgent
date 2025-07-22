@@ -10,7 +10,7 @@ game_env:
 agent:
   # Global agent settings
   name: "2048_agent"
-  model_name: "claude-3-7-sonnet-latest"
+  model_name: "grok-4-0709"
   cache_dir: "cache/twenty_forty_eight"
   reasoning_effort: "high"
   token_limit: 100000

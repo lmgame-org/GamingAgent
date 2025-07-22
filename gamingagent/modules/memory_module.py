@@ -97,16 +97,32 @@ class MemoryModule(CoreModule):
             current_observation=current_state,
         )
 
-        raw = self.api_manager.text_only_completion(
-            model_name=self.model_name,
-            system_prompt=self.system_prompt,
-            prompt=formatted_prompt,
-            thinking=False,
-            reasoning_effort=self.reasoning_effort,
-            token_limit=self.token_limit,
-        )
-        # returned API response should be a tuple
-        actual_raw_text = raw[0]
+        # Retry logic for failed responses
+        max_retries = 3
+        for attempt in range(max_retries):
+            raw = self.api_manager.text_only_completion(
+                model_name=self.model_name,
+                system_prompt=self.system_prompt,
+                prompt=formatted_prompt,
+                thinking=False,
+                reasoning_effort=self.reasoning_effort,
+                token_limit=self.token_limit,
+            )
+            # returned API response should be a tuple
+            actual_raw_text = raw[0]
+            
+            # Check if we got a valid response (not empty or None)
+            if actual_raw_text and actual_raw_text.strip():
+                # Valid response, break out of retry loop
+                break
+            else:
+                print(f"Attempt {attempt + 1}/{max_retries}: Got empty response, retrying...")
+                if attempt < max_retries - 1:
+                    time.sleep(1)  # Wait 1 second before retrying
+                else:
+                    print(f"All {max_retries} attempts failed. Using fallback reflection.")
+                    actual_raw_text = "No valid reflection produced after multiple retries."
+
         # extract "reflection:" section if present
         m = re.search(
             r'(?:^|\n)(?:#\s*)?reflection:(.+?)(?=\n(?:#\s*)?[a-zA-Z]+:|$)',
@@ -130,18 +146,32 @@ class MemoryModule(CoreModule):
         try:
             print(f"[MemoryModule] Generating summary...")
             
-            raw = self.api_manager.text_only_completion(
-                model_name=self.model_name,
-                system_prompt=self.summary_system_prompt,
-                prompt=formatted_prompt,
-                thinking=False,
-                reasoning_effort=self.reasoning_effort,
-                token_limit=self.token_limit,
-            )
-            
-            # returned API response should be a tuple
-            actual_raw_text = raw[0] if raw and len(raw) > 0 else ""
-            
+            # Retry logic for failed responses
+            max_retries = 3
+            for attempt in range(max_retries):
+                raw = self.api_manager.text_only_completion(
+                    model_name=self.model_name,
+                    system_prompt=self.summary_system_prompt,
+                    prompt=formatted_prompt,
+                    thinking=False,
+                    reasoning_effort=self.reasoning_effort,
+                    token_limit=self.token_limit,
+                )
+                # returned API response should be a tuple
+                actual_raw_text = raw[0] if raw and len(raw) > 0 else ""
+                
+                # Check if we got a valid response (not empty or None)
+                if actual_raw_text and actual_raw_text.strip():
+                    # Valid response, break out of retry loop
+                    break
+                else:
+                    print(f"Attempt {attempt + 1}/{max_retries}: Got empty summary response, retrying...")
+                    if attempt < max_retries - 1:
+                        time.sleep(1)  # Wait 1 second before retrying
+                    else:
+                        print(f"All {max_retries} summary attempts failed. Using fallback summary.")
+                        actual_raw_text = "No valid summary produced after multiple retries."
+
             # Clean and validate the response
             summary = actual_raw_text.strip() if actual_raw_text else ""
             
@@ -237,7 +267,7 @@ class MemoryModule(CoreModule):
                 
                 # Generate summary
                 new_summary = self._summarize(current_trajectory)
-                if new_summary and new_summary != "No valid summary produced.":
+                if new_summary and new_summary != "": # Changed from != "No valid summary produced." to != ""
                     self.current_summary = new_summary
                     
                     # Clear the trajectory and replace with summary

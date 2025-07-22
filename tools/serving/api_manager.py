@@ -39,6 +39,9 @@ from .api_providers import (
     modal_vllm_text_completion,
     modal_vllm_completion,
     modal_vllm_multiimage_completion,
+    moonshot_text_completion,
+    moonshot_completion,
+    moonshot_multiimage_completion,
 )
 
 # Import cost calculator utilities
@@ -489,6 +492,16 @@ class APIManager:
                     temperature=temperature,
                     token_limit=token_limit
                 )
+
+            elif model_name in ["kimi-thinking-preview"]:
+                completion = moonshot_completion(
+                    system_prompt=system_prompt,
+                    model_name=model_name,
+                    base64_image=base64_image,
+                    prompt=prompt,
+                    temperature=temperature,
+                    token_limit=token_limit
+                )
             else:
                 raise ValueError(f"Unsupported model: {model_name}")
             
@@ -609,6 +622,23 @@ class APIManager:
                     base64_image=base64_image,
                     temperature=temperature,
                     url=self.modal_url
+                )
+            elif "moonshot" in model_name.lower() or "kimi" in model_name.lower():
+                # Handle both direct Moonshot API models and Kimi variants
+                completion = moonshot_completion(
+                    system_prompt=system_prompt,
+                    model_name=model_name,
+                    base64_image=base64_image,
+                    prompt=empty_prompt,
+                    temperature=temperature
+                )
+            elif model_name in ["kimi-thinking-preview"]:
+                completion = moonshot_completion(
+                    system_prompt=system_prompt,
+                    model_name=model_name,
+                    base64_image=base64_image,
+                    prompt=empty_prompt,
+                    temperature=temperature
                 )
             else:
                 raise ValueError(f"Unsupported model: {model_name}")
@@ -765,6 +795,14 @@ class APIManager:
                     token_limit=token_limit,
                     temperature=temperature,
                     reasoning_effort=reasoning_effort
+                )
+            elif model_name in ["kimi-k2", "kimi-thinking-preview"]:
+                completion = moonshot_text_completion(
+                    system_prompt=system_prompt,
+                    model_name=model_name,
+                    prompt=prompt,
+                    temperature=temperature,
+                    token_limit=token_limit
                 )
             else:
                 raise ValueError(f"Unsupported model: {model_name}")
@@ -1001,6 +1039,16 @@ class APIManager:
                     base64_image=list_image_base64,
                     temperature=temperature,
                     url=self.modal_url,
+                )
+
+            elif model_name in ["kimi-thinking-preview"]:
+                completion = moonshot_multiimage_completion(
+                    system_prompt=system_prompt,
+                    model_name=model_name,
+                    prompt=prompt,
+                    list_content=list_content,
+                    list_image_base64=list_image_base64,
+                    temperature=temperature
                 )
             else:
                 raise ValueError(f"Unsupported model: {model_name}")

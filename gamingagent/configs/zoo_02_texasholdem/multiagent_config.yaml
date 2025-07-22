@@ -1,0 +1,46 @@
+# Multi-agent Texas Hold'em configuration
+# Default settings for multi-agent Texas Hold'em games
+
+# Default agent configuration
+agent_defaults:
+  modules:
+    memory_module:
+      max_memory: 15
+      use_reflection: true
+    reasoning_module:
+      use_perception: true
+      use_summary: false
+
+# Model settings
+model_x: "gpt-4o"
+model_o: "gpt-4o"
+
+# Game settings
+num_runs: 3
+max_steps: 100
+observation_mode: "both"
+seed: 42
+
+# Module settings
+use_custom_prompt: true
+use_reflection: true
+use_perception: true
+use_summary: false
+max_memory: 15
+scaffolding: null
+
+# Server settings
+vllm_url: null
+modal_url: null
+
+# Agent-specific overrides
+agent_x:
+  modules:
+    reasoning_module:
+      use_perception: true
+      
+agent_o:
+  modules:
+    reasoning_module:
+      use_perception: true
+

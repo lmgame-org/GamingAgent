@@ -15,17 +15,20 @@ import yaml
 
 from gamingagent.agents.base_agent import BaseAgent
 from gamingagent.envs.zoo_01_tictactoe.TicTacToeEnv import MultiTicTacToeEnv
+from gamingagent.envs.zoo_02_texasholdem.TexasHoldemEnv import MultiTexasHoldemEnv
 from gamingagent.modules import PerceptionModule, ReasoningModule
 from tools.utils import draw_grid_on_image
 
 # Map game_name to environment class and config directory
 GAME_ENV_CLASS_MAPPING = {
     "tictactoe": MultiTicTacToeEnv,  # For multi-agent mode
+    "texasholdem": MultiTexasHoldemEnv,  # For multi-agent mode
     # ...
 }
 
 GAME_CONFIG_MAPPING = {
     "tictactoe": "zoo_01_tictactoe",
+    "texasholdem": "zoo_02_texasholdem",
     }
 
 ###############################################################################
@@ -200,8 +203,33 @@ def create_environment(
             max_stuck_steps_for_adapter=max_stuck_steps,
         )
         return env
+    elif game_name.lower() == "texasholdem":
+        # Enhanced Texas Hold'em with new parameters
+        env = MultiTexasHoldemEnv(
+            render_mode=render_mode,
+            num_players=env_init_kwargs.get("num_players", 2),
+            table_size_for_render=tuple(env_init_kwargs.get("table_size_for_render", [1000, 700])),
+            base_cache_dir=cache_dir,  # Updated parameter name
+            game_name_for_adapter="multi_texasholdem",
+            observation_mode_for_adapter=observation_mode,
+            game_specific_config_path_for_adapter=config_json_path,
+            max_stuck_steps_for_adapter=max_stuck_steps,
+            # New tournament features
+            enable_player_elimination=env_init_kwargs.get("enable_player_elimination", False),
+            starting_chips=env_init_kwargs.get("starting_chips", 1000),
+            big_blind=env_init_kwargs.get("big_blind", 20),
+            small_blind=env_init_kwargs.get("small_blind", 10),
+        )
+        
+        # Set up AI opponents if specified in config
+        ai_opponents = env_init_kwargs.get("ai_opponents", {})
+        if ai_opponents:
+            env.set_ai_opponents(ai_opponents)
+            print(f"[Runner] Set AI opponents: {ai_opponents}")
+        
+        return env
     else:
-        print(f"ERROR: Game '{game_name.lower()}' is not defined or implemented in single_agent_runner.py's create_environment function.")
+        print(f"ERROR: Game '{game_name.lower()}' is not defined or implemented in multi_agent_runner.py's create_environment function.")
         return None
 
 ###############################################################################
@@ -210,17 +238,56 @@ def create_environment(
 
 def play_episode(env, agents, eid, max_turns, seed):
     obs, _ = env.reset(seed=seed, episode_id=eid)
+    
+    # Handle different player naming conventions
+    if hasattr(env, 'pz_env') and hasattr(env.pz_env, 'agents'):
+        # For environments that use player_0, player_1 (like Texas Hold'em)
+        env_player_names = env.pz_env.agents
+        if "player_0" in env_player_names:
+            player_mapping = {"player_0": "player_1", "player_1": "player_2"}
+            reverse_mapping = {"player_1": "player_0", "player_2": "player_1"}
+        else:
+            # For environments that use player_1, player_2 (like TicTacToe)
+            player_mapping = {"player_1": "player_1", "player_2": "player_2"}
+            reverse_mapping = {"player_1": "player_1", "player_2": "player_2"}
+    else:
+        # Default mapping
+        player_mapping = {"player_1": "player_1", "player_2": "player_2"}
+        reverse_mapping = {"player_1": "player_1", "player_2": "player_2"}
+    
     totals = {"player_1": 0.0, "player_2": 0.0}
     moves_log = []
     
     for t in range(max_turns):
-        cur = env.current_player
-        ad, _ = agents[cur].get_action(obs[cur])
+        # Get current player from environment
+        if hasattr(env, 'current_player'):
+            env_cur = env.current_player
+        elif hasattr(env, 'pz_env') and hasattr(env.pz_env, 'agent_selection'):
+            env_cur = env.pz_env.agent_selection
+        else:
+            print("ERROR: Could not determine current player from environment")
+            break
+            
+        # Map environment player name to agent name
+        agent_cur = player_mapping.get(env_cur, env_cur)
+        
+        if agent_cur not in agents:
+            print(f"ERROR: Agent '{agent_cur}' not found in agents dict")
+            break
+            
+        ad, _ = agents[agent_cur].get_action(obs[env_cur])
         act = None if ad is None else ad.get("action")
-        moves_log.append(f"Turn {t+1}: {cur} -> {act}")
-        obs, rew, term, trunc, *_ = env.step(cur, act)
-        totals["player_1"] += rew["player_1"]
-        totals["player_2"] += rew["player_2"]
+        moves_log.append(f"Turn {t+1}: {agent_cur} ({env_cur}) -> {act}")
+        
+        obs, rew, term, trunc, *_ = env.step(env_cur, act)
+        
+        # Handle different reward structures
+        if isinstance(rew, dict):
+            for env_player, reward in rew.items():
+                agent_player = player_mapping.get(env_player, env_player)
+                if agent_player in totals:
+                    totals[agent_player] += reward
+        
         env.render()
         if term or trunc:
             break
@@ -259,21 +326,26 @@ def play_episode(env, agents, eid, max_turns, seed):
     
     print(f"{'='*60}\n")
 
-    if (hasattr(env, 'adapter_p1') and hasattr(env, 'adapter_p2')) and (env.adapter_p1 and env.adapter_p2):
+    # Record episode results using the appropriate method based on environment type
+    if hasattr(env, 'record_episode_results'):
+        # Enhanced multi-agent environment (e.g., Texas Hold'em)
+        final_scores = {"player_0": totals["player_1"], "player_1": totals["player_2"]}
+        env.record_episode_results(episode_id=eid, final_scores=final_scores, total_steps=t+1)
+    elif (hasattr(env, 'adapter_p1') and hasattr(env, 'adapter_p2')) and (env.adapter_p1 and env.adapter_p2):
+        # Legacy multi-agent environment (e.g., TicTacToe)
         env.adapter_p1.record_episode_result(
             episode_id=eid,
             score=totals["player_1"],
             steps=t+1,
             total_reward=totals["player_1"],
-            total_perf_score=totals["player_1"] # Potentially overwritten
+            total_perf_score=totals["player_1"]
         )
-
         env.adapter_p2.record_episode_result(
             episode_id=eid,
             score=totals["player_2"],
             steps=t+1,
             total_reward=totals["player_2"],
-            total_perf_score=totals["player_2"] # Potentially overwritten
+            total_perf_score=totals["player_2"]
         )
     
     # Return both totals and illegal info for main summary
@@ -370,6 +442,23 @@ def main(argv: Optional[list[str]] = None):
                 game_results["draws"] += 1
         cseed = None if cseed is None else cseed + 1
         time.sleep(1)
+    
+    # Generate run summaries
+    run_settings = {
+        "game_name": args.game_name,
+        "num_runs": args.num_runs,
+        "max_steps": args.max_steps,
+        "observation_mode": args.observation_mode,
+        "model_x": args.model_x,
+        "model_o": args.model_o,
+        "harness": args.harness,
+        "seed": args.seed
+    }
+    
+    if hasattr(env, 'finalize_run_summaries'):
+        # Enhanced multi-agent environment
+        summaries = env.finalize_run_summaries(run_settings)
+        print(f"\n📊 Generated run summaries for {len(summaries)} agents")
     
     # Print overall summary 
     if args.num_runs > 1:

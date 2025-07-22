@@ -3,6 +3,7 @@ from .core_module import CoreModule, Observation
 
 import re
 from tools.utils import scale_image_up
+import time
 
 # TODO: 
 # 1.module integration 
@@ -95,22 +96,40 @@ class ReasoningModule(CoreModule):
             use_perception_module=use_perception,
         )
         
-        # Choose API call based on whether an image is available
-        if self.observation_mode in ["vision", "both"]:
-            if image_path:
-                print("Warning: No image path provided for vision API call. Using text-only API.")
-            image_path = scale_image_up(image_path)
-            response = self._call_vision_api(full_context, image_path, custom_prompt)
-        else:
-            response = self._call_text_api(full_context, custom_prompt)
+        # Retry logic for failed responses
+        max_retries = 3
+        for attempt in range(max_retries):
+            # Choose API call based on whether an image is available
+            if self.observation_mode in ["vision", "both"]:
+                if image_path:
+                    print("Warning: No image path provided for vision API call. Using text-only API.")
+                image_path = scale_image_up(image_path)
+                response = self._call_vision_api(full_context, image_path, custom_prompt)
+            else:
+                response = self._call_text_api(full_context, custom_prompt)
 
-        #returned API response should be a tuple
-        response_string = response[0]
-        parsed_response = self._parse_response(response_string)
-        if parsed_response is None:
-            parsed_response = {}
-        parsed_response["raw_response_str"] = processed_visual_description
-
+            #returned API response should be a tuple
+            response_string = response[0]
+            parsed_response = self._parse_response(response_string)
+            parsed_response["raw_response_str"] = response_string
+            
+            # Check if we got a valid response (not "No response received")
+            if (parsed_response.get("action") is not None and 
+                parsed_response.get("thought") != "No response received"):
+                # Valid response, break out of retry loop
+                break
+            else:
+                print(f"Attempt {attempt + 1}/{max_retries}: Got invalid response, retrying...")
+                if attempt < max_retries - 1:
+                    time.sleep(1)  # Wait 1 second before retrying
+                else:
+                    print(f"All {max_retries} attempts failed. Using fallback response.")
+                    # Use a fallback response
+                    parsed_response = {
+                        "action": "noop",  # or appropriate default action for your game
+                        "thought": "API failed after multiple retries, using fallback action",
+                        "raw_response_str": response_string
+                    }
 
         # Log the reasoning process
         self.log({
@@ -123,7 +142,7 @@ class ReasoningModule(CoreModule):
             "thought": parsed_response.get("thought"),
             "action": parsed_response.get("action")
         })
-        
+
         return parsed_response
     
     def _call_vision_api(self, context, image_path, custom_prompt=None):
