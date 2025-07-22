@@ -5,12 +5,12 @@ game_env:
   render_mode: "human"
   max_steps: 1000
   seed: 0
-  num_runs: 1
+  num_runs: 3
 
 agent:
   # Global agent settings
   name: "2048_agent"
-  model_name: "grok-4-0709"
+  model_name: "claude-3-7-sonnet-latest"
   cache_dir: "cache/twenty_forty_eight"
   reasoning_effort: "high"
   token_limit: 100000
