@@ -577,7 +577,11 @@ def xai_grok_text_completion(system_prompt, model_name, prompt, reasoning_effort
             return response.content
         except grpc._channel._InactiveRpcError as e:
             code = e.code() if hasattr(e, "code") else None
-            if code in [grpc.StatusCode.RESOURCE_EXHAUSTED, grpc.StatusCode.DEADLINE_EXCEEDED]:
+            if code in [
+                    grpc.StatusCode.RESOURCE_EXHAUSTED, 
+                    grpc.StatusCode.DEADLINE_EXCEEDED,
+                    grpc.StatusCode.UNKNOWN
+            ]:
                 # token per min: 16k
                 # DEADLINE_EXCEEDED
 
