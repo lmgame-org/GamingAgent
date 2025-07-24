@@ -1,19 +1,19 @@
 {
   "env_init_kwargs": {
-    "env_type": "single",           
-    "num_players": 2,
+    "env_type": "single",
+    "num_players": 3,
     "opponent_policy": "random",
-    "observation_mode_for_adapter": "both",
-    "table_size_for_render": [1000, 700],
+    "observation_mode_for_adapter": "vision",
+    "table_size_for_render": [
+      900,
+      700
+    ],
     "enable_player_elimination": false,
     "starting_chips": 1000,
     "big_blind": 20,
     "small_blind": 10,
-    "ai_opponents": {
-      "_comment": "Example AI opponents - uncomment and modify as needed",
-      "_player_2": "aggressive",
-      "_player_3": "conservative"
-    }
+    "_comment_models": "Use --player_models in runner to specify different AI models for each player",
+    "_example_usage": "python multi_agent_runner.py --game_name texasholdem --player_models gpt-4o-mini claude-3-5-sonnet gemini-2.5-flash --num_players 3"
   },
   "action_mapping": {
     "call": 0,
@@ -21,6 +21,6 @@
     "fold": 2,
     "check": 3
   },
-  "render_mode": "human",              
+  "render_mode": "human",
   "max_unchanged_steps_for_termination": 50
 }

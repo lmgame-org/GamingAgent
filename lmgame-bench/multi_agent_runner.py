@@ -12,6 +12,7 @@ import time
 from typing import Any, Dict, Optional
 
 import yaml
+import trueskill
 
 from gamingagent.agents.base_agent import BaseAgent
 from gamingagent.envs.zoo_01_tictactoe.TicTacToeEnv import MultiTicTacToeEnv
@@ -220,13 +221,7 @@ def create_environment(
             big_blind=env_init_kwargs.get("big_blind", 20),
             small_blind=env_init_kwargs.get("small_blind", 10),
         )
-        
-        # Set up AI opponents if specified in config
-        ai_opponents = env_init_kwargs.get("ai_opponents", {})
-        if ai_opponents:
-            env.set_ai_opponents(ai_opponents)
-            print(f"[Runner] Set AI opponents: {ai_opponents}")
-        
+    
         return env
     else:
         print(f"ERROR: Game '{game_name.lower()}' is not defined or implemented in multi_agent_runner.py's create_environment function.")
@@ -239,23 +234,34 @@ def create_environment(
 def play_episode(env, agents, eid, max_turns, seed):
     obs, _ = env.reset(seed=seed, episode_id=eid)
     
-    # Handle different player naming conventions
+    # Get environment player names
     if hasattr(env, 'pz_env') and hasattr(env.pz_env, 'agents'):
-        # For environments that use player_0, player_1 (like Texas Hold'em)
         env_player_names = env.pz_env.agents
+    else:
+        env_player_names = list(agents.keys())
+    
+    # Create mapping between environment players and agent keys
+    player_mapping = {}
+    reverse_mapping = {}
+    
+    # For Texas Hold'em: env uses player_0, player_1... agents use same
+    if hasattr(env, 'get_agent_players'):
+        agent_players = env.get_agent_players()
+        for env_player in env_player_names:
+            if env_player in agent_players and env_player in agents:
+                player_mapping[env_player] = env_player
+                reverse_mapping[env_player] = env_player
+    else:
+        # Legacy mapping for other games
         if "player_0" in env_player_names:
             player_mapping = {"player_0": "player_1", "player_1": "player_2"}
             reverse_mapping = {"player_1": "player_0", "player_2": "player_1"}
         else:
-            # For environments that use player_1, player_2 (like TicTacToe)
             player_mapping = {"player_1": "player_1", "player_2": "player_2"}
             reverse_mapping = {"player_1": "player_1", "player_2": "player_2"}
-    else:
-        # Default mapping
-        player_mapping = {"player_1": "player_1", "player_2": "player_2"}
-        reverse_mapping = {"player_1": "player_1", "player_2": "player_2"}
     
-    totals = {"player_1": 0.0, "player_2": 0.0}
+    # Initialize totals for all agents
+    totals = {agent_key: 0.0 for agent_key in agents.keys()}
     moves_log = []
     
     for t in range(max_turns):
@@ -284,9 +290,10 @@ def play_episode(env, agents, eid, max_turns, seed):
         # Handle different reward structures
         if isinstance(rew, dict):
             for env_player, reward in rew.items():
-                agent_player = player_mapping.get(env_player, env_player)
-                if agent_player in totals:
-                    totals[agent_player] += reward
+                # Map environment player to agent key
+                agent_key = player_mapping.get(env_player, env_player)
+                if agent_key in totals:
+                    totals[agent_key] += reward
         
         env.render()
         if term or trunc:
@@ -297,26 +304,35 @@ def play_episode(env, agents, eid, max_turns, seed):
     print(f"GAME {eid} SUMMARY")
     print(f"{'='*60}")
     print(f"Total turns: {t+1}")
-    print(f"Player 1 (X) total reward: {totals['player_1']:.1f}")
-    print(f"Player 2 (O) total reward: {totals['player_2']:.1f}")
+    
+    # Show results for all players
+    for agent_key, reward in totals.items():
+        print(f"{agent_key} total reward: {reward:.1f}")
     
     # Determine game result
     illegal = False
     illegal_player = None
-    if totals['player_1'] == -1.0 and totals['player_2'] == 0.0:
-        result = "ILLEGAL MOVE by Player 1 (X)"
-        illegal = True
-        illegal_player = "player_1"
-    elif totals['player_2'] == -1.0 and totals['player_1'] == 0.0:
-        result = "ILLEGAL MOVE by Player 2 (O)"
-        illegal = True
-        illegal_player = "player_2"
-    elif totals['player_1'] > 0 and totals['player_2'] < 0:
-        result = "Player 1 (X) WINS!"
-    elif totals['player_2'] > 0 and totals['player_1'] < 0:
-        result = "Player 2 (O) WINS!"
-    else:
-        result = "DRAW/TIE"
+    
+    # Check for illegal moves (reward = -1 or very negative)
+    for agent_key, reward in totals.items():
+        if reward <= -1.0 and all(r >= 0 for k, r in totals.items() if k != agent_key):
+            result = f"ILLEGAL MOVE by {agent_key}"
+            illegal = True
+            illegal_player = agent_key
+            break
+    
+    if not illegal:
+        # Find winner (highest reward)
+        max_reward = max(totals.values())
+        winners = [k for k, v in totals.items() if v == max_reward]
+        
+        if len(winners) == 1 and max_reward > 0:
+            result = f"{winners[0]} WINS!"
+        elif all(v == 0 for v in totals.values()):
+            result = "DRAW/TIE (no rewards)"
+        else:
+            result = f"DRAW/TIE ({len(winners)} players tied with {max_reward:.1f})"
+    
     print(f"Result: {result}")
     
     # Show move history
@@ -329,27 +345,38 @@ def play_episode(env, agents, eid, max_turns, seed):
     # Record episode results using the appropriate method based on environment type
     if hasattr(env, 'record_episode_results'):
         # Enhanced multi-agent environment (e.g., Texas Hold'em)
-        final_scores = {"player_0": totals["player_1"], "player_1": totals["player_2"]}
+        # Map agent keys back to environment player names for recording
+        final_scores = {}
+        for agent_key, reward in totals.items():
+            # For Texas Hold'em, agent keys are the same as env player names
+            env_player = reverse_mapping.get(agent_key, agent_key)
+            final_scores[env_player] = reward
         env.record_episode_results(episode_id=eid, final_scores=final_scores, total_steps=t+1)
     elif (hasattr(env, 'adapter_p1') and hasattr(env, 'adapter_p2')) and (env.adapter_p1 and env.adapter_p2):
         # Legacy multi-agent environment (e.g., TicTacToe)
-        env.adapter_p1.record_episode_result(
-            episode_id=eid,
-            score=totals["player_1"],
-            steps=t+1,
-            total_reward=totals["player_1"],
-            total_perf_score=totals["player_1"]
-        )
-        env.adapter_p2.record_episode_result(
-            episode_id=eid,
-            score=totals["player_2"],
-            steps=t+1,
-            total_reward=totals["player_2"],
-            total_perf_score=totals["player_2"]
-        )
+        # Use first two agents for legacy adapters
+        agent_keys = list(totals.keys())
+        if len(agent_keys) >= 2:
+            env.adapter_p1.record_episode_result(
+                episode_id=eid,
+                score=totals[agent_keys[0]],
+                steps=t+1,
+                total_reward=totals[agent_keys[0]],
+                total_perf_score=totals[agent_keys[0]]
+            )
+            env.adapter_p2.record_episode_result(
+                episode_id=eid,
+                score=totals[agent_keys[1]],
+                steps=t+1,
+                total_reward=totals[agent_keys[1]],
+                total_perf_score=totals[agent_keys[1]]
+            )
     
-    # Return both totals and illegal info for main summary
-    return {"player_1": totals["player_1"], "player_2": totals["player_2"], "illegal": illegal, "illegal_player": illegal_player}
+    # Return totals and illegal info for main summary
+    result_dict = dict(totals)  # Copy all player totals
+    result_dict["illegal"] = illegal
+    result_dict["illegal_player"] = illegal_player
+    return result_dict
 
 ###############################################################################
 # CLI
@@ -365,6 +392,8 @@ def build_parser():
     p.add_argument("--seed", type=int, default=None)
     p.add_argument("--model_x", type=str, default="gemini-2.5-flash")
     p.add_argument("--model_o", type=str, default="claude-3-5-sonnet-latest")
+    p.add_argument("--player_models", type=str, nargs="+", default=None,
+                   help="List of models for multiple players (e.g., --player_models gpt-4o-mini claude-3-5-sonnet gemini-2.5-flash)")
     p.add_argument("--harness", action="store_true")
     p.add_argument("--multiagent_arg", type=str, default="multi",
                         choices=["single", "multi"], help="Multi-agent mode configuration.")
@@ -417,29 +446,121 @@ def main(argv: Optional[list[str]] = None):
         multiagent_arg=args.multiagent_arg,
     )
 
-    agents = {
-        "player_1": make_agent(
-            "p1_cache", args.model_x, args, run_root, prompt_path, args._agent_defaults, args._agent_x_cfg
-        ),
-        "player_2": make_agent(
-            "p2_cache", args.model_o, args, run_root, prompt_path, args._agent_defaults, args._agent_o_cfg
-        ),
-    }
+    # Get number of players from environment configuration
+    config_json_path = os.path.join(
+        "gamingagent", "envs", game_config_name, "game_env_config.json"
+    )
+    
+    import json
+    with open(config_json_path, "r", encoding="utf-8") as f:
+        cfg_json = json.load(f)
+    env_num_players = cfg_json.get("env_init_kwargs", {}).get("num_players", 2)
+
+    # Create agents based on player models or fallback to model_x/model_o
+    agents = {}
+    
+    if args.player_models and len(args.player_models) > 1:
+        # Multi-model mode: create agents for each specified model
+        num_agents = len(args.player_models)
+        print(f"[Runner] Creating {num_agents} agents with models: {args.player_models}")
+        
+        # Update environment config to match number of models
+        if num_agents != env_num_players:
+            print(f"[Runner] Updating num_players from {env_num_players} to {num_agents} to match player_models")
+            cfg_json["env_init_kwargs"]["num_players"] = num_agents
+            with open(config_json_path, "w", encoding="utf-8") as f:
+                json.dump(cfg_json, f, indent=2)
+        
+        for i, model_name in enumerate(args.player_models):
+            player_key = f"player_{i}" if args.game_name.lower() == "texasholdem" else f"player_{i+1}"
+            cache_name = f"p{i+1}_cache"
+            agents[player_key] = make_agent(
+                cache_name, model_name, args, run_root, prompt_path, 
+                args._agent_defaults, args._agent_x_cfg if i == 0 else args._agent_o_cfg
+            )
+            print(f"  {player_key}: {model_name}")
+    else:
+        # Legacy 2-player mode: use model_x and model_o
+        if args.game_name.lower() == "texasholdem":
+            agents = {
+                "player_0": make_agent(
+                    "p1_cache", args.model_x, args, run_root, prompt_path, args._agent_defaults, args._agent_x_cfg
+                ),
+                "player_1": make_agent(
+                    "p2_cache", args.model_o, args, run_root, prompt_path, args._agent_defaults, args._agent_o_cfg
+                ),
+            }
+        else:
+            agents = {
+                "player_1": make_agent(
+                    "p1_cache", args.model_x, args, run_root, prompt_path, args._agent_defaults, args._agent_x_cfg
+                ),
+                "player_2": make_agent(
+                    "p2_cache", args.model_o, args, run_root, prompt_path, args._agent_defaults, args._agent_o_cfg
+                ),
+            }
 
     cseed = args.seed
-    game_results = {"player_1_wins": 0, "player_2_wins": 0, "draws": 0, "illegal_moves": 0}
+    
+    # Initialize game results for all agents
+    agent_keys = list(agents.keys())
+    game_results = {f"{agent}_wins": 0 for agent in agent_keys}
+    game_results.update({"draws": 0, "illegal_moves": 0})
+    
+    # Initialize TrueSkill ratings
+    ratings = {agent_key: trueskill.Rating() for agent_key in agent_keys}
     
     for eid in range(1, args.num_runs + 1):
         result = play_episode(env, agents, eid, args.max_steps, cseed)
+        
+        # Determine ranks for TrueSkill update
         if result:
+            player_rewards = {k: v for k, v in result.items() if k not in {"illegal", "illegal_player"}}
+            
+            # Sort players by reward (higher is better) to determine ranks
+            sorted_players = sorted(player_rewards.items(), key=lambda item: item[1], reverse=True)
+            ranks = [sorted_players.index(p) for p in sorted_players]
+
+            # Handle draws (same rank for same reward)
+            reward_ranks = {}
+            current_rank = 0
+            last_reward = float('-inf')
+            for player, reward in sorted_players:
+                if reward != last_reward:
+                    current_rank += 1
+                reward_ranks[player] = current_rank
+            
+            ranks = [reward_ranks[p[0]] for p in sorted_players]
+            
+            # Update TrueSkill ratings
+            if len(ratings) > 1:
+                # For FFA, each player is a team of 1. Trueskill expects a list of tuples.
+                current_ratings_tuples = [(ratings[p[0]],) for p in sorted_players]
+                new_ratings_tuples = trueskill.rate(current_ratings_tuples, ranks=ranks)
+                
+                for i, p in enumerate(sorted_players):
+                    ratings[p[0]] = new_ratings_tuples[i][0]
+
+            # Print updated ratings after each game
+            print(f"\n--- TrueSkill Ratings after Game {eid} ---")
+            sorted_ratings = sorted(ratings.items(), key=lambda item: trueskill.expose(item[1]), reverse=True)
+            for agent_key, rating in sorted_ratings:
+                print(f"  {agent_key}: {rating.mu:.2f} ± {rating.sigma*3:.2f} (μ={rating.mu:.2f}, σ={rating.sigma:.3f})")
+
+            # Update win/loss/draw counts for summary
             if result["illegal"]:
                 game_results["illegal_moves"] += 1
-            elif result["player_1"] > 0 and result["player_2"] < 0:
-                game_results["player_1_wins"] += 1
-            elif result["player_2"] > 0 and result["player_1"] < 0:
-                game_results["player_2_wins"] += 1
             else:
-                game_results["draws"] += 1
+                max_reward = max(player_rewards.values()) if player_rewards else 0
+                winners = [k for k, v in player_rewards.items() if v == max_reward]
+                
+                if len(winners) == 1 and max_reward > 0:
+                    winner_key = f"{winners[0]}_wins"
+                    if winner_key in game_results:
+                        game_results[winner_key] += 1
+                else:
+                    game_results["draws"] += 1
+                    
         cseed = None if cseed is None else cseed + 1
         time.sleep(1)
     
@@ -465,13 +586,32 @@ def main(argv: Optional[list[str]] = None):
         print(f"\n{'#'*70}")
         print(f"OVERALL SUMMARY ({args.num_runs} games)")
         print(f"{'#'*70}")
-        print(f"Player 1 (X) wins: {game_results['player_1_wins']}")
-        print(f"Player 2 (O) wins: {game_results['player_2_wins']}")
-        print(f"Draws: {game_results['draws']}")
-        print(f"Games ended by illegal moves: {game_results['illegal_moves']}")
-        print(f"Player 1 win rate: {game_results['player_1_wins']/args.num_runs*100:.1f}%")
-        print(f"Player 2 win rate: {game_results['player_2_wins']/args.num_runs*100:.1f}%")
-        print(f"Illegal move rate: {game_results['illegal_moves']/args.num_runs*100:.1f}%")
+        
+        # Show wins for each agent
+        for agent in agent_keys:
+            win_key = f"{agent}_wins"
+            if win_key in game_results:
+                wins = game_results[win_key]
+                win_rate = wins / args.num_runs * 100
+                print(f"{agent} wins: {wins} ({win_rate:.1f}%)")
+        
+        print(f"Draws: {game_results['draws']} ({game_results['draws']/args.num_runs*100:.1f}%)")
+        print(f"Games ended by illegal moves: {game_results['illegal_moves']} ({game_results['illegal_moves']/args.num_runs*100:.1f}%)")
+        
+        # Show model assignments if using player_models
+        if args.player_models and len(args.player_models) > 1:
+            print(f"\nModel Assignments:")
+            for i, model in enumerate(args.player_models):
+                player_key = f"player_{i}" if args.game_name.lower() == "texasholdem" else f"player_{i+1}"
+                print(f"  {player_key}: {model}")
+        
+        # Print final TrueSkill leaderboard
+        print(f"\n--- FINAL TRUESKILL RANKING ---")
+        sorted_ratings = sorted(ratings.items(), key=lambda item: trueskill.expose(item[1]), reverse=True)
+        for rank, (agent_key, rating) in enumerate(sorted_ratings, 1):
+            exposed_rating = trueskill.expose(rating)
+            print(f"  #{rank}: {agent_key:<15} Skill = {exposed_rating:.2f} (μ={rating.mu:.2f}, σ={rating.sigma:.3f})")
+
         print(f"{'#'*70}")
     
     env.close()
