@@ -65,7 +65,7 @@ def parse_arguments(defaults_map=None, argv_to_parse=None):
                         help="Name of the game (e.g., twenty_forty_eight, sokoban). Set by prelim parser.")
     parser.add_argument("--config_root_dir", type=str, default="gamingagent/configs",
                         help="Root directory for agent configurations.")
-    parser.add_argument("--model_name", type=str, default="claude-3-haiku-20240307",
+    parser.add_argument("--model_name", type=str, default="claude-3-5-sonnet-latest",
                         help="Name of the model for the agent.")
     parser.add_argument("--harness", action="store_true",
                         help="Use perception-memory-reasoning pipeline (harness mode). Default is False.")
@@ -98,12 +98,39 @@ def parse_arguments(defaults_map=None, argv_to_parse=None):
         help="Optional URL for a vLLM inference endpoint passed to BaseAgent.",
     )
 
-    if defaults_map:
-        parser.set_defaults(**defaults_map)
-    
+    # First parse args with just command line values
     if argv_to_parse:
-        return parser.parse_args(argv_to_parse)
-    return parser.parse_args()
+        args = parser.parse_args(argv_to_parse)
+    else:
+        args = parser.parse_args()
+
+    # Store original command line and default values
+    args._cli_values = {}
+    for action in parser._actions:
+        if action.dest != 'help':
+            args._cli_values[action.dest] = getattr(args, action.dest)
+
+    # Store YAML defaults for reference but don't apply them yet
+    args._yaml_defaults = defaults_map if defaults_map else {}
+
+    # Only apply YAML defaults for parameters that:
+    # 1. Weren't explicitly set on command line
+    # 2. Are using their built-in defaults
+    # 3. Have a different value in YAML
+    if defaults_map:
+        for param_name, yaml_value in defaults_map.items():
+            if yaml_value is not None:
+                param_on_cli = f"--{param_name.replace('_', '-')}" in sys.argv
+                if not param_on_cli:
+                    # For model_name, always use CLI default
+                    if param_name == "model_name":
+                        continue
+                    # For other parameters, use YAML if different from CLI default
+                    cli_value = getattr(args, param_name)
+                    if cli_value != yaml_value:
+                        setattr(args, param_name, yaml_value)
+
+    return args
 
 def create_environment(game_name_arg: str, 
                        obs_mode_arg: str, 
@@ -614,29 +641,48 @@ def main():
         print("ERROR: game_name is missing after parsing. This should not happen if run.py provides it.")
         sys.exit(2) # Exit with a different code to distinguish from argparse error
 
-    # --- Override specific args with YAML values if they existed in the config file ---
-    # This makes config.yaml authoritative for these specific parameters over command-line args,
-    # while game_name, model_name, and harness are primarily driven by command-line (from run.py).
+    # Print information about which values are being used (command line has priority over config)
+    for param_name, cli_value in args._cli_values.items():
+        yaml_value = args._yaml_defaults.get(param_name)
+        current_value = getattr(args, param_name)
+        
+        # Skip if no YAML value exists
+        if yaml_value is None:
+            continue
 
-    params_where_config_wins = {
-        'num_runs', 
-        'max_steps_per_episode',
-        'seed',
-        'max_memory',
-        'use_reflection',
-        'use_perception',
-        'use_summary',
-        'scaffolding'
-    }
+        # Special handling for model_name - always use CLI value
+        if param_name == "model_name":
+            if yaml_value != current_value:
+                print(f"INFO: Using CLI value for model_name: {current_value} (YAML value ignored: {yaml_value})")
+            continue
 
-    if config_file_path and os.path.exists(config_file_path):
-        for param_name in params_where_config_wins:
-            if param_name in defaults_from_yaml: # If the param was indeed in the loaded YAML config
-                yaml_value = defaults_from_yaml[param_name]
-                current_arg_value = getattr(args, param_name, None)
-                if current_arg_value != yaml_value:
-                    print(f"INFO: Overriding '{param_name}' with value from {config_file_path}. Was: {current_arg_value}, Now: {yaml_value}")
-                    setattr(args, param_name, yaml_value)
+        # For other parameters, check if explicitly set on command line
+        param_on_cli = f"--{param_name.replace('_', '-')}" in sys.argv
+        if param_on_cli:
+            if current_value != yaml_value:
+                print(f"INFO: Using CLI value for '{param_name}': {current_value} (YAML value ignored: {yaml_value})")
+        elif current_value != cli_value:
+            print(f"INFO: Using YAML value for '{param_name}': {current_value} (CLI default was: {cli_value})")
+
+    # params_where_config_wins = {
+    #     'num_runs', 
+    #     'max_steps_per_episode',
+    #     'seed',
+    #     'max_memory',
+    #     'use_reflection',
+    #     'use_perception',
+    #     'use_summary',
+    #     'scaffolding'
+    # }
+
+    # if config_file_path and os.path.exists(config_file_path):
+    #     for param_name in params_where_config_wins:
+    #         if param_name in defaults_from_yaml: # If the param was indeed in the loaded YAML config
+    #             yaml_value = defaults_from_yaml[param_name]
+    #             current_arg_value = getattr(args, param_name, None)
+    #             if current_arg_value != yaml_value:
+    #                 print(f"INFO: Overriding '{param_name}' with value from {config_file_path}. Was: {current_arg_value}, Now: {yaml_value}")
+    #                 setattr(args, param_name, yaml_value)
     # --- End of override logic ---
 
     # Ensure agent_prompts_config_path uses the potentially overridden args.config_root_dir and correct config_dir_name

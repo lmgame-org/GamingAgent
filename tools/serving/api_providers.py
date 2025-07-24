@@ -556,103 +556,59 @@ def deepseek_text_reasoning_completion(system_prompt, model_name, prompt, token_
     # generated_str = response.choices[0].message.content
     
     return content
-    
+
 
 def xai_grok_text_completion(system_prompt, model_name, prompt, reasoning_effort="high", token_limit=30000, temperature=1):
     print(f"XAI Grok text API call: model={model_name}, reasoning_effort={reasoning_effort}")
     from xai_sdk import Client
     from xai_sdk.chat import user, system
-    import os
+    import grpc
 
-    max_retries = 10
-    base_delay = 2
-    force_ipv4 = False  # Start with default IP configuration
-    
-    for attempt in range(max_retries):
+    client = Client(
+    api_host="api.x.ai",
+    api_key=os.getenv("XAI_API_KEY")
+    )
+
+    params = {
+        "model": model_name,
+        "temperature": temperature,
+        "max_tokens": token_limit
+    }
+
+    if "grok-3-mini" in model_name:
+        params["reasoning_effort"] = reasoning_effort
+
+    chat = client.chat.create(**params)
+
+    chat.append(system(system_prompt))
+    chat.append(user(prompt))
+
+    # ================== TEMPORARY FIX FOR XAI GROK RATE LIMITS ================== #
+    retries = 0
+    backoff = 5  # initial backoff in seconds
+
+    while True:
         try:
-            # Set IPv4 environment variable if needed
-            if force_ipv4:
-                os.environ["GRPC_DNS_RESOLVER"] = "native"  # Use native DNS resolver
-                os.environ["GRPC_ENABLE_FORK_SUPPORT"] = "false"  # Disable fork support which can interfere
-                print("Forcing IPv4 connection...")
-            
-            client = Client(
-                api_host="api.x.ai",
-                api_key=os.getenv("XAI_API_KEY")
-            )
-
-            params = {
-                "model": model_name,
-                "temperature": temperature,
-                "max_tokens": token_limit
-            }
-
-            if "grok-3-mini" in model_name:
-                params["reasoning_effort"] = reasoning_effort
-
-            chat = client.chat.create(**params)
-            chat.append(system(system_prompt))
-            chat.append(user(prompt))
             response = chat.sample()
             return response.content
-        except Exception as e:
-            error_str = str(e)
-            error_type = e.__class__.__name__
-            error_code = None
-            
-            # Safely get error code if available
-            try:
-                if hasattr(e, 'code') and callable(e.code):
-                    error_code = e.code()
-            except:
-                error_code = None
+        except grpc._channel._InactiveRpcError as e:
+            code = e.code() if hasattr(e, "code") else None
+            if code in [
+                    grpc.StatusCode.RESOURCE_EXHAUSTED, 
+                    grpc.StatusCode.DEADLINE_EXCEEDED,
+                    grpc.StatusCode.UNKNOWN
+            ]:
+                # token per min: 16k
+                # DEADLINE_EXCEEDED
 
-            # Check for IPv6-related issues
-            is_ipv6_error = any(x in error_str.lower() for x in ["ipv6", "no route to host"])
-            
-            # Helper function to determine retry delay
-            def get_retry_delay(base_delay, attempt, error_type, is_ipv6=False):
-                delay = base_delay * (2 ** attempt)
-                if is_ipv6:
-                    return delay * 1.2  # 20% more delay for IPv6 issues
-                if "Connection reset by peer" in error_str:
-                    return delay * 1.5  # 50% more delay for connection resets
-                elif error_type == "UNKNOWN":
-                    return delay + (attempt * 2)  # Extra delay for server errors
-                return delay
-
-            # Check if error is retryable
-            is_retryable = False
-            error_type = None
-            
-            if (error_code == grpc.StatusCode.RESOURCE_EXHAUSTED) or ('RESOURCE_EXHAUSTED' in error_str):
-                is_retryable = True
-                error_type = "RESOURCE_EXHAUSTED"
-            elif (error_code == grpc.StatusCode.UNAVAILABLE) or ('UNAVAILABLE' in error_str):
-                is_retryable = True
-                error_type = "UNAVAILABLE"
-                # If this is an IPv6 error and we haven't tried IPv4 yet, force IPv4 for next attempt
-                if is_ipv6_error and not force_ipv4:
-                    force_ipv4 = True
-                    print("Detected IPv6 connectivity issue, will retry with IPv4 only")
-            elif (error_code == grpc.StatusCode.DEADLINE_EXCEEDED) or ('DEADLINE_EXCEEDED' in error_str):
-                is_retryable = True
-                error_type = "DEADLINE_EXCEEDED"
-            elif (error_code == grpc.StatusCode.UNKNOWN) or ('UNKNOWN' in error_str):
-                is_retryable = True
-                error_type = "UNKNOWN"
-
-            if is_retryable and attempt < max_retries - 1:
-                delay = get_retry_delay(base_delay, attempt, error_type, is_ipv6_error)
-                print(f"Grok API error ({error_type} - {error_str}). Retrying in {delay:.2f} seconds... (Attempt {attempt + 1}/{max_retries})")
-                time.sleep(delay)
-                continue
-            elif is_retryable:
-                print(f"Grok API error persists after {max_retries} attempts. Last error ({error_type}): {error_str}")
-                raise
+                retries += 1
+                print(f"Rate limit hit! Sleeping {backoff} seconds and retrying (attempt {retries})...")
+                time.sleep(backoff)
+                backoff = min(backoff * 2, 20)  # exponential backoff, cap at 30s
             else:
-                print(f"Unhandled Grok API error: {error_str}")
-                raise
+                raise Exception(e)
+    
+    # ================== TEMPORARY FIX FOR XAI GROK RATE LIMITS ================== #
 
 @retry_on_openai_error
 def openai_multiimage_completion(system_prompt, model_name, prompt, list_content, list_image_base64, token_limit=30000, reasoning_effort="medium"):

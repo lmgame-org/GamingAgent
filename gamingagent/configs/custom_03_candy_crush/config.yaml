@@ -7,7 +7,7 @@ game_env:
   seed: 42 # Or a specific seed
 
 agent:
-  model_name: "claude-3-5-sonnet-latest" # Or your preferred model
+  model_name: "claude-3-7-sonnet-latest" # Or your preferred model
   harness: true
   token_limit: 100000
   reasoning_effort: "high"

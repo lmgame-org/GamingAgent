@@ -13,6 +13,7 @@ from typing import Any, Dict, Optional
 
 import yaml
 import trueskill
+import sys
 
 from gamingagent.agents.base_agent import BaseAgent
 from gamingagent.envs.zoo_01_tictactoe.TicTacToeEnv import MultiTicTacToeEnv
@@ -63,29 +64,67 @@ def _is_default(args, key, defaults):
 
 
 def merge_cli_yaml(args, cfg, defaults):
+    """
+    Merge CLI arguments with YAML config, ensuring CLI values take precedence.
+    Special handling for model names to always use CLI values.
+    """
+    # First parse with just command line values
+    args._cli_values = {}
+    for key in vars(args):
+        args._cli_values[key] = getattr(args, key)
+
+    # Store YAML config for reference
+    args._yaml_defaults = cfg if cfg else {}
+
+    # List of parameters that should be checked for YAML values
     keys = [
-        "model_x", 
-        "model_o", 
-        "num_runs", 
-        "max_steps", 
-        "observation_mode", 
+        "num_runs",
+        "max_steps",
+        "observation_mode",
         "seed",
-        "use_custom_prompt", 
-        "use_reflection", 
-        "use_perception", 
+        "use_reflection",
+        "use_perception",
         "use_summary",
-        "max_memory", 
-        "scaffolding", 
-        "vllm_url", 
+        "max_memory",
+        "scaffolding",
+        "vllm_url",
         "modal_url"
     ]
 
+    # Only apply YAML values for parameters that:
+    # 1. Weren't explicitly set on command line
+    # 2. Are using their built-in defaults
+    # 3. Have a different value in YAML
     for k in keys:
-        if k in cfg and _is_default(args, k, defaults):
-            setattr(args, k, cfg[k])
+        if k in cfg:
+            param_on_cli = f"--{k.replace('_', '-')}" in sys.argv
+            if not param_on_cli:
+                cli_value = getattr(args, k)
+                yaml_value = cfg[k]
+                if yaml_value is not None and cli_value != yaml_value:
+                    print(f"INFO: Using YAML value for '{k}': {yaml_value} (CLI default was: {cli_value})")
+                    setattr(args, k, yaml_value)
+
+    # Special handling for model names - always use CLI values
+    if "model_x" in cfg and getattr(args, "model_x") != cfg["model_x"]:
+        print(f"INFO: Using CLI value for model_x: {args.model_x} (YAML value ignored: {cfg['model_x']})")
+    if "model_o" in cfg and getattr(args, "model_o") != cfg["model_o"]:
+        print(f"INFO: Using CLI value for model_o: {args.model_o} (YAML value ignored: {cfg['model_o']})")
+
+    # Handle boolean flags separately
+    bool_flags = ['harness', 'use_custom_prompt']
+    for flag in bool_flags:
+        if flag in cfg and cfg[flag] is True and not getattr(args, flag):
+            # Only set to True if not explicitly set on command line
+            if f"--{flag.replace('_', '-')}" not in sys.argv:
+                print(f"INFO: Using YAML value for boolean flag '{flag}': True")
+                setattr(args, flag, True)
+
+    # Store agent-specific configurations
     args._agent_defaults = cfg.get("agent_defaults", {})
     args._agent_x_cfg = cfg.get("agent_x", {})
     args._agent_o_cfg = cfg.get("agent_o", {})
+
     return args
 
 ###############################################################################
@@ -221,7 +260,13 @@ def create_environment(
             big_blind=env_init_kwargs.get("big_blind", 20),
             small_blind=env_init_kwargs.get("small_blind", 10),
         )
-    
+        
+        # Set up AI opponents if specified in config
+        ai_opponents = env_init_kwargs.get("ai_opponents", {})
+        if ai_opponents:
+            env.set_ai_opponents(ai_opponents)
+            print(f"[Runner] Set AI opponents: {ai_opponents}")
+        
         return env
     else:
         print(f"ERROR: Game '{game_name.lower()}' is not defined or implemented in multi_agent_runner.py's create_environment function.")
@@ -234,7 +279,7 @@ def create_environment(
 def play_episode(env, agents, eid, max_turns, seed):
     obs, _ = env.reset(seed=seed, episode_id=eid)
     
-    # Get environment player names
+    # Handle different player naming conventions
     if hasattr(env, 'pz_env') and hasattr(env.pz_env, 'agents'):
         env_player_names = env.pz_env.agents
     else:
@@ -263,7 +308,7 @@ def play_episode(env, agents, eid, max_turns, seed):
     # Initialize totals for all agents
     totals = {agent_key: 0.0 for agent_key in agents.keys()}
     moves_log = []
-    
+
     for t in range(max_turns):
         # Get current player from environment
         if hasattr(env, 'current_player'):
@@ -273,39 +318,36 @@ def play_episode(env, agents, eid, max_turns, seed):
         else:
             print("ERROR: Could not determine current player from environment")
             break
-            
+
         # Map environment player name to agent name
         agent_cur = player_mapping.get(env_cur, env_cur)
-        
+
         if agent_cur not in agents:
             print(f"ERROR: Agent '{agent_cur}' not found in agents dict")
             break
-            
+
         ad, _ = agents[agent_cur].get_action(obs[env_cur])
         act = None if ad is None else ad.get("action")
         moves_log.append(f"Turn {t+1}: {agent_cur} ({env_cur}) -> {act}")
-        
+
         obs, rew, term, trunc, *_ = env.step(env_cur, act)
-        
+
         # Handle different reward structures
         if isinstance(rew, dict):
             for env_player, reward in rew.items():
-                # Map environment player to agent key
-                agent_key = player_mapping.get(env_player, env_player)
-                if agent_key in totals:
-                    totals[agent_key] += reward
+                agent_player = player_mapping.get(env_player, env_player)
+                if agent_player in totals:
+                    totals[agent_player] += reward
         
         env.render()
         if term or trunc:
             break
-    
+
     # Print detailed game summary
     print(f"\n{'='*60}")
     print(f"GAME {eid} SUMMARY")
     print(f"{'='*60}")
     print(f"Total turns: {t+1}")
-    
-    # Show results for all players
     for agent_key, reward in totals.items():
         print(f"{agent_key} total reward: {reward:.1f}")
     
@@ -334,12 +376,12 @@ def play_episode(env, agents, eid, max_turns, seed):
             result = f"DRAW/TIE ({len(winners)} players tied with {max_reward:.1f})"
     
     print(f"Result: {result}")
-    
+
     # Show move history
     print(f"\nMove History:")
     for move in moves_log:
         print(f"  {move}")
-    
+
     print(f"{'='*60}\n")
 
     # Record episode results using the appropriate method based on environment type
@@ -354,7 +396,6 @@ def play_episode(env, agents, eid, max_turns, seed):
         env.record_episode_results(episode_id=eid, final_scores=final_scores, total_steps=t+1)
     elif (hasattr(env, 'adapter_p1') and hasattr(env, 'adapter_p2')) and (env.adapter_p1 and env.adapter_p2):
         # Legacy multi-agent environment (e.g., TicTacToe)
-        # Use first two agents for legacy adapters
         agent_keys = list(totals.keys())
         if len(agent_keys) >= 2:
             env.adapter_p1.record_episode_result(
@@ -372,8 +413,8 @@ def play_episode(env, agents, eid, max_turns, seed):
                 total_perf_score=totals[agent_keys[1]]
             )
     
-    # Return totals and illegal info for main summary
-    result_dict = dict(totals)  # Copy all player totals
+    #result_dict = dict(totals)  # Copy all player totals
+    result_dict = dict(totals)
     result_dict["illegal"] = illegal
     result_dict["illegal_player"] = illegal_player
     return result_dict
@@ -384,7 +425,7 @@ def play_episode(env, agents, eid, max_turns, seed):
 
 def build_parser():
     p = argparse.ArgumentParser("Multi‑Agent TicTacToe Runner")
-    p.add_argument("--game_name", type=str, default=None, 
+    p.add_argument("--game_name", type=str, default=None,
                         help="Name of the game (e.g., tictactoe). Set by prelim parser.")
     p.add_argument("--num_runs", type=int, default=1)
     p.add_argument("--max_steps", type=int, default=30)
@@ -501,14 +542,7 @@ def main(argv: Optional[list[str]] = None):
             }
 
     cseed = args.seed
-    
-    # Initialize game results for all agents
-    agent_keys = list(agents.keys())
-    game_results = {f"{agent}_wins": 0 for agent in agent_keys}
-    game_results.update({"draws": 0, "illegal_moves": 0})
-    
-    # Initialize TrueSkill ratings
-    ratings = {agent_key: trueskill.Rating() for agent_key in agent_keys}
+    game_results = {"player_1_wins": 0, "player_2_wins": 0, "draws": 0, "illegal_moves": 0}
     
     for eid in range(1, args.num_runs + 1):
         result = play_episode(env, agents, eid, args.max_steps, cseed)
@@ -563,7 +597,7 @@ def main(argv: Optional[list[str]] = None):
                     
         cseed = None if cseed is None else cseed + 1
         time.sleep(1)
-    
+
     # Generate run summaries
     run_settings = {
         "game_name": args.game_name,
@@ -575,13 +609,13 @@ def main(argv: Optional[list[str]] = None):
         "harness": args.harness,
         "seed": args.seed
     }
-    
+
     if hasattr(env, 'finalize_run_summaries'):
         # Enhanced multi-agent environment
         summaries = env.finalize_run_summaries(run_settings)
         print(f"\n📊 Generated run summaries for {len(summaries)} agents")
-    
-    # Print overall summary 
+
+    # Print overall summary
     if args.num_runs > 1:
         print(f"\n{'#'*70}")
         print(f"OVERALL SUMMARY ({args.num_runs} games)")
@@ -613,7 +647,7 @@ def main(argv: Optional[list[str]] = None):
             print(f"  #{rank}: {agent_key:<15} Skill = {exposed_rating:.2f} (μ={rating.mu:.2f}, σ={rating.sigma:.3f})")
 
         print(f"{'#'*70}")
-    
+
     env.close()
 
 if __name__ == "__main__":

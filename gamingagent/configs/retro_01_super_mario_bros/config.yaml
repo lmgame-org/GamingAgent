@@ -10,7 +10,7 @@ game_env:
 agent:
   # Global agent settings
   name: "super_mario_agent"
-  model_name: "claude-3-5-sonnet-latest"
+  model_name: "claude-3-7-sonnet-latest"
   cache_dir: "cache/super_mario_bros"
   reasoning_effort: "high"
   token_limit: 100000

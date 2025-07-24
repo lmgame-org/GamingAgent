@@ -8,7 +8,7 @@ seed: 42
 
 # models to use
 model_x: gemini-2.5-flash
-model_o: claude-3-7-sonnet-latest
+model_o: claude-3-5-sonnet-latest
 
 # agent defaults
 agent_defaults:
