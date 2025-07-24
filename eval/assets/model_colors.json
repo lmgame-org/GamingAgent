@@ -6,7 +6,6 @@
     "gemini-2.0-flash-thinking-exp-1219": "#C2185B",
     "gemini-2.5-pro-exp-03-25": "#FF80AB",
     "gemini-2.5-flash-preview-04-17": "#F06292",
-    "gemini-2.5-flash-preview-04-17": "#E91E63",
     "gemini-2.5-pro-preview-05-06": "#AD1457",
     "gpt-4o-2024-11-20": "#00BFA5",
     "gpt-4.5-preview-2025-02-27": "#00796B",
@@ -18,9 +17,9 @@
     "o4-mini-2025-04-16": "#00ACC1",
     "grok-3-beta": "#FF7043",
     "grok-3-mini-beta": "#FF8A65",
-    "grok-3-mini-beta": "#F57C00",
     "deepseek-v3": "#FFC107",
     "deepseek-r1": "#FFA000",
     "llama-4-maverick-17b-128e-instruct-fp8": "#8E24AA",
+    "kimi-k2-0711-preview": "#FA1B9A",
     "Random (x30)": "#9E9E9E"
 }

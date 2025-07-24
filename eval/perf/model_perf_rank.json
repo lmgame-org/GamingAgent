@@ -1,4 +1,46 @@
 { 
+  "kimi-k2-0711-preview": {
+    "harness_true": {
+      "sokoban": [
+        0,
+        0,
+        0
+      ],
+      "super_mario_bros": [
+      ],
+      "tetris": [
+        20,
+        15,
+        16
+      ],
+      "twenty_forty_eight": [
+        2360,
+        1628,
+        700
+      ],
+      "candy_crush": [
+        144,
+        31,
+        128
+      ],
+      "ace_attorney": [
+      ]
+    },
+    "harness_false": {
+      "sokoban": [
+      ],
+      "super_mario_bros": [
+      ],
+      "tetris": [
+      ],
+      "twenty_forty_eight": [
+      ],
+      "candy_crush": [
+      ],
+      "ace_attorney": [
+      ]
+    }
+  },
   "qwen3-235B-A22B-fp8": {
     "harness_true": {
       "sokoban": [
