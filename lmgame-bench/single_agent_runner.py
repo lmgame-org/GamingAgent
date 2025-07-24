@@ -65,7 +65,7 @@ def parse_arguments(defaults_map=None, argv_to_parse=None):
                         help="Name of the game (e.g., twenty_forty_eight, sokoban). Set by prelim parser.")
     parser.add_argument("--config_root_dir", type=str, default="gamingagent/configs",
                         help="Root directory for agent configurations.")
-    parser.add_argument("--model_name", type=str, default="claude-3-haiku-20240307",
+    parser.add_argument("--model_name", type=str, default="claude-3-7-sonnet-latest",
                         help="Name of the model for the agent.")
     parser.add_argument("--harness", action="store_true",
                         help="Use perception-memory-reasoning pipeline (harness mode). Default is False.")
