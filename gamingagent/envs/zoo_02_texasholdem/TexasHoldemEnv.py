@@ -183,28 +183,13 @@ def create_poker_table_image(
 
     img = Image.new("RGB", table_size, (240, 248, 255))
     draw = ImageDraw.Draw(img)
-    
-    # Try different system fonts in order of preference
-    font_paths = [
-        "/System/Library/Fonts/Supplemental/PTMono.ttc",  # PT Mono
-        "/System/Library/Fonts/SFNSMono.ttf",            # SF Mono
-        "DejaVuSansMono.ttf"                            # Fallback to DejaVu if available
-    ]
-    
-    font = None
-    for font_path in font_paths:
-        try:
-            font = ImageFont.truetype(font_path, 14)  # Slightly larger font size
-            break
-        except IOError:
-            continue
-    
-    if font is None:
+    try:
+        font = ImageFont.truetype("DejaVuSansMono.ttf", 12)
+    except IOError:
         font = ImageFont.load_default()
-        print("[WARNING] Could not load any monospace font, using default font which may not render correctly")
 
     y_offset = 20
-    line_height = 18  # Increased line height for better readability
+    line_height = 16
     for line in text_content.split("\n"):
         draw.text((20, y_offset), line, fill=(0, 0, 0), font=font)
         y_offset += line_height
