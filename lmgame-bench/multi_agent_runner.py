@@ -2,7 +2,7 @@ from __future__ import annotations
 """
 multiagent_tictactoe_runner.py – final complete version
 ======================================================
-Multi‑model Tic‑Tac‑Toe runner aligned with `single_agent_runner.py`.
+Multi‑model Tic‑Tac‑Toe runner aligned with single_agent_runner.py.
 """
 
 import argparse
@@ -123,7 +123,8 @@ def merge_cli_yaml(args, cfg, defaults):
         "max_memory",
         "scaffolding",
         "vllm_url",
-        "modal_url"
+        "modal_url",
+        "tournament_hands",
     ]
 
     # Only apply YAML values for parameters that:
@@ -278,20 +279,21 @@ def create_environment(
     elif game_name.lower() == "texasholdem":
         # Enhanced Texas Hold'em with new parameters
         env = MultiTexasHoldemEnv(
-            render_mode=render_mode,
-            num_players=env_init_kwargs.get("num_players", 2),
-            table_size_for_render=tuple(env_init_kwargs.get("table_size_for_render", [1000, 700])),
-            base_cache_dir=cache_dir,  # Updated parameter name
-            game_name_for_adapter="multi_texasholdem",
-            observation_mode_for_adapter=observation_mode,
-            game_specific_config_path_for_adapter=config_json_path,
-            max_stuck_steps_for_adapter=max_stuck_steps,
-            # New tournament features
-            enable_player_elimination=env_init_kwargs.get("enable_player_elimination", False),
-            starting_chips=env_init_kwargs.get("starting_chips", 1000),
-            big_blind=env_init_kwargs.get("big_blind", 20),
-            small_blind=env_init_kwargs.get("small_blind", 10),
-        )
+             render_mode=render_mode,
+             num_players=env_init_kwargs.get("num_players", 2),
+             table_size_for_render=tuple(env_init_kwargs.get("table_size_for_render", [1000, 700])),
+             base_cache_dir=cache_dir,
+             game_name_for_adapter="multi_texasholdem",
+             observation_mode_for_adapter=observation_mode,
+             game_specific_config_path_for_adapter=config_json_path,
+             max_stuck_steps_for_adapter=max_stuck_steps,
+             enable_player_elimination=env_init_kwargs.get("enable_player_elimination", False),
+             starting_chips=env_init_kwargs.get("starting_chips", 1000),
+             big_blind=env_init_kwargs.get("big_blind", 20),
+             small_blind=env_init_kwargs.get("small_blind", 10),
+             tournament_mode=env_init_kwargs.get("tournament_mode", False),
+             max_tournament_hands=env_init_kwargs.get("max_tournament_hands"),
+         )
         
         # Set up AI opponents if specified in config
         ai_opponents = env_init_kwargs.get("ai_opponents", {})
@@ -478,6 +480,7 @@ def build_parser():
     p.add_argument("--scaffolding", type=str, default=None)
     p.add_argument("--vllm_url", type=str, default=None)
     p.add_argument("--modal_url", type=str, default=None)
+    p.add_argument("--tournament_hands", type=int, default=None)
     return p
 
 ###############################################################################
@@ -526,15 +529,6 @@ def main(argv: Optional[list[str]] = None):
                 json.dump(cfg_json, f, indent=2)
             env_num_players = num_agents  # keep local in sync
 
-    # NOW create env with the updated file in place
-    env = create_environment(
-        game_name=args.game_name,
-        observation_mode=args.observation_mode,
-        config_dir_name=game_config_name,
-        cache_dir=run_root,
-        harness=args.harness,
-        multiagent_arg=args.multiagent_arg,
-    )
     # Create agents based on player models or fallback to model_x/model_o
     agents = {}
     
@@ -578,6 +572,23 @@ def main(argv: Optional[list[str]] = None):
                     "p2_cache", args.model_o, args, run_root, prompt_path, args._agent_defaults, args._agent_o_cfg
                 ),
             }
+    if args.game_name.lower() == "texasholdem" and args.tournament_hands:
+        cfg_json.setdefault("env_init_kwargs", {})["tournament_mode"] = True
+        cfg_json["env_init_kwargs"]["max_tournament_hands"] = int(args.tournament_hands)
+        # recommend elimination in tournaments
+        cfg_json["env_init_kwargs"]["enable_player_elimination"] = True
+
+    with open(config_json_path, "w", encoding="utf-8") as f:
+        json.dump(cfg_json, f, indent=2)
+
+    env = create_environment(
+        game_name=args.game_name,
+        observation_mode=args.observation_mode,
+        config_dir_name=game_config_name,
+        cache_dir=run_root,
+        harness=args.harness,
+        multiagent_arg=args.multiagent_arg,
+    )
 
     # One persistent log per game
     base_dir = os.path.join("cache", args.game_name)
@@ -601,7 +612,8 @@ def main(argv: Optional[list[str]] = None):
     game_results = {f"{k}_wins": 0 for k in agent_keys} 
     game_results.update({"draws": 0, "illegal_moves": 0}) 
 
-    for eid in range(1, args.num_runs + 1):
+    total_hands = args.tournament_hands if (args.game_name.lower()=="texasholdem" and args.tournament_hands) else args.num_runs
+    for eid in range(1, total_hands + 1):
         result = play_episode(env, agents, eid, args.max_steps, cseed)
 
         # --- Per-hand TrueSkill update + JSONL logging --------------------------
@@ -614,11 +626,11 @@ def main(argv: Optional[list[str]] = None):
         illegal_player = result.get("illegal_player")
 
         # Build per-hand chip deltas for Texas Hold'em; fallback to reward totals
-        if args.game_name.lower() == "texasholdem" and hasattr(env, "chip_stacks") and hasattr(env, "starting_chips"):
-            chip_deltas = {p: float(env.chip_stacks[p] - env.starting_chips) for p in env.player_names}
+        if args.game_name.lower() == "texasholdem" and hasattr(env, "perf_scores"):
+            # Per-hand delta = sum of rewards this hand (robust and public API)
+            chip_deltas = {p: float(env.perf_scores.get(p, 0.0)) for p in env.player_names}
         else:
             chip_deltas = {k: float(v) for k, v in result.items() if k not in {"illegal", "illegal_player"}}
-
         ordered = sorted(chip_deltas.items(), key=lambda kv: kv[1], reverse=True)
         values  = [v for _, v in ordered]
         ranks   = ranks_from_values(values)  # 0-based; ties share rank

@@ -2,7 +2,7 @@
 
 Uses PettingZoo's built-in human renderer. Vision observations are generated
 as PNG files (ASCII text rendered into an image) so that modules expecting
-`observation.img_path` keep working.
+observation.img_path keep working.
 """
 
 from __future__ import annotations
@@ -66,17 +66,21 @@ def _render_card_row(cards: List[Tuple[str, str]]) -> List[str]:
 
 def _create_text_representation(game, current_player: str, action_mask: np.ndarray,
                                 moves_history: Optional[List[str]] = None) -> str:
-    player_idx = int(current_player.split('_')[-1])
+    try:
+        player_idx = int(str(current_player).split('_')[-1])
+    except Exception:
+        player_idx = 0
     community_cards = getattr(game, "public_cards", [])
     hole_cards = getattr(game.players[player_idx], "hand", [])
-    chip_stacks = {f"player_{i}": int(p.in_chips) for i, p in enumerate(game.players)}
-    total_pot = sum(chip_stacks.values())
+    invested = {f"player_{i}": int(getattr(p, "in_chips", 0)) for i, p in enumerate(game.players)}
+    total_pot = sum(invested.values())
 
-    eliminated_players = set()
+
+    folded_players = set()
     for i, p in enumerate(game.players):
         status_name = getattr(p.status, "name", str(p.status))
         if status_name == "FOLDED":
-            eliminated_players.add(f"player_{i}")
+            folded_players.add(f"player_{i}")
 
     street = _get_street_from_community_cards(community_cards)
     moves_history = moves_history or []
@@ -118,8 +122,8 @@ def _create_text_representation(game, current_player: str, action_mask: np.ndarr
 
     left.append("┌─ YOUR HAND " + "─" * 55 + "┐")
     left.append(f"│ Player: {current_player}" + " " * (68 - 10 - len(current_player)) + "│")
-    current_chips = chip_stacks.get(current_player, 0)
-    left.append(f"│ 💰 Chips: ${current_chips}" + " " * (68 - 12 - len(str(current_chips))) + "│")
+    current_inv = invested.get(current_player, 0)
+    left.append(f"│ 💰 Invested: ${current_inv}" + " " * (68 - 15 - len(str(current_inv))) + "│")
     left.append("│" + " " * 68 + "│")
     player_cards = [(c.rank, c.suit) for c in hole_cards]
     while len(player_cards) < 2:
@@ -132,14 +136,14 @@ def _create_text_representation(game, current_player: str, action_mask: np.ndarr
     # Right column
     right_w = 50
     right: List[str] = []
-    num_players = getattr(game, "num_players", len(game.players))
+    num_players = len(game.players)
     right.append("┌─ ALL PLAYERS " + "─" * (right_w - 16) + "┐")
     for i in range(num_players):
         pn = f"player_{i}"
-        chips = chip_stacks.get(pn, 0)
-        status = "💀 ELIMINATED" if pn in eliminated_players else \
-                 ("🎯 ACTING" if pn == current_player else "⏳ waiting")
-        line = f"│ {pn:<9} | Chips: ${chips:<7} | {status:<10}"
+        inv = invested.get(pn, 0)
+        status = ("🃏 FOLDED" if pn in folded_players
+                  else ("🎯 ACTING" if pn == current_player else "⏳ waiting"))
+        line = f"│ {pn:<9} | Invested: ${inv:<5} | {status:<10}"
         right.append(f"{line:<{right_w-1}}│")
     right.append("└" + "─" * (right_w - 2) + "┘\n")
 
@@ -179,13 +183,28 @@ def create_poker_table_image(
 
     img = Image.new("RGB", table_size, (240, 248, 255))
     draw = ImageDraw.Draw(img)
-    try:
-        font = ImageFont.truetype("DejaVuSansMono.ttf", 12)
-    except IOError:
+    
+    # Try different system fonts in order of preference
+    font_paths = [
+        "/System/Library/Fonts/Supplemental/PTMono.ttc",  # PT Mono
+        "/System/Library/Fonts/SFNSMono.ttf",            # SF Mono
+        "DejaVuSansMono.ttf"                            # Fallback to DejaVu if available
+    ]
+    
+    font = None
+    for font_path in font_paths:
+        try:
+            font = ImageFont.truetype(font_path, 14)  # Slightly larger font size
+            break
+        except IOError:
+            continue
+    
+    if font is None:
         font = ImageFont.load_default()
+        print("[WARNING] Could not load any monospace font, using default font which may not render correctly")
 
     y_offset = 20
-    line_height = 16
+    line_height = 18  # Increased line height for better readability
     for line in text_content.split("\n"):
         draw.text((20, y_offset), line, fill=(0, 0, 0), font=font)
         y_offset += line_height
@@ -405,21 +424,23 @@ class SingleTexasHoldemEnv(gym.Env):
 
 class MultiTexasHoldemEnv(SingleTexasHoldemEnv):
     def __init__(
-        self,
-        *,
-        render_mode: Optional[str] = None,
-        num_players: int = 2,
-        table_size_for_render: tuple = (1200, 800),
-        base_cache_dir: str = "cache/texasholdem",
-        game_name_for_adapter: str = "texasholdem",
-        observation_mode_for_adapter: str = "text",
-        game_specific_config_path_for_adapter: str = "gamingagent/envs/zoo_02_texasholdem/game_env_config.json",
-        max_stuck_steps_for_adapter: Optional[int] = 10,
-        enable_player_elimination: bool = True,
-        starting_chips: int = 1000,
-        big_blind: int = 20,
-        small_blind: int = 10,
-    ):
+         self,
+         *,
+         render_mode: Optional[str] = None,
+         num_players: int = 2,
+         table_size_for_render: tuple = (1200, 800),
+         base_cache_dir: str = "cache/texasholdem",
+         game_name_for_adapter: str = "texasholdem",
+         observation_mode_for_adapter: str = "text",
+         game_specific_config_path_for_adapter: str = "gamingagent/envs/zoo_02_texasholdem/game_env_config.json",
+         max_stuck_steps_for_adapter: Optional[int] = 10,
+         enable_player_elimination: bool = True,
+         starting_chips: int = 1000,
+         big_blind: int = 20,
+         small_blind: int = 10,
+         tournament_mode: bool = False,
+         max_tournament_hands: Optional[int] = None,
+     ):
         if not 2 <= num_players <= 10:
             raise ValueError("num_players must be between 2 and 10")
 
@@ -441,7 +462,9 @@ class MultiTexasHoldemEnv(SingleTexasHoldemEnv):
         self.starting_chips = starting_chips
         self.big_blind = big_blind
         self.small_blind = small_blind
-
+        self.tournament_mode = bool(tournament_mode)
+        self.max_tournament_hands = int(max_tournament_hands) if max_tournament_hands is not None else None
+        self.hands_played = 0
         self._adapters: Dict[str, GymEnvAdapter] = {}
         self.agent_players = set()
         self.eliminated_players = set()
@@ -466,6 +489,13 @@ class MultiTexasHoldemEnv(SingleTexasHoldemEnv):
         self.round_number = 1
         self.moves_history: List[str] = []
 
+    def tournament_over(self) -> bool:
+        if not getattr(self, "tournament_mode", False):
+            return False
+        if self.max_tournament_hands is not None and self.hands_played >= self.max_tournament_hands:
+            return True
+        return len(self.get_active_players()) <= 1
+
     def get_active_players(self) -> List[str]:
         if not self.enable_player_elimination:
             return self.player_names.copy()
@@ -474,24 +504,6 @@ class MultiTexasHoldemEnv(SingleTexasHoldemEnv):
     def get_agent_players(self) -> List[str]:
         active = self.get_active_players()
         return [p for p in active if p in self.agent_players]
-
-    def _update_chip_stacks(self):
-        if hasattr(self.pz_env, "env") and hasattr(self.pz_env.env, "chips"):
-            for i, pn in enumerate(self.player_names):
-                if i < len(self.pz_env.env.chips):
-                    self.chip_stacks[pn] = self.pz_env.env.chips[i]
-        else:
-            for pn in self.player_names:
-                if pn in self.pz_env.rewards:
-                    r = self.pz_env.rewards[pn]
-                    if r != 0:
-                        self.chip_stacks[pn] += r
-                        self.perf_scores[pn] += r
-        if self.enable_player_elimination:
-            for pn in self.player_names:
-                if self.chip_stacks[pn] <= 0 and pn not in self.eliminated_players:
-                    self.eliminated_players.add(pn)
-                    print(f"[MultiTexasHoldem] {pn} eliminated")
 
     def _record_move(self, player_name: str, action_str: str, chips_bet: int = 0):
         text = f"{player_name}: {action_str.upper()}"
@@ -519,6 +531,9 @@ class MultiTexasHoldemEnv(SingleTexasHoldemEnv):
             "chip_stacks": self.chip_stacks.copy(),
             "dealer_position": self.dealer_position,
             "blinds": {"small": self.small_blind, "big": self.big_blind},
+            "tournament_mode": bool(self.tournament_mode),
+            "hands_played": int(self.hands_played),
+            "max_tournament_hands": self.max_tournament_hands,
         }
 
     def reset(self, *, seed: int | None = None, episode_id: int = 1, **kwargs):
@@ -528,12 +543,23 @@ class MultiTexasHoldemEnv(SingleTexasHoldemEnv):
 
         self.step_id = 0
         self.current_episode_id = episode_id
-        self.eliminated_players.clear()
-        self.chip_stacks = {p: self.starting_chips for p in self.player_names}
-        self.perf_scores = {p: 0.0 for p in self.player_names}
-        self.round_number = 1
-        self.dealer_position = 0
         self.moves_history = []
+
+        if self.tournament_mode and episode_id > 1:
+            # Continue tournament: keep stacks/elims, rotate dealer, next round
+            self.perf_scores = {p: 0.0 for p in self.player_names}
+            self.round_number += 1
+            active = self.get_active_players()
+            if active:
+                self.dealer_position = (self.dealer_position + 1) % len(active)
+        else:
+            # Fresh tournament (or non-tournament single hand)
+            self.eliminated_players.clear()
+            self.chip_stacks = {p: self.starting_chips for p in self.player_names}
+            self.perf_scores = {p: 0.0 for p in self.player_names}
+            self.round_number = 1
+            self.dealer_position = 0
+            self.hands_played = 0
 
         obs_dict: Dict[str, Observation] = {}
         agent_players = self.get_agent_players()
@@ -586,9 +612,26 @@ class MultiTexasHoldemEnv(SingleTexasHoldemEnv):
         game_ended = False
         while not game_ended:
             current_player = self.pz_env.agent_selection
-            if not current_player or current_player not in self.get_active_players():
+            if not current_player:
                 game_ended = True
                 break
+
+            active = self.get_active_players()
+
+            # Auto-fold eliminated seats so the hand can progress
+            if current_player not in active:
+                # Try to play a legal FOLD (2). If action mask disagrees, pick any legal action with "fold" semantics.
+                try:
+                    # Most implementations: 0=CALL,1=RAISE,2=FOLD,3=CHECK
+                    self.pz_env.step(2)
+                except Exception:
+                    obs_tmp = self.pz_env.observe(current_player)
+                    legal = np.where(obs_tmp["action_mask"] == 1)[0]
+                    # Choose the last legal as a fallback (often FOLD is legal late in a betting round)
+                    self.pz_env.step(int(legal[-1]) if len(legal) else None)
+                continue  # keep advancing until an active seat or termination
+                
+            # If it's the acting agent's turn, apply their action
             if current_player == agent_name:
                 adap = self._adapters[agent_name]
                 adap.increment_step()
@@ -598,27 +641,39 @@ class MultiTexasHoldemEnv(SingleTexasHoldemEnv):
                 except Exception as e:
                     print(f"[ERROR] step failed for {agent_name}: {e}")
                     return self._handle_illegal_action(agent_name)
+                break  # we performed the agent's move; return control to caller
+
+            # If it's another agent's turn, stop here so that caller can let that agent act
+            if current_player in self.agent_players:
                 break
-            elif current_player in self.agent_players:
-                break
-            else:
-                self.pz_env.step(None)
 
         self.current_player = self.pz_env.agent_selection
         self.step_id += 1
-        self._update_chip_stacks()
 
         rewards = {pn: float(self.pz_env.rewards.get(pn, 0)) for pn in self.player_names}
         terminations = any(self.pz_env.terminations.values())
         truncations = any(self.pz_env.truncations.values())
 
-        active_players = self.get_active_players()
-        if len(active_players) <= 1:
-            terminations = True
-            print(f"[MultiTexasHoldem] Tournament ended. Winner: {active_players[0] if active_players else 'None'}")
-
         for pn in self.player_names:
             self.perf_scores[pn] += rewards[pn]
+
+        # If a hand ended, and we're in tournament mode, settle stacks & eliminations
+        if (terminations or truncations) and self.tournament_mode:
+            # Settle stacks for this hand (zero-sum across players)
+            for pn in self.player_names:
+                self.chip_stacks[pn] += self.perf_scores.get(pn, 0.0)
+            if self.enable_player_elimination:
+                for pn in self.player_names:
+                    if self.chip_stacks[pn] <= 0:
+                        self.eliminated_players.add(pn)
+                        print(f"[MultiTexasHoldem] {pn} eliminated")
+            self.hands_played += 1
+            if self.tournament_over():
+                terminations = True
+                truncations = True
+                winner_list = self.get_active_players()
+                winner = winner_list[0] if len(winner_list) == 1 else "None"
+                print(f"[MultiTexasHoldem] Tournament ended. Winner: {winner}")
 
         next_obs: Dict[str, Observation] = {}
         info_for_acting_agent = self._get_game_info()
