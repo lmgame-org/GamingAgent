@@ -15,6 +15,9 @@ import yaml
 import trueskill
 import sys
 
+import json
+from pathlib import Path
+
 from gamingagent.agents.base_agent import BaseAgent
 from gamingagent.envs.zoo_01_tictactoe.TicTacToeEnv import MultiTicTacToeEnv
 from gamingagent.envs.zoo_02_texasholdem.TexasHoldemEnv import MultiTexasHoldemEnv
@@ -61,6 +64,38 @@ def load_yaml(path):
 
 def _is_default(args, key, defaults):
     return getattr(args, key) == getattr(defaults, key)
+
+def ranks_from_values(values):
+    """Largest value => rank 0; equal values share the same rank."""
+    order = sorted(values, reverse=True)
+    rmap, rank, last = {}, 0, None
+    for v in order:
+        if v != last:
+            rmap[v] = rank
+            rank += 1
+            last = v
+    return [rmap[v] for v in values]
+
+def ensure_dir(p):
+    Path(p).parent.mkdir(parents=True, exist_ok=True)
+
+def append_jsonl(path, obj):
+    ensure_dir(path)
+    with open(path, "a", encoding="utf-8") as f:
+        f.write(json.dumps(obj, ensure_ascii=False) + "\n")
+
+def load_ratings(path, ts_env):
+    if os.path.isfile(path):
+        with open(path, "r", encoding="utf-8") as f:
+            raw = json.load(f)
+        return {k: ts_env.Rating(mu=v["mu"], sigma=v["sigma"]) for k, v in raw.items()}
+    return {}
+
+def save_ratings(path, ratings):
+    ensure_dir(path)
+    data = {k: {"mu": float(r.mu), "sigma": float(r.sigma)} for k, r in ratings.items()}
+    with open(path, "w", encoding="utf-8") as f:
+        json.dump(data, f, indent=2)
 
 
 def merge_cli_yaml(args, cfg, defaults):
@@ -204,9 +239,6 @@ def create_environment(
     - Loads game-specific config (JSON) and pulls out env_init_kwargs.
     - Dynamically instantiates the correct Env class.
     """
-    import json
-    import os
-
     # single‑agent
     assert multiagent_arg == "multi", "This script only supports multi-agent games."
 
@@ -478,6 +510,23 @@ def main(argv: Optional[list[str]] = None):
     if not os.path.isfile(prompt_path):
         prompt_path = None
 
+    # Load and (optionally) patch num_players BEFORE creating env
+    config_json_path = os.path.join("gamingagent", "envs", game_config_name, "game_env_config.json")
+    with open(config_json_path, "r", encoding="utf-8") as f:
+        cfg_json = json.load(f)
+
+    env_num_players = cfg_json.get("env_init_kwargs", {}).get("num_players", 2)
+
+    if args.player_models and len(args.player_models) > 1:
+        num_agents = len(args.player_models)
+        if num_agents != env_num_players:
+            print(f"[Runner] Updating num_players from {env_num_players} to {num_agents} to match player_models")
+            cfg_json.setdefault("env_init_kwargs", {})["num_players"] = num_agents
+            with open(config_json_path, "w", encoding="utf-8") as f:
+                json.dump(cfg_json, f, indent=2)
+            env_num_players = num_agents  # keep local in sync
+
+    # NOW create env with the updated file in place
     env = create_environment(
         game_name=args.game_name,
         observation_mode=args.observation_mode,
@@ -486,17 +535,6 @@ def main(argv: Optional[list[str]] = None):
         harness=args.harness,
         multiagent_arg=args.multiagent_arg,
     )
-
-    # Get number of players from environment configuration
-    config_json_path = os.path.join(
-        "gamingagent", "envs", game_config_name, "game_env_config.json"
-    )
-    
-    import json
-    with open(config_json_path, "r", encoding="utf-8") as f:
-        cfg_json = json.load(f)
-    env_num_players = cfg_json.get("env_init_kwargs", {}).get("num_players", 2)
-
     # Create agents based on player models or fallback to model_x/model_o
     agents = {}
     
@@ -541,63 +579,119 @@ def main(argv: Optional[list[str]] = None):
                 ),
             }
 
+    # One persistent log per game
+    base_dir = os.path.join("cache", args.game_name)
+    match_log_path = os.path.join(base_dir, "trueskill_matches.jsonl")
+    ratings_path   = os.path.join(base_dir, "trueskill_ratings.json")
+
+    # Configure TrueSkill; set draw_probability=0.0 since we handle ties explicitly
+    ts = trueskill.TrueSkill(draw_probability=0.0)
+
+    # Map env player -> stable identity (prefer model_name)
+    agent_ids = {k: getattr(agents[k], "model_name", k) for k in agents.keys()}
+
+    # Load or initialize ratings
+    ratings = load_ratings(ratings_path, ts)
+    for pid, stable_id in agent_ids.items():
+        ratings.setdefault(stable_id, ts.Rating())
+
+
     cseed = args.seed
-    game_results = {"player_1_wins": 0, "player_2_wins": 0, "draws": 0, "illegal_moves": 0}
-    
+    agent_keys = list(agents.keys())  
+    game_results = {f"{k}_wins": 0 for k in agent_keys} 
+    game_results.update({"draws": 0, "illegal_moves": 0}) 
+
     for eid in range(1, args.num_runs + 1):
         result = play_episode(env, agents, eid, args.max_steps, cseed)
-        
-        # Determine ranks for TrueSkill update
-        if result:
-            player_rewards = {k: v for k, v in result.items() if k not in {"illegal", "illegal_player"}}
-            
-            # Sort players by reward (higher is better) to determine ranks
-            sorted_players = sorted(player_rewards.items(), key=lambda item: item[1], reverse=True)
-            ranks = [sorted_players.index(p) for p in sorted_players]
 
-            # Handle draws (same rank for same reward)
-            reward_ranks = {}
-            current_rank = 0
-            last_reward = float('-inf')
-            for player, reward in sorted_players:
-                if reward != last_reward:
-                    current_rank += 1
-                reward_ranks[player] = current_rank
-            
-            ranks = [reward_ranks[p[0]] for p in sorted_players]
-            
-            # Update TrueSkill ratings
-            if len(ratings) > 1:
-                # For FFA, each player is a team of 1. Trueskill expects a list of tuples.
-                current_ratings_tuples = [(ratings[p[0]],) for p in sorted_players]
-                new_ratings_tuples = trueskill.rate(current_ratings_tuples, ranks=ranks)
-                
-                for i, p in enumerate(sorted_players):
-                    ratings[p[0]] = new_ratings_tuples[i][0]
+        # --- Per-hand TrueSkill update + JSONL logging --------------------------
+        if not result:
+            cseed = None if cseed is None else cseed + 1
+            time.sleep(1)
+            continue
 
-            # Print updated ratings after each game
-            print(f"\n--- TrueSkill Ratings after Game {eid} ---")
-            sorted_ratings = sorted(ratings.items(), key=lambda item: trueskill.expose(item[1]), reverse=True)
-            for agent_key, rating in sorted_ratings:
-                print(f"  {agent_key}: {rating.mu:.2f} ± {rating.sigma*3:.2f} (μ={rating.mu:.2f}, σ={rating.sigma:.3f})")
+        illegal_game = bool(result.get("illegal", False))
+        illegal_player = result.get("illegal_player")
 
-            # Update win/loss/draw counts for summary
-            if result["illegal"]:
-                game_results["illegal_moves"] += 1
-            else:
-                max_reward = max(player_rewards.values()) if player_rewards else 0
-                winners = [k for k, v in player_rewards.items() if v == max_reward]
-                
-                if len(winners) == 1 and max_reward > 0:
-                    winner_key = f"{winners[0]}_wins"
-                    if winner_key in game_results:
-                        game_results[winner_key] += 1
+        # Build per-hand chip deltas for Texas Hold'em; fallback to reward totals
+        if args.game_name.lower() == "texasholdem" and hasattr(env, "chip_stacks") and hasattr(env, "starting_chips"):
+            chip_deltas = {p: float(env.chip_stacks[p] - env.starting_chips) for p in env.player_names}
+        else:
+            chip_deltas = {k: float(v) for k, v in result.items() if k not in {"illegal", "illegal_player"}}
+
+        ordered = sorted(chip_deltas.items(), key=lambda kv: kv[1], reverse=True)
+        values  = [v for _, v in ordered]
+        ranks   = ranks_from_values(values)  # 0-based; ties share rank
+
+        # Prepare participant records (aligned order) and pre-ratings
+        participants = []
+        pre_ratings = []
+        for (env_player, delta), rank in zip(ordered, ranks):
+            sid = agent_ids.get(env_player, env_player)
+            pre = ratings.get(sid, ts.Rating())
+            pre_ratings.append((pre,))
+            participants.append({
+                "env_player": env_player,
+                "id": sid,
+                "chip_delta": delta,
+                "rank": int(rank),
+                "illegal": illegal_game and (illegal_player == env_player),
+            })
+
+        # Update TrueSkill (skip rating change when the hand is illegal)
+        if illegal_game:
+            post_ratings = pre_ratings
+        else:
+            post_ratings = ts.rate(pre_ratings, ranks=ranks)
+
+        # Attach pre/post and persist new ratings in memory
+        for part, (pre,), (post,) in zip(participants, pre_ratings, post_ratings):
+            part["pre"]  = {"mu": float(pre.mu),  "sigma": float(pre.sigma)}
+            part["post"] = {"mu": float(post.mu), "sigma": float(post.sigma)}
+            if not illegal_game:
+                ratings[part["id"]] = post
+
+        # Append one JSON line for this hand
+        append_jsonl(match_log_path, {
+            "ts": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+            "game": args.game_name,
+            "episode_id": eid,
+            "seed": cseed,
+            "illegal": illegal_game,
+            "illegal_player": illegal_player,
+            "config": {
+                "starting_chips": getattr(env, "starting_chips", None),
+                "small_blind": getattr(env, "small_blind", None),
+                "big_blind": getattr(env, "big_blind", None),
+                "num_players": len(chip_deltas),
+                "observation_mode": args.observation_mode,
+                "harness": args.harness,
+            },
+            "participants": participants,
+        })
+
+        # Optional: update OVERALL SUMMARY counters
+        if illegal_game:
+            game_results["illegal_moves"] += 1
+        else:
+            if chip_deltas:
+                max_delta = max(chip_deltas.values())
+                winners = [p for p, d in chip_deltas.items() if d == max_delta and max_delta > 0]
+                if len(winners) == 1:
+                    wk = f"{winners[0]}_wins"
+                    if wk in game_results:
+                        game_results[wk] += 1
                 else:
                     game_results["draws"] += 1
-                    
-        cseed = None if cseed is None else cseed + 1
-        time.sleep(1)
 
+        # Optional: quick leaderboard print
+        sorted_lb = sorted(ratings.items(), key=lambda kv: ts.expose(kv[1]), reverse=True)
+        print(f"\n--- TrueSkill after hand {eid} ---")
+        for name, r in sorted_lb[:10]:
+            print(f"  {name:30s} {ts.expose(r):6.2f}  (μ={r.mu:.2f}, σ={r.sigma:.3f})")
+
+        # advance seed each episode
+        cseed = None if cseed is None else cseed + 1
     # Generate run summaries
     run_settings = {
         "game_name": args.game_name,
@@ -647,6 +741,8 @@ def main(argv: Optional[list[str]] = None):
             print(f"  #{rank}: {agent_key:<15} Skill = {exposed_rating:.2f} (μ={rating.mu:.2f}, σ={rating.sigma:.3f})")
 
         print(f"{'#'*70}")
+
+    save_ratings(ratings_path, ratings)
 
     env.close()
 
