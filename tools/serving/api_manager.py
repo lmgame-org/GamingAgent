@@ -470,7 +470,7 @@ class APIManager:
                     base64_image=base64_image,
                     temperature=temperature,
                     token_limit=token_limit,
-                    url=self.vllm_url
+                    # TODO: support non-localhost vllm servers
                 )
             elif model_name.startswith("modal-"):
                 # TODO: make different modal backend configurable
@@ -760,7 +760,7 @@ class APIManager:
                     prompt=prompt,
                     temperature=temperature,
                     token_limit=token_limit,
-                    url=self.vllm_url
+                    # TODO: support non-localhost vllm servers
                 )
             elif model_name.startswith("modal-"):
                 # TODO: make different modal backend configurable
@@ -1028,7 +1028,7 @@ class APIManager:
                     prompt=prompt,
                     base64_image=list_image_base64,
                     temperature=temperature,
-                    url=self.vllm_url
+                    # TODO: support non-localhost vllm servers
                 )
             elif model_name.startswith("modal-"):
                 # TODO: make different modal backend configurable
