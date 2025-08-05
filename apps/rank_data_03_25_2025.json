@@ -166,19 +166,19 @@
             {
                 "model": "🎮 claude-sonnet-4-20250514",
                 "score": 3136,
-                "details": "2148,2360,4900",
+                "details": "2148, 2360, 4900",
                 "highest_tail": 256
             },
             {
                 "model": "🎮 deepseek-r1-0528",
                 "score": 3330.0,
-                "details": "3260,3400",
+                "details": "3260, 3400",
                 "highest_tail": 256
             },
             {
                 "model": "🎮 qwen3-235B-A22B-fp8",
                 "score": 2144.0,
-                "details": "1436,2556,2440",
+                "details": "1436, 2556, 2440",
                 "highest_tail": 256
             },
             {
@@ -190,7 +190,7 @@
             {
                 "model": "🎮 kimi-k2-0711-preview",
                 "score": 1562.67,
-                "details": "2360,1628,700",
+                "details": "2360, 1628, 700",
                 "highest_tail": 256
             },
             {
