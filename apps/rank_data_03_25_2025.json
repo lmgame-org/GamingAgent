@@ -192,6 +192,18 @@
                 "score": 1562.67,
                 "details": "2360,1628,700",
                 "highest_tail": 256
+            },
+            {
+                "model": "🎮 glm-4.5",
+                "score": 1201.33,
+                "details": "1440, 1064, 1100",
+                "highest_tail": 128
+            },
+            {
+                "model": "🎮 qwen3-235B-A22B-fp8-thinking",
+                "score": 2152,
+                "details": "1276, 4232, 948",
+                "highest_tail": 256
             }
         ]
     },
@@ -296,8 +308,17 @@
             {
                 "model": "🎮 kimi-k2-0711-preview",
                 "score": 17,
-                "details": "20,15,16",
-                "highest_tail": 256
+                "details": "20,15,16"
+            },
+            {
+                "model": "🎮 glm-4.5",
+                "score": 19.67,
+                "details": "21, 21, 17"
+            },
+            {
+                "model": "🎮 qwen3-235B-A22B-fp8-thinking",
+                "score": 16,
+                "details": "23,9,16"
             }
         ]
     },
@@ -402,8 +423,17 @@
             {
                 "model": "🎮 kimi-k2-0711-preview",
                 "score": 101,
-                "details": "144,31,128",
-                "highest_tail": 256
+                "details": "144,31,128"
+            },
+            {
+                "model": "🎮 glm-4.5",
+                "score": 324.33,
+                "details": "377, 320, 276"
+            },
+            {
+                "model": "🎮 qwen3-235B-A22B-fp8-thinking",
+                "score": 474,
+                "details": "511, 437"
             }
         ]
     },
@@ -497,32 +527,50 @@
             {
                 "model": "🎮 claude-opus-4-20250514",
                 "score": 4,
-                "details": "4,4,4"
+                "details": "4,4,4",
+                "cracked_levels": "2,2,2"
             },
             {
                 "model": "🎮 claude-sonnet-4-20250514",
                 "score": 3,
-                "details": "2,2,5"
+                "details": "2,2,5",
+                "cracked_levels": "1,1,3"
             },
             {
                 "model": "🎮 deepseek-r1-0528",
                 "score": 4.67,
-                "details": "4,4,6"
+                "details": "4,4,6",
+                "cracked_levels": "2,2,3"
             },
             {
                 "model": "🎮 qwen3-235B-A22B-fp8",
                 "score": 2.33,
-                "details": "1,2,4"
+                "details": "1,2,4",
+                "cracked_levels": "0,1,2"
             },
             {
                 "model": "🎮 grok-4-0709",
                 "score": 6.33,
-                "details": "6,6,7"
+                "details": "6,6,7",
+                "cracked_levels": "3,3,4"
             },
             {
                 "model": "🎮 kimi-k2-0711-preview",
                 "score": 0,
-                "details": "0,0,0"
+                "details": "0,0,0",
+                "cracked_levels": "0,0,0"
+            },
+            {
+                "model": "🎮 glm-4.5",
+                "score": 0.33,
+                "details": "0,1,0",
+                "cracked_levels": "0,0,0"
+            },
+            {
+                "model": "🎮 qwen3-235B-A22B-fp8-thinking",
+                "score": 5.33,
+                "details": "6,4,6",
+                "cracked_levels": "3,3,2"
             }
         ]
     },

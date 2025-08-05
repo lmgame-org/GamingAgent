@@ -28,6 +28,12 @@ def get_organization(model_name):
         return "meta"
     elif "grok" in m:
         return "xai"
+    elif "qwen" in m:
+        return "alibaba"
+    elif "glm" in m:
+        return "zhipu"
+    elif "kimi" in m:
+        return "moonshot"
     else:
         return "unknown"
 

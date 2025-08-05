@@ -35,6 +35,8 @@
     "qwen3-235B-A22B-fp8": "#6A1B9A",
     "kimi-k2-0711-preview": "#FA1B9A",
     
+    "glm-4.5": "#4CAF50",
+    
     "random (x30)": "#9E9E9E",
 
     "🎮 claude-3-7-sonnet-20250219": "#4A90E2",
@@ -71,6 +73,8 @@
   
     "🎮 llama-4-maverick-17b-128e-instruct-fp8": "#8E24AA",
     "🎮 qwen3-235B-A22B-fp8": "#6A1B9A",
-    "🎮 kimi-k2-0711-preview": "#FA1B9A"
+    "🎮 kimi-k2-0711-preview": "#FA1B9A",
+    
+    "🎮 glm-4.5": "#4CAF50"
 }
   
