@@ -1,4 +1,141 @@
-{ 
+{ "glm-4.5": {
+    "harness_true": {
+      "sokoban": [
+        0,
+        1,
+        0
+      ],
+      "super_mario_bros": [
+      ],
+      "tetris": [
+        21, 21, 17
+      ],
+      "twenty_forty_eight": [
+        1440, 1064, 1100
+      ],
+      "candy_crush": [
+        377, 320, 276
+      ],
+      "ace_attorney": [
+      ]
+    },
+    "harness_false": {
+      "sokoban": [
+      ],
+      "super_mario_bros": [
+      ],
+      "tetris": [
+      ],
+      "twenty_forty_eight": [
+      ],
+      "candy_crush": [
+      ],
+      "ace_attorney": [
+      ]
+    }
+  },
+  "qwen3-235B-A22B-fp8-thinking": {
+    "harness_true": {
+      "sokoban": [
+        6,4,6
+      ],
+      "super_mario_bros": [
+      ],
+      "tetris": [
+        23,9,16
+      ],
+      "twenty_forty_eight": [
+        1276, 5196, 948
+      ],
+      "candy_crush": [
+        511, 437, 363
+      ],
+      "ace_attorney": [
+      ]
+    },
+    "harness_false": {
+      "sokoban": [
+      ],
+      "super_mario_bros": [
+      ],
+      "tetris": [
+      ],
+      "twenty_forty_eight": [
+      ],
+      "candy_crush": [
+      ],
+      "ace_attorney": [
+      ]
+    }
+  },
+  "gpt-oss-120b": {
+    "harness_true": {
+      "sokoban": [
+        4
+      ],
+      "super_mario_bros": [
+      ],
+      "tetris": [
+        12, 13, 13
+      ],
+      "twenty_forty_eight": [
+        696, 3240, 1984
+      ],
+      "candy_crush": [
+        377, 536, 411
+      ],
+      "ace_attorney": [
+      ]
+    },
+    "harness_false": {
+      "sokoban": [
+      ],
+      "super_mario_bros": [
+      ],
+      "tetris": [
+      ],
+      "twenty_forty_eight": [
+      ],
+      "candy_crush": [
+      ],
+      "ace_attorney": [
+      ]
+    }
+  },
+  "gpt-oss-20b": {
+    "harness_true": {
+      "sokoban": [
+        4
+      ],
+      "super_mario_bros": [
+      ],
+      "tetris": [
+        14, 13, 16
+      ],
+      "twenty_forty_eight": [
+        1484, 1432, 3204
+      ],
+      "candy_crush": [
+        243, 262, 244
+      ],
+      "ace_attorney": [
+      ]
+    },
+    "harness_false": {
+      "sokoban": [
+      ],
+      "super_mario_bros": [
+      ],
+      "tetris": [
+      ],
+      "twenty_forty_eight": [
+      ],
+      "candy_crush": [
+      ],
+      "ace_attorney": [
+      ]
+    }
+  },
   "kimi-k2-0711-preview": {
     "harness_true": {
       "sokoban": [

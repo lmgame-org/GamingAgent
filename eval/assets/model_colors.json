@@ -19,7 +19,12 @@
     "grok-3-mini-beta": "#FF8A65",
     "deepseek-v3": "#FFC107",
     "deepseek-r1": "#FFA000",
+    "gpt-oss-20b": "#4DD0E1",
+    "qwen3-235B-A22B-fp8": "#6A1B9A",
+    "qwen3-235B-A22B-fp8-thinking": "#6A1B10A",
+    "gpt-oss-120b": "#00838F",
     "llama-4-maverick-17b-128e-instruct-fp8": "#8E24AA",
+    "glm-4.5": "#4CAF50",
     "kimi-k2-0711-preview": "#FA1B9A",
     "Random (x30)": "#9E9E9E"
 }
