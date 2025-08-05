@@ -201,8 +201,20 @@
             },
             {
                 "model": "🎮 qwen3-235B-A22B-fp8-thinking",
-                "score": 2152,
-                "details": "1276, 4232, 948",
+                "score": 2473.33,
+                "details": "1276, 5196, 948",
+                "highest_tail": 256
+            },
+            {
+                "model": "🎮 gpt-oss-120b",
+                "score": 1973.33,
+                "details": "696, 3240, 1984",
+                "highest_tail": 256
+            },
+            {
+                "model": "🎮 gpt-oss-20b",
+                "score": 2040.0,
+                "details": "1484, 1432, 3204",
                 "highest_tail": 256
             }
         ]
@@ -319,6 +331,16 @@
                 "model": "🎮 qwen3-235B-A22B-fp8-thinking",
                 "score": 16,
                 "details": "23,9,16"
+            },
+            {
+                "model": "🎮 gpt-oss-120b",
+                "score": 12.67,
+                "details": "12, 13, 13"
+            },
+            {
+                "model": "🎮 gpt-oss-20b",
+                "score": 14.33,
+                "details": "14, 13, 16"
             }
         ]
     },
@@ -432,8 +454,18 @@
             },
             {
                 "model": "🎮 qwen3-235B-A22B-fp8-thinking",
-                "score": 474,
-                "details": "511, 437"
+                "score": 437,
+                "details": "511, 437, 363"
+            },
+            {
+                "model": "🎮 gpt-oss-120b",
+                "score": 441.33,
+                "details": "377, 536, 411"
+            },
+            {
+                "model": "🎮 gpt-oss-20b",
+                "score": 249.67,
+                "details": "243, 262, 244"
             }
         ]
     },
@@ -516,7 +548,7 @@
                 "model": "🎮 o4-mini-2025-04-16",
                 "score": 5.33,
                 "detail_box_on_target":"4,6,6",
-                "cracked_levels": "2,2,3"
+                "cracked_levels": "2,3,3"
             },
             {
                 "model": "random (x30)",
@@ -527,50 +559,62 @@
             {
                 "model": "🎮 claude-opus-4-20250514",
                 "score": 4,
-                "details": "4,4,4",
+                "detail_box_on_target": "4,4,4",
                 "cracked_levels": "2,2,2"
             },
             {
                 "model": "🎮 claude-sonnet-4-20250514",
                 "score": 3,
-                "details": "2,2,5",
+                "detail_box_on_target": "2,2,5",
                 "cracked_levels": "1,1,3"
             },
             {
                 "model": "🎮 deepseek-r1-0528",
                 "score": 4.67,
-                "details": "4,4,6",
+                "detail_box_on_target": "4,4,6",
                 "cracked_levels": "2,2,3"
             },
             {
                 "model": "🎮 qwen3-235B-A22B-fp8",
                 "score": 2.33,
-                "details": "1,2,4",
+                "detail_box_on_target": "1,2,4",
                 "cracked_levels": "0,1,2"
             },
             {
                 "model": "🎮 grok-4-0709",
                 "score": 6.33,
-                "details": "6,6,7",
+                "detail_box_on_target": "6,6,7",
                 "cracked_levels": "3,3,4"
             },
             {
                 "model": "🎮 kimi-k2-0711-preview",
                 "score": 0,
-                "details": "0,0,0",
+                "detail_box_on_target": "0,0,0",
                 "cracked_levels": "0,0,0"
             },
             {
                 "model": "🎮 glm-4.5",
                 "score": 0.33,
-                "details": "0,1,0",
+                "detail_box_on_target": "0,1,0",
                 "cracked_levels": "0,0,0"
             },
             {
                 "model": "🎮 qwen3-235B-A22B-fp8-thinking",
                 "score": 5.33,
-                "details": "6,4,6",
-                "cracked_levels": "3,3,2"
+                "detail_box_on_target": "6,4,6",
+                "cracked_levels": "3,2,3"
+            },
+            {
+                "model": "🎮 gpt-oss-120b",
+                "score": 4,
+                "detail_box_on_target": "4",
+                "cracked_levels": "2"
+            },
+            {
+                "model": "🎮 gpt-oss-20b",
+                "score": 4,
+                "detail_box_on_target": "4",
+                "cracked_levels": "2"
             }
         ]
     },
