@@ -115,7 +115,8 @@ def _create_simplified_text_representation(game, current_player: str, action_mas
     # Community cards (simple format)
     out.append("Community Cards:")
     if community_cards:
-        cards_str = " ".join([f"{c.rank}{c.suit[0]}" for c in community_cards])
+        # Use full suit names for clarity, e.g., "10 Spades"
+        cards_str = " ".join([f"{c.rank} {c.suit}" for c in community_cards])
         out.append(f"  {cards_str}")
     else:
         out.append("  (none yet)")
@@ -124,7 +125,8 @@ def _create_simplified_text_representation(game, current_player: str, action_mas
     # Your hand
     out.append("Your Hand:")
     if hole_cards:
-        hand_str = " ".join([f"{c.rank}{c.suit[0]}" for c in hole_cards])
+        # Use full suit names for clarity, e.g., "3 Hearts"
+        hand_str = " ".join([f"{c.rank} {c.suit}" for c in hole_cards])
         out.append(f"  {hand_str}")
     else:
         out.append("  (hidden)")

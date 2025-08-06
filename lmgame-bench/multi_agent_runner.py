@@ -610,6 +610,11 @@ def main(argv: Optional[list[str]] = None):
         ratings.setdefault(stable_id, ts.Rating())
 
 
+    print("\n--- INITIAL TRUESKILL RATINGS (BEFORE FIRST HAND) ---")
+    for name, r in ratings.items():
+        print(f"  {name:30s} μ={r.mu:.4f}, σ={r.sigma:.4f}")
+
+
     cseed = args.seed
     agent_keys = list(agents.keys())  
     game_results = {f"{k}_wins": 0 for k in agent_keys} 
@@ -617,6 +622,7 @@ def main(argv: Optional[list[str]] = None):
 
     total_hands = args.tournament_hands if (args.game_name.lower()=="texasholdem" and args.tournament_hands) else args.num_runs
     for eid in range(1, total_hands + 1):
+        print(f"\n{'='*20} STARTING HAND {eid}/{total_hands} {'='*20}")
         result = play_episode(env, agents, eid, args.max_steps, cseed)
 
         # --- TrueSkill 2 Tournament Mode: Accumulate performance, update only at end ---
