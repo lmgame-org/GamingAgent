@@ -34,17 +34,18 @@ from gamingagent.envs.retro_03_1942.NineteenFortyTwo_env import NineteenFortyTwo
 
 from gamingagent.envs.zoo_01_tictactoe.TicTacToeEnv import SingleTicTacToeEnv
 
-game_config_mapping = {"twenty_forty_eight": "custom_01_2048",
-                       "sokoban": "custom_02_sokoban",
-                       "candy_crush": "custom_03_candy_crush",
-                       "tetris": "custom_04_tetris",
-                       "doom": "custom_05_doom",
-                       "pokemon_red": "custom_06_pokemon_red",
-                       "super_mario_bros":"retro_01_super_mario_bros",
-                       "ace_attorney":"retro_02_ace_attorney",
-                       "nineteen_forty_two": "retro_03_1942",
-                       "tictactoe": "zoo_01_tictactoe",
-                       }
+game_config_mapping = {
+    "twenty_forty_eight": "custom_01_2048",
+    "sokoban": "custom_02_sokoban",
+    "candy_crush": "custom_03_candy_crush",
+    "tetris": "custom_04_tetris",
+    "doom": "custom_05_doom",
+    "pokemon_red": "custom_06_pokemon_red",
+    "super_mario_bros":"retro_01_super_mario_bros",
+    "ace_attorney":"retro_02_ace_attorney",
+    "nineteen_forty_two": "retro_03_1942",
+    "tictactoe": "zoo_01_tictactoe",
+}
 
 def str_to_bool(v):
     """Convert string boolean values to actual booleans for argparse"""
