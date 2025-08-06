@@ -18,7 +18,6 @@ from PIL import Image, ImageDraw, ImageFont
 
 from gamingagent.envs.gym_env_adapter import GymEnvAdapter
 from gamingagent.modules.core_module import Observation
-
 # ---------------------------------------------------------------------------
 # Helper utilities for optional text observation
 # ---------------------------------------------------------------------------
@@ -31,139 +30,153 @@ def _get_street_from_community_cards(community_cards: List[Any]) -> str:
     if n == 5: return "river"
     return "unknown"
 
-def _card_block(rank: str, suit: str) -> List[str]:
-    suits = {"Hearts": "♥", "Diamonds": "♦", "Clubs": "♣", "Spades": "♠",
-             "H": "♥", "D": "♦", "C": "♣", "S": "♠"}
+def _card_block_simple(rank: str, suit: str) -> List[str]:
+    """Simplified card representation using ASCII characters for better font compatibility."""
+    suits = {"Hearts": "H", "Diamonds": "D", "Clubs": "C", "Spades": "S",
+             "H": "H", "D": "D", "C": "C", "S": "S"}
     symbol = suits.get(suit, suit)
     return [
-        "┌─────────┐",
-        f"│ {rank:<2}      │",
-        "│         │",
-        f"│    {symbol}    │",
-        "│         │",
-        f"│      {rank:>2} │",
-        "└─────────┘",
+        "+-------+",
+        f"| {rank:<2}    |",
+        "|       |",
+        f"|   {symbol}   |",
+        "|       |",
+        f"|    {rank:>2} |",
+        "+-------+",
     ]
+
 
 def _render_card_row(cards: List[Tuple[str, str]]) -> List[str]:
     lines = [""] * 7
     for rank, suit in cards:
         if rank == "?" or suit == "?":
             block = [
-                "┌─────────┐",
-                "│ ░░░░░░░ │",
-                "│ ░░░░░░░ │",
-                "│ ░░░?░░░ │",
-                "│ ░░░░░░░ │",
-                "│ ░░░░░░░ │",
-                "└─────────┘",
+                "+-------+",
+                "| ? ? ? |",
+                "|       |",
+                "|   ?   |",
+                "|       |",
+                "| ? ? ? |",
+                "+-------+",
             ]
         else:
-            block = _card_block(rank, suit)
+            block = _card_block_simple(rank, suit)  # Use simple ASCII version for better compatibility
         for i in range(7):
             lines[i] += f"{block[i]} "
     return lines
 
-def _create_text_representation(game, current_player: str, action_mask: np.ndarray,
-                                moves_history: Optional[List[str]] = None) -> str:
+
+def _create_simplified_text_representation(game, current_player: str, action_mask: np.ndarray,
+                                          moves_history: Optional[List[str]] = None, env_ref=None) -> str:
+    """Create a simplified text representation suitable for small images."""
     try:
         player_idx = int(str(current_player).split('_')[-1])
     except Exception:
         player_idx = 0
+    
     community_cards = getattr(game, "public_cards", [])
     hole_cards = getattr(game.players[player_idx], "hand", [])
-    invested = {f"player_{i}": int(getattr(p, "in_chips", 0)) for i, p in enumerate(game.players)}
-    total_pot = sum(invested.values())
-
+    
+    # Use tournament chip stacks if available, otherwise fall back to pot contributions
+    if env_ref and hasattr(env_ref, 'chip_stacks') and hasattr(env_ref, 'tournament_mode') and env_ref.tournament_mode:
+        # Show tournament chip stacks
+        chip_info = {f"player_{i}": env_ref.chip_stacks.get(f"player_{i}", 0) for i in range(len(game.players))}
+        pot_contributions = {f"player_{i}": int(getattr(p, "in_chips", 0)) for i, p in enumerate(game.players)}
+        total_pot = sum(pot_contributions.values())
+        info_type = "Tournament Chips"
+    else:
+        # Fall back to PettingZoo's pot contributions
+        chip_info = {f"player_{i}": int(getattr(p, "in_chips", 0)) for i, p in enumerate(game.players)}
+        total_pot = sum(chip_info.values())
+        info_type = "Pot Contributions"
 
     folded_players = set()
     for i, p in enumerate(game.players):
-        status_name = getattr(p.status, "name", str(p.status))
-        if status_name == "FOLDED":
-            folded_players.add(f"player_{i}")
+        player_name = f"player_{i}"
+        
+        # Check player status - PettingZoo uses "folded" string for folded players
+        player_status = getattr(p, 'status', None)
+        if player_status:
+            status_str = str(player_status).lower()
+            if "folded" in status_str:
+                folded_players.add(player_name)
 
     street = _get_street_from_community_cards(community_cards)
     moves_history = moves_history or []
 
-    header_width = 122
     out: List[str] = []
-    out.append("┌" + "─" * header_width + "┐")
-    out.append("│" + "🃏 TEXAS HOLD'EM POKER".center(header_width) + "│")
-    out.append("└" + "─" * header_width + "┘\n")
-
-    out.append("┌─ GAME STATUS " + "─" * (header_width - 14) + "┐")
-    out.append(
-        f"│ Street: {street.upper():<20} Current Player: {current_player:<15} "
-        f"💰 Pot: ${total_pot:<10}" + " " * (header_width - 66) + "│"
-    )
-    out.append("└" + "─" * header_width + "┘\n")
-
-    out.append("┌─ RECENT MOVES " + "─" * (header_width - 15) + "┐")
-    recent = moves_history[-3:] if moves_history else ["No moves yet - game starting..."]
-    for mv in recent:
-        out.append(f"│ {mv:<{header_width - 2}} │")
-    for _ in range(3 - len(recent)):
-        out.append("│" + " " * header_width + "│")
-    out.append("└" + "─" * header_width + "┘\n")
-
-    # Left column
-    left: List[str] = []
-    left.append("┌─ COMMUNITY CARDS " + "─" * 49 + "┐")
-    left.append(f"│   Stage: {street.upper()} ({len(community_cards)}/5 cards)" + " " *
-                (68 - 25 - len(street)) + "│")
-    left.append("│" + " " * 68 + "│")
-    card_slots = [(c.rank, c.suit) for c in community_cards]
-    while len(card_slots) < 5:
-        card_slots.append(("?", "?"))
-    for line in _render_card_row(card_slots):
-        left.append(f"│  {line:<66}│")
-    left.append("│" + " " * 68 + "│")
-    left.append("└" + "─" * 68 + "┘\n")
-
-    left.append("┌─ YOUR HAND " + "─" * 55 + "┐")
-    left.append(f"│ Player: {current_player}" + " " * (68 - 10 - len(current_player)) + "│")
-    current_inv = invested.get(current_player, 0)
-    left.append(f"│ 💰 Invested: ${current_inv}" + " " * (68 - 15 - len(str(current_inv))) + "│")
-    left.append("│" + " " * 68 + "│")
-    player_cards = [(c.rank, c.suit) for c in hole_cards]
-    while len(player_cards) < 2:
-        player_cards.append(("?", "?"))
-    for line in _render_card_row(player_cards):
-        left.append(f"│  {line:<66}│")
-    left.append("│" + " " * 68 + "│")
-    left.append("└" + "─" * 68 + "┘")
-
-    # Right column
-    right_w = 50
-    right: List[str] = []
-    num_players = len(game.players)
-    right.append("┌─ ALL PLAYERS " + "─" * (right_w - 16) + "┐")
-    for i in range(num_players):
+    out.append("=== TEXAS HOLD'EM ===")
+    out.append("")
+    out.append(f"Street: {street.upper()}")
+    out.append(f"Current Player: {current_player}")
+    out.append(f"Pot: ${total_pot}")
+    out.append("")
+    
+    # Community cards (simple format)
+    out.append("Community Cards:")
+    if community_cards:
+        cards_str = " ".join([f"{c.rank}{c.suit[0]}" for c in community_cards])
+        out.append(f"  {cards_str}")
+    else:
+        out.append("  (none yet)")
+    out.append("")
+    
+    # Your hand
+    out.append("Your Hand:")
+    if hole_cards:
+        hand_str = " ".join([f"{c.rank}{c.suit[0]}" for c in hole_cards])
+        out.append(f"  {hand_str}")
+    else:
+        out.append("  (hidden)")
+    out.append("")
+    
+    # Players info with correct chip information
+    out.append(f"Players ({info_type}):")
+    for i in range(len(game.players)):
         pn = f"player_{i}"
-        inv = invested.get(pn, 0)
-        status = ("🃏 FOLDED" if pn in folded_players
-                  else ("🎯 ACTING" if pn == current_player else "⏳ waiting"))
-        line = f"│ {pn:<9} | Invested: ${inv:<5} | {status:<10}"
-        right.append(f"{line:<{right_w-1}}│")
-    right.append("└" + "─" * (right_w - 2) + "┘\n")
-
-    right.append("┌─ AVAILABLE ACTIONS " + "─" * (right_w - 20) + "┐")
+        chips = chip_info.get(pn, 0)
+        if pn in folded_players:
+            status = "FOLDED"
+        elif pn == current_player:
+            status = "ACTING"
+        else:
+            status = "waiting"
+        
+        # Show both tournament chips and current bet if in tournament mode
+        if env_ref and hasattr(env_ref, 'chip_stacks') and hasattr(env_ref, 'tournament_mode') and env_ref.tournament_mode:
+            current_bet = pot_contributions.get(pn, 0)
+            total_chips = chips
+            # Calculate available chips (total minus what's currently bet)
+            available_chips = total_chips - current_bet
+            
+            # Format chips as integers for cleaner display
+            total_display = int(round(total_chips))
+            available_display = int(round(available_chips))
+            
+            if current_bet > 0:
+                out.append(f"  {pn}: ${available_display} available (${total_display} total, bet: ${current_bet}) ({status})")
+            else:
+                out.append(f"  {pn}: ${total_display} total ({status})")
+        else:
+            out.append(f"  {pn}: ${int(round(chips))} ({status})")
+    out.append("")
+    
+    # Available actions
+    out.append("Available Actions:")
     action_names = ["CALL", "RAISE", "FOLD", "CHECK"]
     legal = [action_names[i].lower() for i, ok in enumerate(action_mask) if ok == 1]
     if legal:
-        right.append(f"│ ⚡ {' | '.join(legal):<{right_w-5}} │")
+        out.append(f"  {' | '.join(legal)}")
     else:
-        right.append(f"│ {'No legal actions available':<{right_w-3}} │")
-    right.append("│" + " " * (right_w - 2) + "│")
-    right.append("│ 📋 RULES: Best 5-card hand wins.              │")
-    right.append("└" + "─" * (right_w - 2) + "┘")
-
-    max_len = max(len(left), len(right))
-    left += [' ' * 70] * (max_len - len(left))
-    right += [' ' * right_w] * (max_len - len(right))
-    for l, r in zip(left, right):
-        out.append(f"{l}  {r}")
-
+        out.append("  (none)")
+    out.append("")
+    
+    # Recent moves
+    if moves_history:
+        out.append("Recent Moves:")
+        for mv in moves_history[-3:]:
+            out.append(f"  {mv}")
+    
     return "\n".join(out)
 
 def create_poker_table_image(
@@ -173,28 +186,74 @@ def create_poker_table_image(
     save_path: str | None,
     table_size: tuple = (1200, 800),
     moves_history: Optional[List[str]] = None,
+    env_ref=None,
 ):
     """Render text representation onto a PNG for vision observations."""
     if save_path is None:
         return
-    text_content = _create_text_representation(
-        game, current_player, action_mask, moves_history=moves_history
+    
+    text_content = _create_simplified_text_representation(
+        game, current_player, action_mask, moves_history=moves_history, env_ref=env_ref
     )
+
 
     img = Image.new("RGB", table_size, (240, 248, 255))
     draw = ImageDraw.Draw(img)
-    try:
-        font = ImageFont.truetype("DejaVuSansMono.ttf", 12)
-    except IOError:
-        font = ImageFont.load_default()
-
-    y_offset = 20
-    line_height = 16
-    for line in text_content.split("\n"):
-        draw.text((20, y_offset), line, fill=(0, 0, 0), font=font)
-        y_offset += line_height
-        if y_offset > table_size[1] - 40:
+    
+    # Better font handling with multiple fallbacks and appropriate sizing
+    font = None
+    font_size = max(8, min(14, table_size[1] // 50))  # Scale font size based on image height
+    
+    # Try multiple font options
+    font_options = [
+        "DejaVuSansMono.ttf",
+        "Courier New.ttf", 
+        "Courier.ttf",
+        "Monaco.ttf",  # macOS
+        "Consolas.ttf",  # Windows
+        "LiberationMono-Regular.ttf",  # Linux
+    ]
+    
+    for font_name in font_options:
+        try:
+            font = ImageFont.truetype(font_name, font_size)
             break
+        except (IOError, OSError):
+            continue
+    
+    # Final fallback to default font
+    if font is None:
+        try:
+            font = ImageFont.load_default()
+        except Exception:
+            font = ImageFont.load_default()
+
+    # Adjust line spacing based on image size
+    y_offset = max(10, table_size[1] // 50)
+    line_height = max(10, font_size + 2)
+    x_offset = max(10, table_size[0] // 100)
+    
+    # Split text into lines and render
+    lines = text_content.split("\n")
+    max_lines = (table_size[1] - 2 * y_offset) // line_height
+    
+    for i, line in enumerate(lines[:max_lines]):
+        if y_offset > table_size[1] - line_height:
+            break
+        
+        # Truncate line if too long for image width
+        max_chars = (table_size[0] - 2 * x_offset) // (font_size // 2)
+        if len(line) > max_chars:
+            line = line[:max_chars-3] + "..."
+            
+        try:
+            draw.text((x_offset, y_offset), line, fill=(0, 0, 0), font=font)
+        except Exception:
+            # Fallback: try to encode problematic characters
+            safe_line = line.encode('ascii', 'replace').decode('ascii')
+            draw.text((x_offset, y_offset), safe_line, fill=(0, 0, 0), font=font)
+        
+        y_offset += line_height
 
     os.makedirs(os.path.dirname(save_path), exist_ok=True)
     img.save(save_path)
@@ -299,14 +358,16 @@ class SingleTexasHoldemEnv(gym.Env):
                 img_path,
                 self.table_size_for_render,
                 moves_history=[],
+                env_ref=self,
             )
 
         if self.adapter.observation_mode in {"text", "both"}:
-            text_repr = _create_text_representation(
+            text_repr = _create_simplified_text_representation(
                 self.pz_env.unwrapped.env.game,
                 self.current_player,
                 action_mask,
                 moves_history=[],
+                env_ref=self,
             )
 
         agent_obs = self.adapter.create_agent_observation(
@@ -362,14 +423,16 @@ class SingleTexasHoldemEnv(gym.Env):
                 img_path,
                 self.table_size_for_render,
                 moves_history=[f"Last action: {agent_action_str}"] if agent_action_str else [],
+                env_ref=self,
             )
 
         if self.adapter.observation_mode in {"text", "both"}:
-            text_repr = _create_text_representation(
+            text_repr = _create_simplified_text_representation(
                 self.pz_env.unwrapped.env.game,
                 self.current_player,
                 action_mask,
                 moves_history=[f"Last action: {agent_action_str}"] if agent_action_str else [],
+                env_ref=self,
             )
 
         agent_obs = self.adapter.create_agent_observation(
@@ -423,7 +486,6 @@ class MultiTexasHoldemEnv(SingleTexasHoldemEnv):
          starting_chips: int = 1000,
          big_blind: int = 20,
          small_blind: int = 10,
-         tournament_mode: bool = False,
          max_tournament_hands: Optional[int] = None,
      ):
         if not 2 <= num_players <= 10:
@@ -447,7 +509,8 @@ class MultiTexasHoldemEnv(SingleTexasHoldemEnv):
         self.starting_chips = starting_chips
         self.big_blind = big_blind
         self.small_blind = small_blind
-        self.tournament_mode = bool(tournament_mode)
+        # Always enable tournament mode - players keep their chips across hands
+        self.tournament_mode = True
         self.max_tournament_hands = int(max_tournament_hands) if max_tournament_hands is not None else None
         self.hands_played = 0
         self._adapters: Dict[str, GymEnvAdapter] = {}
@@ -566,14 +629,16 @@ class MultiTexasHoldemEnv(SingleTexasHoldemEnv):
                     img_path,
                     self.table_size_for_render,
                     moves_history=self.moves_history,
+                    env_ref=self,
                 )
 
             if adap.observation_mode in {"text", "both"}:
-                text_repr = _create_text_representation(
+                text_repr = _create_simplified_text_representation(
                     self.pz_env.unwrapped.env.game,
                     self.pz_env.agent_selection,
                     action_mask,
                     moves_history=self.moves_history,
+                    env_ref=self,
                 )
 
             obs_dict[agent_name] = adap.create_agent_observation(
@@ -646,7 +711,12 @@ class MultiTexasHoldemEnv(SingleTexasHoldemEnv):
         if (terminations or truncations) and self.tournament_mode:
             # Settle stacks for this hand (zero-sum across players)
             for pn in self.player_names:
-                self.chip_stacks[pn] += self.perf_scores.get(pn, 0.0)
+                reward = self.perf_scores.get(pn, 0.0)
+            
+                chip_change = reward * 2
+                
+                # Round to be safe, though chip changes should now be integers
+                self.chip_stacks[pn] += round(chip_change)
             if self.enable_player_elimination:
                 for pn in self.player_names:
                     if self.chip_stacks[pn] <= 0:
@@ -682,11 +752,12 @@ class MultiTexasHoldemEnv(SingleTexasHoldemEnv):
                 )
 
             if adap.observation_mode in {"text", "both"}:
-                text_repr = _create_text_representation(
+                text_repr = _create_simplified_text_representation(
                     self.pz_env.unwrapped.env.game,
                     self.pz_env.agent_selection,
                     action_mask,
                     moves_history=self.moves_history,
+                    env_ref=self,
                 )
 
             agent_obs = adap.create_agent_observation(

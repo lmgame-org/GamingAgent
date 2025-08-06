@@ -33,6 +33,8 @@ scaffolding: null
 vllm_url: null
 modal_url: null
 
+tournament_hands: 2  # Number of hands in the tournament
+
 # Agent-specific overrides
 agent_x:
   modules:

@@ -128,19 +128,23 @@ def merge_cli_yaml(args, cfg, defaults):
     ]
 
     # Only apply YAML values for parameters that:
-    # 1. Weren't explicitly set on command line
-    # 2. Are using their built-in defaults
-    # 3. Have a different value in YAML
+    # 1. Weren't explicitly set on command line (i.e., are still at their default)
+    # 2. Have a different value in YAML
     for k in keys:
         if k in cfg:
-            param_on_cli = f"--{k.replace('_', '-')}" in sys.argv
-            if not param_on_cli:
-                cli_value = getattr(args, k)
-                yaml_value = cfg[k]
+            cli_value = getattr(args, k)
+            default_value = getattr(defaults, k)
+            yaml_value = cfg[k]
+            
+            # If the CLI value is the default, consider using the YAML value.
+            if cli_value == default_value:
                 if yaml_value is not None and cli_value != yaml_value:
                     print(f"INFO: Using YAML value for '{k}': {yaml_value} (CLI default was: {cli_value})")
                     setattr(args, k, yaml_value)
-
+            # If a non-default CLI value was provided, it takes precedence.
+            elif cli_value != yaml_value:
+                 print(f"INFO: Using CLI value for '{k}': {cli_value} (overriding YAML value: {yaml_value})")
+    
     # Special handling for model names - always use CLI values
     if "model_x" in cfg and getattr(args, "model_x") != cfg["model_x"]:
         print(f"INFO: Using CLI value for model_x: {args.model_x} (YAML value ignored: {cfg['model_x']})")
@@ -291,7 +295,6 @@ def create_environment(
              starting_chips=env_init_kwargs.get("starting_chips", 1000),
              big_blind=env_init_kwargs.get("big_blind", 20),
              small_blind=env_init_kwargs.get("small_blind", 10),
-             tournament_mode=env_init_kwargs.get("tournament_mode", False),
              max_tournament_hands=env_init_kwargs.get("max_tournament_hands"),
          )
         
@@ -573,8 +576,7 @@ def main(argv: Optional[list[str]] = None):
                 ),
             }
     if args.game_name.lower() == "texasholdem" and args.tournament_hands:
-        cfg_json.setdefault("env_init_kwargs", {})["tournament_mode"] = True
-        cfg_json["env_init_kwargs"]["max_tournament_hands"] = int(args.tournament_hands)
+        cfg_json.setdefault("env_init_kwargs", {})["max_tournament_hands"] = int(args.tournament_hands)
         # recommend elimination in tournaments
         cfg_json["env_init_kwargs"]["enable_player_elimination"] = True
 
@@ -596,6 +598,7 @@ def main(argv: Optional[list[str]] = None):
     ratings_path   = os.path.join(base_dir, "trueskill_ratings.json")
 
     # Configure TrueSkill; set draw_probability=0.0 since we handle ties explicitly
+    # Note: TrueSkill 2 style updates (using chip performance) are automatically enabled for Texas Hold'em
     ts = trueskill.TrueSkill(draw_probability=0.0)
 
     # Map env player -> stable identity (prefer model_name)
@@ -616,7 +619,7 @@ def main(argv: Optional[list[str]] = None):
     for eid in range(1, total_hands + 1):
         result = play_episode(env, agents, eid, args.max_steps, cseed)
 
-        # --- Per-hand TrueSkill update + JSONL logging --------------------------
+        # --- TrueSkill 2 Tournament Mode: Accumulate performance, update only at end ---
         if not result:
             cseed = None if cseed is None else cseed + 1
             time.sleep(1)
@@ -631,36 +634,89 @@ def main(argv: Optional[list[str]] = None):
             chip_deltas = {p: float(env.perf_scores.get(p, 0.0)) for p in env.player_names}
         else:
             chip_deltas = {k: float(v) for k, v in result.items() if k not in {"illegal", "illegal_player"}}
-        ordered = sorted(chip_deltas.items(), key=lambda kv: kv[1], reverse=True)
+        
+        # TrueSkill 2 Tournament Mode: Always use cumulative chip stacks for Texas Hold'em
+        # Only update TrueSkill ratings at the end of the tournament
+        is_tournament_end = (args.game_name.lower() == "texasholdem" and 
+                           hasattr(env, "chip_stacks") and 
+                           (eid == total_hands or 
+                            (hasattr(env, "tournament_over") and env.tournament_over())))
+        
+        if args.game_name.lower() == "texasholdem" and hasattr(env, "chip_stacks"):
+            # Always use cumulative chip stacks for ordering/logging in Texas Hold'em
+            final_chip_counts = {p: float(env.chip_stacks.get(p, 0)) for p in env.player_names}
+            ordered = sorted(final_chip_counts.items(), key=lambda kv: kv[1], reverse=True)
+            
+            if is_tournament_end:
+                print(f"\n🏆 TOURNAMENT FINAL RANKING - Updating TrueSkill based on final chip stacks")
+                print(f"Final chip standings:")
+                for i, (player, chips) in enumerate(ordered, 1):
+                    print(f"  #{i}: {player} - {chips:,.0f} chips")
+        else:
+            # Non-poker games: use per-game results
+            ordered = sorted(chip_deltas.items(), key=lambda kv: kv[1], reverse=True)
+        
         values  = [v for _, v in ordered]
         ranks   = ranks_from_values(values)  # 0-based; ties share rank
 
         # Prepare participant records (aligned order) and pre-ratings
         participants = []
         pre_ratings = []
-        for (env_player, delta), rank in zip(ordered, ranks):
+        for (env_player, performance), rank in zip(ordered, ranks):
             sid = agent_ids.get(env_player, env_player)
             pre = ratings.get(sid, ts.Rating())
             pre_ratings.append((pre,))
             participants.append({
                 "env_player": env_player,
                 "id": sid,
-                "chip_delta": delta,
+                "chip_delta": chip_deltas.get(env_player, 0.0),  # Per-hand delta for logging
+                "final_chips": performance if args.game_name.lower() == "texasholdem" else None,
                 "rank": int(rank),
                 "illegal": illegal_game and (illegal_player == env_player),
+                "tournament_final": is_tournament_end,
             })
 
-        # Update TrueSkill (skip rating change when the hand is illegal)
-        if illegal_game:
-            post_ratings = pre_ratings
+        # TrueSkill 2: Only update ratings at tournament end for Texas Hold'em
+        should_update_ratings = (not illegal_game and 
+                               (args.game_name.lower() != "texasholdem" or is_tournament_end))
+        
+        if should_update_ratings:
+            # TrueSkill 2 style updates for Texas Hold'em using cumulative chip performance
+            if args.game_name.lower() == "texasholdem" and len(values) > 1:
+                # Use cumulative chip performance for more accurate skill assessment
+                max_perf = max(values) if values else 1
+                min_perf = min(values) if values else 0
+                perf_range = max_perf - min_perf if max_perf > min_perf else 1
+                
+                # Create performance-weighted rankings based on chip differentials
+                weighted_ranks = []
+                for i, (_, performance) in enumerate(ordered):
+                    if perf_range > 0:
+                        # Normalize performance to 0-1 scale
+                        normalized_perf = (performance - min_perf) / perf_range
+                        # Convert to weighted rank (better performance = lower rank)
+                        weighted_rank = len(ordered) * (1 - normalized_perf)
+                    else:
+                        # If all performances are equal, use regular ranking
+                        weighted_rank = float(ranks[i])
+                    weighted_ranks.append(weighted_rank)
+                
+                post_ratings = ts.rate(pre_ratings, ranks=weighted_ranks)
+                print(f"Applied TrueSkill 2 updates based on cumulative tournament performance")
+            else:
+                # Standard TrueSkill for non-poker games
+                post_ratings = ts.rate(pre_ratings, ranks=ranks)
         else:
-            post_ratings = ts.rate(pre_ratings, ranks=ranks)
+            # No rating update - keep current ratings
+            post_ratings = pre_ratings
+            if args.game_name.lower() == "texasholdem" and not is_tournament_end:
+                print(f"Hand {eid}/{total_hands}: Accumulating performance, TrueSkill ratings unchanged")
 
         # Attach pre/post and persist new ratings in memory
         for part, (pre,), (post,) in zip(participants, pre_ratings, post_ratings):
             part["pre"]  = {"mu": float(pre.mu),  "sigma": float(pre.sigma)}
             part["post"] = {"mu": float(post.mu), "sigma": float(post.sigma)}
-            if not illegal_game:
+            if should_update_ratings:
                 ratings[part["id"]] = post
 
         # Append one JSON line for this hand

@@ -6,6 +6,7 @@ game_env:
   max_steps: 50
   seed: 42
   num_runs: 3
+  # Note: Tournament mode always enabled - players accumulate chips across hands
 
 agent:
   # Global agent settings
