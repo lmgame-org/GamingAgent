@@ -238,6 +238,7 @@ def create_environment(
     cache_dir: str,
     harness: bool = False,
     multiagent_arg: str = "multi",
+    record_video: bool = False,
 ):
     """
     Creates and returns a game environment instance based on the game name and config.
@@ -296,6 +297,7 @@ def create_environment(
              big_blind=env_init_kwargs.get("big_blind", 20),
              small_blind=env_init_kwargs.get("small_blind", 10),
              max_tournament_hands=env_init_kwargs.get("max_tournament_hands"),
+            record_video=record_video,
          )
         
         # Set up AI opponents if specified in config
@@ -484,6 +486,7 @@ def build_parser():
     p.add_argument("--vllm_url", type=str, default=None)
     p.add_argument("--modal_url", type=str, default=None)
     p.add_argument("--tournament_hands", type=int, default=None)
+    p.add_argument("--record_video", type=str_to_bool, default=False, help="Enable video recording of the GUI")
     return p
 
 ###############################################################################
@@ -590,6 +593,7 @@ def main(argv: Optional[list[str]] = None):
         cache_dir=run_root,
         harness=args.harness,
         multiagent_arg=args.multiagent_arg,
+        record_video=args.record_video,
     )
 
     # One persistent log per game

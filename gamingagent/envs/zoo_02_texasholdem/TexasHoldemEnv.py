@@ -15,6 +15,9 @@ import numpy as np
 from gymnasium.spaces import Box, Discrete
 from pettingzoo.classic import texas_holdem_v4
 from PIL import Image, ImageDraw, ImageFont
+import imageio
+import glob
+from natsort import natsorted
 
 from gamingagent.envs.gym_env_adapter import GymEnvAdapter
 from gamingagent.modules.core_module import Observation
@@ -180,6 +183,36 @@ def _create_simplified_text_representation(game, current_player: str, action_mas
             out.append(f"  {mv}")
     
     return "\n".join(out)
+
+def _generate_video_from_rgb_array(
+    frames: List[np.ndarray],
+    output_path: str,
+    frame_rate: int = 2,
+):
+    """Generates a video from a list of RGB frames."""
+    if not frames:
+        return
+    
+    output_dir = os.path.dirname(output_path)
+    if not os.path.exists(output_dir):
+        os.makedirs(output_dir)
+
+    try:
+        # Use specific codec and pixel format for better compatibility
+        writer = imageio.get_writer(
+            output_path, 
+            fps=frame_rate, 
+            codec='libx264',         # Standard codec for mp4
+            pixelformat='yuv420p',   # Handles odd frame dimensions
+            macro_block_size=1       # Suppresses macroblock size warning
+        )
+        for frame in frames:
+            writer.append_data(frame)
+        writer.close()
+        print(f"GUI video saved to {output_path}")
+    except Exception as e:
+        print(f"Error generating GUI video: {e}")
+
 
 def create_poker_table_image(
     game,
@@ -485,16 +518,28 @@ class MultiTexasHoldemEnv(SingleTexasHoldemEnv):
          game_specific_config_path_for_adapter: str = "gamingagent/envs/zoo_02_texasholdem/game_env_config.json",
          max_stuck_steps_for_adapter: Optional[int] = 10,
          enable_player_elimination: bool = True,
-         starting_chips: int = 1000,
-         big_blind: int = 20,
-         small_blind: int = 10,
+         starting_chips: int = 100,
+         big_blind: int = 2,
+         small_blind: int = 1,
          max_tournament_hands: Optional[int] = None,
+        record_video: bool = True,
+        video_frame_rate: int = 2,
      ):
         if not 2 <= num_players <= 10:
             raise ValueError("num_players must be between 2 and 10")
 
+        self.record_video = record_video
+        self.video_frame_rate = video_frame_rate
+        self.gui_frames: List[np.ndarray] = []
+        
+        pz_render_mode = render_mode
+        if self.record_video:
+            pz_render_mode = "rgb_array"
+            if render_mode == "human":
+                print("Warning: video recording is enabled, so the interactive GUI window will not be displayed. Frames will be saved to a video file instead.")
+
         super().__init__(
-            render_mode=render_mode,
+            render_mode=pz_render_mode,
             env_type="single",
             opponent_policy=None,
             num_players=num_players,
@@ -587,6 +632,15 @@ class MultiTexasHoldemEnv(SingleTexasHoldemEnv):
         }
 
     def reset(self, *, seed: int | None = None, episode_id: int = 1, **kwargs):
+        if self.record_video and self.gui_frames:
+            video_path = os.path.join(self.base_cache_dir, "videos", f"episode_{self.current_episode_id}_gui.mp4")
+            _generate_video_from_rgb_array(
+                frames=self.gui_frames,
+                output_path=video_path,
+                frame_rate=self.video_frame_rate
+            )
+        self.gui_frames = []
+
         for adap in self._adapters.values():
             adap.reset_episode(episode_id)
         super().reset(seed=seed)
@@ -646,6 +700,11 @@ class MultiTexasHoldemEnv(SingleTexasHoldemEnv):
             obs_dict[agent_name] = adap.create_agent_observation(
                 img_path=img_path, text_representation=text_repr
             )
+
+        if self.record_video:
+            frame = self.pz_env.render()
+            if frame is not None:
+                self.gui_frames.append(frame)
 
         if self.render_mode == "human":
             self.render()
@@ -783,6 +842,11 @@ class MultiTexasHoldemEnv(SingleTexasHoldemEnv):
                     agent_observation=agent_obs,
                 )
 
+        if self.record_video:
+            frame = self.pz_env.render()
+            if frame is not None:
+                self.gui_frames.append(frame)
+
         if self.render_mode == "human":
             self.render()
 
@@ -823,6 +887,14 @@ class MultiTexasHoldemEnv(SingleTexasHoldemEnv):
         }
 
     def close(self):
+        if self.record_video and self.gui_frames:
+            video_path = os.path.join(self.base_cache_dir, "videos", f"episode_{self.current_episode_id}_gui_final.mp4")
+            _generate_video_from_rgb_array(
+                frames=self.gui_frames,
+                output_path=video_path,
+                frame_rate=self.video_frame_rate
+            )
+        self.gui_frames = []
         super().close()
         for adap in self._adapters.values():
             adap.close_log_file()

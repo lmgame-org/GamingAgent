@@ -493,7 +493,7 @@ class APIManager:
                     token_limit=token_limit
                 )
 
-            elif model_name in ["kimi-thinking-preview"]:
+            elif "kimi" in model_name.lower():
                 completion = moonshot_completion(
                     system_prompt=system_prompt,
                     model_name=model_name,
@@ -796,7 +796,7 @@ class APIManager:
                     temperature=temperature,
                     reasoning_effort=reasoning_effort
                 )
-            elif model_name in ["kimi-k2", "kimi-thinking-preview"]:
+            elif "kimi" in model_name.lower():
                 completion = moonshot_text_completion(
                     system_prompt=system_prompt,
                     model_name=model_name,
@@ -1041,7 +1041,7 @@ class APIManager:
                     url=self.modal_url,
                 )
 
-            elif model_name in ["kimi-thinking-preview"]:
+            elif "kimi" in model_name.lower():
                 completion = moonshot_multiimage_completion(
                     system_prompt=system_prompt,
                     model_name=model_name,

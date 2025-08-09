@@ -5,7 +5,7 @@ game_env:
   render_mode: "human"
   max_steps: 200
   seed: 42
-  num_runs: 3
+  num_runs: 1
 
 agent:
   # Global agent settings

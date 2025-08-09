@@ -400,7 +400,7 @@ def openai_completion(system_prompt, model_name, base64_image, prompt, temperatu
         ]
 
     # Update token parameter logic to include o4 models
-    token_param = "max_completion_tokens" if ("o1" in model_name or "o4" in model_name or "o3" in model_name) else "max_tokens"
+    token_param = "max_completion_tokens" if ("o1" in model_name or "o4" in model_name or "o3" in model_name or "gpt-5" in model_name) else "max_tokens"
     request_params = {
         "model": model_name,
         "messages": messages,
@@ -443,7 +443,7 @@ def openai_text_completion(system_prompt, model_name, prompt, token_limit=30000,
         ]
 
     # Update token parameter logic to include all o-series models
-    token_param = "max_completion_tokens" if ("o1" in model_name or "o4" in model_name or "o3" in model_name) else "max_tokens"
+    token_param = "max_completion_tokens" if ("o1" in model_name or "o4" in model_name or "o3" in model_name or "gpt-5" in model_name) else "max_tokens"
     
     request_params = {
         "model": model_name,
@@ -497,7 +497,7 @@ def openai_text_reasoning_completion(system_prompt, model_name, prompt, temperat
     ]
 
     # Update token parameter logic to include all o-series models
-    token_param = "max_completion_tokens" if ("o1" in model_name or "o4" in model_name or "o3" in model_name) else "max_tokens"
+    token_param = "max_completion_tokens" if ("o1" in model_name or "o4" in model_name or "o3" in model_name or "gpt-5" in model_name) else "max_tokens"
     
     # Prepare request parameters dynamically
     request_params = {
@@ -652,7 +652,7 @@ def openai_multiimage_completion(system_prompt, model_name, prompt, list_content
     ]
     
     # Update token parameter logic to include all o-series models
-    token_param = "max_completion_tokens" if ("o1" in model_name or "o4" in model_name or "o3" in model_name) else "max_tokens"
+    token_param = "max_completion_tokens" if ("o1" in model_name or "o4" in model_name or "o3" in model_name or "gpt-5" in model_name) else "max_tokens"
     
     request_params = {
         "model": model_name,
@@ -1296,10 +1296,6 @@ def moonshot_text_completion(system_prompt, model_name, prompt, temperature=1, t
     """
     print(f"Moonshot AI Kimi text API call: model={model_name}")
     
-    # Validate supported models
-    if model_name not in ["kimi-k2", "kimi-thinking-preview"]:
-        raise ValueError(f"Unsupported Kimi model: {model_name}. Only 'kimi-k2' and 'kimi-thinking-preview' are supported.")
-    
     # Use OpenAI client with Moonshot base URL
     client = OpenAI(
         api_key=os.getenv("MOONSHOT_API_KEY"),
@@ -1339,13 +1335,6 @@ def moonshot_completion(system_prompt, model_name, base64_image, prompt, tempera
         str: Generated text
     """
     print(f"Moonshot AI Kimi vision-text API call: model={model_name}")
-    
-    # Check if model supports vision
-    if model_name == "kimi-k2":
-        raise ValueError(f"Model {model_name} does not support vision functionality. Use text-only completion instead.")
-    
-    if model_name not in ["kimi-thinking-preview"]:
-        raise ValueError(f"Unsupported Kimi vision model: {model_name}. Only 'kimi-thinking-preview' supports vision.")
     
     # Use OpenAI client with Moonshot base URL
     client = OpenAI(
@@ -1394,13 +1383,6 @@ def moonshot_multiimage_completion(system_prompt, model_name, prompt, list_conte
         str: Generated text
     """
     print(f"Moonshot AI Kimi multi-image API call: model={model_name}")
-    
-    # Check if model supports vision
-    if model_name == "kimi-k2":
-        raise ValueError(f"Model {model_name} does not support vision functionality. Use text-only completion instead.")
-    
-    if model_name not in ["kimi-thinking-preview"]:
-        raise ValueError(f"Unsupported Kimi vision model: {model_name}. Only 'kimi-thinking-preview' supports vision.")
     
     # Use OpenAI client with Moonshot base URL
     client = OpenAI(
