@@ -18,8 +18,9 @@ model_o: "gpt-4o"
 # Game settings
 num_runs: 3
 max_steps: 100
-observation_mode: "both"
-seed: 42
+# For multi-agent runs. CLI args like --player_models will override these.
+observation_mode: "text"  # Use "vision", "text", or "both"
+seed: null # Set to an integer for reproducible runs, e.g., 42
 
 # Module settings
 use_custom_prompt: true
@@ -32,6 +33,8 @@ scaffolding: null
 # Server settings
 vllm_url: null
 modal_url: null
+
+tournament_hands: 2  # Number of hands in the tournament
 
 # Agent-specific overrides
 agent_x:

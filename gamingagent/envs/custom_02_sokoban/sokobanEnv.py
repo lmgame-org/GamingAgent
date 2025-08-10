@@ -366,19 +366,22 @@ class SokobanEnv(gym.Env):
             return False
 
 
-    def reset(self, *, seed: Optional[int] = None, options: Optional[Dict[str, Any]] = None, max_memory: Optional[int] = 10, episode_id: int = 1) -> Tuple[Observation, Dict[str, Any]]:
+    def reset(self, *, seed: Optional[int] = None, options: Optional[Dict[str, Any]] = None, max_memory: Optional[int] = 10, episode_id: int = 1, hard_reset: bool = True) -> Tuple[Observation, Dict[str, Any]]:
         super().reset(seed=seed)
-        self.current_level = 0
+        if hard_reset:
+            self.current_level = self.level_to_load if self.level_to_load is not None else 1
+            self.current_episode_cumulative_perf_score = 0.0
+
         self.num_env_steps = 0
         self.current_reward_last_step = 0.0
         
         # Reset Sokoban-specific performance score trackers
         self.previous_boxes_on_target_for_perf = 0
-        self.current_episode_cumulative_perf_score = 0.0
-
+        
         level_loaded_ok = False
-        if self.level_to_load and self.level_to_load in self.predefined_levels:
-            level_data_str = self.predefined_levels[self.level_to_load]
+        current_level_to_load = self.current_level if hard_reset and self.level_to_load is None else self.level_to_load
+        if current_level_to_load and current_level_to_load in self.predefined_levels:
+            level_data_str = self.predefined_levels[current_level_to_load]
             if self._parse_level_data(level_data_str):
                 level_loaded_ok = True
         
@@ -387,7 +390,8 @@ class SokobanEnv(gym.Env):
 
         self.boxes_on_target = np.count_nonzero(self.room_state == 3) # Box on target is 3
         
-        self.adapter.reset_episode(episode_id)
+        if hard_reset:
+             self.adapter.reset_episode(episode_id)
         raw_board_obs = self._get_raw_board_obs()
         info_dict = self._get_info()
         
@@ -561,8 +565,8 @@ class SokobanEnv(gym.Env):
             
             # If level is completed, try to progress to next level
             if terminated and self._progress_to_next_level():
-                # Reset the environment for the new level
-                self.reset()
+                # Reset the environment for the new level, but it's not a "hard" reset of the episode
+                self.reset(hard_reset=False)
                 # Return the new observation and info
                 raw_board_obs = self._get_raw_board_obs()
                 info_dict = self._get_info()
