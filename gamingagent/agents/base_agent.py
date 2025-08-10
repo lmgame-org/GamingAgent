@@ -214,6 +214,7 @@ class BaseAgent(ABC):
                     cache_dir=self.cache_dir,
                     system_prompt=self.config["perception_module"]["system_prompt"],
                     prompt=self.config["perception_module"]["prompt"],
+                    token_limit=self.token_limit,
                     scaffolding=self.scaffolding,
                     use_perception=self.use_perception,
                     vllm_url=self.vllm_url,
@@ -235,6 +236,7 @@ class BaseAgent(ABC):
                     summary_system_prompt=self.config["memory_module"].get("summary", {}).get("system_prompt", ""),
                     summary_prompt=self.config["memory_module"].get("summary", {}).get("prompt", ""),
                     max_memory=self.max_memory,
+                    token_limit=self.token_limit,
                     use_reflection=self.use_reflection,
                     use_summary=self.use_summary,
                     vllm_url=self.vllm_url,
@@ -249,6 +251,7 @@ class BaseAgent(ABC):
                     summary_system_prompt=self.config["memory_module"].get("summary", {}).get("system_prompt", ""),
                     summary_prompt=self.config["memory_module"].get("summary", {}).get("prompt", ""),
                     max_memory=self.max_memory,
+                    token_limit=self.token_limit,
                     use_reflection=self.use_reflection,
                     use_summary=self.use_summary,
                     vllm_url=self.vllm_url,
@@ -265,6 +268,7 @@ class BaseAgent(ABC):
                     cache_dir=self.cache_dir,
                     system_prompt=self.config["reasoning_module"]["system_prompt"],
                     prompt=self.config["reasoning_module"]["prompt"],
+                    token_limit=self.token_limit,
                     vllm_url=self.vllm_url,
                     modal_url=self.modal_url
                 )

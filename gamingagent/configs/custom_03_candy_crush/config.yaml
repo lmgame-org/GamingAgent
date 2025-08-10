@@ -9,17 +9,17 @@ game_env:
 agent:
   model_name: "claude-3-7-sonnet-latest" # Or your preferred model
   harness: true
-  token_limit: 100000
+  token_limit: 50000
   reasoning_effort: "high"
-  observation_mode: "vision" 
+  observation_mode: "text" 
   use_reflection: true
   use_perception: true
-modules:
+  modules:
     base_module:
 
     perception_module:
 
     memory_module:
-      max_memory: 10 
+      max_memory: 10
 
     reasoning_module:

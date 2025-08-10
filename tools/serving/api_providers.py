@@ -14,6 +14,8 @@ from together import Together
 import requests
 import grpc
 
+from typing import Optional, List, Any
+
 def estimate_token_count(text: str) -> int:
     """
     Rough estimation of token count for text.
@@ -443,7 +445,7 @@ def openai_text_completion(system_prompt, model_name, prompt, token_limit=30000,
         ]
 
     # Update token parameter logic to include all o-series models
-    token_param = "max_completion_tokens" if ("o1" in model_name or "o4" in model_name or "o3" in model_name) else "max_tokens"
+    token_param = "max_completion_tokens" if ("o1" in model_name or "o4" in model_name or "o3" in model_name or "gpt-5" in model_name) else "max_tokens"
     
     request_params = {
         "model": model_name,
@@ -497,7 +499,7 @@ def openai_text_reasoning_completion(system_prompt, model_name, prompt, temperat
     ]
 
     # Update token parameter logic to include all o-series models
-    token_param = "max_completion_tokens" if ("o1" in model_name or "o4" in model_name or "o3" in model_name) else "max_tokens"
+    token_param = "max_completion_tokens" if ("o1" in model_name or "o4" in model_name or "o3" in model_name or "gpt-5" in model_name) else "max_tokens"
     
     # Prepare request parameters dynamically
     request_params = {
@@ -652,7 +654,7 @@ def openai_multiimage_completion(system_prompt, model_name, prompt, list_content
     ]
     
     # Update token parameter logic to include all o-series models
-    token_param = "max_completion_tokens" if ("o1" in model_name or "o4" in model_name or "o3" in model_name) else "max_tokens"
+    token_param = "max_completion_tokens" if ("o1" in model_name or "o4" in model_name or "o3" in model_name or "gpt-5" in model_name) else "max_tokens"
     
     request_params = {
         "model": model_name,
@@ -1422,6 +1424,152 @@ def moonshot_multiimage_completion(system_prompt, model_name, prompt, list_conte
             "image_url": {"url": f"data:image/png;base64,{base64_image}"}
         })
     
+    # Add final prompt
+    content_blocks.append({
+        "type": "text",
+        "text": prompt
+    })
+
+    messages = []
+    if system_prompt:
+        messages.append({"role": "system", "content": system_prompt})
+    
+    messages.append({
+        "role": "user",
+        "content": content_blocks,
+    })
+
+    response = client.chat.completions.create(
+        model=model_name,
+        messages=messages,
+        max_tokens=token_limit,
+        temperature=temperature,
+    )
+    
+    return response.choices[0].message.content
+
+def stepfun_text_completion(
+    system_prompt: str,
+    model_name: str,
+    prompt: str,
+    temperature: float = 1.0,
+    token_limit: int = 30000
+) -> str:
+    """
+    Calls StepFun chat completion in text-only mode.
+    """
+    client = OpenAI(
+        api_key=os.getenv("STEPFUN_API_KEY"),
+        base_url="https://api.stepfun.com/v1"
+    )
+
+    messages = []
+    if system_prompt:
+        messages.append({"role": "system", "content": system_prompt})
+    messages.append({"role": "user", "content": prompt})
+
+    resp = client.chat.completions.create(
+        model=model_name,
+        messages=messages,
+        temperature=temperature,
+        max_tokens=token_limit,
+    )
+    return resp.choices[0].message.content
+
+def stepfun_completion(
+    system_prompt: str,
+    model_name: str,
+    image_base64: str,
+    prompt: str,
+    temperature: float = 1.0,
+    token_limit: int = 30000,
+    detail: str = "low"
+) -> str:
+    """
+    Sends one base64-encoded image plus text prompt to StepFun.
+    model_name must support vision (e.g. 'step-vision‑###' or 'step-1‑8k').
+    """
+
+    if isinstance(image_base64, str) and not image_base64.startswith("data:image"):
+        image_base64 = "data:image/png;base64," + image_base64
+
+    client = OpenAI(
+        api_key=os.getenv("STEPFUN_API_KEY"),
+        base_url="https://api.stepfun.com/v1"
+    )
+
+    messages = []
+    if system_prompt:
+        messages.append({"role": "system", "content": system_prompt})
+
+    messages.append({
+        "role": "user",
+        "content": [
+            {
+                "type": "image_url",
+                "image_url": {"url": image_base64, "detail": detail},
+            },
+            {"type": "text", "text": prompt},
+        ],
+    })
+
+    resp = client.chat.completions.create(
+        model=model_name,
+        messages=messages,
+        temperature=temperature,
+        max_tokens=token_limit,
+    )
+    return resp.choices[0].message.content
+
+def stepfun_multiimage_completion(
+        system_prompt: str, 
+        model_name: str, 
+        prompt: str, 
+        list_content: List[str], 
+        list_image_base64: List[str], 
+        temperature: float = 1, 
+        token_limit: int = 30000):
+    """
+    StepFun multi-image completion API call.
+    Only vision-capable StepFun models support multi-image input.
+
+    Args:
+        system_prompt (str): System prompt
+        model_name (str): Model name (should be vision-capable, e.g. 'step-1-8k' or similar)
+        prompt (str): User prompt (final text prompt after images)
+        list_content (List[str]): List of text content corresponding to each image
+        list_image_base64 (List[str]): List of base64-encoded image data
+        temperature (float): Temperature parameter (0-1)
+        token_limit (int): Maximum number of tokens for the completion response
+        
+    Returns:
+        str: Generated text
+    """
+    print(f"StepFun multi-image API call: model={model_name}")
+
+    # Check if model supports vision if needed (adjust names as required)
+    if model_name not in ["step-1-8k", "step-vision-8k", "step-vision-128k"]:  # Example, expand as needed
+        raise ValueError(f"Unsupported StepFun vision model: {model_name}. Provide a StepFun vision-capable model.")
+
+    # Use OpenAI client with StepFun base URL
+    client = OpenAI(
+        api_key=os.getenv("STEPFUN_API_KEY"),
+        base_url="https://api.stepfun.com/v1"
+    )
+
+    # Build content blocks with text and images
+    content_blocks = []
+
+    for text_item, base64_image in zip(list_content, list_image_base64):
+        content_blocks.append({
+            "type": "text",
+            "text": text_item,
+        })
+        content_blocks.append({
+            "type": "image_url",
+            "image_url": {"url": f"data:image/png;base64,{base64_image}"}
+        })
+
     # Add final prompt
     content_blocks.append({
         "type": "text",
