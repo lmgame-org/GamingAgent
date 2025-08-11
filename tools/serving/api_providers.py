@@ -30,6 +30,65 @@ def _sleep_with_backoff(base_delay: int, attempt: int) -> None:
     print(f"Retrying in {delay:.2f}s … (attempt {attempt + 1})")
     time.sleep(delay)
 
+def retry_on_stepfun_error(func):
+    """
+    Retry wrapper for StepFun (OpenAI-compatible) SDK calls.
+    Retries on: RateLimitError, APITimeoutError, APIConnectionError,
+                httpx.RemoteProtocolError, and 5xx APIStatusError / InternalServerError.
+    Immediately raises on: BadRequestError (400) and ValueError (caller bugs).
+    """
+    @functools.wraps(func)
+    def wrapper(*args, **kwargs):
+        max_retries = kwargs.pop("max_retries", 5)
+        base_delay  = kwargs.pop("base_delay", 2)
+
+        for attempt in range(max_retries):
+            try:
+                return func(*args, **kwargs)
+
+            except ValueError:
+                # Programming/validation errors in our code; don't retry.
+                raise
+
+            except BadRequestError as e:
+                # Invalid request; retries won't help.
+                print(f"StepFun BadRequestError (not retrying): {e}")
+                raise
+
+            except (RateLimitError, APITimeoutError, APIConnectionError,
+                    httpx.RemoteProtocolError) as e:
+                # Transient; back off and retry.
+                if attempt < max_retries - 1:
+                    print(f"StepFun transient error: {e}")
+                    _sleep_with_backoff(base_delay, attempt)
+                    continue
+                raise
+
+            except APIStatusError as e:
+                # Retry only 5xx; surface 4xx immediately.
+                if 500 <= getattr(e, "status_code", 0) < 600 and attempt < max_retries - 1:
+                    # Optional: peek at provider payload for engine_exception signals.
+                    try:
+                        body = getattr(e, "response", None).json()
+                        etype = (body or {}).get("error", {}).get("type")
+                        msg   = (body or {}).get("error", {}).get("message")
+                        print(f"StepFun server error {e.status_code} ({etype}): {msg}")
+                    except Exception:
+                        print(f"StepFun server error {e.status_code}: {getattr(e, 'message', e)}")
+                    _sleep_with_backoff(base_delay, attempt)
+                    continue
+                raise
+
+            # Some SDKs raise a concrete InternalServerError class; handle just in case.
+            except Exception as e:
+                if getattr(e, "__class__", type("X",(object,),{})).__name__ == "InternalServerError":
+                    if attempt < max_retries - 1:
+                        print(f"StepFun InternalServerError: {e}")
+                        _sleep_with_backoff(base_delay, attempt)
+                        continue
+                raise
+    return wrapper
+
 def retry_on_openai_error(func):
     """
     Retry wrapper for OpenAI SDK calls.
@@ -1430,6 +1489,7 @@ def moonshot_multiimage_completion(system_prompt, model_name, prompt, list_conte
     
     return response.choices[0].message.content
 
+@retry_on_stepfun_error
 def stepfun_text_completion(
     system_prompt: str,
     model_name: str,
@@ -1458,6 +1518,7 @@ def stepfun_text_completion(
     )
     return resp.choices[0].message.content
 
+@retry_on_stepfun_error
 def stepfun_completion(
     system_prompt: str,
     model_name: str,
@@ -1503,6 +1564,7 @@ def stepfun_completion(
     )
     return resp.choices[0].message.content
 
+@retry_on_stepfun_error
 def stepfun_multiimage_completion(
         system_prompt: str, 
         model_name: str, 
