@@ -1,4 +1,41 @@
-{ "glm-4.5": {
+{ 
+  "gpt-5": {
+    "harness_true": {
+      "sokoban": [
+        11, 11
+      ],
+      "super_mario_bros": [
+        1875.0, 1397.0, 1025.0
+      ],
+      "tetris": [
+        36, 112, 105
+      ],
+      "twenty_forty_eight": [
+        4516, 8116, 4680
+      ],
+      "candy_crush": [
+        573, 694, 580
+      ],
+      "ace_attorney": [
+        9
+      ]
+    },
+    "harness_false": {
+      "sokoban": [
+      ],
+      "super_mario_bros": [
+      ],
+      "tetris": [
+      ],
+      "twenty_forty_eight": [
+      ],
+      "candy_crush": [
+      ],
+      "ace_attorney": [
+      ]
+    }
+  },
+  "glm-4.5": {
     "harness_true": {
       "sokoban": [
         0,
