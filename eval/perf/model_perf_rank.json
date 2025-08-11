@@ -1,4 +1,37 @@
-{ 
+{ "grok-4-0709": {
+    "harness_true": {
+      "sokoban": [
+        6,6,7
+      ],
+      "super_mario_bros": [
+      ],
+      "tetris": [
+        229,105,43
+      ],
+      "twenty_forty_eight": [
+        4120, 4080, 5752
+      ],
+      "candy_crush": [
+        586, 730, 534
+      ],
+      "ace_attorney": [
+      ]
+    },
+    "harness_false": {
+      "sokoban": [
+      ],
+      "super_mario_bros": [
+      ],
+      "tetris": [
+      ],
+      "twenty_forty_eight": [
+      ],
+      "candy_crush": [
+      ],
+      "ace_attorney": [
+      ]
+    }
+  },
   "gpt-5": {
     "harness_true": {
       "sokoban": [
