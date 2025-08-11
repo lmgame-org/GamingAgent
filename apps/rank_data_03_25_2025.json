@@ -67,6 +67,12 @@
                 "score": 986.97,
                 "detail_data":"986.97",
                 "progress": "1-1"
+            },
+            {
+                "model": "🎮 gpt-5",
+                "score": 1432.33,
+                "detail_data":"1875.0, 1397.0, 1025.0",
+                "progress": "1-1"
             }
         ]
     },
@@ -216,6 +222,12 @@
                 "score": 2040.0,
                 "details": "1484, 1432, 3204",
                 "highest_tail": 256
+            },
+            {
+                "model": "🎮 gpt-5",
+                "score": 5770.67,
+                "detail_data":"4516, 8116, 4680",
+                "highest_tail": 512
             }
         ]
     },
@@ -341,6 +353,11 @@
                 "model": "🎮 gpt-oss-20b",
                 "score": 14.33,
                 "details": "14, 13, 16"
+            },
+            {
+                "model": "🎮 gpt-5",
+                "score": 84.33,
+                "details": "36, 112, 105"
             }
         ]
     },
@@ -466,6 +483,11 @@
                 "model": "🎮 gpt-oss-20b",
                 "score": 249.67,
                 "details": "243, 262, 244"
+            },
+            {
+                "model": "🎮 gpt-5",
+                "score": 615.67,
+                "details": "573, 694, 580"
             }
         ]
     },
@@ -615,6 +637,12 @@
                 "score": 4,
                 "detail_box_on_target": "4",
                 "cracked_levels": "2"
+            },
+            {
+                "model": "🎮 gpt-5",
+                "score": 11,
+                "detail_box_on_target": "11, 11",
+                "cracked_levels": "5"
             }
         ]
     },
@@ -719,6 +747,11 @@
                 "model": "🎮 gemini-2.5-flash-preview-05-20",
                 "score": 4.33,
                 "details": "3,4,6"
+            },
+            {
+                "model": "🎮 gpt-5",
+                "score": 9,
+                "details": "9,9"
             }
         ]
     }
