@@ -32,7 +32,7 @@
       ]
     }
   },
-  "gpt-5": {
+  "gpt-5-thinking-high": {
     "harness_true": {
       "sokoban": [
         11, 11
