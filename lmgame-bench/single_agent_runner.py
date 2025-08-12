@@ -79,6 +79,7 @@ def parse_arguments(defaults_map=None, argv_to_parse=None):
     parser.add_argument("--use_reflection", type=str_to_bool, default=True, help="Enable reflection in memory module. Default is True.")
     parser.add_argument("--use_perception", type=str_to_bool, default=True, help="Enable perception API calls for image processing. Default is True.")
     parser.add_argument("--use_summary", type=str_to_bool, default=False, help="Enable trajectory summarization in memory module. Default is False.")
+    parser.add_argument("--token_limit", type=int, default=100000, help="Token limit for the agent's input.")
     parser.add_argument("--max_steps_per_episode", type=int, default=1000, help="Max steps per episode.")
     parser.add_argument("--use_custom_prompt", action="store_true", help="If set, will use the custom prompt from module_prompts.json if present.")
     parser.add_argument("--scaffolding", type=str, default=None, help="Grid dimensions as '(rows,cols)' for coordinate grid on images, e.g., '(5,5)'. Default is None.")
@@ -615,6 +616,10 @@ def main():
 
                         if loaded_yaml.get('agent'):
                             agent_config_yaml = loaded_yaml['agent']
+
+                            defaults_from_yaml['token_limit'] = agent_config_yaml.get('token_limit')
+                            defaults_from_yaml['harness'] = agent_config_yaml.get('harness', False) # Default to False if not specified
+
                             defaults_from_yaml['model_name'] = agent_config_yaml.get('model_name')
                             defaults_from_yaml['observation_mode'] = agent_config_yaml.get('observation_mode')
                             defaults_from_yaml['use_custom_prompt'] = agent_config_yaml.get('use_custom_prompt')
@@ -771,7 +776,8 @@ def main():
         scaffolding=scaffolding_dict,
         cache_dir=runner_log_dir_base,
         vllm_url=args.vllm_url,
-        modal_url=args.modal_url
+        modal_url=args.modal_url,
+        token_limit=args.token_limit,
     )
     
     # runner_log_dir = agent.cache_dir # Agent already sets its cache_dir, this can be removed or used for verification

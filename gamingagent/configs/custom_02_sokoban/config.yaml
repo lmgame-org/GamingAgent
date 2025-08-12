@@ -5,7 +5,7 @@ game_env:
   render_mode: "human"
   max_steps: 200
   seed: 42
-  num_runs: 1
+  num_runs: 3
 
 agent:
   # Global agent settings
@@ -13,11 +13,12 @@ agent:
   model_name: "claude-3-7-sonnet-latest"
   cache_dir: "cache/sokoban"
   reasoning_effort: "high"
-  token_limit: 100000
+  token_limit: 50000
   harness: true  # Whether to use the perception-memory-reasoning pipeline
-  observation_mode: "both"  # Options: "vision", "text", "both"
+  observation_mode: "text"  # Options: "vision", "text", "both"
   use_reflection: true
   use_perception: true
+  
   # Module-specific settings
   modules:
     base_module:

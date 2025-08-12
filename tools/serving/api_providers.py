@@ -14,6 +14,8 @@ from together import Together
 import requests
 import grpc
 
+from typing import Optional, List, Any
+
 def estimate_token_count(text: str) -> int:
     """
     Rough estimation of token count for text.
@@ -27,6 +29,65 @@ def _sleep_with_backoff(base_delay: int, attempt: int) -> None:
     delay = base_delay * (2 ** attempt) + random.uniform(0, 1)
     print(f"Retrying in {delay:.2f}s … (attempt {attempt + 1})")
     time.sleep(delay)
+
+def retry_on_stepfun_error(func):
+    """
+    Retry wrapper for StepFun (OpenAI-compatible) SDK calls.
+    Retries on: RateLimitError, APITimeoutError, APIConnectionError,
+                httpx.RemoteProtocolError, and 5xx APIStatusError / InternalServerError.
+    Immediately raises on: BadRequestError (400) and ValueError (caller bugs).
+    """
+    @functools.wraps(func)
+    def wrapper(*args, **kwargs):
+        max_retries = kwargs.pop("max_retries", 5)
+        base_delay  = kwargs.pop("base_delay", 2)
+
+        for attempt in range(max_retries):
+            try:
+                return func(*args, **kwargs)
+
+            except ValueError:
+                # Programming/validation errors in our code; don't retry.
+                raise
+
+            except BadRequestError as e:
+                # Invalid request; retries won't help.
+                print(f"StepFun BadRequestError (not retrying): {e}")
+                raise
+
+            except (RateLimitError, APITimeoutError, APIConnectionError,
+                    httpx.RemoteProtocolError) as e:
+                # Transient; back off and retry.
+                if attempt < max_retries - 1:
+                    print(f"StepFun transient error: {e}")
+                    _sleep_with_backoff(base_delay, attempt)
+                    continue
+                raise
+
+            except APIStatusError as e:
+                # Retry only 5xx; surface 4xx immediately.
+                if 500 <= getattr(e, "status_code", 0) < 600 and attempt < max_retries - 1:
+                    # Optional: peek at provider payload for engine_exception signals.
+                    try:
+                        body = getattr(e, "response", None).json()
+                        etype = (body or {}).get("error", {}).get("type")
+                        msg   = (body or {}).get("error", {}).get("message")
+                        print(f"StepFun server error {e.status_code} ({etype}): {msg}")
+                    except Exception:
+                        print(f"StepFun server error {e.status_code}: {getattr(e, 'message', e)}")
+                    _sleep_with_backoff(base_delay, attempt)
+                    continue
+                raise
+
+            # Some SDKs raise a concrete InternalServerError class; handle just in case.
+            except Exception as e:
+                if getattr(e, "__class__", type("X",(object,),{})).__name__ == "InternalServerError":
+                    if attempt < max_retries - 1:
+                        print(f"StepFun InternalServerError: {e}")
+                        _sleep_with_backoff(base_delay, attempt)
+                        continue
+                raise
+    return wrapper
 
 def retry_on_openai_error(func):
     """
@@ -1404,6 +1465,155 @@ def moonshot_multiimage_completion(system_prompt, model_name, prompt, list_conte
             "image_url": {"url": f"data:image/png;base64,{base64_image}"}
         })
     
+    # Add final prompt
+    content_blocks.append({
+        "type": "text",
+        "text": prompt
+    })
+
+    messages = []
+    if system_prompt:
+        messages.append({"role": "system", "content": system_prompt})
+    
+    messages.append({
+        "role": "user",
+        "content": content_blocks,
+    })
+
+    response = client.chat.completions.create(
+        model=model_name,
+        messages=messages,
+        max_tokens=token_limit,
+        temperature=temperature,
+    )
+    
+    return response.choices[0].message.content
+
+@retry_on_stepfun_error
+def stepfun_text_completion(
+    system_prompt: str,
+    model_name: str,
+    prompt: str,
+    temperature: float = 1.0,
+    token_limit: int = 30000
+) -> str:
+    """
+    Calls StepFun chat completion in text-only mode.
+    """
+    client = OpenAI(
+        api_key=os.getenv("STEPFUN_API_KEY"),
+        base_url="https://api.stepfun.com/v1"
+    )
+
+    messages = []
+    if system_prompt:
+        messages.append({"role": "system", "content": system_prompt})
+    messages.append({"role": "user", "content": prompt})
+
+    resp = client.chat.completions.create(
+        model=model_name,
+        messages=messages,
+        temperature=temperature,
+        max_tokens=token_limit,
+    )
+    return resp.choices[0].message.content
+
+@retry_on_stepfun_error
+def stepfun_completion(
+    system_prompt: str,
+    model_name: str,
+    image_base64: str,
+    prompt: str,
+    temperature: float = 1.0,
+    token_limit: int = 30000,
+    detail: str = "low"
+) -> str:
+    """
+    Sends one base64-encoded image plus text prompt to StepFun.
+    model_name must support vision (e.g. 'step-vision‑###' or 'step-1‑8k').
+    """
+
+    if isinstance(image_base64, str) and not image_base64.startswith("data:image"):
+        image_base64 = "data:image/png;base64," + image_base64
+
+    client = OpenAI(
+        api_key=os.getenv("STEPFUN_API_KEY"),
+        base_url="https://api.stepfun.com/v1"
+    )
+
+    messages = []
+    if system_prompt:
+        messages.append({"role": "system", "content": system_prompt})
+
+    messages.append({
+        "role": "user",
+        "content": [
+            {
+                "type": "image_url",
+                "image_url": {"url": image_base64, "detail": detail},
+            },
+            {"type": "text", "text": prompt},
+        ],
+    })
+
+    resp = client.chat.completions.create(
+        model=model_name,
+        messages=messages,
+        temperature=temperature,
+        max_tokens=token_limit,
+    )
+    return resp.choices[0].message.content
+
+@retry_on_stepfun_error
+def stepfun_multiimage_completion(
+        system_prompt: str, 
+        model_name: str, 
+        prompt: str, 
+        list_content: List[str], 
+        list_image_base64: List[str], 
+        temperature: float = 1, 
+        token_limit: int = 30000):
+    """
+    StepFun multi-image completion API call.
+    Only vision-capable StepFun models support multi-image input.
+
+    Args:
+        system_prompt (str): System prompt
+        model_name (str): Model name (should be vision-capable, e.g. 'step-1-8k' or similar)
+        prompt (str): User prompt (final text prompt after images)
+        list_content (List[str]): List of text content corresponding to each image
+        list_image_base64 (List[str]): List of base64-encoded image data
+        temperature (float): Temperature parameter (0-1)
+        token_limit (int): Maximum number of tokens for the completion response
+        
+    Returns:
+        str: Generated text
+    """
+    print(f"StepFun multi-image API call: model={model_name}")
+
+    # Check if model supports vision if needed (adjust names as required)
+    if model_name not in ["step-1-8k", "step-vision-8k", "step-vision-128k"]:  # Example, expand as needed
+        raise ValueError(f"Unsupported StepFun vision model: {model_name}. Provide a StepFun vision-capable model.")
+
+    # Use OpenAI client with StepFun base URL
+    client = OpenAI(
+        api_key=os.getenv("STEPFUN_API_KEY"),
+        base_url="https://api.stepfun.com/v1"
+    )
+
+    # Build content blocks with text and images
+    content_blocks = []
+
+    for text_item, base64_image in zip(list_content, list_image_base64):
+        content_blocks.append({
+            "type": "text",
+            "text": text_item,
+        })
+        content_blocks.append({
+            "type": "image_url",
+            "image_url": {"url": f"data:image/png;base64,{base64_image}"}
+        })
+
     # Add final prompt
     content_blocks.append({
         "type": "text",

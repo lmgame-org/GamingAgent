@@ -20,16 +20,20 @@ class MemoryModule(CoreModule):
                 summary_system_prompt: str = "",
                 summary_prompt: str = "",
                 max_memory: int = 10,
+                token_limit: int = 100000, 
                 use_reflection: bool = True,
                 use_summary: bool = False,
                 vllm_url=None,
                 modal_url=None):
+
+        print(f"memory module token limit: {token_limit}")
 
         super().__init__(
             module_name="memory_module",
             model_name=model_name,
             system_prompt=reflection_system_prompt,
             prompt=reflection_prompt,
+            token_limit=token_limit,
             cache_dir=cache_dir,
             vllm_url=vllm_url,
             modal_url=modal_url
