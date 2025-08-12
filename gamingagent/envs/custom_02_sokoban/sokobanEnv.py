@@ -223,7 +223,8 @@ class SokobanEnv(gym.Env):
         # Sokoban-specific performance score tracking
         self.previous_boxes_on_target_for_perf: int = 0
         self.current_episode_cumulative_perf_score: float = 0.0
-
+        self.cumulative_boxes_on_target_completed: int = 0
+        
         self.room_fixed: Optional[np.ndarray] = None
         self.room_state: Optional[np.ndarray] = None
         self.player_position: Optional[np.ndarray] = None
@@ -371,6 +372,7 @@ class SokobanEnv(gym.Env):
         if hard_reset:
             self.current_level = self.level_to_load if self.level_to_load is not None else 1
             self.current_episode_cumulative_perf_score = 0.0
+            self.cumulative_boxes_on_target_completed = 0
 
         self.num_env_steps = 0
         self.current_reward_last_step = 0.0
@@ -428,7 +430,8 @@ class SokobanEnv(gym.Env):
             "boxes_on_target": self.boxes_on_target,
             "num_boxes": self.num_boxes_current,
             "all_boxes_on_target": self._check_if_all_boxes_on_target(),
-            "reward_last_step": self.current_reward_last_step
+            "reward_last_step": self.current_reward_last_step,
+            "total_score": int(self.cumulative_boxes_on_target_completed + self.boxes_on_target),
         }
 
     def _check_if_all_boxes_on_target(self) -> bool:
@@ -565,6 +568,8 @@ class SokobanEnv(gym.Env):
             
             # If level is completed, try to progress to next level
             if terminated and self._progress_to_next_level():
+                # Count fully placed boxes from the completed level into cumulative total
+                self.cumulative_boxes_on_target_completed += int(self.boxes_on_target)
                 # Reset the environment for the new level, but it's not a "hard" reset of the episode
                 self.reset(hard_reset=False)
                 # Return the new observation and info
