@@ -133,8 +133,6 @@ class MemoryModule(CoreModule):
         try:
             print(f"[MemoryModule] Generating summary...")
             
-            # Retry logic for failed responses
-            
             raw = self.api_manager.text_only_completion(
                 model_name=self.model_name,
                 system_prompt=self.summary_system_prompt,
@@ -242,7 +240,7 @@ class MemoryModule(CoreModule):
                 
                 # Generate summary
                 new_summary = self._summarize(current_trajectory)
-                if new_summary and new_summary != "": # Changed from != "No valid summary produced." to != ""
+                if new_summary and new_summary != "":
                     self.current_summary = new_summary
                     
                     # Clear the trajectory and replace with summary
