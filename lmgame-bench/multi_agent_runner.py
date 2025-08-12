@@ -394,9 +394,10 @@ def play_episode(env, agents, eid, max_turns, seed):
     illegal = False
     illegal_player = None
     
-    # Check for illegal moves (reward = -1 or very negative)
+    # Check for illegal moves - only flag if reward is significantly worse than normal loss
+    # In TicTacToe, normal loss = -1.0, so only flag if much worse (like -10 or similar)
     for agent_key, reward in totals.items():
-        if reward <= -1.0 and all(r >= 0 for k, r in totals.items() if k != agent_key):
+        if reward <= -5.0 and all(r >= 0 for k, r in totals.items() if k != agent_key):
             result = f"ILLEGAL MOVE by {agent_key}"
             illegal = True
             illegal_player = agent_key
@@ -603,7 +604,8 @@ def main(argv: Optional[list[str]] = None):
 
     # Configure TrueSkill; set draw_probability=0.0 since we handle ties explicitly
     # Note: TrueSkill 2 style updates (using chip performance) are automatically enabled for Texas Hold'em
-    ts = trueskill.TrueSkill(draw_probability=0.0)
+    # TicTacToe: non-zero draw probability; no dynamics to avoid sigma blowing up on repeated draws
+    ts = trueskill.TrueSkill(draw_probability=0.45, tau=0.0)
 
     # Map env player -> stable identity (prefer model_name)
     agent_ids = {k: getattr(agents[k], "model_name", k) for k in agents.keys()}

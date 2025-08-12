@@ -2,7 +2,7 @@
 
 num_runs: 3
 max_steps: 50
-observation_mode: both
+observation_mode: text
 seed: 42
 #use_custom_prompt: false
 

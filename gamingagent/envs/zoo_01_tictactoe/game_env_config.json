@@ -1,6 +1,6 @@
 {
   "env_init_kwargs": {
-    "env_type": "self_play",           
+    "env_type": "self_play",
     "tile_size_for_render": 64,
     "opponent_policy": "random"
   },
@@ -15,6 +15,6 @@
     "place 7": 7,
     "place 8": 8
   },
-  "render_mode": "human",              
+  "render_mode": "human",
   "max_unchanged_steps_for_termination": 5
 }
