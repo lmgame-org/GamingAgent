@@ -133,6 +133,8 @@ def retry_on_overload(func):
     """
     A decorator to retry a function call on anthropic.APIStatusError with 'overloaded_error',
     httpx.RemoteProtocolError, or when the API returns None/empty response.
+    A decorator to retry a function call on anthropic.APIStatusError with 'overloaded_error',
+    httpx.RemoteProtocolError, or when the API returns None/empty response.
     It uses exponential backoff with jitter.
     """
     @functools.wraps(func)

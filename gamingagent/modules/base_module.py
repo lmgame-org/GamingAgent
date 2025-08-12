@@ -6,6 +6,11 @@ import re
 import os
 import time
 
+# TODO: 
+# 1. with visual state (vision only) 
+# 2. without visual state (text only) 
+# 3. with visual state + text state (both)
+
 class BaseModule(CoreModule):
     """
     Base module that directly processes visual/textual observations and returns actions.
@@ -75,7 +80,6 @@ class BaseModule(CoreModule):
         # Create the full prompt with the text-based game state
         full_context = observation.get_complete_prompt(observation_mode=self.observation_mode, prompt_template=self.prompt)
 
-        # Retry logic for failed responses
         max_retries = 3
         for attempt in range(max_retries):
             response = None
@@ -95,7 +99,6 @@ class BaseModule(CoreModule):
             if parsed_response is None:
                 parsed_response = {}
             parsed_response["raw_response_str"] = response_string
-
             # Check if we got a valid response (not "No response received")
             if (parsed_response.get("action") is not None and 
                 parsed_response.get("thought") != "No response received"):
@@ -113,6 +116,7 @@ class BaseModule(CoreModule):
                         "thought": "API failed after multiple retries, using fallback action",
                         "raw_response_str": response_string
                     }
+
 
         self.log({
             "response": response_string,

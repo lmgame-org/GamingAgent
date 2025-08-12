@@ -15,6 +15,10 @@ GAMES_REQUIRE_HARNESS = [
     "pokemon_red",
 ]
 
+GAMES_REQUIRE_HARNESS = [
+    "pokemon_red",
+]
+
 class BaseAgent(ABC):
     """
     Base agent class that provides the foundation for game-specific agents.

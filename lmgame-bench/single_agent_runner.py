@@ -23,12 +23,12 @@ from tools.utils import draw_grid_on_image
 # Directly import the specific environment we are using
 from gamingagent.envs.custom_01_2048.twentyFortyEightEnv import TwentyFortyEightEnv
 from gamingagent.envs.custom_02_sokoban.sokobanEnv import SokobanEnv
-from gamingagent.envs.custom_03_candy_crush.candyCrushEnv import CandyCrushEnv
+from gamingagent.envs.custom_03_candy_crush.candyCrushEnv import CandyCrushEnvWrapper
 from gamingagent.envs.custom_04_tetris.tetrisEnv import TetrisEnv
-from gamingagent.envs.custom_05_doom.doomEnv import DoomEnv
+from gamingagent.envs.custom_05_doom.doomEnv import DoomEnvWrapper
 from gamingagent.envs.custom_06_pokemon_red.pokemonRedEnv import PokemonRedEnv
 
-from gamingagent.envs.retro_01_super_mario_bros.superMarioBrosEnv import SuperMarioBrosEnv
+from gamingagent.envs.retro_01_super_mario_bros.superMarioBrosEnv import SuperMarioBrosEnvWrapper
 from gamingagent.envs.retro_02_ace_attorney.aceAttorneyEnv import AceAttorneyEnv
 from gamingagent.envs.retro_03_1942.NineteenFortyTwo_env import NineteenFortyTwoEnv
 
@@ -83,8 +83,23 @@ def parse_arguments(defaults_map=None, argv_to_parse=None):
     parser.add_argument("--max_steps_per_episode", type=int, default=1000, help="Max steps per episode.")
     parser.add_argument("--use_custom_prompt", action="store_true", help="If set, will use the custom prompt from module_prompts.json if present.")
     parser.add_argument("--scaffolding", type=str, default=None, help="Grid dimensions as '(rows,cols)' for coordinate grid on images, e.g., '(5,5)'. Default is None.")
+    parser.add_argument("--scaffolding", type=str, default=None, help="Grid dimensions as '(rows,cols)' for coordinate grid on images, e.g., '(5,5)'. Default is None.")
     parser.add_argument("--seed", type=int, default=None, help="Random seed for environment.")
     # Env type is fixed to custom gym for this runner
+
+    # Serving-related arguments
+    parser.add_argument(
+        "--modal_url",
+        type=str,
+        default=None,
+        help="Optional URL for a Modal‑hosted inference endpoint passed to BaseAgent.",
+    )
+    parser.add_argument(
+        "--vllm_url",
+        type=str,
+        default=None,
+        help="Optional URL for a vLLM inference endpoint passed to BaseAgent.",
+    )
 
     # Serving-related arguments
     parser.add_argument(
@@ -271,13 +286,20 @@ def create_environment(game_name_arg: str,
         return env
     elif game_name_arg == "pokemon_red":
         # Load params specific to Pokemon Red
-        with open(env_specific_config_path, 'r') as f:
-            env_specific_config = json.load(f)
-            env_init_kwargs = env_specific_config.get('env_init_kwargs', {})
-            env_init_params['rom_path'] = env_init_kwargs.get('rom_path')
-            env_init_params['sound'] = env_init_kwargs.get('sound', False)
-            env_init_params['render_mode_for_make'] = env_specific_config.get('render_mode', 'human')
-            env_init_params['max_stuck_steps_for_adapter'] = env_specific_config.get('max_unchanged_steps_for_termination', 20)
+        if os.path.exists(env_specific_config_path):
+            with open(env_specific_config_path, 'r') as f:
+                env_specific_config = json.load(f)
+                env_init_kwargs = env_specific_config.get('env_init_kwargs', {})
+                env_init_params['rom_path'] = env_init_kwargs.get('rom_path')
+                env_init_params['sound'] = env_init_kwargs.get('sound', False)
+                env_init_params['render_mode_for_make'] = env_specific_config.get('render_mode', 'human')
+                env_init_params['max_stuck_steps_for_adapter'] = env_specific_config.get('max_unchanged_steps_for_termination', 20)
+        else:
+            print(f"Warning: {env_specific_config_path} for {game_name_arg} not found. Using default env parameters for Pokemon Red.")
+            env_init_params['rom_path'] = None
+            env_init_params['sound'] = False
+            env_init_params['render_mode_for_make'] = 'human'
+            env_init_params['max_stuck_steps_for_adapter'] = 20
 
         print(f"Initializing environment: {game_name_arg} with params: {env_init_params}")
         env = PokemonRedEnv(
@@ -405,13 +427,19 @@ def create_environment(game_name_arg: str,
         # The runner primarily needs to provide paths and agent/run-level settings.
         env_wrapper_config_dir = os.path.join("gamingagent/envs", config_dir_name_for_env_cfg)
         
-        print(f"Initializing environment: {game_name_arg} using DoomEnv")
+        print(f"Initializing environment: {game_name_arg} using DoomEnvWrapper")
         print(f"  Wrapper config dir: {env_wrapper_config_dir}")
+        print(f"  Model name for adapter: {model_name_arg}")
         print(f"  Observation mode for adapter: {obs_mode_arg}")
         print(f"  Base log dir for adapter: {cache_dir_for_adapter}")
         print(f"  Config path: {env_specific_config_path}")
 
-        env = DoomEnv(
+        # Verify config file exists
+        if not os.path.exists(env_specific_config_path):
+            print(f"ERROR: Config file not found at {env_specific_config_path}")
+            return None
+
+        env = DoomEnvWrapper(
             game_name="doom",  # Match test file
             config_dir_path=os.path.dirname(env_specific_config_path),  # Use the directory containing the config file
             observation_mode=obs_mode_arg,
@@ -419,6 +447,7 @@ def create_environment(game_name_arg: str,
             render_mode_human=True,  # Enable human rendering
             record_video=False,
             video_dir="videos/doom",
+            model_name=model_name_arg,
             headless=False,  # Allow display
             debug=True  # Add debug mode to help track issues
         )
@@ -470,7 +499,7 @@ def run_game_episode(agent: BaseAgent, game_env: gym.Env, episode_id: int, args:
         end_time = time.time()
         time_taken_s = end_time - start_time
         # Special handling for Doom game
-        if isinstance(game_env, DoomEnv):
+        if isinstance(game_env, DoomEnvWrapper):
             # Handle action like test file
             if action_dict and action_dict.get("action") is not None:
                 action_str = str(action_dict.get("action")).strip().lower()
@@ -720,6 +749,45 @@ def main():
     runner_log_dir_base = os.path.join("cache", args.game_name, args.model_name.replace("-", "_")[:15], datetime.datetime.now().strftime("%Y%m%d_%H%M%S"))
     os.makedirs(runner_log_dir_base, exist_ok=True)
     print(f"Agent and Environment cache directory: {runner_log_dir_base}")
+
+    # Parse scaffolding parameter
+    scaffolding_dict = None
+    if args.scaffolding:
+        try:
+            if isinstance(args.scaffolding, dict):
+                # New dictionary format from config
+                funcname = args.scaffolding.get('funcname')
+                funcArgs = args.scaffolding.get('funcArgs', {})
+                
+                # Map function names to actual function objects
+                function_mapping = {
+                    'draw_grid_on_image': draw_grid_on_image
+                }
+                
+                if funcname in function_mapping:
+                    scaffolding_dict = {
+                        'func': function_mapping[funcname],
+                        'funcArgs': funcArgs
+                    }
+                    print(f"Using scaffolding function: {funcname} with args: {funcArgs}")
+                else:
+                    print(f"Warning: Unknown scaffolding function '{funcname}'. Using None.")
+            else:
+                # Legacy tuple format for backward compatibility
+                scaffolding_str = str(args.scaffolding).strip()
+                if scaffolding_str.startswith('(') and scaffolding_str.endswith(')'):
+                    scaffolding_str = scaffolding_str[1:-1]  # Remove parentheses
+                parts = [int(x.strip()) for x in scaffolding_str.split(',')]
+                if len(parts) == 2:
+                    scaffolding_dict = {
+                        'func': draw_grid_on_image,
+                        'funcArgs': {'grid_dim': tuple(parts)}
+                    }
+                    print(f"Using legacy scaffolding grid: {tuple(parts)}")
+                else:
+                    print(f"Warning: Invalid scaffolding format '{args.scaffolding}'. Expected '(rows,cols)'. Using None.")
+        except (ValueError, AttributeError) as e:
+            print(f"Warning: Could not parse scaffolding '{args.scaffolding}': {e}. Using None.")
 
     # Parse scaffolding parameter
     scaffolding_dict = None

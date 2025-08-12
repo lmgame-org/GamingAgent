@@ -47,9 +47,9 @@ def log_system_info():
     for var in ['DISPLAY', 'SDL_VIDEODRIVER', 'SDL_AUDIODRIVER']:
         print(f"[{time.time()}] {var}: {os.environ.get(var)}", file=sys.stderr)
 
-__all__ = ["DoomEnv"]
+__all__ = ["DoomEnvWrapper"]
 
-class DoomEnv(gym.Env):
+class DoomEnvWrapper(gym.Env):
     """Wrapper for the Doom environment.
     
     This wrapper provides a Gymnasium-compatible interface to the VizDoom environment.
@@ -61,6 +61,7 @@ class DoomEnv(gym.Env):
         observation_mode (str): Mode of observation ("vision", "text", or "both")
         base_log_dir (str): Base directory for logging
         render_mode (str): Rendering mode
+        model_name (str): Name of the model
         headless (bool): Whether to run in headless mode
         record_video (bool): Whether to record video
         video_dir (str): Directory to save videos
@@ -75,6 +76,7 @@ class DoomEnv(gym.Env):
         observation_mode: str = "vision",
         base_log_dir: str = "cache/doom",
         render_mode: str | None = None,
+        model_name: str = "default",
         headless: bool = True,
         record_video: bool = False,
         video_dir: str | None = None,
@@ -89,6 +91,7 @@ class DoomEnv(gym.Env):
             observation_mode: Mode of observation ("vision", "text", or "both")
             base_log_dir: Base directory for logging
             render_mode: Rendering mode
+            model_name: Name of the model
             headless: Whether to run in headless mode
             record_video: Whether to record video
             video_dir: Directory to save videos
@@ -102,7 +105,7 @@ class DoomEnv(gym.Env):
             log_system_info()
             log_memory_usage()
         
-        print("[DoomEnv] Starting initialization...", file=sys.stderr)
+        print("[DoomEnvWrapper] Starting initialization...", file=sys.stderr)
         
         # Initialize our attributes
         self.logger = logging.getLogger(__name__)
@@ -118,6 +121,7 @@ class DoomEnv(gym.Env):
         self.observation_mode = observation_mode.lower()
         self.base_log_dir = base_log_dir
         self.render_mode = "human" if render_mode_human else render_mode
+        self.model_name = model_name
         self.headless = headless
         self.record_video = record_video
         self.video_dir = video_dir
@@ -142,7 +146,7 @@ class DoomEnv(gym.Env):
             handler.setFormatter(formatter)
             self.logger.addHandler(handler)
         
-        print("[DoomEnv] Loading configuration...", file=sys.stderr)
+        print("[DoomEnvWrapper] Loading configuration...", file=sys.stderr)
         
         # Load configuration
         cfg_file = os.path.join(self.config_dir_path, "game_env_config.json")
@@ -150,7 +154,7 @@ class DoomEnv(gym.Env):
         if not self._cfg:
             raise FileNotFoundError(f"Failed to load config from {cfg_file}")
         
-        print("[DoomEnv] Initializing adapter...", file=sys.stderr)
+        print("[DoomEnvWrapper] Initializing adapter...", file=sys.stderr)
         
         # Initialize adapter
         try:
@@ -162,10 +166,10 @@ class DoomEnv(gym.Env):
                 max_steps_for_stuck=self._cfg.get("max_unchanged_steps_for_termination", 30)
             )
         except Exception as e:
-            print(f"[DoomEnv] Error initializing adapter: {e}", file=sys.stderr)
+            print(f"[DoomEnvWrapper] Error initializing adapter: {e}", file=sys.stderr)
             raise
         
-        print("[DoomEnv] Initializing game components...", file=sys.stderr)
+        print("[DoomEnvWrapper] Initializing game components...", file=sys.stderr)
         
         # Initialize game components
         self._init_game_components()
@@ -174,7 +178,7 @@ class DoomEnv(gym.Env):
         self.current_frame = None
         self.current_info = {}
         
-        print("[DoomEnv] Setting up observation and action spaces...", file=sys.stderr)
+        print("[DoomEnvWrapper] Setting up observation and action spaces...", file=sys.stderr)
         
         # Define observation and action spaces
         screen_res = self._cfg.get("rendering_options", {}).get("screen_resolution", "RES_320X240")
@@ -199,7 +203,7 @@ class DoomEnv(gym.Env):
         print(f"[{time.time()}] Setting available buttons: {available_buttons}", file=sys.stderr)
         self.action_space = spaces.Discrete(len(available_buttons))
         
-        print("[DoomEnv] Initialization complete.", file=sys.stderr)
+        print("[DoomEnvWrapper] Initialization complete.", file=sys.stderr)
 
     def _load_config(self, cfg_file: str) -> Dict[str, Any]:
         """Load configuration from file.
@@ -214,7 +218,7 @@ class DoomEnv(gym.Env):
             FileNotFoundError: If the config file cannot be found
         """
         try:
-            print(f"[DoomEnv] Loading config from: {cfg_file}", file=sys.stderr)
+            print(f"[DoomEnvWrapper] Loading config from: {cfg_file}", file=sys.stderr)
             with open(cfg_file, 'r') as f:
                 config = json.load(f)
                 self.logger.info(f"Loaded config from: {cfg_file}")
@@ -425,7 +429,7 @@ class DoomEnv(gym.Env):
             return state_info
             
         except Exception as e:
-            self.logger.error(f"[DoomEnv] Error getting text representation: {e}")
+            self.logger.error(f"[DoomEnvWrapper] Error getting text representation: {e}")
             return "Error getting state information"
 
     def reset(self, *, seed: int | None = None, max_memory: Optional[int] = 10, episode_id: int = 1, **kwargs) -> Tuple[Observation, Dict[str, Any]]:
@@ -454,7 +458,7 @@ class DoomEnv(gym.Env):
         # Capture initial frame
         frame_path = self._capture_frame()
         if not frame_path:
-            self.logger.error("[DoomEnv] Failed to capture initial frame")
+            self.logger.error("[DoomEnvWrapper] Failed to capture initial frame")
             frame_path = os.path.join(self.adapter.agent_observations_dir, "initial_frame.png")
             # Create a blank frame if capture fails
             blank_frame = np.zeros((240, 320, 3), dtype=np.uint8)
@@ -505,7 +509,7 @@ class DoomEnv(gym.Env):
             return frame_path
             
         except Exception as e:
-            self.logger.error(f"[DoomEnv] Error capturing frame: {e}")
+            self.logger.error(f"[DoomEnvWrapper] Error capturing frame: {e}")
             return ""
 
     def _handle_episode_end(self, current_info: Dict[str, Any], frame_time: float) -> Tuple[Optional[str], Dict[str, Any]]:
@@ -549,7 +553,7 @@ class DoomEnv(gym.Env):
             action_str = agent_action_str
             frame_count = 1  # Default to 1 frame
             
-            print(f"[DoomEnv] step input action_str: '{agent_action_str}'")
+            print(f"[DoomEnvWrapper] step input action_str: '{agent_action_str}'")
             
             if action_str:
                 # Clean up the action string first
@@ -574,9 +578,9 @@ class DoomEnv(gym.Env):
             if use_random_action:
                 action_str = random.choice(self._cfg.get("available_buttons", ["move_left", "move_right", "attack"]))
             
-            print(f"[DoomEnv] Executing action '{action_str}' for {frame_count} frames")
+            print(f"[DoomEnvWrapper] Executing action '{action_str}' for {frame_count} frames")
             buttons = self._buttons_from_str(action_str)
-            self.logger.info(f"[DoomEnv] Executing action '{action_str}' for {frame_count} frames with buttons: {buttons}")
+            self.logger.info(f"[DoomEnvWrapper] Executing action '{action_str}' for {frame_count} frames with buttons: {buttons}")
             
             # Get the game's ticrate from config
             ticrate = self._cfg.get("episode_settings", {}).get("ticrate", 20)
@@ -804,7 +808,7 @@ class DoomEnv(gym.Env):
             if hasattr(self, 'game') and self.game:
                 final_frame_path = self._capture_frame()
                 if final_frame_path:
-                    self.logger.info(f"[DoomEnv] Captured final frame during close at: {final_frame_path}")
+                    self.logger.info(f"[DoomEnvWrapper] Captured final frame during close at: {final_frame_path}")
             
             # Close game instance
             if hasattr(self, 'game'):
@@ -815,7 +819,7 @@ class DoomEnv(gym.Env):
                 self.adapter.close_log_file()
                 
         except Exception as e:
-            self.logger.error(f"[DoomEnv] Error during close: {e}")
+            self.logger.error(f"[DoomEnvWrapper] Error during close: {e}")
             # Still try to close resources even if there's an error
             if hasattr(self, 'game'):
                 try:
@@ -837,7 +841,7 @@ class DoomEnv(gym.Env):
         try:
             state = self.game.get_state()
             if state is None:
-                self.logger.error("[DoomEnv] Failed to get game state")
+                self.logger.error("[DoomEnvWrapper] Failed to get game state")
                 return {}
                 
             # Create state dictionary with proper variable mapping
@@ -854,5 +858,5 @@ class DoomEnv(gym.Env):
             return state_info
             
         except Exception as e:
-            self.logger.error(f"[DoomEnv] Error getting game state: {e}")
+            self.logger.error(f"[DoomEnvWrapper] Error getting game state: {e}")
             return {}
