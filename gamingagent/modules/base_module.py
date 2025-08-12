@@ -6,11 +6,6 @@ import re
 import os
 import time
 
-# TODO: 
-# 1. with visual state (vision only) 
-# 2. without visual state (text only) 
-# 3. with visual state + text state (both)
-
 class BaseModule(CoreModule):
     """
     Base module that directly processes visual/textual observations and returns actions.
