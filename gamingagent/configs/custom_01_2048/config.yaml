@@ -5,7 +5,7 @@ game_env:
   render_mode: "human"
   max_steps: 1000
   seed: 0
-  num_runs: 1
+  num_runs: 3
 
 agent:
   # Global agent settings
@@ -13,7 +13,7 @@ agent:
   model_name: "claude-3-7-sonnet-latest"
   cache_dir: "cache/twenty_forty_eight"
   reasoning_effort: "high"
-  token_limit: 100000
+  token_limit: 50000
   harness: true # Whether to use the perception-memory-reasoning pipeline
   observation_mode: "text"
   use_reflection: true

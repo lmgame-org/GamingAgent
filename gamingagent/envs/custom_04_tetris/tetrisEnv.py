@@ -151,8 +151,9 @@ class TetrisEnv(gym.Env):
         self.render_mode = render_mode
 
         # Headless mode fallback
-        if self.render_mode == "human" and not os.environ.get("DISPLAY"):
-            print("[TetrisEnv] DISPLAY not found – switching render_mode from 'human' to 'rgb_array'")
+        self.has_display = os.environ.get("DISPLAY")
+        if not self.has_display:
+            print("[TetrisEnv] DISPLAY not found – switching render_mode from 'human' to 'rgb_array' (headless safe).")
             self.render_mode = "rgb_array"
 
         self.adapter = GymEnvAdapter(
@@ -838,7 +839,12 @@ class TetrisEnv(gym.Env):
         if self.render_mode == "rgb_array": 
             return display_img_render 
         elif self.render_mode == "human":
-            if self.window_name is None: self.window_name="TetrisEnv Human"; cv2.namedWindow(self.window_name, cv2.WINDOW_AUTOSIZE)
+            if not self.has_display:
+                print("[TetrisEnv] WARNING: Attempted to render in 'human' mode without DISPLAY. Skipping window display.")
+                return None
+            if self.window_name is None:
+                self.window_name = "TetrisEnv Human"
+                cv2.namedWindow(self.window_name, cv2.WINDOW_AUTOSIZE)
             bgr_display_for_human = cv2.cvtColor(display_img_render, cv2.COLOR_RGB2BGR)
             cv2.imshow(self.window_name, bgr_display_for_human) 
             cv2.waitKey(1)

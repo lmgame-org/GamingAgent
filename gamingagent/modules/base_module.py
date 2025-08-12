@@ -4,6 +4,7 @@ from .core_module import CoreModule, Observation
 from tools.utils import scale_image_up
 import re
 import os
+import time
 
 class BaseModule(CoreModule):
     """

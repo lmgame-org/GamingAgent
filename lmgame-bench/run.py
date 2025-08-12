@@ -11,7 +11,7 @@ import time
 
 def run_single_game_config(game_name: str, model_name: str, use_harness: bool, custom_runner_script_path: str) -> Tuple[str, bool, bool, str, str]:
     """
-    Constructs and runs a single configuration of custom_runner.py.
+    Constructs and runs a single configuration of single_agent_runner.py.
     Returns a tuple: (game_name, use_harness, success_status, stdout, stderr)
     """
     print(f"  Preparing to run: Game='{game_name}', Model='{model_name}', Harness='{use_harness}'")
@@ -61,7 +61,7 @@ def run_single_game_config(game_name: str, model_name: str, use_harness: bool, c
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Run game simulations in parallel using custom_runner.py and then trigger evaluation.")
+    parser = argparse.ArgumentParser(description="Run game simulations in parallel using evaluation script and then trigger evaluation.")
     parser.add_argument("--model_name", type=str, default="gemini-2.0-flash",
                         help="Name of the model for the agent.")
     parser.add_argument("--game_names", type=str, 
@@ -86,9 +86,9 @@ def main():
         print("Error: Model name must be provided.")
         sys.exit(1)
 
-    custom_runner_script_path = os.path.join("lmgame-bench", "custom_runner.py")
+    custom_runner_script_path = os.path.join("lmgame-bench", "single_agent_runner.py")
     if not os.path.exists(custom_runner_script_path):
-        print(f"Error: custom_runner.py not found at {custom_runner_script_path}")
+        print(f"Error: script not found at {custom_runner_script_path}")
         sys.exit(1)
 
     tasks_to_run = []

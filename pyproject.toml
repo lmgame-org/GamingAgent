@@ -17,10 +17,10 @@ dependencies = [
     "anthropic==0.49.0",
     "mss==10.0.0",
     "numpy==1.24.4",
-    "openai==1.65.4",
+    "openai",
     "opencv_python",
     "opencv_python_headless",
-    "protobuf==5.29.3",
+    "protobuf",
     "pyautogui==0.9.54",
     "pygame==2.6.1",
     "PyGetWindow==0.0.9",
@@ -36,7 +36,9 @@ dependencies = [
     "tiktoken",
     "pyboy",
     "psutil",
-    "vizdoom"
+    "vizdoom",
+    "pettingzoo",
+    "xai_sdk"
 ]
 license = {text = "MIT"}
 repository = "https://github.com/lmgame-org/GamingAgent"

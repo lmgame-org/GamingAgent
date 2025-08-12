@@ -188,7 +188,7 @@ Currently supported games:
 
 ### Customize Your Settings
 
-`run.py` launches multiple instances of `custom_runner.py`. To run single model in a single game setting, run `python3 lmgame-bench/custom_runner.py --game_name {game_name} --model_name {model_name} --config_root_dir {path_to_gaming_agent_config} (--harness)`. 
+`run.py` launches multiple instances of `single_agent_runner.py`. To run single model in a single game setting, run `python3 lmgame-bench/single_agent_runner.py --game_name {game_name} --model_name {model_name} --config_root_dir {path_to_gaming_agent_config} (--harness)`. 
 
 Adjust gaming-agent related configurations in `gamingagent/configs/{game_env_dir}/config.yaml`. 
 

@@ -13,22 +13,30 @@ class MemoryModule(CoreModule):
     """
 
     def __init__(self,
-                 model_name: str = "claude-3-7-sonnet-latest",
-                 cache_dir: str = "cache",
-                 reflection_system_prompt: str = "",
-                 reflection_prompt: str = "",
-                 summary_system_prompt: str = "",
-                 summary_prompt: str = "",
-                 max_memory: int = 10,
-                 use_reflection: bool = True,
-                 use_summary: bool = False):
+                model_name: str = "claude-3-7-sonnet-latest",
+                cache_dir: str = "cache",
+                reflection_system_prompt: str = "",
+                reflection_prompt: str = "",
+                summary_system_prompt: str = "",
+                summary_prompt: str = "",
+                max_memory: int = 10,
+                token_limit: int = 100000, 
+                use_reflection: bool = True,
+                use_summary: bool = False,
+                vllm_url=None,
+                modal_url=None):
+
+        print(f"memory module token limit: {token_limit}")
 
         super().__init__(
             module_name="memory_module",
             model_name=model_name,
             system_prompt=reflection_system_prompt,
             prompt=reflection_prompt,
+            token_limit=token_limit,
             cache_dir=cache_dir,
+            vllm_url=vllm_url,
+            modal_url=modal_url
         )
 
         self.max_memory = max_memory
@@ -92,7 +100,6 @@ class MemoryModule(CoreModule):
             prev_context=prev_context or "None",
             current_observation=current_state,
         )
-
         raw = self.api_manager.text_only_completion(
             model_name=self.model_name,
             system_prompt=self.system_prompt,
@@ -134,10 +141,10 @@ class MemoryModule(CoreModule):
                 reasoning_effort=self.reasoning_effort,
                 token_limit=self.token_limit,
             )
-            
+
             # returned API response should be a tuple
             actual_raw_text = raw[0] if raw and len(raw) > 0 else ""
-            
+   
             # Clean and validate the response
             summary = actual_raw_text.strip() if actual_raw_text else ""
             
@@ -233,7 +240,7 @@ class MemoryModule(CoreModule):
                 
                 # Generate summary
                 new_summary = self._summarize(current_trajectory)
-                if new_summary and new_summary != "No valid summary produced.":
+                if new_summary and new_summary != "":
                     self.current_summary = new_summary
                     
                     # Clear the trajectory and replace with summary

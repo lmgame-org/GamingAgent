@@ -333,7 +333,7 @@ class CoreModule(ABC):
                 prompt="", 
                 cache_dir="cache",
                 token_limit=100000, 
-                reasoning_effort="medium",
+                reasoning_effort="high",
                 vllm_url=None,
                 modal_url=None
         ):
@@ -349,6 +349,8 @@ class CoreModule(ABC):
             token_limit (int): Maximum number of tokens for API calls.
             reasoning_effort (str): Reasoning effort for API calls (low, medium, high).
         """
+
+        print(f"core module token limit: {token_limit}")
         self.module_name = module_name
         self.model_name = model_name
         self.system_prompt = system_prompt

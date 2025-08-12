@@ -39,6 +39,12 @@ from .api_providers import (
     modal_vllm_text_completion,
     modal_vllm_completion,
     modal_vllm_multiimage_completion,
+    moonshot_text_completion,
+    moonshot_completion,
+    moonshot_multiimage_completion,
+    stepfun_text_completion,
+    stepfun_completion,
+    stepfun_multiimage_completion
 )
 
 # Import cost calculator utilities
@@ -100,6 +106,10 @@ class APIManager:
 
         self.vllm_url = vllm_url
         self.modal_url = modal_url
+
+        print("API manager initialization parameters:")
+        print("vllm_url:", self.vllm_url)
+        print("modal_url:", self.modal_url)
         
         # Create timestamp for this session (use from info if provided)
         self.timestamp = self.info.get('datetime', datetime.datetime.now().strftime("%Y%m%d_%H%M%S"))
@@ -381,7 +391,7 @@ class APIManager:
         session_name: Optional[str] = None,
         temperature: float = 1,
         thinking: bool = False,
-        reasoning_effort: str = "medium",
+        reasoning_effort: str = "high",
         token_limit: int = 30000,
     ) -> Tuple[str, Dict[str, Any]]:
         """
@@ -463,7 +473,7 @@ class APIManager:
                     base64_image=base64_image,
                     temperature=temperature,
                     token_limit=token_limit,
-                    url=self.vllm_url
+                    # TODO: support non-localhost vllm servers
                 )
             elif model_name.startswith("modal-"):
                 # TODO: make different modal backend configurable
@@ -478,6 +488,25 @@ class APIManager:
                 )
             elif "llama" in model_name.lower() or "meta" in model_name.lower() or (model_name == "deepseek-ai/DeepSeek-R1") or (model_name == "Qwen/Qwen3-235B-A22B-fp8-turbo"):
                 completion = together_ai_completion(
+                    system_prompt=system_prompt,
+                    model_name=model_name,
+                    base64_image=base64_image,
+                    prompt=prompt,
+                    temperature=temperature,
+                    token_limit=token_limit
+                )
+
+            elif "kimi" in model_name.lower():
+                completion = moonshot_completion(
+                    system_prompt=system_prompt,
+                    model_name=model_name,
+                    base64_image=base64_image,
+                    prompt=prompt,
+                    temperature=temperature,
+                    token_limit=token_limit
+                )
+            elif "step" in model_name:
+                completion = stepfun_completion(
                     system_prompt=system_prompt,
                     model_name=model_name,
                     base64_image=base64_image,
@@ -606,6 +635,31 @@ class APIManager:
                     temperature=temperature,
                     url=self.modal_url
                 )
+            elif "moonshot" in model_name.lower() or "kimi" in model_name.lower():
+                # Handle both direct Moonshot API models and Kimi variants
+                completion = moonshot_completion(
+                    system_prompt=system_prompt,
+                    model_name=model_name,
+                    base64_image=base64_image,
+                    prompt=empty_prompt,
+                    temperature=temperature
+                )
+            elif model_name in ["kimi-thinking-preview"]:
+                completion = moonshot_completion(
+                    system_prompt=system_prompt,
+                    model_name=model_name,
+                    base64_image=base64_image,
+                    prompt=empty_prompt,
+                    temperature=temperature
+                )
+            elif "step" in model_name:
+                completion = stepfun_completion(
+                    system_prompt=system_prompt,
+                    model_name=model_name,
+                    base64_image=base64_image,
+                    prompt=empty_prompt,
+                    temperature=temperature,
+                )
             else:
                 raise ValueError(f"Unsupported model: {model_name}")
             
@@ -664,7 +718,7 @@ class APIManager:
         session_name: Optional[str] = None,
         temperature: float = 1,
         thinking: bool = False,
-        reasoning_effort: str = "medium",
+        reasoning_effort: str = "high",
         token_limit: int = 30000,
     ) -> Tuple[str, Dict[str, Any]]:
         """
@@ -726,7 +780,7 @@ class APIManager:
                     prompt=prompt,
                     temperature=temperature,
                     token_limit=token_limit,
-                    url=self.vllm_url
+                    # TODO: support non-localhost vllm servers
                 )
             elif model_name.startswith("modal-"):
                 # TODO: make different modal backend configurable
@@ -761,6 +815,22 @@ class APIManager:
                     token_limit=token_limit,
                     temperature=temperature,
                     reasoning_effort=reasoning_effort
+                )
+            elif "kimi" in model_name.lower():
+                completion = moonshot_text_completion(
+                    system_prompt=system_prompt,
+                    model_name=model_name,
+                    prompt=prompt,
+                    temperature=temperature,
+                    token_limit=token_limit
+                )
+            elif "step" in model_name:
+                completion = stepfun_text_completion(
+                    system_prompt=system_prompt,
+                    model_name=model_name,
+                    prompt=prompt,
+                    temperature=temperature,
+                    token_limit=token_limit
                 )
             else:
                 raise ValueError(f"Unsupported model: {model_name}")
@@ -815,7 +885,7 @@ class APIManager:
         session_name: Optional[str] = None,
         temperature: float = 1,
         thinking: bool = False,
-        reasoning_effort: str = "medium",
+        reasoning_effort: str = "high",
         token_limit: int = 30000,
     ) -> Tuple[str, Dict[str, Any]]:
         """
@@ -860,7 +930,7 @@ class APIManager:
         session_name: Optional[str] = None,
         temperature: float = 1,
         thinking: bool = False,
-        reasoning_effort: str = "medium",
+        reasoning_effort: str = "high",
         token_limit: int = 30000,
     ) -> Tuple[str, Dict[str, Any]]:
         """
@@ -903,7 +973,7 @@ class APIManager:
         list_image_base64: Optional[List[str]] = None,
         session_name: Optional[str] = None,
         temperature: float = 1,
-        reasoning_effort: str = "medium",
+        reasoning_effort: str = "high",
     ) -> Tuple[str, Dict[str, Any]]:
         """
         Make a multi-image completion API call.
@@ -986,7 +1056,7 @@ class APIManager:
                     prompt=prompt,
                     base64_image=list_image_base64,
                     temperature=temperature,
-                    url=self.vllm_url
+                    # TODO: support non-localhost vllm servers
                 )
             elif model_name.startswith("modal-"):
                 # TODO: make different modal backend configurable
@@ -997,6 +1067,25 @@ class APIManager:
                     base64_image=list_image_base64,
                     temperature=temperature,
                     url=self.modal_url,
+                )
+
+            elif "kimi" in model_name.lower():
+                completion = moonshot_multiimage_completion(
+                    system_prompt=system_prompt,
+                    model_name=model_name,
+                    prompt=prompt,
+                    list_content=list_content,
+                    list_image_base64=list_image_base64,
+                    temperature=temperature
+                )
+            elif "step" in model_name:
+                completion = stepfun_multiimage_completion(
+                    system_prompt=system_prompt,
+                    model_name=model_name,
+                    prompt=prompt,
+                    list_content=list_content,
+                    list_image_base64=list_image_base64,
+                    temperature=temperature
                 )
             else:
                 raise ValueError(f"Unsupported model: {model_name}")

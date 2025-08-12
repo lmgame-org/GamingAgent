@@ -9,7 +9,7 @@ from PIL import Image # For saving frames
 from gamingagent.envs.gym_env_adapter import GymEnvAdapter # Changed from RetroEnvAdapter
 from gamingagent.modules.core_module import Observation
 
-class SuperMarioBrosEnvWrapper:
+class SuperMarioBrosEnv:
     """
     A wrapper for the Super Mario Bros retro environment.
     This class handles direct retro environment interaction and uses GymEnvAdapter
@@ -38,7 +38,7 @@ class SuperMarioBrosEnvWrapper:
             observation_mode=self.observation_mode, 
             agent_cache_dir=self.base_log_dir # Pass base_log_dir directly
         )
-        # print(f"[SuperMarioBrosEnvWrapper DEBUG __init__] Adapter's move_to_action_idx: {self.adapter.move_to_action_idx}") # This will be empty now
+        # print(f"[SuperMarioBrosEnv DEBUG __init__] Adapter's move_to_action_idx: {self.adapter.move_to_action_idx}") # This will be empty now
         self.current_game_info: Dict[str, Any] = {}
         self.current_episode_max_x_pos: int = 0
         #self.current_episode_total_perf_score: float = 0.0
@@ -50,7 +50,7 @@ class SuperMarioBrosEnvWrapper:
 
     def _load_wrapper_config(self):
         """Loads configurations needed by this wrapper directly, like env_id and RAM addresses."""
-        print(f"[SuperMarioBrosEnvWrapper] Loading wrapper config from: {self.game_specific_config_json_path}")
+        print(f"[SuperMarioBrosEnv] Loading wrapper config from: {self.game_specific_config_json_path}")
         try:
             with open(self.game_specific_config_json_path, 'r') as f:
                 config = json.load(f)
@@ -60,7 +60,7 @@ class SuperMarioBrosEnvWrapper:
             # Load action mapping directly here
             action_mapping_from_config = config.get("action_mapping", {})
             self.mario_action_mapping: Dict[str, List[int]] = {str(k).lower(): v for k, v in action_mapping_from_config.items()}
-            print(f"[SuperMarioBrosEnvWrapper DEBUG _load_wrapper_config] Loaded mario_action_mapping: {self.mario_action_mapping}")
+            print(f"[SuperMarioBrosEnv DEBUG _load_wrapper_config] Loaded mario_action_mapping: {self.mario_action_mapping}")
 
             # Extract custom_game_specific_config
             custom_config = config.get("custom_game_specific_config", {})
@@ -72,10 +72,10 @@ class SuperMarioBrosEnvWrapper:
                 self.render_mode_human = False
 
         except FileNotFoundError:
-            print(f"[SuperMarioBrosEnvWrapper] ERROR: Config file not found at {self.game_specific_config_json_path}")
+            print(f"[SuperMarioBrosEnv] ERROR: Config file not found at {self.game_specific_config_json_path}")
             raise
         except Exception as e:
-            print(f"[SuperMarioBrosEnvWrapper] ERROR: Failed to load or parse config: {e}")
+            print(f"[SuperMarioBrosEnv] ERROR: Failed to load or parse config: {e}")
             raise
 
     def _initialize_env(self):
@@ -89,7 +89,7 @@ class SuperMarioBrosEnvWrapper:
         effective_env_init_kwargs = self.env_init_kwargs.copy()
         # Ensure obs_type from custom_game_specific_config is not passed if already handled
         if 'obs_type' in effective_env_init_kwargs: 
-            print(f"[SuperMarioBrosEnvWrapper] Info: 'obs_type' found in env_init_kwargs from JSON ({effective_env_init_kwargs['obs_type']}), will be overridden by custom_game_specific_config.observation_type ({self.retro_obs_type_str}).")
+            print(f"[SuperMarioBrosEnv] Info: 'obs_type' found in env_init_kwargs from JSON ({effective_env_init_kwargs['obs_type']}), will be overridden by custom_game_specific_config.observation_type ({self.retro_obs_type_str}).")
             del effective_env_init_kwargs['obs_type']
 
         render_mode_arg = "human" if self.render_mode_human else "rgb_array"
@@ -101,10 +101,10 @@ class SuperMarioBrosEnvWrapper:
         record_path_base = self.base_log_dir # This is "cache/super_mario_bros/model_name/timestamp/"
         record_path_bk2 = os.path.join(record_path_base, "bk2_recordings")
         os.makedirs(record_path_bk2, exist_ok=True)
-        print(f"[SuperMarioBrosEnvWrapper] Saving .bk2 recordings to: {record_path_bk2}")
+        print(f"[SuperMarioBrosEnv] Saving .bk2 recordings to: {record_path_bk2}")
 
         try:
-            print(f"[SuperMarioBrosEnvWrapper] Initializing Retro env: id='{self.env_id}', obs_type='{obs_type_enum}', render_mode='{render_mode_arg}', record_path='{record_path_bk2}', kwargs={effective_env_init_kwargs}")
+            print(f"[SuperMarioBrosEnv] Initializing Retro env: id='{self.env_id}', obs_type='{obs_type_enum}', render_mode='{render_mode_arg}', record_path='{record_path_bk2}', kwargs={effective_env_init_kwargs}")
             self.env = retro.make(
                 self.env_id, 
                 obs_type=obs_type_enum, 
@@ -112,15 +112,15 @@ class SuperMarioBrosEnvWrapper:
                 record=record_path_bk2, # Added record argument
                 **effective_env_init_kwargs
             )
-            print(f"[SuperMarioBrosEnvWrapper] Underlying Retro buttons: {self.env.buttons}")
+            print(f"[SuperMarioBrosEnv] Underlying Retro buttons: {self.env.buttons}")
         except Exception as e:
-            print(f"[SuperMarioBrosEnvWrapper] ERROR creating retro environment: {e}")
+            print(f"[SuperMarioBrosEnv] ERROR creating retro environment: {e}")
             raise
 
     def _save_frame_get_path(self, frame: np.ndarray, episode_id: int, step_num: int) -> Optional[str]:
         """Saves a raw frame (numpy array) to a PNG file and returns its path."""
         if frame is None or not isinstance(frame, np.ndarray):
-            print("[SuperMarioBrosEnvWrapper] Warning: Attempted to save None or invalid frame.")
+            print("[SuperMarioBrosEnv] Warning: Attempted to save None or invalid frame.")
             return None
         try:
             # GymEnvAdapter provides the base path for observations
@@ -133,7 +133,7 @@ class SuperMarioBrosEnvWrapper:
             img.save(img_path)
             return img_path
         except Exception as e:
-            print(f"[SuperMarioBrosEnvWrapper] ERROR: Failed to save frame to {img_path if 'img_path' in locals() else 'unknown path'}: {e}")
+            print(f"[SuperMarioBrosEnv] ERROR: Failed to save frame to {img_path if 'img_path' in locals() else 'unknown path'}: {e}")
             return None
 
     def _extract_game_specific_info(
@@ -179,7 +179,7 @@ class SuperMarioBrosEnvWrapper:
     def reset(self, episode_id: int, max_memory: Optional[int] = 10, **kwargs) -> Tuple[Observation, Dict[str, Any]]:
         self.adapter.reset_episode(episode_id) # GymEnvAdapter handles log file setup
         
-        print(f"[SuperMarioBrosEnvWrapper reset] Starting meta-episode {episode_id}. Calling self.env.reset() ONCE.")
+        print(f"[SuperMarioBrosEnv reset] Starting meta-episode {episode_id}. Calling self.env.reset() ONCE.")
         # Removed initialization of explicit life counters
         
         # after self.env.reset(...) - remove max_memory from kwargs before passing to env
@@ -189,7 +189,7 @@ class SuperMarioBrosEnvWrapper:
 
         self.current_game_info = self._extract_game_specific_info(retro_info)
         
-        print(f"[SuperMarioBrosEnvWrapper reset] Initial game info: {self._build_textual_representation_for_log(self.current_game_info)}")
+        print(f"[SuperMarioBrosEnv reset] Initial game info: {self._build_textual_representation_for_log(self.current_game_info)}")
 
         img_path = None
         if self.observation_mode in ["vision", "both"]:
@@ -229,15 +229,15 @@ class SuperMarioBrosEnvWrapper:
                     parsed_frame_count = int(match.group(2))
                     if parsed_frame_count > 0: frame_count = parsed_frame_count
                 except ValueError: 
-                    # print(f"[SuperMarioBrosEnvWrapper] Warning: Could not parse frame_count for {base_action_name}. Defaulting to 1.")
+                    # print(f"[SuperMarioBrosEnv] Warning: Could not parse frame_count for {base_action_name}. Defaulting to 1.")
                     pass 
             else: # Assume it's just the action name if no frame count
                 base_action_name = agent_action_str.strip("()\\\' ")
-                # print(f"[SuperMarioBrosEnvWrapper] Action string '{agent_action_str}' -> simple action '{base_action_name}', 1 frame.")
+                # print(f"[SuperMarioBrosEnv] Action string '{agent_action_str}' -> simple action '{base_action_name}', 1 frame.")
         
         env_action_buttons = self.mario_action_mapping.get(base_action_name.lower())
         if env_action_buttons is None:
-            # print(f"[SuperMarioBrosEnvWrapper] Warning: Action '{base_action_name}' not found. Using NOOP.")
+            # print(f"[SuperMarioBrosEnv] Warning: Action '{base_action_name}' not found. Using NOOP.")
             base_action_name = "noop"
             env_action_buttons = self.mario_action_mapping.get("noop", [0]*len(self.env.buttons if hasattr(self, 'env') and self.env else 9))
         
@@ -303,7 +303,7 @@ class SuperMarioBrosEnvWrapper:
         # Removed current_lives_remaining_in_meta_episode from self.current_game_info update
 
         if last_agent_observation_in_loop is None:
-            # print(\"[SuperMarioBrosEnvWrapper] Warning: Loop for frames did not produce an observation. Getting current state.\")
+            # print(\"[SuperMarioBrosEnv] Warning: Loop for frames did not produce an observation. Getting current state.\")
             current_ram_now = self.env.get_ram()
             self.current_game_info = self._extract_game_specific_info(current_ram_now)
             obs_data_now, _, _, _, _ = self.env.step(self.mario_action_mapping.get("noop", [0]*len(self.env.buttons if hasattr(self, 'env') and self.env else 9)))
@@ -330,7 +330,7 @@ class SuperMarioBrosEnvWrapper:
         # else: GymEnvAdapter does not have a generic render method for non-human modes
 
     def close(self) -> None:
-        print("[SuperMarioBrosEnvWrapper] Closing environment.")
+        print("[SuperMarioBrosEnv] Closing environment.")
         if hasattr(self, 'env') and self.env:
             self.env.close()
         if hasattr(self, 'adapter') and self.adapter:

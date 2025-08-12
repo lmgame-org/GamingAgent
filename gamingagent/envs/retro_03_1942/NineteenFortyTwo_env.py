@@ -11,10 +11,9 @@ import gymnasium as gym
 from gamingagent.envs.gym_env_adapter import GymEnvAdapter
 from gamingagent.modules.core_module import Observation
 
-__all__ = ["NineteenFortyTwoEnvWrapper"]
+__all__ = ["NineteenFortyTwoEnv"]
 
-# main wrapper
-class NineteenFortyTwoEnvWrapper(gym.Env):
+class NineteenFortyTwoEnv(gym.Env):
     metadata = {"render_modes": ["human", "rgb_array"], "render_fps": 60}
 
     _DEFAULT_ENV_ID = "1942-Nes"
@@ -28,7 +27,6 @@ class NineteenFortyTwoEnvWrapper(gym.Env):
     ) -> None:
         super().__init__()
 
-        # ── load JSON wrapper config ──
         cfg_file = os.path.join(config_dir_path, "game_env_config.json")
         if os.path.isfile(cfg_file):
             with open(cfg_file, "r") as f:

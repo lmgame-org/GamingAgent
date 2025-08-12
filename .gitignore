@@ -4,6 +4,8 @@ logs/*
 eval/perf/*
 
 # 💾 Cache and Temporary Files
+_dummy/*
+videos/*
 cache/*
 */cache
 __pycache__/

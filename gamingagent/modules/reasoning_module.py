@@ -3,6 +3,7 @@ from .core_module import CoreModule, Observation
 
 import re
 from tools.utils import scale_image_up
+import time
 
 # TODO: 
 # 1.module integration 

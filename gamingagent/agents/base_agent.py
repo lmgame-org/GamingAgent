@@ -15,6 +15,10 @@ GAMES_REQUIRE_HARNESS = [
     "pokemon_red",
 ]
 
+GAMES_REQUIRE_HARNESS = [
+    "pokemon_red",
+]
+
 class BaseAgent(ABC):
     """
     Base agent class that provides the foundation for game-specific agents.
@@ -40,6 +44,7 @@ class BaseAgent(ABC):
             scaffolding=None,
             vllm_url=None,
             modal_url=None,
+            token_limit=100000,
         ):
         """
         Initialize the agent with base parameters and modules.
@@ -75,6 +80,7 @@ class BaseAgent(ABC):
         self.use_summary = use_summary if harness else False
         self.observation_mode = observation_mode
         self.scaffolding = scaffolding
+        self.token_limit = token_limit
 
         print(f"Initializing agent for game '{self.game_name}' with model '{self.model_name}'.")
         print(f"Harness mode: {'ON' if self.harness else 'OFF'}")
@@ -82,6 +88,10 @@ class BaseAgent(ABC):
         # Serving-related arguments
         self.vllm_url = vllm_url
         self.modal_url = modal_url
+
+        print("BaseAgent initialization parameters:")
+        print("vllm_url:", self.vllm_url)
+        print("modal_url:", self.modal_url)
 
         # initialize harness modules based on game titles
         # for games like Pokemon, memory module is needed to make meaningful progress
@@ -191,7 +201,7 @@ class BaseAgent(ABC):
             system_prompt=self.config["base_module"]["system_prompt"],
             prompt=self.config["base_module"]["prompt"],
             observation_mode=self.observation_mode,
-            token_limit=100000,
+            token_limit=self.token_limit,
             reasoning_effort="high",
             vllm_url=self.vllm_url,
             modal_url=self.modal_url
@@ -208,8 +218,11 @@ class BaseAgent(ABC):
                     cache_dir=self.cache_dir,
                     system_prompt=self.config["perception_module"]["system_prompt"],
                     prompt=self.config["perception_module"]["prompt"],
+                    token_limit=self.token_limit,
                     scaffolding=self.scaffolding,
-                    use_perception=self.use_perception
+                    use_perception=self.use_perception,
+                    vllm_url=self.vllm_url,
+                    modal_url=self.modal_url
                 )
             else:
                 # Can't use default PerceptionModule as it's abstract
@@ -227,8 +240,11 @@ class BaseAgent(ABC):
                     summary_system_prompt=self.config["memory_module"].get("summary", {}).get("system_prompt", ""),
                     summary_prompt=self.config["memory_module"].get("summary", {}).get("prompt", ""),
                     max_memory=self.max_memory,
+                    token_limit=self.token_limit,
                     use_reflection=self.use_reflection,
-                    use_summary=self.use_summary
+                    use_summary=self.use_summary,
+                    vllm_url=self.vllm_url,
+                    modal_url=self.modal_url
                 )
             else:
                 modules["memory_module"] = MemoryModule(
@@ -239,8 +255,11 @@ class BaseAgent(ABC):
                     summary_system_prompt=self.config["memory_module"].get("summary", {}).get("system_prompt", ""),
                     summary_prompt=self.config["memory_module"].get("summary", {}).get("prompt", ""),
                     max_memory=self.max_memory,
+                    token_limit=self.token_limit,
                     use_reflection=self.use_reflection,
-                    use_summary=self.use_summary
+                    use_summary=self.use_summary,
+                    vllm_url=self.vllm_url,
+                    modal_url=self.modal_url
                 )
             
             # TODO: make token_limit and reasoning_effort configurable
@@ -253,6 +272,7 @@ class BaseAgent(ABC):
                     cache_dir=self.cache_dir,
                     system_prompt=self.config["reasoning_module"]["system_prompt"],
                     prompt=self.config["reasoning_module"]["prompt"],
+                    token_limit=self.token_limit,
                     vllm_url=self.vllm_url,
                     modal_url=self.modal_url
                 )

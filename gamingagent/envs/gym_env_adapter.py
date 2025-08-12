@@ -54,6 +54,8 @@ class GymEnvAdapter:
         self.agent_observations_dir = os.path.join(self.agent_cache_dir, "observations")
         os.makedirs(self.agent_observations_dir, exist_ok=True)
 
+        print(f"[GymEnvAdapter] Initializing adapter with observation mode '{self.observation_mode}'")
+
         self.current_episode_id = 0
         self.current_step_num = 0
         self.episode_log_file_path: Optional[str] = None
