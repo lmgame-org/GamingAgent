@@ -69,7 +69,7 @@
                 "progress": "1-1"
             },
             {
-                "model": "🎮 gpt-5",
+                "model": "🎮 gpt-5-thinking-high",
                 "score": 1432.33,
                 "detail_data":"1875.0, 1397.0, 1025.0",
                 "progress": "1-1"
@@ -224,7 +224,7 @@
                 "highest_tail": 256
             },
             {
-                "model": "🎮 gpt-5",
+                "model": "🎮 gpt-5-thinking-high",
                 "score": 5770.67,
                 "detail_data":"4516, 8116, 4680",
                 "highest_tail": 512
@@ -355,7 +355,7 @@
                 "details": "14, 13, 16"
             },
             {
-                "model": "🎮 gpt-5",
+                "model": "🎮 gpt-5-thinking-high",
                 "score": 84.33,
                 "details": "36, 112, 105"
             }
@@ -485,7 +485,7 @@
                 "details": "243, 262, 244"
             },
             {
-                "model": "🎮 gpt-5",
+                "model": "🎮 gpt-5-thinking-high",
                 "score": 615.67,
                 "details": "573, 694, 580"
             }
@@ -639,7 +639,7 @@
                 "cracked_levels": "2"
             },
             {
-                "model": "🎮 gpt-5",
+                "model": "🎮 gpt-5-thinking-high",
                 "score": 11,
                 "detail_box_on_target": "11, 11",
                 "cracked_levels": "5"
@@ -749,7 +749,7 @@
                 "details": "3,4,6"
             },
             {
-                "model": "🎮 gpt-5",
+                "model": "🎮 gpt-5-thinking-high",
                 "score": 9,
                 "details": "9,9"
             }
