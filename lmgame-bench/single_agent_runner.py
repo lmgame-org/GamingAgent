@@ -23,12 +23,12 @@ from tools.utils import draw_grid_on_image
 # Directly import the specific environment we are using
 from gamingagent.envs.custom_01_2048.twentyFortyEightEnv import TwentyFortyEightEnv
 from gamingagent.envs.custom_02_sokoban.sokobanEnv import SokobanEnv
-from gamingagent.envs.custom_03_candy_crush.candyCrushEnv import CandyCrushEnvWrapper
+from gamingagent.envs.custom_03_candy_crush.candyCrushEnv import CandyCrushEnv
 from gamingagent.envs.custom_04_tetris.tetrisEnv import TetrisEnv
 from gamingagent.envs.custom_05_doom.doomEnv import DoomEnvWrapper
 from gamingagent.envs.custom_06_pokemon_red.pokemonRedEnv import PokemonRedEnv
 
-from gamingagent.envs.retro_01_super_mario_bros.superMarioBrosEnv import SuperMarioBrosEnvWrapper
+from gamingagent.envs.retro_01_super_mario_bros.superMarioBrosEnv import SuperMarioBrosEnv
 from gamingagent.envs.retro_02_ace_attorney.aceAttorneyEnv import AceAttorneyEnv
 from gamingagent.envs.retro_03_1942.NineteenFortyTwo_env import NineteenFortyTwoEnv
 
@@ -83,7 +83,6 @@ def parse_arguments(defaults_map=None, argv_to_parse=None):
     parser.add_argument("--max_steps_per_episode", type=int, default=1000, help="Max steps per episode.")
     parser.add_argument("--use_custom_prompt", action="store_true", help="If set, will use the custom prompt from module_prompts.json if present.")
     parser.add_argument("--scaffolding", type=str, default=None, help="Grid dimensions as '(rows,cols)' for coordinate grid on images, e.g., '(5,5)'. Default is None.")
-    parser.add_argument("--scaffolding", type=str, default=None, help="Grid dimensions as '(rows,cols)' for coordinate grid on images, e.g., '(5,5)'. Default is None.")
     parser.add_argument("--seed", type=int, default=None, help="Random seed for environment.")
     # Env type is fixed to custom gym for this runner
 
@@ -100,21 +99,6 @@ def parse_arguments(defaults_map=None, argv_to_parse=None):
         default=None,
         help="Optional URL for a vLLM inference endpoint passed to BaseAgent.",
     )
-
-    # Serving-related arguments
-    parser.add_argument(
-        "--modal_url",
-        type=str,
-        default=None,
-        help="Optional URL for a Modal‑hosted inference endpoint passed to BaseAgent.",
-    )
-    parser.add_argument(
-        "--vllm_url",
-        type=str,
-        default=None,
-        help="Optional URL for a vLLM inference endpoint passed to BaseAgent.",
-    )
-
     # First parse args with just command line values
     if argv_to_parse:
         args = parser.parse_args(argv_to_parse)
