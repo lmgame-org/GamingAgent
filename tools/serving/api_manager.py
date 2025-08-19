@@ -393,7 +393,6 @@ class APIManager:
         temperature: float = 1,
         thinking: bool = False,
         reasoning_effort: str = "high",
-        reasoning_effort: str = "high",
         token_limit: int = 30000,
     ) -> Tuple[str, Dict[str, Any]]:
         """
@@ -766,7 +765,6 @@ class APIManager:
         temperature: float = 1,
         thinking: bool = False,
         reasoning_effort: str = "high",
-        reasoning_effort: str = "high",
         token_limit: int = 30000,
     ) -> Tuple[str, Dict[str, Any]]:
         """
@@ -944,7 +942,6 @@ class APIManager:
         temperature: float = 1,
         thinking: bool = False,
         reasoning_effort: str = "high",
-        reasoning_effort: str = "high",
         token_limit: int = 30000,
     ) -> Tuple[str, Dict[str, Any]]:
         """
@@ -990,7 +987,6 @@ class APIManager:
         temperature: float = 1,
         thinking: bool = False,
         reasoning_effort: str = "high",
-        reasoning_effort: str = "high",
         token_limit: int = 30000,
     ) -> Tuple[str, Dict[str, Any]]:
         """
@@ -1033,7 +1029,6 @@ class APIManager:
         list_image_base64: Optional[List[str]] = None,
         session_name: Optional[str] = None,
         temperature: float = 1,
-        reasoning_effort: str = "high",
         reasoning_effort: str = "high",
     ) -> Tuple[str, Dict[str, Any]]:
         """

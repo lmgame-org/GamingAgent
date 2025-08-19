@@ -1124,9 +1124,7 @@ def parse_vllm_model_name(model_name: str) -> str:
 def vllm_text_completion(
     system_prompt, 
     model_name, 
-    model_name, 
     prompt, 
-    token_limit=500000, 
     token_limit=500000, 
     temperature=1, 
     port=8000,
@@ -1156,7 +1154,6 @@ def vllm_text_completion(
 def vllm_completion(
     system_prompt,
     model_name,
-    model_name,
     prompt,
     base64_image=None,
     token_limit=30000,
@@ -1183,7 +1180,6 @@ def vllm_completion(
     messages.append({"role": "user", "content": user_content})
 
     model_name = parse_vllm_model_name(model_name)
-    model_name = parse_vllm_model_name(model_name)
     payload = {
         "model": model_name,
         "messages": messages,
@@ -1203,7 +1199,6 @@ def vllm_completion(
 def vllm_multiimage_completion(
     system_prompt,
     model_name,
-    model_name,
     prompt,
     list_image_base64,
     token_limit=30000,
@@ -1212,7 +1207,6 @@ def vllm_multiimage_completion(
     host="localhost"
 ):
     url = f"http://{host}:{port}/v1/chat/completions"
-    headers = {"Content-Type": "application/json"}
     headers = {"Content-Type": "application/json"}
 
     # Construct the user message content with multiple images
@@ -1226,7 +1220,6 @@ def vllm_multiimage_completion(
         messages.append({"role": "system", "content": system_prompt})
     messages.append({"role": "user", "content": user_content})
 
-    model_name = parse_vllm_model_name(model_name)
     model_name = parse_vllm_model_name(model_name)
     payload = {
         "model": model_name,

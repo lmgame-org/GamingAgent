@@ -347,15 +347,12 @@ def play_episode(env, agents, eid, max_turns, seed):
     # Initialize totals for all agents
     totals = {agent_key: 0.0 for agent_key in agents.keys()}
     moves_log = []
-<<<<<<< HEAD
     # Track illegal move status explicitly so we don't misreport ties
     illegal = False
     illegal_player = None
     # Restrict illegal detection to TicTacToe only
     from gamingagent.envs.zoo_01_tictactoe.TicTacToeEnv import MultiTicTacToeEnv
     is_tictactoe = isinstance(env, MultiTicTacToeEnv)
-=======
->>>>>>> origin/main
 
     for t in range(max_turns):
         # Get current player from environment
@@ -379,15 +376,12 @@ def play_episode(env, agents, eid, max_turns, seed):
         moves_log.append(f"Turn {t+1}: {agent_cur} ({env_cur}) -> {act}")
 
         obs, rew, term, trunc, *_ = env.step(env_cur, act)
-<<<<<<< HEAD
         # Detect TicTacToe illegal move: immediate termination with rewards pattern [-1, 0]
         if is_tictactoe and (term or trunc) and isinstance(rew, dict) and len(rew) >= 2:
             vals = list(rew.values())
             if sum(1 for v in vals if v == -1.0) == 1 and all(v in (0.0, -1.0) for v in vals):
                 illegal = True
                 illegal_player = agent_cur
-=======
->>>>>>> origin/main
 
         # Handle different reward structures
         if isinstance(rew, dict):
@@ -409,7 +403,6 @@ def play_episode(env, agents, eid, max_turns, seed):
         print(f"{agent_key} total reward: {reward:.1f}")
     
     # Determine game result
-<<<<<<< HEAD
     # If we already detected an illegal pattern, use it; otherwise, fallback heuristic
     if is_tictactoe and not illegal:
         # Check for illegal moves - only flag if reward is significantly worse than normal loss (fallback)
@@ -423,21 +416,6 @@ def play_episode(env, agents, eid, max_turns, seed):
     if illegal:
         result = f"ILLEGAL MOVE by {illegal_player}"
     else:
-=======
-    illegal = False
-    illegal_player = None
-    
-    # Check for illegal moves - only flag if reward is significantly worse than normal loss
-    # In TicTacToe, normal loss = -1.0, so only flag if much worse (like -10 or similar)
-    for agent_key, reward in totals.items():
-        if reward <= -5.0 and all(r >= 0 for k, r in totals.items() if k != agent_key):
-            result = f"ILLEGAL MOVE by {agent_key}"
-            illegal = True
-            illegal_player = agent_key
-            break
-    
-    if not illegal:
->>>>>>> origin/main
         # Find winner (highest reward)
         max_reward = max(totals.values())
         winners = [k for k, v in totals.items() if v == max_reward]
@@ -450,24 +428,14 @@ def play_episode(env, agents, eid, max_turns, seed):
             result = f"DRAW/TIE ({len(winners)} players tied with {max_reward:.1f})"
     
     print(f"Result: {result}")
-<<<<<<< HEAD
     
-=======
-
->>>>>>> origin/main
     # Show move history
     print(f"\nMove History:")
     for move in moves_log:
         print(f"  {move}")
-<<<<<<< HEAD
     
     print(f"{'='*60}\n")
     
-=======
-
-    print(f"{'='*60}\n")
-
->>>>>>> origin/main
     # Record episode results using the appropriate method based on environment type
     if hasattr(env, 'record_episode_results'):
         # Enhanced multi-agent environment (e.g., Texas Hold'em)
@@ -531,11 +499,7 @@ def build_parser():
     p.add_argument("--vllm_url", type=str, default=None)
     p.add_argument("--modal_url", type=str, default=None)
     p.add_argument("--tournament_hands", type=int, default=None)
-<<<<<<< HEAD
     p.add_argument("--record_video", type=str_to_bool, default=True, help="Enable video recording of the GUI")
-=======
-    p.add_argument("--record_video", type=str_to_bool, default=False, help="Enable video recording of the GUI")
->>>>>>> origin/main
     return p
 
 ###############################################################################
@@ -653,11 +617,7 @@ def main(argv: Optional[list[str]] = None):
     # Configure TrueSkill; set draw_probability=0.0 since we handle ties explicitly
     # Note: TrueSkill 2 style updates (using chip performance) are automatically enabled for Texas Hold'em
     # TicTacToe: non-zero draw probability; no dynamics to avoid sigma blowing up on repeated draws
-<<<<<<< HEAD
     ts = trueskill.TrueSkill(draw_probability=0.8, tau=0.0)
-=======
-    ts = trueskill.TrueSkill(draw_probability=0.45, tau=0.0)
->>>>>>> origin/main
 
     # Map env player -> stable identity (prefer model_name)
     agent_ids = {k: getattr(agents[k], "model_name", k) for k in agents.keys()}
@@ -679,7 +639,6 @@ def main(argv: Optional[list[str]] = None):
     game_results.update({"draws": 0, "illegal_moves": 0}) 
 
     total_hands = args.tournament_hands if (args.game_name.lower()=="texasholdem" and args.tournament_hands) else args.num_runs
-<<<<<<< HEAD
     # Robust handling for TicTacToe: ensure integer >=1 and log the setting
     if args.game_name.lower() == "tictactoe":
         try:
@@ -689,8 +648,6 @@ def main(argv: Optional[list[str]] = None):
         if total_hands < 1:
             total_hands = 1
         print(f"[Runner] TicTacToe total episodes (num_runs): {total_hands}")
-=======
->>>>>>> origin/main
     for eid in range(1, total_hands + 1):
         print(f"\n{'='*20} STARTING HAND {eid}/{total_hands} {'='*20}")
         result = play_episode(env, agents, eid, args.max_steps, cseed)
