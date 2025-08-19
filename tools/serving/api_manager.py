@@ -44,7 +44,8 @@ from .api_providers import (
     moonshot_multiimage_completion,
     stepfun_text_completion,
     stepfun_completion,
-    stepfun_multiimage_completion
+    stepfun_multiimage_completion,
+    zai_text_completion
 )
 
 # Import cost calculator utilities
@@ -831,6 +832,15 @@ class APIManager:
                     prompt=prompt,
                     temperature=temperature,
                     token_limit=token_limit
+                )
+            elif "glm-" in model_name.lower():
+                completion = zai_text_completion(
+                    system_prompt=system_prompt,
+                    model_name=model_name,
+                    prompt=prompt,
+                    temperature=temperature,
+                    token_limit=token_limit,
+                    thinking=thinking
                 )
             else:
                 raise ValueError(f"Unsupported model: {model_name}")

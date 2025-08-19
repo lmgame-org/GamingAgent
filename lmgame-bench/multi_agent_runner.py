@@ -639,6 +639,15 @@ def main(argv: Optional[list[str]] = None):
     game_results.update({"draws": 0, "illegal_moves": 0}) 
 
     total_hands = args.tournament_hands if (args.game_name.lower()=="texasholdem" and args.tournament_hands) else args.num_runs
+    # Robust handling for TicTacToe: ensure integer >=1 and log the setting
+    if args.game_name.lower() == "tictactoe":
+        try:
+            total_hands = int(total_hands)
+        except Exception:
+            total_hands = 1
+        if total_hands < 1:
+            total_hands = 1
+        print(f"[Runner] TicTacToe total episodes (num_runs): {total_hands}")
     for eid in range(1, total_hands + 1):
         print(f"\n{'='*20} STARTING HAND {eid}/{total_hands} {'='*20}")
         result = play_episode(env, agents, eid, args.max_steps, cseed)
