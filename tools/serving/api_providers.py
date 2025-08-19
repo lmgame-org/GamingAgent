@@ -1,10 +1,12 @@
 import os
 import random
+import random
 import time
 import functools
 import httpx
 
 from openai import OpenAI
+from openai import RateLimitError, APITimeoutError, APIConnectionError, APIStatusError, BadRequestError
 from openai import RateLimitError, APITimeoutError, APIConnectionError, APIStatusError, BadRequestError
 import anthropic
 import google.generativeai as genai
@@ -29,9 +31,22 @@ def estimate_token_count(text: str) -> int:
     if not text:
         return 0
     return len(text) // 4
+import grpc
+
+from typing import Optional, List, Any
+
+def estimate_token_count(text: str) -> int:
+    """
+    Rough estimation of token count for text.
+    Uses a simple heuristic of ~4 characters per token.
+    """
+    if not text:
+        return 0
+    return len(text) // 4
 
 def _sleep_with_backoff(base_delay: int, attempt: int) -> None:
     delay = base_delay * (2 ** attempt) + random.uniform(0, 1)
+    print(f"Retrying in {delay:.2f}s … (attempt {attempt + 1})")
     print(f"Retrying in {delay:.2f}s … (attempt {attempt + 1})")
     time.sleep(delay)
 
@@ -115,6 +130,11 @@ def retry_on_openai_error(func):
                 print(f"OpenAI BadRequestError (not retrying): {e}")
                 raise
 
+            # BadRequestError should NOT be retried - it indicates invalid request
+            except BadRequestError as e:
+                print(f"OpenAI BadRequestError (not retrying): {e}")
+                raise
+
             # transient issues worth retrying
             except (RateLimitError, APITimeoutError, APIConnectionError,
                     httpx.RemoteProtocolError, httpx.ReadTimeout) as e:
@@ -136,6 +156,8 @@ def retry_on_openai_error(func):
 
 def retry_on_overload(func):
     """
+    A decorator to retry a function call on anthropic.APIStatusError with 'overloaded_error',
+    httpx.RemoteProtocolError, or when the API returns None/empty response.
     A decorator to retry a function call on anthropic.APIStatusError with 'overloaded_error',
     httpx.RemoteProtocolError, or when the API returns None/empty response.
     A decorator to retry a function call on anthropic.APIStatusError with 'overloaded_error',
@@ -442,6 +464,7 @@ def openai_completion(system_prompt, model_name, base64_image, prompt, temperatu
         token_limit = 32768
     elif "o3" in model_name:
         print("o3 only supports 32768 tokens")
+        print("o3 only supports 32768 tokens")
         token_limit = 10000
 
     # Force-clean headers to prevent UnicodeEncodeError
@@ -468,6 +491,7 @@ def openai_completion(system_prompt, model_name, base64_image, prompt, temperatu
         ]
 
     # Update token parameter logic to include o4 models
+    token_param = "max_completion_tokens" if ("o1" in model_name or "o4" in model_name or "o3" in model_name or "gpt-5" in model_name) else "max_tokens"
     token_param = "max_completion_tokens" if ("o1" in model_name or "o4" in model_name or "o3" in model_name or "gpt-5" in model_name) else "max_tokens"
     request_params = {
         "model": model_name,
@@ -496,6 +520,7 @@ def openai_text_completion(system_prompt, model_name, prompt, token_limit=30000,
         token_limit = 32768
     elif "o3" in model_name:
         print("o3 only supports 32768 tokens")
+        print("o3 only supports 32768 tokens")
         token_limit = 10000
 
     messages = [
@@ -511,6 +536,7 @@ def openai_text_completion(system_prompt, model_name, prompt, token_limit=30000,
         ]
 
     # Update token parameter logic to include all o-series models
+    token_param = "max_completion_tokens" if ("o1" in model_name or "o4" in model_name or "o3" in model_name or "gpt-5" in model_name) else "max_tokens"
     token_param = "max_completion_tokens" if ("o1" in model_name or "o4" in model_name or "o3" in model_name or "gpt-5" in model_name) else "max_tokens"
     
     request_params = {
@@ -535,11 +561,22 @@ def openai_text_completion(system_prompt, model_name, prompt, token_limit=30000,
     else:
         response = client.chat.completions.create(**request_params)
         generated_str = response.choices[0].message.content
+    if model_name == "o3-pro":
+        messages[0]['content'][0]['type'] = "input_text"
+        response = client.responses.create(
+            model="o3-pro",
+            input=messages,
+        )
+        generated_str = response.output[1].content[0].text
+    else:
+        response = client.chat.completions.create(**request_params)
+        generated_str = response.choices[0].message.content
     return generated_str
 
 @retry_on_openai_error
 def openai_text_reasoning_completion(system_prompt, model_name, prompt, temperature=1, token_limit=30000, reasoning_effort="medium"):
     print(f"OpenAI text-reasoning API call: model={model_name}, reasoning_effort={reasoning_effort}")
+    
     
     client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
     if "gpt-4o" in model_name:
@@ -549,6 +586,7 @@ def openai_text_reasoning_completion(system_prompt, model_name, prompt, temperat
         print("gpt-4.1 only supports 32768 tokens")
         token_limit = 32768
     elif "o3" in model_name:
+        print("o3 only supports 32768 tokens")
         print("o3 only supports 32768 tokens")
         token_limit = 10000
     
@@ -566,6 +604,7 @@ def openai_text_reasoning_completion(system_prompt, model_name, prompt, temperat
 
     # Update token parameter logic to include all o-series models
     token_param = "max_completion_tokens" if ("o1" in model_name or "o4" in model_name or "o3" in model_name or "gpt-5" in model_name) else "max_tokens"
+    token_param = "max_completion_tokens" if ("o1" in model_name or "o4" in model_name or "o3" in model_name or "gpt-5" in model_name) else "max_tokens"
     
     # Prepare request parameters dynamically
     request_params = {
@@ -580,6 +619,16 @@ def openai_text_reasoning_completion(system_prompt, model_name, prompt, temperat
     else:
         request_params["temperature"] = temperature
 
+    if model_name == "o3-pro":
+        messages[0]['content'][0]['type'] = "input_text"
+        response = client.responses.create(
+            model="o3-pro",
+            input=messages,
+        )
+        generated_str = response.output[1].content[0].text
+    else:
+        response = client.chat.completions.create(**request_params)
+        generated_str = response.choices[0].message.content
     if model_name == "o3-pro":
         messages[0]['content'][0]['type'] = "input_text"
         response = client.responses.create(
@@ -626,8 +675,18 @@ def deepseek_text_reasoning_completion(system_prompt, model_name, prompt, token_
     return content
 
 
+
 def xai_grok_text_completion(system_prompt, model_name, prompt, reasoning_effort="high", token_limit=30000, temperature=1):
     print(f"XAI Grok text API call: model={model_name}, reasoning_effort={reasoning_effort}")
+    from xai_sdk import Client
+    from xai_sdk.chat import user, system
+    import grpc
+
+    client = Client(
+    api_host="api.x.ai",
+    api_key=os.getenv("XAI_API_KEY")
+    )
+
     from xai_sdk import Client
     from xai_sdk.chat import user, system
     import grpc
@@ -642,6 +701,7 @@ def xai_grok_text_completion(system_prompt, model_name, prompt, reasoning_effort
         "temperature": temperature,
         "max_tokens": token_limit
     }
+
 
     if "grok-3-mini" in model_name:
         params["reasoning_effort"] = reasoning_effort
@@ -697,6 +757,7 @@ def openai_multiimage_completion(system_prompt, model_name, prompt, list_content
         token_limit = 32768
     elif "o3" in model_name:
         print("o3 only supports 32768 tokens")
+        print("o3 only supports 32768 tokens")
         token_limit = 10000
 
     content_blocks = []
@@ -727,6 +788,7 @@ def openai_multiimage_completion(system_prompt, model_name, prompt, list_content
     ]
     
     # Update token parameter logic to include all o-series models
+    token_param = "max_completion_tokens" if ("o1" in model_name or "o4" in model_name or "o3" in model_name or "gpt-5" in model_name) else "max_tokens"
     token_param = "max_completion_tokens" if ("o1" in model_name or "o4" in model_name or "o3" in model_name or "gpt-5" in model_name) else "max_tokens"
     
     request_params = {
@@ -1062,7 +1124,9 @@ def parse_vllm_model_name(model_name: str) -> str:
 def vllm_text_completion(
     system_prompt, 
     model_name, 
+    model_name, 
     prompt, 
+    token_limit=500000, 
     token_limit=500000, 
     temperature=1, 
     port=8000,
@@ -1070,11 +1134,13 @@ def vllm_text_completion(
 ):
     url = f"http://{host}:{port}/v1/chat/completions"
     headers = {"Content-Type": "application/json"}
+    headers = {"Content-Type": "application/json"}
     messages = [
         {"role": "system", "content": system_prompt},
         {"role": "user", "content": prompt}
     ]
 
+    model_name = parse_vllm_model_name(model_name)
     model_name = parse_vllm_model_name(model_name)
     payload = {
         "model": model_name,
@@ -1090,6 +1156,7 @@ def vllm_text_completion(
 def vllm_completion(
     system_prompt,
     model_name,
+    model_name,
     prompt,
     base64_image=None,
     token_limit=30000,
@@ -1098,6 +1165,7 @@ def vllm_completion(
     host="localhost"
 ):
     url = f"http://{host}:{port}/v1/chat/completions"
+    headers = {"Content-Type": "application/json"}
     headers = {"Content-Type": "application/json"}
 
     # Construct the user message content
@@ -1115,6 +1183,7 @@ def vllm_completion(
     messages.append({"role": "user", "content": user_content})
 
     model_name = parse_vllm_model_name(model_name)
+    model_name = parse_vllm_model_name(model_name)
     payload = {
         "model": model_name,
         "messages": messages,
@@ -1125,12 +1194,15 @@ def vllm_completion(
 
     print(f"payload: {payload}")
 
+    print(f"payload: {payload}")
+
     response = requests.post(url, headers=headers, json=payload)
     response.raise_for_status()
     return response.json()["choices"][0]["message"]["content"]
 
 def vllm_multiimage_completion(
     system_prompt,
+    model_name,
     model_name,
     prompt,
     list_image_base64,
@@ -1140,6 +1212,7 @@ def vllm_multiimage_completion(
     host="localhost"
 ):
     url = f"http://{host}:{port}/v1/chat/completions"
+    headers = {"Content-Type": "application/json"}
     headers = {"Content-Type": "application/json"}
 
     # Construct the user message content with multiple images
@@ -1153,6 +1226,7 @@ def vllm_multiimage_completion(
         messages.append({"role": "system", "content": system_prompt})
     messages.append({"role": "user", "content": user_content})
 
+    model_name = parse_vllm_model_name(model_name)
     model_name = parse_vllm_model_name(model_name)
     payload = {
         "model": model_name,
@@ -1190,6 +1264,10 @@ def modal_vllm_text_completion(
     if not url.endswith('/v1'):
         url = url + '/v1'
 
+    # Ensure URL ends with /v1
+    if not url.endswith('/v1'):
+        url = url + '/v1'
+
     print(f"calling modal_vllm_text_completion...\nmodel_name: {model_name}\nurl: {url}\n")
 
     if api_key:
@@ -1201,6 +1279,20 @@ def modal_vllm_text_completion(
     if system_prompt:
         messages.append({"role": "system", "content": system_prompt})
     messages.append({"role": "user", "content": prompt})
+
+    if "Qwen2.5-7B" in model_name and token_limit > 20000:
+        print("Qwen2.5 7B only supports 32768 tokens")
+        token_limit = 20000
+    
+    if "Qwen2.5-14B" in model_name and token_limit > 30000:
+        print("Qwen2.5 14B only supports 32768 tokens")
+        token_limit = 30000
+
+    if "Qwen2.5-32B" in model_name and token_limit > 10000:
+        token_limit = 10000
+
+    if "Qwen2.5-72B" in model_name and token_limit > 8000:
+        token_limit = 8000
 
     if "Qwen2.5-7B" in model_name and token_limit > 20000:
         print("Qwen2.5 7B only supports 32768 tokens")
@@ -1241,6 +1333,11 @@ def modal_vllm_completion(
     if not url.endswith('/v1'):
         url = url + '/v1'
     
+    
+    # Ensure URL ends with /v1
+    if not url.endswith('/v1'):
+        url = url + '/v1'
+    
     print(f"calling modal_vllm_completion...\nmodel_name: {model_name}\nurl: {url}\n")
     
     if api_key:
@@ -1260,6 +1357,10 @@ def modal_vllm_completion(
     if system_prompt:
         messages.append({"role": "system", "content": system_prompt})
     messages.append({"role": "user", "content": user_content})
+    
+    if "Qwen-2.5-7B" in model_name and token_limit > 20000:
+        print("Qwen-2.5 7B only supports 32768 tokens")
+        token_limit = 20000
     
     if "Qwen-2.5-7B" in model_name and token_limit > 20000:
         print("Qwen-2.5 7B only supports 32768 tokens")
@@ -1290,6 +1391,11 @@ def modal_vllm_multiimage_completion(
     if not url.endswith('/v1'):
         url = url + '/v1'
     
+    
+    # Ensure URL ends with /v1
+    if not url.endswith('/v1'):
+        url = url + '/v1'
+    
     print(f"calling modal_multiimage_vllm_completion...\nmodel_name: {model_name}\nurl: {url}\n")
     
     if api_key:
@@ -1309,6 +1415,10 @@ def modal_vllm_multiimage_completion(
     if system_prompt:
         messages.append({"role": "system", "content": system_prompt})
     messages.append({"role": "user", "content": user_content})
+
+    if "Qwen-2.5-7B" in model_name and token_limit > 20000:
+        print("Qwen-2.5 7B only supports 32768 tokens")
+        token_limit = 20000
 
     if "Qwen-2.5-7B" in model_name and token_limit > 20000:
         print("Qwen-2.5 7B only supports 32768 tokens")

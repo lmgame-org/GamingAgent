@@ -393,6 +393,7 @@ class APIManager:
         temperature: float = 1,
         thinking: bool = False,
         reasoning_effort: str = "high",
+        reasoning_effort: str = "high",
         token_limit: int = 30000,
     ) -> Tuple[str, Dict[str, Any]]:
         """
@@ -475,6 +476,7 @@ class APIManager:
                     temperature=temperature,
                     token_limit=token_limit,
                     # TODO: support non-localhost vllm servers
+                    # TODO: support non-localhost vllm servers
                 )
             elif model_name.startswith("modal-"):
                 # TODO: make different modal backend configurable
@@ -489,6 +491,25 @@ class APIManager:
                 )
             elif "llama" in model_name.lower() or "meta" in model_name.lower() or (model_name == "deepseek-ai/DeepSeek-R1") or (model_name == "Qwen/Qwen3-235B-A22B-fp8-turbo"):
                 completion = together_ai_completion(
+                    system_prompt=system_prompt,
+                    model_name=model_name,
+                    base64_image=base64_image,
+                    prompt=prompt,
+                    temperature=temperature,
+                    token_limit=token_limit
+                )
+
+            elif "kimi" in model_name.lower():
+                completion = moonshot_completion(
+                    system_prompt=system_prompt,
+                    model_name=model_name,
+                    base64_image=base64_image,
+                    prompt=prompt,
+                    temperature=temperature,
+                    token_limit=token_limit
+                )
+            elif "step" in model_name:
+                completion = stepfun_completion(
                     system_prompt=system_prompt,
                     model_name=model_name,
                     base64_image=base64_image,
@@ -661,6 +682,31 @@ class APIManager:
                     prompt=empty_prompt,
                     temperature=temperature,
                 )
+            elif "moonshot" in model_name.lower() or "kimi" in model_name.lower():
+                # Handle both direct Moonshot API models and Kimi variants
+                completion = moonshot_completion(
+                    system_prompt=system_prompt,
+                    model_name=model_name,
+                    base64_image=base64_image,
+                    prompt=empty_prompt,
+                    temperature=temperature
+                )
+            elif model_name in ["kimi-thinking-preview"]:
+                completion = moonshot_completion(
+                    system_prompt=system_prompt,
+                    model_name=model_name,
+                    base64_image=base64_image,
+                    prompt=empty_prompt,
+                    temperature=temperature
+                )
+            elif "step" in model_name:
+                completion = stepfun_completion(
+                    system_prompt=system_prompt,
+                    model_name=model_name,
+                    base64_image=base64_image,
+                    prompt=empty_prompt,
+                    temperature=temperature,
+                )
             else:
                 raise ValueError(f"Unsupported model: {model_name}")
             
@@ -719,6 +765,7 @@ class APIManager:
         session_name: Optional[str] = None,
         temperature: float = 1,
         thinking: bool = False,
+        reasoning_effort: str = "high",
         reasoning_effort: str = "high",
         token_limit: int = 30000,
     ) -> Tuple[str, Dict[str, Any]]:
@@ -781,6 +828,7 @@ class APIManager:
                     prompt=prompt,
                     temperature=temperature,
                     token_limit=token_limit,
+                    # TODO: support non-localhost vllm servers
                     # TODO: support non-localhost vllm servers
                 )
             elif model_name.startswith("modal-"):
@@ -896,6 +944,7 @@ class APIManager:
         temperature: float = 1,
         thinking: bool = False,
         reasoning_effort: str = "high",
+        reasoning_effort: str = "high",
         token_limit: int = 30000,
     ) -> Tuple[str, Dict[str, Any]]:
         """
@@ -941,6 +990,7 @@ class APIManager:
         temperature: float = 1,
         thinking: bool = False,
         reasoning_effort: str = "high",
+        reasoning_effort: str = "high",
         token_limit: int = 30000,
     ) -> Tuple[str, Dict[str, Any]]:
         """
@@ -983,6 +1033,7 @@ class APIManager:
         list_image_base64: Optional[List[str]] = None,
         session_name: Optional[str] = None,
         temperature: float = 1,
+        reasoning_effort: str = "high",
         reasoning_effort: str = "high",
     ) -> Tuple[str, Dict[str, Any]]:
         """
@@ -1067,6 +1118,7 @@ class APIManager:
                     base64_image=list_image_base64,
                     temperature=temperature,
                     # TODO: support non-localhost vllm servers
+                    # TODO: support non-localhost vllm servers
                 )
             elif model_name.startswith("modal-"):
                 # TODO: make different modal backend configurable
@@ -1077,6 +1129,25 @@ class APIManager:
                     base64_image=list_image_base64,
                     temperature=temperature,
                     url=self.modal_url,
+                )
+
+            elif "kimi" in model_name.lower():
+                completion = moonshot_multiimage_completion(
+                    system_prompt=system_prompt,
+                    model_name=model_name,
+                    prompt=prompt,
+                    list_content=list_content,
+                    list_image_base64=list_image_base64,
+                    temperature=temperature
+                )
+            elif "step" in model_name:
+                completion = stepfun_multiimage_completion(
+                    system_prompt=system_prompt,
+                    model_name=model_name,
+                    prompt=prompt,
+                    list_content=list_content,
+                    list_image_base64=list_image_base64,
+                    temperature=temperature
                 )
 
             elif "kimi" in model_name.lower():

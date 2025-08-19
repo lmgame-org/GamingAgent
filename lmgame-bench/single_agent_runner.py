@@ -83,6 +83,7 @@ def parse_arguments(defaults_map=None, argv_to_parse=None):
     parser.add_argument("--max_steps_per_episode", type=int, default=1000, help="Max steps per episode.")
     parser.add_argument("--use_custom_prompt", action="store_true", help="If set, will use the custom prompt from module_prompts.json if present.")
     parser.add_argument("--scaffolding", type=str, default=None, help="Grid dimensions as '(rows,cols)' for coordinate grid on images, e.g., '(5,5)'. Default is None.")
+    parser.add_argument("--scaffolding", type=str, default=None, help="Grid dimensions as '(rows,cols)' for coordinate grid on images, e.g., '(5,5)'. Default is None.")
     parser.add_argument("--seed", type=int, default=None, help="Random seed for environment.")
     # Env type is fixed to custom gym for this runner
 
@@ -99,6 +100,24 @@ def parse_arguments(defaults_map=None, argv_to_parse=None):
         default=None,
         help="Optional URL for a vLLM inference endpoint passed to BaseAgent.",
     )
+<<<<<<< HEAD
+=======
+
+    # Serving-related arguments
+    parser.add_argument(
+        "--modal_url",
+        type=str,
+        default=None,
+        help="Optional URL for a Modal‑hosted inference endpoint passed to BaseAgent.",
+    )
+    parser.add_argument(
+        "--vllm_url",
+        type=str,
+        default=None,
+        help="Optional URL for a vLLM inference endpoint passed to BaseAgent.",
+    )
+
+>>>>>>> origin/main
     # First parse args with just command line values
     if argv_to_parse:
         args = parser.parse_args(argv_to_parse)
