@@ -7,7 +7,6 @@ import httpx
 
 from openai import OpenAI
 from openai import RateLimitError, APITimeoutError, APIConnectionError, APIStatusError, BadRequestError
-from openai import RateLimitError, APITimeoutError, APIConnectionError, APIStatusError, BadRequestError
 import anthropic
 import google.generativeai as genai
 from google.generativeai import types
@@ -555,16 +554,6 @@ def openai_text_completion(system_prompt, model_name, prompt, token_limit=30000,
     else:
         response = client.chat.completions.create(**request_params)
         generated_str = response.choices[0].message.content
-    if model_name == "o3-pro":
-        messages[0]['content'][0]['type'] = "input_text"
-        response = client.responses.create(
-            model="o3-pro",
-            input=messages,
-        )
-        generated_str = response.output[1].content[0].text
-    else:
-        response = client.chat.completions.create(**request_params)
-        generated_str = response.choices[0].message.content
     return generated_str
 
 @retry_on_openai_error
@@ -621,16 +610,7 @@ def openai_text_reasoning_completion(system_prompt, model_name, prompt, temperat
     else:
         response = client.chat.completions.create(**request_params)
         generated_str = response.choices[0].message.content
-    if model_name == "o3-pro":
-        messages[0]['content'][0]['type'] = "input_text"
-        response = client.responses.create(
-            model="o3-pro",
-            input=messages,
-        )
-        generated_str = response.output[1].content[0].text
-    else:
-        response = client.chat.completions.create(**request_params)
-        generated_str = response.choices[0].message.content
+    
     return generated_str
 
 def deepseek_text_reasoning_completion(system_prompt, model_name, prompt, token_limit=30000):
@@ -1121,13 +1101,11 @@ def vllm_text_completion(
 ):
     url = f"http://{host}:{port}/v1/chat/completions"
     headers = {"Content-Type": "application/json"}
-    headers = {"Content-Type": "application/json"}
     messages = [
         {"role": "system", "content": system_prompt},
         {"role": "user", "content": prompt}
     ]
 
-    model_name = parse_vllm_model_name(model_name)
     model_name = parse_vllm_model_name(model_name)
     payload = {
         "model": model_name,
@@ -1152,7 +1130,6 @@ def vllm_completion(
 ):
     url = f"http://{host}:{port}/v1/chat/completions"
     headers = {"Content-Type": "application/json"}
-    headers = {"Content-Type": "application/json"}
 
     # Construct the user message content
     if base64_image:
@@ -1176,8 +1153,6 @@ def vllm_completion(
         "temperature": temperature,
         "stream": False
     }
-
-    print(f"payload: {payload}")
 
     print(f"payload: {payload}")
 
@@ -1337,8 +1312,6 @@ def modal_vllm_completion(
     if "Qwen-2.5-7B" in model_name and token_limit > 20000:
         print("Qwen-2.5 7B only supports 32768 tokens")
         token_limit = 20000
-    
-    
 
     response = client.chat.completions.create(
         model=model_name,
@@ -1385,10 +1358,6 @@ def modal_vllm_multiimage_completion(
     if system_prompt:
         messages.append({"role": "system", "content": system_prompt})
     messages.append({"role": "user", "content": user_content})
-
-    if "Qwen-2.5-7B" in model_name and token_limit > 20000:
-        print("Qwen-2.5 7B only supports 32768 tokens")
-        token_limit = 20000
 
     if "Qwen-2.5-7B" in model_name and token_limit > 20000:
         print("Qwen-2.5 7B only supports 32768 tokens")
