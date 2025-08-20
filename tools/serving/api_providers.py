@@ -47,7 +47,6 @@ def estimate_token_count(text: str) -> int:
 def _sleep_with_backoff(base_delay: int, attempt: int) -> None:
     delay = base_delay * (2 ** attempt) + random.uniform(0, 1)
     print(f"Retrying in {delay:.2f}s … (attempt {attempt + 1})")
-    print(f"Retrying in {delay:.2f}s … (attempt {attempt + 1})")
     time.sleep(delay)
 
 def retry_on_stepfun_error(func):
@@ -464,7 +463,6 @@ def openai_completion(system_prompt, model_name, base64_image, prompt, temperatu
         token_limit = 32768
     elif "o3" in model_name:
         print("o3 only supports 32768 tokens")
-        print("o3 only supports 32768 tokens")
         token_limit = 10000
 
     # Force-clean headers to prevent UnicodeEncodeError
@@ -492,7 +490,6 @@ def openai_completion(system_prompt, model_name, base64_image, prompt, temperatu
 
     # Update token parameter logic to include o4 models
     token_param = "max_completion_tokens" if ("o1" in model_name or "o4" in model_name or "o3" in model_name or "gpt-5" in model_name) else "max_tokens"
-    token_param = "max_completion_tokens" if ("o1" in model_name or "o4" in model_name or "o3" in model_name or "gpt-5" in model_name) else "max_tokens"
     request_params = {
         "model": model_name,
         "messages": messages,
@@ -519,8 +516,7 @@ def openai_text_completion(system_prompt, model_name, prompt, token_limit=30000,
         print("gpt-4.1 only supports 32768 tokens")
         token_limit = 32768
     elif "o3" in model_name:
-        print("o3 only supports 32768 tokens")
-        print("o3 only supports 32768 tokens")
+        print("o3 only supports 32768 tokens") 
         token_limit = 10000
 
     messages = [
@@ -537,8 +533,6 @@ def openai_text_completion(system_prompt, model_name, prompt, token_limit=30000,
 
     # Update token parameter logic to include all o-series models
     token_param = "max_completion_tokens" if ("o1" in model_name or "o4" in model_name or "o3" in model_name or "gpt-5" in model_name) else "max_tokens"
-    token_param = "max_completion_tokens" if ("o1" in model_name or "o4" in model_name or "o3" in model_name or "gpt-5" in model_name) else "max_tokens"
-    
     request_params = {
         "model": model_name,
         "messages": messages,
@@ -587,7 +581,6 @@ def openai_text_reasoning_completion(system_prompt, model_name, prompt, temperat
         token_limit = 32768
     elif "o3" in model_name:
         print("o3 only supports 32768 tokens")
-        print("o3 only supports 32768 tokens")
         token_limit = 10000
     
     messages = [
@@ -604,8 +597,7 @@ def openai_text_reasoning_completion(system_prompt, model_name, prompt, temperat
 
     # Update token parameter logic to include all o-series models
     token_param = "max_completion_tokens" if ("o1" in model_name or "o4" in model_name or "o3" in model_name or "gpt-5" in model_name) else "max_tokens"
-    token_param = "max_completion_tokens" if ("o1" in model_name or "o4" in model_name or "o3" in model_name or "gpt-5" in model_name) else "max_tokens"
-    
+ 
     # Prepare request parameters dynamically
     request_params = {
         "model": model_name,
@@ -757,7 +749,6 @@ def openai_multiimage_completion(system_prompt, model_name, prompt, list_content
         token_limit = 32768
     elif "o3" in model_name:
         print("o3 only supports 32768 tokens")
-        print("o3 only supports 32768 tokens")
         token_limit = 10000
 
     content_blocks = []
@@ -789,8 +780,6 @@ def openai_multiimage_completion(system_prompt, model_name, prompt, list_content
     
     # Update token parameter logic to include all o-series models
     token_param = "max_completion_tokens" if ("o1" in model_name or "o4" in model_name or "o3" in model_name or "gpt-5" in model_name) else "max_tokens"
-    token_param = "max_completion_tokens" if ("o1" in model_name or "o4" in model_name or "o3" in model_name or "gpt-5" in model_name) else "max_tokens"
-    
     request_params = {
         "model": model_name,
         "messages": messages,
@@ -1257,9 +1246,7 @@ def modal_vllm_text_completion(
     if not url.endswith('/v1'):
         url = url + '/v1'
 
-    # Ensure URL ends with /v1
-    if not url.endswith('/v1'):
-        url = url + '/v1'
+   
 
     print(f"calling modal_vllm_text_completion...\nmodel_name: {model_name}\nurl: {url}\n")
 
@@ -1327,10 +1314,6 @@ def modal_vllm_completion(
         url = url + '/v1'
     
     
-    # Ensure URL ends with /v1
-    if not url.endswith('/v1'):
-        url = url + '/v1'
-    
     print(f"calling modal_vllm_completion...\nmodel_name: {model_name}\nurl: {url}\n")
     
     if api_key:
@@ -1355,9 +1338,7 @@ def modal_vllm_completion(
         print("Qwen-2.5 7B only supports 32768 tokens")
         token_limit = 20000
     
-    if "Qwen-2.5-7B" in model_name and token_limit > 20000:
-        print("Qwen-2.5 7B only supports 32768 tokens")
-        token_limit = 20000
+    
 
     response = client.chat.completions.create(
         model=model_name,
@@ -1384,10 +1365,6 @@ def modal_vllm_multiimage_completion(
     if not url.endswith('/v1'):
         url = url + '/v1'
     
-    
-    # Ensure URL ends with /v1
-    if not url.endswith('/v1'):
-        url = url + '/v1'
     
     print(f"calling modal_multiimage_vllm_completion...\nmodel_name: {model_name}\nurl: {url}\n")
     
