@@ -100,24 +100,6 @@ def parse_arguments(defaults_map=None, argv_to_parse=None):
         default=None,
         help="Optional URL for a vLLM inference endpoint passed to BaseAgent.",
     )
-<<<<<<< HEAD
-=======
-
-    # Serving-related arguments
-    parser.add_argument(
-        "--modal_url",
-        type=str,
-        default=None,
-        help="Optional URL for a Modal‑hosted inference endpoint passed to BaseAgent.",
-    )
-    parser.add_argument(
-        "--vllm_url",
-        type=str,
-        default=None,
-        help="Optional URL for a vLLM inference endpoint passed to BaseAgent.",
-    )
-
->>>>>>> origin/main
     # First parse args with just command line values
     if argv_to_parse:
         args = parser.parse_args(argv_to_parse)
