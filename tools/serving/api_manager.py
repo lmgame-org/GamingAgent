@@ -44,7 +44,8 @@ from .api_providers import (
     moonshot_multiimage_completion,
     stepfun_text_completion,
     stepfun_completion,
-    stepfun_multiimage_completion
+    stepfun_multiimage_completion,
+    zai_text_completion
 )
 
 # Import cost calculator utilities
@@ -514,6 +515,25 @@ class APIManager:
                     temperature=temperature,
                     token_limit=token_limit
                 )
+
+            elif "kimi" in model_name.lower():
+                completion = moonshot_completion(
+                    system_prompt=system_prompt,
+                    model_name=model_name,
+                    base64_image=base64_image,
+                    prompt=prompt,
+                    temperature=temperature,
+                    token_limit=token_limit
+                )
+            elif "step" in model_name:
+                completion = stepfun_completion(
+                    system_prompt=system_prompt,
+                    model_name=model_name,
+                    base64_image=base64_image,
+                    prompt=prompt,
+                    temperature=temperature,
+                    token_limit=token_limit
+                )
             else:
                 raise ValueError(f"Unsupported model: {model_name}")
             
@@ -634,6 +654,31 @@ class APIManager:
                     base64_image=base64_image,
                     temperature=temperature,
                     url=self.modal_url
+                )
+            elif "moonshot" in model_name.lower() or "kimi" in model_name.lower():
+                # Handle both direct Moonshot API models and Kimi variants
+                completion = moonshot_completion(
+                    system_prompt=system_prompt,
+                    model_name=model_name,
+                    base64_image=base64_image,
+                    prompt=empty_prompt,
+                    temperature=temperature
+                )
+            elif model_name in ["kimi-thinking-preview"]:
+                completion = moonshot_completion(
+                    system_prompt=system_prompt,
+                    model_name=model_name,
+                    base64_image=base64_image,
+                    prompt=empty_prompt,
+                    temperature=temperature
+                )
+            elif "step" in model_name:
+                completion = stepfun_completion(
+                    system_prompt=system_prompt,
+                    model_name=model_name,
+                    base64_image=base64_image,
+                    prompt=empty_prompt,
+                    temperature=temperature,
                 )
             elif "moonshot" in model_name.lower() or "kimi" in model_name.lower():
                 # Handle both direct Moonshot API models and Kimi variants
@@ -831,6 +876,15 @@ class APIManager:
                     prompt=prompt,
                     temperature=temperature,
                     token_limit=token_limit
+                )
+            elif "glm-" in model_name.lower():
+                completion = zai_text_completion(
+                    system_prompt=system_prompt,
+                    model_name=model_name,
+                    prompt=prompt,
+                    temperature=temperature,
+                    token_limit=token_limit,
+                    thinking=thinking
                 )
             else:
                 raise ValueError(f"Unsupported model: {model_name}")
@@ -1067,6 +1121,25 @@ class APIManager:
                     base64_image=list_image_base64,
                     temperature=temperature,
                     url=self.modal_url,
+                )
+
+            elif "kimi" in model_name.lower():
+                completion = moonshot_multiimage_completion(
+                    system_prompt=system_prompt,
+                    model_name=model_name,
+                    prompt=prompt,
+                    list_content=list_content,
+                    list_image_base64=list_image_base64,
+                    temperature=temperature
+                )
+            elif "step" in model_name:
+                completion = stepfun_multiimage_completion(
+                    system_prompt=system_prompt,
+                    model_name=model_name,
+                    prompt=prompt,
+                    list_content=list_content,
+                    list_image_base64=list_image_base64,
+                    temperature=temperature
                 )
 
             elif "kimi" in model_name.lower():

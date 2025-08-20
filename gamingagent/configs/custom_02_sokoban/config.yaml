@@ -15,7 +15,7 @@ agent:
   reasoning_effort: "high"
   token_limit: 50000
   harness: true  # Whether to use the perception-memory-reasoning pipeline
-  observation_mode: "both"  # Options: "vision", "text", "both"
+  observation_mode: "text"  # Options: "vision", "text", "both"
   use_reflection: true
   use_perception: true
   # Module-specific settings

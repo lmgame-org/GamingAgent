@@ -1,5 +1,6 @@
 import os
 import random
+import random
 import time
 import functools
 import httpx
@@ -9,9 +10,26 @@ from openai import RateLimitError, APITimeoutError, APIConnectionError, APIStatu
 import anthropic
 import google.generativeai as genai
 from google.generativeai import types
+import google.api_core.exceptions
 from together import Together
 
+from zai import ZaiClient
+
+
+
 import requests
+import grpc
+
+from typing import Optional, List, Any
+
+def estimate_token_count(text: str) -> int:
+    """
+    Rough estimation of token count for text.
+    Uses a simple heuristic of ~4 characters per token.
+    """
+    if not text:
+        return 0
+    return len(text) // 4
 import grpc
 
 from typing import Optional, List, Any
@@ -56,7 +74,7 @@ def retry_on_stepfun_error(func):
                 raise
 
             except (RateLimitError, APITimeoutError, APIConnectionError,
-                    httpx.RemoteProtocolError) as e:
+                    httpx.RemoteProtocolError, httpx.ReadTimeout) as e:
                 # Transient; back off and retry.
                 if attempt < max_retries - 1:
                     print(f"StepFun transient error: {e}")
@@ -110,9 +128,14 @@ def retry_on_openai_error(func):
                 print(f"OpenAI BadRequestError (not retrying): {e}")
                 raise
 
+            # BadRequestError should NOT be retried - it indicates invalid request
+            except BadRequestError as e:
+                print(f"OpenAI BadRequestError (not retrying): {e}")
+                raise
+
             # transient issues worth retrying
             except (RateLimitError, APITimeoutError, APIConnectionError,
-                    httpx.RemoteProtocolError) as e:
+                    httpx.RemoteProtocolError, httpx.ReadTimeout) as e:
                 if attempt < max_retries - 1:
                     print(f"OpenAI transient error: {e}")
                     _sleep_with_backoff(base_delay, attempt)
@@ -131,6 +154,8 @@ def retry_on_openai_error(func):
 
 def retry_on_overload(func):
     """
+    A decorator to retry a function call on anthropic.APIStatusError with 'overloaded_error',
+    httpx.RemoteProtocolError, or when the API returns None/empty response.
     A decorator to retry a function call on anthropic.APIStatusError with 'overloaded_error',
     httpx.RemoteProtocolError, or when the API returns None/empty response.
     A decorator to retry a function call on anthropic.APIStatusError with 'overloaded_error',
@@ -171,7 +196,7 @@ def retry_on_overload(func):
                 else:
                     # Re-raise if it's not an overload error
                     raise
-            except httpx.RemoteProtocolError as e:
+            except (httpx.RemoteProtocolError, httpx.ReadTimeout) as e:
                 if attempt < max_retries - 1:
                     delay = base_delay * (2 ** attempt) + (os.urandom(1)[0] / 255.0)
                     print(f"Streaming connection closed unexpectedly. Retrying in {delay:.2f} seconds... (Attempt {attempt + 1}/{max_retries})")
@@ -490,7 +515,7 @@ def openai_text_completion(system_prompt, model_name, prompt, token_limit=30000,
         print("gpt-4.1 only supports 32768 tokens")
         token_limit = 32768
     elif "o3" in model_name:
-        print("o3 only supports 32768 tokens")
+        print("o3 only supports 32768 tokens") 
         token_limit = 10000
 
     messages = [
@@ -507,7 +532,6 @@ def openai_text_completion(system_prompt, model_name, prompt, token_limit=30000,
 
     # Update token parameter logic to include all o-series models
     token_param = "max_completion_tokens" if ("o1" in model_name or "o4" in model_name or "o3" in model_name or "gpt-5" in model_name) else "max_tokens"
-    
     request_params = {
         "model": model_name,
         "messages": messages,
@@ -536,6 +560,7 @@ def openai_text_completion(system_prompt, model_name, prompt, token_limit=30000,
 def openai_text_reasoning_completion(system_prompt, model_name, prompt, temperature=1, token_limit=30000, reasoning_effort="medium"):
     print(f"OpenAI text-reasoning API call: model={model_name}, reasoning_effort={reasoning_effort}")
     
+    
     client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
     if "gpt-4o" in model_name:
         print("gpt-4o only supports 16384 tokens")
@@ -561,7 +586,7 @@ def openai_text_reasoning_completion(system_prompt, model_name, prompt, temperat
 
     # Update token parameter logic to include all o-series models
     token_param = "max_completion_tokens" if ("o1" in model_name or "o4" in model_name or "o3" in model_name or "gpt-5" in model_name) else "max_tokens"
-    
+ 
     # Prepare request parameters dynamically
     request_params = {
         "model": model_name,
@@ -585,6 +610,7 @@ def openai_text_reasoning_completion(system_prompt, model_name, prompt, temperat
     else:
         response = client.chat.completions.create(**request_params)
         generated_str = response.choices[0].message.content
+    
     return generated_str
 
 def deepseek_text_reasoning_completion(system_prompt, model_name, prompt, token_limit=30000):
@@ -621,8 +647,18 @@ def deepseek_text_reasoning_completion(system_prompt, model_name, prompt, token_
     return content
 
 
+
 def xai_grok_text_completion(system_prompt, model_name, prompt, reasoning_effort="high", token_limit=30000, temperature=1):
     print(f"XAI Grok text API call: model={model_name}, reasoning_effort={reasoning_effort}")
+    from xai_sdk import Client
+    from xai_sdk.chat import user, system
+    import grpc
+
+    client = Client(
+    api_host="api.x.ai",
+    api_key=os.getenv("XAI_API_KEY")
+    )
+
     from xai_sdk import Client
     from xai_sdk.chat import user, system
     import grpc
@@ -637,6 +673,7 @@ def xai_grok_text_completion(system_prompt, model_name, prompt, reasoning_effort
         "temperature": temperature,
         "max_tokens": token_limit
     }
+
 
     if "grok-3-mini" in model_name:
         params["reasoning_effort"] = reasoning_effort
@@ -659,7 +696,14 @@ def xai_grok_text_completion(system_prompt, model_name, prompt, reasoning_effort
             if code in [
                     grpc.StatusCode.RESOURCE_EXHAUSTED, 
                     grpc.StatusCode.DEADLINE_EXCEEDED,
-                    grpc.StatusCode.UNKNOWN
+                    grpc.StatusCode.UNKNOWN,
+                    grpc.StatusCode.INTERNAL,
+                    grpc.StatusCode.UNAVAILABLE,
+                    grpc.StatusCode.UNIMPLEMENTED,
+                    grpc.StatusCode.ABORTED,
+                    grpc.StatusCode.FAILED_PRECONDITION,
+                    grpc.StatusCode.OUT_OF_RANGE,
+                    grpc.StatusCode.NOT_FOUND,
             ]:
                 # token per min: 16k
                 # DEADLINE_EXCEEDED
@@ -716,7 +760,6 @@ def openai_multiimage_completion(system_prompt, model_name, prompt, list_content
     
     # Update token parameter logic to include all o-series models
     token_param = "max_completion_tokens" if ("o1" in model_name or "o4" in model_name or "o3" in model_name or "gpt-5" in model_name) else "max_tokens"
-    
     request_params = {
         "model": model_name,
         "messages": messages,
@@ -736,45 +779,30 @@ def openai_multiimage_completion(system_prompt, model_name, prompt, list_content
 
 def gemini_text_completion(system_prompt, model_name, prompt, token_limit=30000):
     genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
-    model = genai.GenerativeModel(model_name=model_name)
+    model = genai.GenerativeModel(model_name=model_name, system_instruction=system_prompt if system_prompt else None)
     print(f"gemini_text_completion: model_name={model_name}, token_limit={token_limit}")
 
     messages = [
         prompt,
     ]
             
-    try:
-        response = model.generate_content(
-            messages,
-            generation_config=types.GenerationConfig(
-                max_output_tokens=token_limit
-            )
+    response = model.generate_content(
+        messages,
+        generation_config=types.GenerationConfig(
+            max_output_tokens=token_limit
         )
-    except Exception as e:
-        print(f"error: {e}")
+    )
 
-    try:
-        response = model.generate_content(
-            messages,
-            generation_config=types.GenerationConfig(
-                max_output_tokens=token_limit
-            )
-        )
-
-        # Ensure response is valid and contains candidates
-        if not response or not hasattr(response, "candidates") or not response.candidates:
-            print("Warning: Empty or invalid response")
-            return ""
-        
-        return response.text  # Access response.text safely
-
-    except Exception as e:
-        print(f"Error: {e}")
-        return "" 
+    # Ensure response is valid and contains candidates
+    if not response or not hasattr(response, "candidates") or not response.candidates:
+        print("Warning: Empty or invalid response from Gemini.")
+        return ""
+    
+    return response.text  # Access response.text safely
 
 def gemini_completion(system_prompt, model_name, base64_image, prompt, token_limit=30000):
     genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
-    model = genai.GenerativeModel(model_name=model_name)
+    model = genai.GenerativeModel(model_name=model_name, system_instruction=system_prompt if system_prompt else None)
     print(f"gemini_completion: model_name={model_name}, token_limit={token_limit}")
     messages = [
         {
@@ -784,38 +812,23 @@ def gemini_completion(system_prompt, model_name, base64_image, prompt, token_lim
         prompt,
     ]
             
-    try:
-        response = model.generate_content(
-            messages,
-            generation_config=types.GenerationConfig(
-                max_output_tokens=token_limit
-            )
+    response = model.generate_content(
+        messages,
+        generation_config=types.GenerationConfig(
+            max_output_tokens=token_limit
         )
-    except Exception as e:
-        print(f"error: {e}")
+    )
 
-    try:
-        response = model.generate_content(
-            messages,
-            generation_config=types.GenerationConfig(
-                max_output_tokens=token_limit
-            )
-        )
-
-        # Ensure response is valid and contains candidates
-        if not response or not hasattr(response, "candidates") or not response.candidates:
-            print("Warning: Empty or invalid response")
-            return ""
-        
-        return response.text  # Access response.text safely
-
-    except Exception as e:
-        print(f"Error: {e}")
-        return "" 
+    # Ensure response is valid and contains candidates
+    if not response or not hasattr(response, "candidates") or not response.candidates:
+        print("Warning: Empty or invalid response from Gemini.")
+        return ""
+    
+    return response.text  # Access response.text safely
 
 def gemini_multiimage_completion(system_prompt, model_name, prompt, list_content, list_image_base64, token_limit=30000):
     genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
-    model = genai.GenerativeModel(model_name=model_name)
+    model = genai.GenerativeModel(model_name=model_name, system_instruction=system_prompt if system_prompt else None)
 
     content_blocks = []
     for base64_image in list_image_base64:
@@ -833,20 +846,62 @@ def gemini_multiimage_completion(system_prompt, model_name, prompt, list_content
 
     messages = content_blocks
             
-    try:
-        response = model.generate_content(
-            messages,
-            generation_config=types.GenerationConfig(
-                max_output_tokens=token_limit
-            )
+    response = model.generate_content(
+        messages,
+        generation_config=types.GenerationConfig(
+            max_output_tokens=token_limit
         )
-    except Exception as e:
-        print(f"error: {e}")
+    )
 
+    # Ensure response is valid and contains candidates
+    if not response or not hasattr(response, "candidates") or not response.candidates:
+        print("Warning: Empty or invalid response from Gemini.")
+        return ""
+    
     generated_str = response.text
 
     return generated_str
 
+
+def retry_on_gemini_error(func):
+    """
+    A decorator to retry a function call on common Gemini API errors or when the API
+    returns an empty/invalid response. It uses exponential backoff with jitter.
+    """
+    @functools.wraps(func)
+    def wrapper(*args, **kwargs):
+        max_retries = 5
+        base_delay = 2  # seconds
+        for attempt in range(max_retries):
+            try:
+                result = func(*args, **kwargs)
+                
+                if result is None or (isinstance(result, str) and not result.strip()):
+                    if attempt < max_retries - 1:
+                        delay = base_delay * (2 ** attempt) + (os.urandom(1)[0] / 255.0)
+                        print(f"Gemini API returned empty response. Retrying in {delay:.2f} seconds... (Attempt {attempt + 1}/{max_retries})")
+                        time.sleep(delay)
+                        continue
+                    else:
+                        print(f"Gemini API still returning empty/invalid after {max_retries} attempts. Returning empty string.")
+                        return ""
+                
+                return result
+                
+            except (
+                google.api_core.exceptions.InternalServerError,
+                google.api_core.exceptions.ResourceExhausted,
+                google.api_core.exceptions.ServiceUnavailable,
+                google.api_core.exceptions.DeadlineExceeded,
+            ) as e:
+                if attempt < max_retries - 1:
+                    delay = base_delay * (2 ** attempt) + (os.urandom(1)[0] / 255.0)
+                    print(f"An error occurred with Gemini API: {e}. Retrying in {delay:.2f} seconds... (Attempt {attempt + 1}/{max_retries})")
+                    time.sleep(delay)
+                else:
+                    print(f"Gemini API call failed after {max_retries} attempts. Raising the error.")
+                    raise
+    return wrapper
 
 def together_ai_completion(system_prompt, model_name, prompt, base64_image=None, temperature=1, token_limit=30000):
     try:
@@ -1166,6 +1221,8 @@ def modal_vllm_text_completion(
     if not url.endswith('/v1'):
         url = url + '/v1'
 
+   
+
     print(f"calling modal_vllm_text_completion...\nmodel_name: {model_name}\nurl: {url}\n")
 
     if api_key:
@@ -1177,6 +1234,20 @@ def modal_vllm_text_completion(
     if system_prompt:
         messages.append({"role": "system", "content": system_prompt})
     messages.append({"role": "user", "content": prompt})
+
+    if "Qwen2.5-7B" in model_name and token_limit > 20000:
+        print("Qwen2.5 7B only supports 32768 tokens")
+        token_limit = 20000
+    
+    if "Qwen2.5-14B" in model_name and token_limit > 30000:
+        print("Qwen2.5 14B only supports 32768 tokens")
+        token_limit = 30000
+
+    if "Qwen2.5-32B" in model_name and token_limit > 10000:
+        token_limit = 10000
+
+    if "Qwen2.5-72B" in model_name and token_limit > 8000:
+        token_limit = 8000
 
     if "Qwen2.5-7B" in model_name and token_limit > 20000:
         print("Qwen2.5 7B only supports 32768 tokens")
@@ -1216,6 +1287,7 @@ def modal_vllm_completion(
     # Ensure URL ends with /v1
     if not url.endswith('/v1'):
         url = url + '/v1'
+    
     
     print(f"calling modal_vllm_completion...\nmodel_name: {model_name}\nurl: {url}\n")
     
@@ -1265,6 +1337,7 @@ def modal_vllm_multiimage_completion(
     # Ensure URL ends with /v1
     if not url.endswith('/v1'):
         url = url + '/v1'
+    
     
     print(f"calling modal_multiimage_vllm_completion...\nmodel_name: {model_name}\nurl: {url}\n")
     
@@ -1324,7 +1397,7 @@ def retry_on_moonshot_error(func):
 
             # transient issues worth retrying
             except (RateLimitError, APITimeoutError, APIConnectionError,
-                    httpx.RemoteProtocolError) as e:
+                    httpx.RemoteProtocolError, httpx.ReadTimeout) as e:
                 if attempt < max_retries - 1:
                     print(f"Moonshot AI transient error: {e}")
                     _sleep_with_backoff(base_delay, attempt)
@@ -1490,6 +1563,97 @@ def moonshot_multiimage_completion(system_prompt, model_name, prompt, list_conte
     )
     
     return response.choices[0].message.content
+
+# ======== ZHIPUAI GLM API INTEGRATION ========
+
+def retry_on_zai_error(func):
+    """
+    Retry wrapper for ZAI SDK calls.
+    Retries on: RateLimitError, Timeout, APIConnectionError,
+                APIStatusError (5xx), httpx.RemoteProtocolError.
+    Immediately raises on: BadRequestError (400).
+    """
+    @functools.wraps(func)
+    def wrapper(*args, **kwargs):
+        max_retries = kwargs.pop("max_retries", 5)
+        base_delay  = kwargs.pop("base_delay", 2)
+
+        for attempt in range(max_retries):
+            try:
+                return func(*args, **kwargs)
+
+            # BadRequestError should NOT be retried - it indicates invalid request
+            except BadRequestError as e:
+                print(f"ZAI BadRequestError (not retrying): {e}")
+                raise
+
+            # transient issues worth retrying
+            except (RateLimitError, APITimeoutError, APIConnectionError,
+                    httpx.RemoteProtocolError, httpx.ReadTimeout) as e:
+                if attempt < max_retries - 1:
+                    print(f"ZAI transient error: {e}")
+                    _sleep_with_backoff(base_delay, attempt)
+                    continue
+                raise
+
+            # server‑side 5xx response
+            except APIStatusError as e:
+                if 500 <= e.status_code < 600 and attempt < max_retries - 1:
+                    print(f"ZAI server error {e.status_code}: {e.message}")
+                    _sleep_with_backoff(base_delay, attempt)
+                    continue
+                raise
+
+    return wrapper
+
+@retry_on_zai_error
+def zai_text_completion(system_prompt, model_name, prompt, temperature=0.6, token_limit=4096, thinking=True):
+    """
+    ZAI GLM text completion API call.
+    
+    Args:
+        system_prompt (str): System prompt
+        model_name (str): Model name (e.g., "glm-4.5")
+        prompt (str): User prompt
+        temperature (float): Temperature parameter
+        token_limit (int): Maximum number of tokens for the completion response
+        thinking (bool): Whether to enable thinking mode
+        
+    Returns:
+        str: Generated text
+    """
+    if ZaiClient is None:
+        raise ImportError("'zai' package not installed. Please install it to use the ZAI API provider.")
+        
+    print(f"ZAI GLM text API call: model={model_name}")
+    
+    client = ZaiClient(api_key=os.getenv("ZAI_API_KEY"))
+    
+    messages = []
+    if system_prompt:
+        messages.append({"role": "system", "content": system_prompt})
+    messages.append({"role": "user", "content": prompt})
+
+    thinking_param = {"type": "enabled"} if thinking else {"type": "disabled"}
+
+    response = client.chat.completions.create(
+        model=model_name,
+        messages=messages,
+        thinking=thinking_param,
+        stream=True,
+        max_tokens=token_limit,
+        temperature=temperature
+    )
+    
+    content = ""
+    for chunk in response:
+        if chunk.choices[0].delta.content:
+            content += chunk.choices[0].delta.content
+            
+    return content
+
+# ======== END ZHIPUAI GLM API INTEGRATION ========
+
 
 @retry_on_stepfun_error
 def stepfun_text_completion(

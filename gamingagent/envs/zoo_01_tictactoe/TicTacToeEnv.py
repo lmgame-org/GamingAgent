@@ -33,6 +33,7 @@ import gymnasium as gym
 import numpy as np
 import pygame
 from PIL import Image, ImageDraw, ImageFont
+import imageio
 from gymnasium.core import RenderFrame
 from gymnasium.spaces import Box, Discrete
 from pettingzoo.classic import tictactoe_v3
@@ -146,6 +147,27 @@ def create_board_image_tictactoe(
     if save_path:
         os.makedirs(os.path.dirname(save_path), exist_ok=True)
         img.save(save_path)
+
+def _generate_video_from_rgb_array(frames: List[np.ndarray], output_path: str, frame_rate: int = 2):
+    if not frames:
+        return
+    output_dir = os.path.dirname(output_path)
+    if not os.path.exists(output_dir):
+        os.makedirs(output_dir)
+    try:
+        writer = imageio.get_writer(
+            output_path,
+            fps=frame_rate,
+            codec='libx264',
+            pixelformat='yuv420p',
+            macro_block_size=1
+        )
+        for frame in frames:
+            writer.append_data(frame)
+        writer.close()
+        print(f"GUI video saved to {output_path}")
+    except Exception as e:
+        print(f"Error generating GUI video: {e}")
 
 # ──────────────────────────────────────────────────────────────────────────────
 # Single‑agent environment
@@ -434,6 +456,9 @@ class MultiTicTacToeEnv(SingleTicTacToeEnv):
         agent_cache_dir_for_adapter: str = "cache/tictactoe/default_run",
         game_specific_config_path_for_adapter: str = "gamingagent/envs/zoo_01_tictactoe/game_env_config.json",
         max_stuck_steps_for_adapter: Optional[int] = 10,
+        record_video: bool = True,
+        video_frame_rate: int = 2,
+
     ):
         super().__init__(
             render_mode=render_mode,
@@ -472,6 +497,14 @@ class MultiTicTacToeEnv(SingleTicTacToeEnv):
             "player_2": np.zeros((3, 3), dtype=np.uint8)
         }
 
+        self.record_video = record_video
+        self.video_frame_rate = video_frame_rate
+        self.gui_frames: List[np.ndarray] = []
+        try:
+            self.base_cache_dir = os.path.dirname(self._adapters["player_1"].agent_cache_dir)
+        except Exception:
+            self.base_cache_dir = "cache/tictactoe"
+
     def _update_current_board_state(self):
         # Get the actual board state from PettingZoo
         p1_obs = self.pz_env.observe("player_1")
@@ -494,6 +527,11 @@ class MultiTicTacToeEnv(SingleTicTacToeEnv):
         return self._board_state_dict[agent_name]
 
     def reset(self, *, seed: int | None = None, episode_id: int = 1, **kwargs):
+        if self.record_video and getattr(self, "gui_frames", None):
+            if len(self.gui_frames) > 0 and hasattr(self, "current_episode_id"):
+                video_path = os.path.join(self.base_cache_dir, "videos", f"episode_{self.current_episode_id}_gui.mp4")
+                _generate_video_from_rgb_array(self.gui_frames, video_path, self.video_frame_rate)
+        self.gui_frames = []
         for adap in self._adapters.values():
             adap.reset_episode(episode_id)
 
@@ -507,10 +545,13 @@ class MultiTicTacToeEnv(SingleTicTacToeEnv):
         self._update_current_board_state()
 
         obs_dict = {}
+        p1_frame_path = None
         for agent_name, adap in self._adapters.items():
             board = self._board_for(agent_name)
             img_path = adap._create_agent_observation_path(episode_id, 0)
             create_board_image_tictactoe(board, img_path, self.tile_size_for_render)
+            if agent_name == "player_1":
+                p1_frame_path = img_path
             obs_pz = self.pz_env.observe(agent_name)
             is_active = (self.pz_env.agent_selection == agent_name)
             if adap.observation_mode in {"text", "both"}:
@@ -529,6 +570,19 @@ class MultiTicTacToeEnv(SingleTicTacToeEnv):
 
         if self.render_mode == "human":
             self._render_frame_multi()
+        if self.record_video:
+            # Prefer the persisted player_1 image to avoid empty frames
+            try:
+                if p1_frame_path and os.path.exists(p1_frame_path):
+                    arr = np.array(Image.open(p1_frame_path).convert("RGB"))
+                    self.gui_frames.append(arr)
+                    print(f"[TicTacToe] Appended reset frame from {p1_frame_path}")
+                else:
+                    rgb = self._render_frame_rgb()
+                    if rgb is not None:
+                        self.gui_frames.append(rgb)
+            except Exception as e:
+                print(f"[TicTacToe] Failed to append reset frame: {e}")
         return obs_dict, {}
 
 
@@ -536,6 +590,9 @@ class MultiTicTacToeEnv(SingleTicTacToeEnv):
         assert agent_name == self.current_player, (
             f"It is {self.current_player}'s turn, not {agent_name}")
         adap = self._adapters[agent_name]
+        
+        # increment adapter step counter for acting agent
+        adap.increment_step()
         
         env_act_idx = adap.map_agent_action_to_env_action(action_str)
         # Try to apply the action, catching illegal move errors
@@ -553,6 +610,34 @@ class MultiTicTacToeEnv(SingleTicTacToeEnv):
                 rewards = {"player_1": 0.0, "player_2": -1.0}
                 self.perf_scores["player_2"] -= 1  # penalty for illegal move
             
+            # log the illegal step for the acting agent
+            adap.log_step_data(
+                agent_action_str=action_str,
+                thought_process="",
+                reward=rewards.get(agent_name, 0.0),
+                info={"illegal": True, "error": str(e)},
+                terminated=True,
+                truncated=True,
+                time_taken_s=0.0,
+                perf_score=self.perf_scores.get(agent_name, 0.0),
+                agent_observation=None,
+            )
+
+            # append a video frame for illegal move so the video isn't empty
+            if getattr(self, "record_video", False):
+                try:
+                    self._update_current_board_state()
+                    p1_board = self._board_for("player_1")
+                    img_path_vid = self._adapters["player_1"]._create_agent_observation_path(
+                        getattr(self, "current_episode_id", 0), getattr(self, "step_id", 0)
+                    )
+                    create_board_image_tictactoe(p1_board, img_path_vid, self.tile_size_for_render)
+                    arr_illegal = np.array(Image.open(img_path_vid).convert("RGB"))
+                    self.gui_frames.append(arr_illegal)
+                    print(f"[TicTacToe] Appended illegal-move frame from {img_path_vid}")
+                except Exception as e2:
+                    print(f"[TicTacToe] Failed to append illegal-move frame: {e2}")
+                
             return (
                 {},  # obs
                 rewards,
@@ -561,19 +646,19 @@ class MultiTicTacToeEnv(SingleTicTacToeEnv):
                 {},    # info
                 self.perf_scores.copy(),
             )
-
+        
         self.current_player = self.pz_env.agent_selection
         self.step_id += 1
-
+        
         self._update_current_board_state()
-
+        
         rewards = {
             "player_1": float(self.pz_env.rewards["player_1"]),
             "player_2": float(self.pz_env.rewards["player_2"]),
         }
         terminations = any(self.pz_env.terminations.values())
         truncations = any(self.pz_env.truncations.values())
-
+        
         if terminations:
             for p in ("player_1", "player_2"):
                 r = rewards[p]
@@ -581,12 +666,15 @@ class MultiTicTacToeEnv(SingleTicTacToeEnv):
                     self.perf_scores[p] += 1
                 elif r < 0:
                     self.perf_scores[p] -= 1
-
+        
         next_obs = {}
+        p1_frame_path = None
         for agent_name, adap in self._adapters.items():
             board = self._board_for(agent_name)
             img_path = adap._create_agent_observation_path(self.current_episode_id, self.step_id)
             create_board_image_tictactoe(board, img_path, self.tile_size_for_render)
+            if agent_name == "player_1":
+                p1_frame_path = img_path
             text_repr = None
             if adap.observation_mode in {"text", "both"}:
                 # Use the actual current player (whose turn it is) for the text representation
@@ -595,10 +683,46 @@ class MultiTicTacToeEnv(SingleTicTacToeEnv):
             next_obs[agent_name] = adap.create_agent_observation(
                 img_path=img_path, text_representation=text_repr
             )
-
+        
+        if self.record_video:
+            try:
+                if p1_frame_path and os.path.exists(p1_frame_path):
+                    arr = np.array(Image.open(p1_frame_path).convert("RGB"))
+                    self.gui_frames.append(arr)
+                    print(f"[TicTacToe] Appended step frame from {p1_frame_path}")
+                else:
+                    rgb = self._render_frame_rgb()
+                    if rgb is not None:
+                        self.gui_frames.append(rgb)
+            except Exception as e:
+                print(f"[TicTacToe] Failed to append step frame: {e}")
+            # If episode ended, write out the video immediately
+            if terminations or truncations:
+                try:
+                    video_path = os.path.join(self.base_cache_dir, "videos", f"episode_{self.current_episode_id}_gui.mp4")
+                    _generate_video_from_rgb_array(self.gui_frames, video_path, self.video_frame_rate)
+                    print(f"[TicTacToe] Saved episode video with {len(self.gui_frames)} frames -> {video_path}")
+                    self.gui_frames = []
+                except Exception as e3:
+                    print(f"[TicTacToe] Failed to save episode video: {e3}")
+        
+        # log step data for the acting agent
+        if agent_name in self._adapters and agent_name in next_obs:
+            acting_adap = self._adapters[agent_name]
+            acting_adap.log_step_data(
+                agent_action_str=action_str,
+                thought_process="",
+                reward=rewards.get(agent_name, 0.0),
+                info={"step_id": self.step_id, "current_player": agent_name},
+                terminated=terminations,
+                truncated=truncations,
+                time_taken_s=0.0,
+                perf_score=self.perf_scores.get(agent_name, 0.0),
+                agent_observation=next_obs[agent_name],
+            )
         if self.render_mode == "human":
             self._render_frame_multi()
-
+        
         return next_obs, rewards, terminations, truncations, {}, self.perf_scores.copy()
 
     def _render_frame_multi(self):
@@ -637,5 +761,10 @@ class MultiTicTacToeEnv(SingleTicTacToeEnv):
 
     def close(self):
         super().close()
+        if self.record_video and getattr(self, "gui_frames", None):
+            if len(self.gui_frames) > 0 and hasattr(self, "current_episode_id"):
+                video_path = os.path.join(self.base_cache_dir, "videos", f"episode_{self.current_episode_id}_gui_final.mp4")
+                _generate_video_from_rgb_array(self.gui_frames, video_path, self.video_frame_rate)
+        self.gui_frames = []
         for adap in self._adapters.values():
             adap.close_log_file()
