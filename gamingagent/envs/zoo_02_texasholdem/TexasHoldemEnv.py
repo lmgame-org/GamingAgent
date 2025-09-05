@@ -18,6 +18,7 @@ from PIL import Image, ImageDraw, ImageFont
 import imageio
 import glob
 from natsort import natsorted
+import json
 
 from gamingagent.envs.gym_env_adapter import GymEnvAdapter
 from gamingagent.modules.core_module import Observation
@@ -519,8 +520,6 @@ class MultiTexasHoldemEnv(SingleTexasHoldemEnv):
          max_stuck_steps_for_adapter: Optional[int] = 10,
          enable_player_elimination: bool = True,
          starting_chips: int = 100,
-         big_blind: int = 2,
-         small_blind: int = 1,
          max_tournament_hands: Optional[int] = None,
         record_video: bool = True,
         video_frame_rate: int = 2,
@@ -554,8 +553,6 @@ class MultiTexasHoldemEnv(SingleTexasHoldemEnv):
         self.base_cache_dir = base_cache_dir
         self.enable_player_elimination = enable_player_elimination
         self.starting_chips = starting_chips
-        self.big_blind = big_blind
-        self.small_blind = small_blind
         # Always enable tournament mode - players keep their chips across hands
         self.tournament_mode = True
         self.max_tournament_hands = int(max_tournament_hands) if max_tournament_hands is not None else None
@@ -563,6 +560,10 @@ class MultiTexasHoldemEnv(SingleTexasHoldemEnv):
         self._adapters: Dict[str, GymEnvAdapter] = {}
         self.agent_players = set()
         self.eliminated_players = set()
+        # Optional mapping from env player -> stable identity/model name
+        self.player_identities: Dict[str, str] = {}
+        # Track hand number at which each player is eliminated (1-based hand index)
+        self.eliminated_on_hand: Dict[str, int] = {}
 
         for i in range(num_players):
             player_name = f"player_{i}"
@@ -583,6 +584,21 @@ class MultiTexasHoldemEnv(SingleTexasHoldemEnv):
         self.dealer_position = 0
         self.round_number = 1
         self.moves_history: List[str] = []
+        # Aggression Factor tracking (tournament-wide)
+        # bets = total chips put into pot (sum of bet/raise amounts), raises = count, calls = count
+        self.af_stats = {
+            p: {"bets_chips": 0, "raises": 0, "calls": 0, "folds": 0}
+            for p in self.player_names
+        }
+        # Track per-hand prev contribution to compute deltas
+        self._prev_in_chips = {p: 0 for p in self.player_names}
+
+    def set_player_identities(self, mapping: Dict[str, str]):
+        """Provide a mapping of env player name -> stable identity/model name."""
+        try:
+            self.player_identities = dict(mapping) if mapping else {}
+        except Exception:
+            self.player_identities = {}
 
     def tournament_over(self) -> bool:
         if not getattr(self, "tournament_mode", False):
@@ -607,6 +623,21 @@ class MultiTexasHoldemEnv(SingleTexasHoldemEnv):
         self.moves_history.append(text)
         if len(self.moves_history) > 10:
             self.moves_history = self.moves_history[-10:]
+        # Update AF counters when explicit chips_bet provided by caller
+        # Note: we also compute via in_chips deltas after stepping to be robust
+        if hasattr(self, "af_stats") and player_name in self.af_stats:
+            a = action_str.lower()
+            if "raise" in a:
+                self.af_stats[player_name]["raises"] += 1
+                if chips_bet > 0:
+                    self.af_stats[player_name]["bets_chips"] += int(chips_bet)
+            elif "bet" in a:
+                if chips_bet > 0:
+                    self.af_stats[player_name]["bets_chips"] += int(chips_bet)
+            elif "call" in a:
+                self.af_stats[player_name]["calls"] += 1
+            elif "fold" in a:
+                self.af_stats[player_name]["folds"] += 1
 
     def _get_action_description(self, action_str: Optional[str]) -> str:
         if not action_str: return "UNKNOWN"
@@ -625,7 +656,7 @@ class MultiTexasHoldemEnv(SingleTexasHoldemEnv):
             "eliminated_players": list(self.eliminated_players),
             "chip_stacks": self.chip_stacks.copy(),
             "dealer_position": self.dealer_position,
-            "blinds": {"small": self.small_blind, "big": self.big_blind},
+            "blinds": {"controlled_by": "pettingzoo"},
             "tournament_mode": bool(self.tournament_mode),
             "hands_played": int(self.hands_played),
             "max_tournament_hands": self.max_tournament_hands,
@@ -648,6 +679,8 @@ class MultiTexasHoldemEnv(SingleTexasHoldemEnv):
         self.step_id = 0
         self.current_episode_id = episode_id
         self.moves_history = []
+        # Reset per-hand baseline contributions
+        self._prev_in_chips = {p: 0 for p in self.player_names}
 
         if self.tournament_mode and episode_id > 1:
             # Continue tournament: keep stacks/elims, rotate dealer, next round
@@ -659,11 +692,17 @@ class MultiTexasHoldemEnv(SingleTexasHoldemEnv):
         else:
             # Fresh tournament (or non-tournament single hand)
             self.eliminated_players.clear()
+            self.eliminated_on_hand.clear()
             self.chip_stacks = {p: self.starting_chips for p in self.player_names}
             self.perf_scores = {p: 0.0 for p in self.player_names}
             self.round_number = 1
             self.dealer_position = 0
             self.hands_played = 0
+            # Reset tournament AF stats at start of a new tournament
+            self.af_stats = {
+                p: {"bets_chips": 0, "raises": 0, "calls": 0, "folds": 0}
+                for p in self.player_names
+            }
 
         obs_dict: Dict[str, Observation] = {}
         agent_players = self.get_agent_players()
@@ -735,11 +774,17 @@ class MultiTexasHoldemEnv(SingleTexasHoldemEnv):
                 try:
                     # Most implementations: 0=CALL,1=RAISE,2=FOLD,3=CHECK
                     self.pz_env.step(2)
+                    if hasattr(self, "af_stats") and current_player in self.af_stats:
+                        self.af_stats[current_player]["folds"] += 1
                 except Exception:
                     obs_tmp = self.pz_env.observe(current_player)
                     legal = np.where(obs_tmp["action_mask"] == 1)[0]
                     # Choose the last legal as a fallback (often FOLD is legal late in a betting round)
-                    self.pz_env.step(int(legal[-1]) if len(legal) else None)
+                    chosen = int(legal[-1]) if len(legal) else None
+                    self.pz_env.step(chosen)
+                    # Best-effort: if chosen likely fold, count it
+                    if hasattr(self, "af_stats") and current_player in self.af_stats and chosen == 2:
+                        self.af_stats[current_player]["folds"] += 1
                 continue  # keep advancing until an active seat or termination
                 
             # If it's the acting agent's turn, apply their action
@@ -748,11 +793,37 @@ class MultiTexasHoldemEnv(SingleTexasHoldemEnv):
                 adap.increment_step()
                 env_act_idx = adap.map_agent_action_to_env_action(action_str)
                 try:
+                    # Capture pre-step contributions to compute deltas after step
+                    try:
+                        pre_in_chips = {f"player_{i}": int(getattr(p, "in_chips", 0)) for i, p in enumerate(self.pz_env.unwrapped.env.game.players)}
+                    except Exception:
+                        pre_in_chips = self._prev_in_chips.copy()
                     self.pz_env.step(env_act_idx)
                 except Exception as e:
                     print(f"[ERROR] step failed for {agent_name}: {e}")
                     return self._handle_illegal_action(agent_name)
-                break  # we performed the agent's move; return control to caller
+                # Update AF stats based on in_chips delta and action string
+                try:
+                    post_in_chips = {f"player_{i}": int(getattr(p, "in_chips", 0)) for i, p in enumerate(self.pz_env.unwrapped.env.game.players)}
+                except Exception:
+                    post_in_chips = pre_in_chips
+                # Save baseline for all players for next step as a fallback
+                self._prev_in_chips.update(post_in_chips)
+                # Compute how much this agent just contributed
+                pre_val = pre_in_chips.get(agent_name, 0)
+                post_val = post_in_chips.get(agent_name, pre_val)
+                delta = max(0, int(post_val - pre_val))
+                # Classify basic action types for AF
+                a = (action_str or "").lower()
+                if hasattr(self, "af_stats") and agent_name in self.af_stats:
+                    if "raise" in a or (delta > 0 and "call" not in a and "check" not in a):
+                        # Treat any positive delta without explicit call/check as bet/raise chips
+                        self.af_stats[agent_name]["bets_chips"] += int(delta)
+                        if "raise" in a:
+                            self.af_stats[agent_name]["raises"] += 1
+                    if "call" in a:
+                        self.af_stats[agent_name]["calls"] += 1
+                continue  # performed the agent's move; advance until next active agent or termination
 
             # If it's another agent's turn, stop here so that caller can let that agent act
             if current_player in self.agent_players:
@@ -775,14 +846,16 @@ class MultiTexasHoldemEnv(SingleTexasHoldemEnv):
                 reward = self.perf_scores.get(pn, 0.0)
             
                 chip_change = reward * 2
-                
+            
                 # Round to be safe, though chip changes should now be integers
                 self.chip_stacks[pn] += round(chip_change)
             if self.enable_player_elimination:
                 for pn in self.player_names:
-                    if self.chip_stacks[pn] <= 0:
+                    if self.chip_stacks[pn] <= 0 and pn not in self.eliminated_players:
                         self.eliminated_players.add(pn)
-                        print(f"[MultiTexasHoldem] {pn} eliminated")
+                        # Record hand number at elimination
+                        self.eliminated_on_hand[pn] = int(self.hands_played)
+                        print(f"[MultiTexasHoldem] {pn} eliminated on hand {self.hands_played}")
             self.hands_played += 1
             if self.tournament_over():
                 terminations = True
@@ -790,6 +863,43 @@ class MultiTexasHoldemEnv(SingleTexasHoldemEnv):
                 winner_list = self.get_active_players()
                 winner = winner_list[0] if len(winner_list) == 1 else "None"
                 print(f"[MultiTexasHoldem] Tournament ended. Winner: {winner}")
+                # Persist AF metrics at tournament end
+                try:
+                    os.makedirs(os.path.join(self.base_cache_dir, "metrics"), exist_ok=True)
+                    af_out = {}
+                    for pn, s in self.af_stats.items():
+                        calls = max(0, int(s.get("calls", 0)))
+                        bets_chips = max(0, int(s.get("bets_chips", 0)))
+                        raises = max(0, int(s.get("raises", 0)))
+                        folds = max(0, int(s.get("folds", 0)))
+                        af_value = float((bets_chips + raises) / calls) if calls > 0 else float("inf")
+                        model_name = self.player_identities.get(pn, "unknown") if hasattr(self, "player_identities") else "unknown"
+                        final_chips = int(self.chip_stacks.get(pn, 0))
+                        eliminated_on = int(self.eliminated_on_hand.get(pn, 0)) if hasattr(self, "eliminated_on_hand") else 0
+                        # Fold percentage: tournament end -> folds/hands_played; early exit -> folds/eliminated_on_hand (if available) else folds/hands_played
+                        denom = int(self.hands_played) if self.tournament_over() else (eliminated_on if eliminated_on > 0 else int(self.hands_played))
+                        fold_pct = (float(folds) / denom) if denom > 0 else None
+                        af_out[pn] = {
+                            "bets_chips": bets_chips,
+                            "raises": raises,
+                            "calls": calls,
+                            "folds": folds,
+                            "fold_percentage": fold_pct,
+                            "aggression_factor": af_value,
+                            "model_name": model_name,
+                            "final_chips": final_chips,
+                            "eliminated_on_hand": eliminated_on
+                        }
+                        # Also save per-player metric in their cache dir
+                        player_metrics_dir = os.path.join(self.base_cache_dir, pn)
+                        os.makedirs(player_metrics_dir, exist_ok=True)
+                        with open(os.path.join(player_metrics_dir, "af_summary.json"), "w") as fpm:
+                            json.dump(af_out[pn], fpm, indent=2)
+                    with open(os.path.join(self.base_cache_dir, "metrics", "af_summary.json"), "w") as f:
+                        json.dump(af_out, f, indent=2)
+                    print("[MultiTexasHoldem] Saved AF metrics to cache.")
+                except Exception as e:
+                    print(f"[MultiTexasHoldem] Failed to save AF metrics: {e}")
 
         next_obs: Dict[str, Observation] = {}
         info_for_acting_agent = self._get_game_info()
@@ -850,6 +960,11 @@ class MultiTexasHoldemEnv(SingleTexasHoldemEnv):
         if self.render_mode == "human":
             self.render()
 
+        # Auto-end tournament early if only one player remains
+        if self.tournament_mode and len(self.get_active_players()) <= 1:
+            terminations = True
+            truncations = True
+
         return next_obs, rewards, terminations, truncations, info_for_acting_agent, self.perf_scores.copy()
 
     def _handle_illegal_action(self, agent_name: str):
@@ -880,11 +995,32 @@ class MultiTexasHoldemEnv(SingleTexasHoldemEnv):
                 )
 
     def finalize_run_summaries(self, run_settings: Dict):
-        return {
-            pn: self._adapters[pn].finalize_and_save_summary(run_settings)
-            for pn in self.get_agent_players()
-            if pn in self._adapters
-        }
+        # Attach AF metrics into each agent's summary file under extras.af
+        summaries = {}
+        for pn in self.get_agent_players():
+            if pn in self._adapters:
+                summary = self._adapters[pn].finalize_and_save_summary(run_settings)
+                # Persist AF per player already saved in step() end; also embed into summary JSON file
+                try:
+                    agent_summary_path = os.path.join(self._adapters[pn].agent_cache_dir, "gym_run_summary.json")
+                    with open(agent_summary_path, "r") as f:
+                        data = json.load(f)
+                    data.setdefault("extras", {})["aggression_factor"] = {
+                        "bets_chips": int(self.af_stats.get(pn, {}).get("bets_chips", 0)),
+                        "raises": int(self.af_stats.get(pn, {}).get("raises", 0)),
+                        "calls": int(self.af_stats.get(pn, {}).get("calls", 0)),
+                        "folds": int(self.af_stats.get(pn, {}).get("folds", 0)),
+                        "AF": (float((self.af_stats[pn]["bets_chips"] + self.af_stats[pn]["raises"]) / self.af_stats[pn]["calls"]) if self.af_stats[pn]["calls"] > 0 else float("inf")) if pn in self.af_stats else None,
+                        "model_name": self.player_identities.get(pn, "unknown"),
+                        "eliminated_on_hand": int(self.eliminated_on_hand.get(pn, 0)) if hasattr(self, "eliminated_on_hand") else 0,
+                        "fold_percentage": (float(int(self.af_stats.get(pn, {}).get("folds", 0))) / (int(self.hands_played) if self.tournament_over() else (int(self.eliminated_on_hand.get(pn, 0)) if hasattr(self, "eliminated_on_hand") and int(self.eliminated_on_hand.get(pn, 0)) > 0 else int(self.hands_played)))) if (int(self.hands_played) > 0 or (hasattr(self, "eliminated_on_hand") and int(self.eliminated_on_hand.get(pn, 0)) > 0)) else None
+                    }
+                    with open(agent_summary_path, "w") as f:
+                        json.dump(data, f, indent=2)
+                except Exception:
+                    pass
+                summaries[pn] = summary
+        return summaries
 
     def close(self):
         if self.record_video and self.gui_frames:
@@ -895,6 +1031,41 @@ class MultiTexasHoldemEnv(SingleTexasHoldemEnv):
                 frame_rate=self.video_frame_rate
             )
         self.gui_frames = []
+        # Fallback: ensure AF metrics are saved even if tournament end hook was missed
+        try:
+            if getattr(self, "tournament_mode", False) and hasattr(self, "af_stats") and self.af_stats:
+                metrics_dir = os.path.join(self.base_cache_dir, "metrics")
+                os.makedirs(metrics_dir, exist_ok=True)
+                metrics_path = os.path.join(metrics_dir, "af_summary.json")
+                if not os.path.isfile(metrics_path):
+                    af_out = {}
+                    for pn, s in self.af_stats.items():
+                        calls = max(0, int(s.get("calls", 0)))
+                        bets_chips = max(0, int(s.get("bets_chips", 0)))
+                        raises = max(0, int(s.get("raises", 0)))
+                        folds = max(0, int(s.get("folds", 0)))
+                        af_value = float((bets_chips + raises) / calls) if calls > 0 else float("inf")
+                        model_name = self.player_identities.get(pn, "unknown") if hasattr(self, "player_identities") else "unknown"
+                        final_chips = int(self.chip_stacks.get(pn, 0)) if hasattr(self, "chip_stacks") else 0
+                        af_out[pn] = {
+                            "bets_chips": bets_chips,
+                            "raises": raises,
+                            "calls": calls,
+                            "folds": folds,
+                            "aggression_factor": af_value,
+                            "model_name": model_name,
+                            "final_chips": final_chips
+                        }
+                        # per-player file
+                        player_metrics_dir = os.path.join(self.base_cache_dir, pn)
+                        os.makedirs(player_metrics_dir, exist_ok=True)
+                        with open(os.path.join(player_metrics_dir, "af_summary.json"), "w") as fpm:
+                            json.dump(af_out[pn], fpm, indent=2)
+                    with open(metrics_path, "w") as f:
+                        json.dump(af_out, f, indent=2)
+                    print("[MultiTexasHoldem] Fallback saved AF metrics to cache.")
+        except Exception as e:
+            print(f"[MultiTexasHoldem] Fallback AF metrics save failed: {e}")
         super().close()
         for adap in self._adapters.values():
             adap.close_log_file()

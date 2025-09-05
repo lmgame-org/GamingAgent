@@ -3,7 +3,7 @@
   "_trueskill2_note": "TrueSkill ratings updated only at tournament end based on final chip standings",
   "env_init_kwargs": {
     "env_type": "single",
-    "num_players": 8,
+    "num_players": 4,
     "opponent_policy": "random",
     "observation_mode_for_adapter": "vision",
     "table_size_for_render": [
@@ -11,10 +11,8 @@
       300
     ],
     "enable_player_elimination": true,
-    "starting_chips": 1000,
-    "big_blind": 20,
-    "small_blind": 10,
-    "max_tournament_hands": 10,
+    "starting_chips": 100,
+    "max_tournament_hands": 40,
     "_comment_models": "Use --player_models in runner to specify different AI models for each player",
     "_example_usage": "python multi_agent_runner.py --game_name texasholdem --player_models gpt-4o-mini claude-3-5-sonnet gemini-2.5-flash --num_players 3"
   },

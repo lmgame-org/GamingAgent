@@ -294,10 +294,8 @@ def create_environment(
              max_stuck_steps_for_adapter=max_stuck_steps,
              enable_player_elimination=env_init_kwargs.get("enable_player_elimination", False),
              starting_chips=env_init_kwargs.get("starting_chips", 1000),
-             big_blind=env_init_kwargs.get("big_blind", 20),
-             small_blind=env_init_kwargs.get("small_blind", 10),
              max_tournament_hands=env_init_kwargs.get("max_tournament_hands"),
-            record_video=record_video,
+             record_video=record_video,
          )
         
         # Set up AI opponents if specified in config
@@ -367,15 +365,32 @@ def play_episode(env, agents, eid, max_turns, seed):
         # Map environment player name to agent name
         agent_cur = player_mapping.get(env_cur, env_cur)
 
+        # If current seat has no agent (e.g., eliminated or AI-opponent), let env advance
         if agent_cur not in agents:
-            print(f"ERROR: Agent '{agent_cur}' not found in agents dict")
-            break
+            # Try to step None to allow environment to progress until an agent's turn
+            try:
+                obs, rew, term, trunc, *_ = env.step(env_cur, None, thought_process="")
+            except Exception:
+                pass
+            if term or trunc:
+                break
+            continue
+
+        # Ensure observation exists for current env player
+        if not isinstance(obs, dict) or env_cur not in obs or obs[env_cur] is None:
+            # Ask env to progress to provide next observation
+            obs, rew, term, trunc, *_ = env.step(env_cur, None, thought_process="")
+            if term or trunc:
+                break
+            # After advancing, fetch current again and continue
+            continue
 
         ad, _ = agents[agent_cur].get_action(obs[env_cur])
         act = None if ad is None else ad.get("action")
+        thought = "" if ad is None else ad.get("thought", "")
         moves_log.append(f"Turn {t+1}: {agent_cur} ({env_cur}) -> {act}")
 
-        obs, rew, term, trunc, *_ = env.step(env_cur, act)
+        obs, rew, term, trunc, *_ = env.step(env_cur, act, thought_process=thought)
         # Detect TicTacToe illegal move: immediate termination with rewards pattern [-1, 0]
         if is_tictactoe and (term or trunc) and isinstance(rew, dict) and len(rew) >= 2:
             vals = list(rew.values())
@@ -500,6 +515,8 @@ def build_parser():
     p.add_argument("--modal_url", type=str, default=None)
     p.add_argument("--tournament_hands", type=int, default=None)
     p.add_argument("--record_video", type=str_to_bool, default=True, help="Enable video recording of the GUI")
+    p.add_argument("--no_strategy_prompts", action="store_true", help="Use minimal (no-strategy) prompt variant for Texas Hold'em")
+    p.add_argument("--careful_prompts", action="store_true", help="Use careful, risk-aware prompts for Texas Hold'em")
     return p
 
 ###############################################################################
@@ -526,8 +543,18 @@ def main(argv: Optional[list[str]] = None):
         _dt.datetime.now().strftime("%Y%m%d_%H%M%S"),
     )
 
+    # Select prompt set (careful > minimal > default for Hold'em)
+    if args.game_name.lower() == "texasholdem":
+        if getattr(args, "careful_prompts", False):
+            prompt_filename = "module_prompts_careful.json"
+        elif getattr(args, "no_strategy_prompts", False):
+            prompt_filename = "module_prompts_minimal.json"
+        else:
+            prompt_filename = "module_prompts.json"
+    else:
+        prompt_filename = "module_prompts.json"
     prompt_path = os.path.join(
-        "gamingagent", "configs", game_config_name, "module_prompts.json"
+        "gamingagent", "configs", game_config_name, prompt_filename
     )
     if not os.path.isfile(prompt_path):
         prompt_path = None
@@ -609,6 +636,17 @@ def main(argv: Optional[list[str]] = None):
         record_video=args.record_video,
     )
 
+    # Provide mapping of env player -> model identity to the environment (for metrics)
+    try:
+        if args.game_name.lower() == "texasholdem" and hasattr(env, "set_player_identities"):
+            ident_map = {}
+            # For Hold'em we used player_0..player_n as keys
+            for pid, agent in agents.items():
+                ident_map[pid] = getattr(agent, "model_name", pid)
+            env.set_player_identities(ident_map)
+    except Exception:
+        pass
+
     # One persistent log per game
     base_dir = os.path.join("cache", args.game_name)
     match_log_path = os.path.join(base_dir, "trueskill_matches.jsonl")
@@ -685,6 +723,17 @@ def main(argv: Optional[list[str]] = None):
                 print(f"Final chip standings:")
                 for i, (player, chips) in enumerate(ordered, 1):
                     print(f"  #{i}: {player} - {chips:,.0f} chips")
+                # Print Aggression Factor summary
+                if hasattr(env, "af_stats"):
+                    print("\nAggression Factor (AF): (bets_chips + raises_count) / calls_count")
+                    for player in env.player_names:
+                        s = env.af_stats.get(player, {"bets_chips": 0, "raises": 0, "calls": 0, "folds": 0})
+                        calls = int(s.get("calls", 0))
+                        bets_chips = int(s.get("bets_chips", 0))
+                        raises = int(s.get("raises", 0))
+                        folds = int(s.get("folds", 0))
+                        af_value = float((bets_chips + raises) / calls) if calls > 0 else float("inf")
+                        print(f"  {player}: AF={af_value:.3f}  (bets_chips={bets_chips}, raises={raises}, calls={calls}, folds={folds})")
         else:
             # Non-poker games: use per-game results
             ordered = sorted(chip_deltas.items(), key=lambda kv: kv[1], reverse=True)
@@ -762,8 +811,6 @@ def main(argv: Optional[list[str]] = None):
             "illegal_player": illegal_player,
             "config": {
                 "starting_chips": getattr(env, "starting_chips", None),
-                "small_blind": getattr(env, "small_blind", None),
-                "big_blind": getattr(env, "big_blind", None),
                 "num_players": len(chip_deltas),
                 "observation_mode": args.observation_mode,
                 "harness": args.harness,
