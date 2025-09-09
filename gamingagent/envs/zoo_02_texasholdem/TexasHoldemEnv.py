@@ -792,15 +792,42 @@ class MultiTexasHoldemEnv(SingleTexasHoldemEnv):
                 adap = self._adapters[agent_name]
                 adap.increment_step()
                 env_act_idx = adap.map_agent_action_to_env_action(action_str)
+                # Determine legal actions from mask and choose a safe fallback if needed
+                try:
+                    cur_obs = self.pz_env.observe(agent_name)
+                    mask = cur_obs.get("action_mask", None)
+                    legal = np.where(mask == 1)[0] if mask is not None else np.array([], dtype=int)
+                except Exception:
+                    legal = np.array([], dtype=int)
+                # Preferred fallback order for Hold'em: check(3) -> call(0) -> fold(2) -> raise(1)
+                fallback_order = [3, 0, 2, 1]
+                chosen_act = env_act_idx
+                if chosen_act is None or (legal.size and chosen_act not in legal):
+                    for cand in fallback_order:
+                        if legal.size and cand in legal:
+                            chosen_act = int(cand)
+                            break
+                    if (chosen_act is None) and legal.size:
+                        chosen_act = int(legal[0])
                 try:
                     # Capture pre-step contributions to compute deltas after step
                     try:
                         pre_in_chips = {f"player_{i}": int(getattr(p, "in_chips", 0)) for i, p in enumerate(self.pz_env.unwrapped.env.game.players)}
                     except Exception:
                         pre_in_chips = self._prev_in_chips.copy()
-                    self.pz_env.step(env_act_idx)
+                    self.pz_env.step(chosen_act)
                 except Exception as e:
-                    print(f"[ERROR] step failed for {agent_name}: {e}")
+                    # Final fallback: try any other legal action before declaring illegal
+                    try:
+                        alt = None
+                        if legal.size:
+                            for cand in list(fallback_order) + list(legal.tolist()):
+                                if cand in legal and cand != chosen_act:
+                                    alt = int(cand)
+                                    break
+                        self.pz_env.step(alt)
+                    except Exception as e2:
+                        print(f"[ERROR] step failed for {agent_name}: {e2}")
                     return self._handle_illegal_action(agent_name)
                 # Update AF stats based on in_chips delta and action string
                 try:
@@ -846,7 +873,7 @@ class MultiTexasHoldemEnv(SingleTexasHoldemEnv):
                 reward = self.perf_scores.get(pn, 0.0)
             
                 chip_change = reward * 2
-            
+                
                 # Round to be safe, though chip changes should now be integers
                 self.chip_stacks[pn] += round(chip_change)
             if self.enable_player_elimination:
@@ -1047,14 +1074,19 @@ class MultiTexasHoldemEnv(SingleTexasHoldemEnv):
                         af_value = float((bets_chips + raises) / calls) if calls > 0 else float("inf")
                         model_name = self.player_identities.get(pn, "unknown") if hasattr(self, "player_identities") else "unknown"
                         final_chips = int(self.chip_stacks.get(pn, 0)) if hasattr(self, "chip_stacks") else 0
+                        eliminated_on = int(self.eliminated_on_hand.get(pn, 0)) if hasattr(self, "eliminated_on_hand") else 0
+                        denom = int(self.hands_played) if (hasattr(self, "hands_played") and int(self.hands_played) > 0) else (eliminated_on if eliminated_on > 0 else 0)
+                        fold_pct = (float(folds) / denom) if denom > 0 else None
                         af_out[pn] = {
                             "bets_chips": bets_chips,
                             "raises": raises,
                             "calls": calls,
                             "folds": folds,
+                            "fold_percentage": fold_pct,
                             "aggression_factor": af_value,
                             "model_name": model_name,
-                            "final_chips": final_chips
+                            "final_chips": final_chips,
+                            "eliminated_on_hand": eliminated_on
                         }
                         # per-player file
                         player_metrics_dir = os.path.join(self.base_cache_dir, pn)

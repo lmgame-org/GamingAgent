@@ -295,7 +295,7 @@ def create_environment(
              enable_player_elimination=env_init_kwargs.get("enable_player_elimination", False),
              starting_chips=env_init_kwargs.get("starting_chips", 1000),
              max_tournament_hands=env_init_kwargs.get("max_tournament_hands"),
-             record_video=record_video,
+            record_video=record_video,
          )
         
         # Set up AI opponents if specified in config
@@ -373,17 +373,14 @@ def play_episode(env, agents, eid, max_turns, seed):
             except Exception:
                 pass
             if term or trunc:
-                break
-            continue
+                continue
 
         # Ensure observation exists for current env player
         if not isinstance(obs, dict) or env_cur not in obs or obs[env_cur] is None:
             # Ask env to progress to provide next observation
             obs, rew, term, trunc, *_ = env.step(env_cur, None, thought_process="")
             if term or trunc:
-                break
-            # After advancing, fetch current again and continue
-            continue
+                continue
 
         ad, _ = agents[agent_cur].get_action(obs[env_cur])
         act = None if ad is None else ad.get("action")
@@ -517,6 +514,12 @@ def build_parser():
     p.add_argument("--record_video", type=str_to_bool, default=True, help="Enable video recording of the GUI")
     p.add_argument("--no_strategy_prompts", action="store_true", help="Use minimal (no-strategy) prompt variant for Texas Hold'em")
     p.add_argument("--careful_prompts", action="store_true", help="Use careful, risk-aware prompts for Texas Hold'em")
+    # New: per-player prompt paths (keep old behavior if not provided)
+    p.add_argument("--prompt_paths", type=str, nargs="+", default=None,
+                   help="Optional list of prompt JSON paths, aligned to player indices (player_0, player_1, ...) for Hold'em")
+    for i in range(10):
+        p.add_argument(f"--prompt_path_p{i}", type=str, default=None,
+                       help=f"Optional prompt JSON path for player_{i}")
     return p
 
 ###############################################################################
@@ -559,6 +562,19 @@ def main(argv: Optional[list[str]] = None):
     if not os.path.isfile(prompt_path):
         prompt_path = None
 
+    # Helper to choose per-player prompt path (priority: explicit per-player flag > prompt_paths list > global selection)
+    def _prompt_for_player(player_index: int) -> Optional[str]:
+        # Explicit per-player flag
+        per_flag = getattr(args, f"prompt_path_p{player_index}", None)
+        if per_flag and os.path.isfile(per_flag):
+            return per_flag
+        # List-aligned prompt paths
+        if args.prompt_paths and len(args.prompt_paths) > player_index:
+            cand = args.prompt_paths[player_index]
+            return cand if cand and os.path.isfile(cand) else None
+        # Fallback to selected family (careful/minimal/default)
+        return prompt_path
+
     # Load and (optionally) patch num_players BEFORE creating env
     config_json_path = os.path.join("gamingagent", "envs", game_config_name, "game_env_config.json")
     with open(config_json_path, "r", encoding="utf-8") as f:
@@ -593,20 +609,21 @@ def main(argv: Optional[list[str]] = None):
         for i, model_name in enumerate(args.player_models):
             player_key = f"player_{i}" if args.game_name.lower() == "texasholdem" else f"player_{i+1}"
             cache_name = f"p{i+1}_cache"
+            per_player_prompt = _prompt_for_player(i)
             agents[player_key] = make_agent(
-                cache_name, model_name, args, run_root, prompt_path, 
+                cache_name, model_name, args, run_root, per_player_prompt, 
                 args._agent_defaults, args._agent_x_cfg if i == 0 else args._agent_o_cfg
             )
-            print(f"  {player_key}: {model_name}")
+            print(f"  {player_key}: {model_name} (prompt={per_player_prompt})")
     else:
         # Legacy 2-player mode: use model_x and model_o
         if args.game_name.lower() == "texasholdem":
             agents = {
                 "player_0": make_agent(
-                    "p1_cache", args.model_x, args, run_root, prompt_path, args._agent_defaults, args._agent_x_cfg
+                    "p1_cache", args.model_x, args, run_root, _prompt_for_player(0), args._agent_defaults, args._agent_x_cfg
                 ),
                 "player_1": make_agent(
-                    "p2_cache", args.model_o, args, run_root, prompt_path, args._agent_defaults, args._agent_o_cfg
+                    "p2_cache", args.model_o, args, run_root, _prompt_for_player(1), args._agent_defaults, args._agent_o_cfg
                 ),
             }
         else:
