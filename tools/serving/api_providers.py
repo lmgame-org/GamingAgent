@@ -1803,3 +1803,121 @@ def stepfun_multiimage_completion(
     )
     
     return response.choices[0].message.content
+
+@retry_on_openai_error
+def longcat_text_completion(system_prompt, model_name, prompt, temperature=0.7, token_limit=30000):
+    """
+    LongCat API text-only completion via OpenAI-compatible endpoint.
+    Expects environment variable LONGCAT_API_KEY.
+    """
+    print(f"LongCat text-only API call: model={model_name}")
+    client = OpenAI(api_key=os.getenv("LONGCAT_API_KEY"), base_url="https://api.longcat.chat/openai")
+
+    # LongCat: cap output tokens to 1000
+    if token_limit > 1000:
+        print("LongCat max_tokens capped to 1000; adjusting token_limit to 1000")
+        token_limit = 1000
+
+    messages = []
+    if system_prompt:
+        messages.append({"role": "system", "content": system_prompt})
+    messages.append({
+        "role": "user",
+        "content": [
+            {
+                "type": "text",
+                "text": prompt
+            },
+        ],
+    })
+
+    response = client.chat.completions.create(
+        model=model_name,
+        messages=messages,
+        max_tokens=token_limit,
+        temperature=temperature,
+    )
+    return response.choices[0].message.content
+
+
+@retry_on_openai_error
+def longcat_completion(system_prompt, model_name, base64_image, prompt, temperature=0.7, token_limit=30000):
+    """
+    LongCat API vision-text (or text-only when base64_image is None) completion via OpenAI-compatible endpoint.
+    Expects environment variable LONGCAT_API_KEY.
+    """
+    print(f"LongCat vision-text API call: model={model_name}")
+    client = OpenAI(api_key=os.getenv("LONGCAT_API_KEY"), base_url="https://api.longcat.chat/openai")
+
+    # LongCat: cap output tokens to 1000
+    if token_limit > 1000:
+        print("LongCat max_tokens capped to 1000; adjusting token_limit to 1000")
+        token_limit = 1000
+
+    if base64_image is None:
+        user_content = [{"type": "text", "text": prompt}]
+    else:
+        user_content = [
+            {"type": "image_url", "image_url": {"url": f"data:image/png;base64,{base64_image}"}},
+            {"type": "text", "text": prompt},
+        ]
+
+    messages = []
+    if system_prompt:
+        messages.append({"role": "system", "content": system_prompt})
+    messages.append({"role": "user", "content": user_content})
+
+    response = client.chat.completions.create(
+        model=model_name,
+        messages=messages,
+        max_tokens=token_limit,
+        temperature=temperature,
+    )
+    return response.choices[0].message.content
+
+
+@retry_on_openai_error
+def longcat_multiimage_completion(system_prompt, model_name, prompt, list_content, list_image_base64, temperature=0.7, token_limit=30000):
+    """
+    LongCat API multi-image completion via OpenAI-compatible endpoint.
+    Expects environment variable LONGCAT_API_KEY.
+    """
+    print(f"LongCat multi-image API call: model={model_name}")
+    client = OpenAI(api_key=os.getenv("LONGCAT_API_KEY"), base_url="https://api.longcat.chat/openai")
+
+    # LongCat: cap output tokens to 1000
+    if token_limit > 1000:
+        print("LongCat max_tokens capped to 1000; adjusting token_limit to 1000")
+        token_limit = 1000
+
+    content_blocks = []
+    if list_content:
+        joined_steps = "\n\n".join(list_content)
+        content_blocks.append({"type": "text", "text": joined_steps})
+
+    for base64_image in list_image_base64 or []:
+        content_blocks.append(
+            {
+                "type": "image_url",
+                "image_url": {"url": f"data:image/png;base64,{base64_image}"},
+            }
+        )
+
+    # Append final prompt
+    content_blocks.append({"type": "text", "text": prompt})
+
+    messages = []
+    if system_prompt:
+        messages.append({"role": "system", "content": system_prompt})
+    messages.append({
+        "role": "user",
+        "content": content_blocks,
+    })
+
+    response = client.chat.completions.create(
+        model=model_name,
+        messages=messages,
+        max_tokens=token_limit,
+        temperature=temperature,
+    )
+    return response.choices[0].message.content

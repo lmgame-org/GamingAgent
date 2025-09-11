@@ -45,7 +45,10 @@ from .api_providers import (
     stepfun_text_completion,
     stepfun_completion,
     stepfun_multiimage_completion,
-    zai_text_completion
+    zai_text_completion,
+    longcat_text_completion,
+    longcat_completion,
+    longcat_multiimage_completion
 )
 
 # Import cost calculator utilities
@@ -466,6 +469,15 @@ class APIManager:
                     prompt=prompt,
                     token_limit=token_limit
                 )
+            elif (("longcat" in model_name.lower() or model_name == "LongCat-Flash-Chat") and not model_name.startswith("modal-")):
+                completion = longcat_completion(
+                    system_prompt=system_prompt,
+                    model_name=model_name,
+                    base64_image=base64_image,
+                    prompt=prompt,
+                    temperature=temperature,
+                    token_limit=token_limit
+                )
             elif model_name.startswith("vllm-"):
                 completion = vllm_completion(
                     system_prompt=system_prompt,
@@ -635,6 +647,14 @@ class APIManager:
                     model_name=model_name,
                     base64_image=base64_image,
                     prompt=empty_prompt
+                )
+            elif (("longcat" in model_name.lower() or model_name == "LongCat-Flash-Chat") and not model_name.startswith("modal-")):
+                completion = longcat_completion(
+                    system_prompt=system_prompt,
+                    model_name=model_name,
+                    base64_image=base64_image,
+                    prompt=empty_prompt,
+                    temperature=temperature,
                 )
             elif model_name.startswith("vllm-"):
                 completion = vllm_completion(
@@ -816,6 +836,14 @@ class APIManager:
                     system_prompt=system_prompt,
                     model_name=model_name,
                     prompt=prompt,
+                    token_limit=token_limit
+                )
+            elif (("longcat" in model_name.lower() or model_name == "LongCat-Flash-Chat") and not model_name.startswith("modal-")):
+                completion = longcat_text_completion(
+                    system_prompt=system_prompt,
+                    model_name=model_name,
+                    prompt=prompt,
+                    temperature=temperature,
                     token_limit=token_limit
                 )
             elif model_name.startswith("vllm-"):
@@ -1093,6 +1121,16 @@ class APIManager:
                     prompt=prompt,
                     list_content=list_content,
                     list_image_base64=list_image_base64
+                )
+            elif (("longcat" in model_name.lower() or model_name == "LongCat-Flash-Chat") and not model_name.startswith("modal-")):
+                completion = longcat_multiimage_completion(
+                    system_prompt=system_prompt,
+                    model_name=model_name,
+                    prompt=prompt,
+                    list_content=list_content,
+                    list_image_base64=list_image_base64,
+                    temperature=temperature,
+                    token_limit=token_limit
                 )
             elif "llama" in model_name.lower() or "meta" in model_name.lower() or (model_name == "Qwen/Qwen3-235B-A22B-fp8") or (model_name == "deepseek-ai/DeepSeek-R1"):
                 completion = together_ai_multiimage_completion(
