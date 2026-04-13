@@ -1,7 +1,10 @@
-from tile_match_gym.board import Board
-from itertools import product
-import numpy as np
 import multiprocessing as mp
+from itertools import product
+
+import numpy as np
+
+from tile_match_gym.board import Board
+
 
 def compute_num_states(num_rows, num_cols, num_colours, num_processes, colour_specials=[], colourless_specials=[]):
 

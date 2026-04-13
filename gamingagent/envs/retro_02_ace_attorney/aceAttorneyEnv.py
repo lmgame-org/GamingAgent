@@ -1,20 +1,20 @@
-import retro
-from retro.enums import Actions, Observations # type: ignore
-import gymnasium as gym # type: ignore
-from gymnasium.core import SupportsFloat, RenderFrame # type: ignore
-import numpy as np # type: ignore
-from PIL import Image # type: ignore
-import time
+import atexit  # ADDED IMPORT
 import json
 import os
-import hashlib
-import re # For keyword mapping
-from typing import Optional, Dict, Any, Tuple, List
-import pyglet # ADDED IMPORT
-import atexit # ADDED IMPORT
+import re  # For keyword mapping
+import time
+from typing import Any, Dict, List, Optional, Tuple
 
-from gamingagent.modules.core_module import Observation
+import gymnasium as gym  # type: ignore
+import numpy as np  # type: ignore
+import retro
+from gymnasium.core import RenderFrame, SupportsFloat  # type: ignore
+from PIL import Image  # type: ignore
+from retro.enums import Actions, Observations  # type: ignore
+
 from gamingagent.envs.gym_env_adapter import GymEnvAdapter
+from gamingagent.modules.core_module import Observation
+
 # from gamingagent.envs.env_utils import create_board_image_ace_attorney # If visual representation needed beyond raw pixels
 
 # --- Constants ---
@@ -846,7 +846,7 @@ class AceAttorneyEnv(gym.Env):
 
     def close(self):
         """Closes the environment and the adapter's log file. Called by atexit."""
-        print(f"[AceAttorneyEnv CLOSE] Closing environment and saving recording...")
+        print("[AceAttorneyEnv CLOSE] Closing environment and saving recording...")
         try:
             self.env.close()
             print("[AceAttorneyEnv CLOSE] Environment closed successfully.")

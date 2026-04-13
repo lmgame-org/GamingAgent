@@ -1,26 +1,20 @@
+import functools
 import os
 import random
-import random
 import time
-import functools
-import httpx
+from typing import List
 
-from openai import OpenAI
-from openai import RateLimitError, APITimeoutError, APIConnectionError, APIStatusError, BadRequestError
 import anthropic
-import google.generativeai as genai
-from google.generativeai import types
 import google.api_core.exceptions
+import google.generativeai as genai
+import grpc
+import httpx
+import requests
+from google.generativeai import types
+from openai import APIConnectionError, APIStatusError, APITimeoutError, BadRequestError, OpenAI, RateLimitError
 from together import Together
-
 from zai import ZaiClient
 
-
-
-import requests
-import grpc
-
-from typing import Optional, List, Any
 
 def estimate_token_count(text: str) -> int:
     """
@@ -30,9 +24,7 @@ def estimate_token_count(text: str) -> int:
     if not text:
         return 0
     return len(text) // 4
-import grpc
 
-from typing import Optional, List, Any
 
 def estimate_token_count(text: str) -> int:
     """
@@ -428,7 +420,6 @@ def anthropic_multiimage_completion(system_prompt, model_name, prompt, list_cont
     
     return generated_str
 
-import httpx
 
 _original_headers_init = httpx.Headers.__init__
 
@@ -651,8 +642,7 @@ def deepseek_text_reasoning_completion(system_prompt, model_name, prompt, token_
 def xai_grok_text_completion(system_prompt, model_name, prompt, reasoning_effort="high", token_limit=30000, temperature=1):
     print(f"XAI Grok text API call: model={model_name}, reasoning_effort={reasoning_effort}")
     from xai_sdk import Client
-    from xai_sdk.chat import user, system
-    import grpc
+    from xai_sdk.chat import system, user
 
     client = Client(
     api_host="api.x.ai",
@@ -660,8 +650,6 @@ def xai_grok_text_completion(system_prompt, model_name, prompt, reasoning_effort
     )
 
     from xai_sdk import Client
-    from xai_sdk.chat import user, system
-    import grpc
 
     client = Client(
     api_host="api.x.ai",
@@ -1203,7 +1191,6 @@ def parse_modal_model_name(modal_model_name: str) -> str:
         return modal_model_name[len("modal-"):]
     return modal_model_name
 
-from openai import OpenAI
 
 def modal_vllm_text_completion(
     system_prompt: str,

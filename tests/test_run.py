@@ -1,11 +1,11 @@
-import pytest
-import sys
 import os
-import subprocess
-import tempfile
 import shutil
-from unittest.mock import Mock, patch, MagicMock
-from concurrent.futures import Future
+import subprocess
+import sys
+import tempfile
+from unittest.mock import Mock, patch
+
+import pytest
 
 # Add the parent directory to sys.path to import the run module
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'lmgame-bench'))

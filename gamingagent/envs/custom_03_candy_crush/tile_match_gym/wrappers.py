@@ -1,9 +1,9 @@
-from gymnasium import ObservationWrapper, RewardWrapper
 from collections import OrderedDict
-from gymnasium.spaces import Box
 
 import gymnasium as gym
 import numpy as np
+from gymnasium import ObservationWrapper, RewardWrapper
+from gymnasium.spaces import Box
 
 # Have to use these because the special types have hardcoded ids in the environment.
 COLOURLESS_SPECIALS = {"cookie": -1}
@@ -80,7 +80,7 @@ class ProportionRewardWrapper(RewardWrapper):
 
 if __name__=="__main__":
     import gymnasium as gym
-    import tile_match_gym
+
     env = gym.make("TileMatch-v0", num_rows=5, num_cols=4, num_colours=2, num_moves = 10, colour_specials=["vertical_laser", "horizontal_laser", "bomb"], colourless_specials=["cookie"], seed=2)
     env = OneHotWrapper(ProportionRewardWrapper(env))
 

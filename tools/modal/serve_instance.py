@@ -1,5 +1,7 @@
-import modal
 import os
+
+import modal
+
 
 # --------
 # Get config from environment variables

@@ -1,13 +1,13 @@
-import time
-import numpy as np
-import concurrent.futures
 import argparse
+import os
+import shutil
+import time
 from collections import deque
 
 from games.candy.workers import candy_crush_worker
+
 from tools.utils import str2bool
-import os
-import shutil
+
 # System prompt remains constant
 system_prompt = (  
     "You are a highly intelligent Candy Crush gameplay agent trained to achieve the highest possible score "  

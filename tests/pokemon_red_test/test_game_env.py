@@ -1,6 +1,3 @@
-import random
-import time
-import numpy as np
 from gamingagent.envs.custom_05_pokemon_red.pokemonRedEnv import PokemonRedEnv
 
 
@@ -15,7 +12,7 @@ def test_random_play():
         
         print("Resetting environment...")
         obs, info = env.reset()
-        print(f"✓ Environment reset successful")
+        print("✓ Environment reset successful")
         print(f"  Observation type: {type(obs)}")
         print(f"  Has image path: {obs.img_path is not None}")
         print(f"  Info keys: {list(info.keys())}")

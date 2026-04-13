@@ -1,13 +1,11 @@
+from collections import OrderedDict
+from typing import List, Optional, Tuple, Union
+
 import gymnasium as gym
 import numpy as np
+from gymnasium.spaces import Box, Discrete
 
-from gymnasium.spaces import Discrete, Box
-from typing import Optional, List, Tuple, Union
-from collections import OrderedDict
-
-from tile_match_gym.board import Board
-from tile_match_gym.board import is_move_effective
-
+from tile_match_gym.board import Board, is_move_effective
 from tile_match_gym.renderer import Renderer
 
 

@@ -1,24 +1,24 @@
-import gymnasium as gym
-import numpy as np
-import os
 import json
+import os
 import re
-from typing import Any, Dict, Tuple, Optional, List, Union
-from PIL import Image, ImageDraw, ImageFont
-import hashlib
+
 # import imageio # Commented out for now
 # import tempfile # Commented out for now
 # import shutil # Commented out for now
 from collections import OrderedDict
+from typing import Any, Dict, List, Optional, Tuple, Union
 
-from gamingagent.modules.core_module import Observation
-from gamingagent.envs.gym_env_adapter import GymEnvAdapter # Added
-from gymnasium.spaces import Discrete, Box
+import gymnasium as gym
+import numpy as np
+from gymnasium.spaces import Box, Discrete
+from PIL import Image, ImageDraw, ImageFont
 
 # Imports from TileMatchEnv
-from tile_match_gym.board import Board
-from tile_match_gym.board import is_move_effective
+from tile_match_gym.board import Board, is_move_effective
 from tile_match_gym.renderer import Renderer
+
+from gamingagent.envs.gym_env_adapter import GymEnvAdapter  # Added
+from gamingagent.modules.core_module import Observation
 
 # Define constants for Candy Crush elements (example)
 # These should match what TileMatchEnv uses or how you want to represent them textually

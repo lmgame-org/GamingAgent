@@ -1,13 +1,14 @@
-import os
 import json
-from typing import Any, Dict, Tuple, Optional, List, Union
+import os
+from typing import Any, Dict, List, Optional, Tuple
 
-import retro
 import numpy as np
-from PIL import Image # For saving frames
+import retro
+from PIL import Image  # For saving frames
 
-from gamingagent.envs.gym_env_adapter import GymEnvAdapter # Changed from RetroEnvAdapter
+from gamingagent.envs.gym_env_adapter import GymEnvAdapter  # Changed from RetroEnvAdapter
 from gamingagent.modules.core_module import Observation
+
 
 class SuperMarioBrosEnv:
     """
@@ -167,7 +168,7 @@ class SuperMarioBrosEnv:
         
         if "ram_lives_value" in game_info:
             if game_info["ram_lives_value"] == 255:
-                parts.append(f"Lives (RAM): 0 (Game Over Screen)")
+                parts.append("Lives (RAM): 0 (Game Over Screen)")
             else:
                 parts.append(f"Lives (RAM): {game_info['ram_lives_value'] + 1}")
 

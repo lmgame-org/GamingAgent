@@ -1,10 +1,9 @@
-import numpy as np
-from abc import abstractmethod
-from .core_module import CoreModule, Observation
-from tools.utils import scale_image_up
 import re
-import os
-import time
+
+from tools.utils import scale_image_up
+
+from .core_module import CoreModule
+
 
 class BaseModule(CoreModule):
     """

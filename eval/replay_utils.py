@@ -1,14 +1,15 @@
-import os
+import ast
 import json
-import numpy as np
-from PIL import Image, ImageDraw, ImageFont
-import tempfile
+import os
+import re
 import shutil
 import subprocess
-from typing import Optional, Dict, List, Tuple, Union
-import ast
-import re
+import tempfile
+from typing import Dict, List, Optional, Tuple
+
 import cv2
+import numpy as np
+from PIL import Image, ImageDraw, ImageFont
 
 # Default seconds per frame for videos
 DEFAULT_SECONDS_PER_FRAME = 1.0
@@ -1099,7 +1100,7 @@ def generate_video_from_textual_logs(
     
     # Special handling for Pokemon Red - use original images instead of textual representations
     if game_name.lower() == "pokemon_red":
-        print(f"Pokemon Red detected - using image-based video generation")
+        print("Pokemon Red detected - using image-based video generation")
         return generate_video_from_pokemon_red_images(
             episode_log_path, output_path, fps, cleanup_frames
         )

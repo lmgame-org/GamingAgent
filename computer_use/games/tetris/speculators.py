@@ -1,10 +1,21 @@
-import time
 import os
-import pyautogui
+import time
+
 import numpy as np
 
-from tools.utils import encode_image, log_output, extract_python_code, build_iteration_content, find_iteration_dirs, extract_planning_prompt, read_log_to_string
-from tools.serving.api_providers import anthropic_multiimage_completion, openai_multiimage_completion, gemini_multiimage_completion
+from tools.serving.api_providers import (
+    anthropic_multiimage_completion,
+    gemini_multiimage_completion,
+    openai_multiimage_completion,
+)
+from tools.utils import (
+    build_iteration_content,
+    extract_planning_prompt,
+    find_iteration_dirs,
+    log_output,
+    read_log_to_string,
+)
+
 
 def tetris_speculator(
     thread_id,

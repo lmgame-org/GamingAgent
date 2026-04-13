@@ -1,8 +1,8 @@
-import os
-import json
-import datetime
 import hashlib
-from typing import Optional, Dict, Any, Tuple, List
+import json
+import os
+from typing import Any, Dict, List, Optional, Tuple
+
 import numpy as np
 
 from gamingagent.modules.core_module import Observation
@@ -251,7 +251,7 @@ class GymEnvAdapter:
             except Exception as e:
                 print(f"[GymEnvAdapter] CRITICAL ERROR (Log Write): Failed to write log_entry. Details: {e}")
         else:
-            print(f"[GymEnvAdapter] Warning: Episode log file handle is None. Cannot write log.")
+            print("[GymEnvAdapter] Warning: Episode log file handle is None. Cannot write log.")
 
     def verify_termination(self, agent_observation: Observation, current_terminated: bool, current_truncated: bool) -> Tuple[bool, bool]:
         """

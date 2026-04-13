@@ -1,11 +1,14 @@
-import numpy as np
 import logging
+
+import numpy as np
+
 from tools.serving import APIManager
+
 
 def load_module_prompts():
     """Load module prompts from config file."""
-    import os
     import json
+    import os
     
     config_paths = [
         os.path.join("configs", "custom_05_doom", "module_prompts.json"),

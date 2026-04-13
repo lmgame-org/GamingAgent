@@ -1,22 +1,20 @@
 # TODO: Define reward for each step - Yuxuan
-import io
-import pickle
-from collections import deque
-import heapq
-from typing import Optional, Dict, Any, Tuple, List
-import os
 import base64
+import heapq
+import io
+import os
+from typing import Any, Dict, List, Optional, Tuple
 
-from .memory_reader import PokemonRedReader, StatusCondition
-from .full_collision_map import LocationCollisionMap
+import numpy as np
+from gymnasium import Env, spaces
 from PIL import Image, ImageDraw
 from pyboy import PyBoy
 
-from gymnasium import Env, spaces
-import numpy as np
-
 from gamingagent.envs.gym_env_adapter import GymEnvAdapter
 from gamingagent.modules.core_module import Observation
+
+from .full_collision_map import LocationCollisionMap
+from .memory_reader import PokemonRedReader, StatusCondition
 
 
 class PokemonRedEnv(Env):
@@ -867,7 +865,7 @@ class PokemonRedEnv(Env):
                 is_wall = terrain[end[0]][end[1]] == 0
                 if is_wall:
                     return (
-                        f"Partial Success: Your target location is a wall. In case this is intentional, attempting to navigate there.",
+                        "Partial Success: Your target location is a wall. In case this is intentional, attempting to navigate there.",
                         path,
                     )
                 else:
@@ -944,7 +942,7 @@ class PokemonRedEnv(Env):
         if closest_point != start:
             path = reconstruct_path(closest_point)
             return (
-                f"Partial Success: Could not reach the exact target, but found a path to the closest reachable point.",
+                "Partial Success: Could not reach the exact target, but found a path to the closest reachable point.",
                 path,
             )
 

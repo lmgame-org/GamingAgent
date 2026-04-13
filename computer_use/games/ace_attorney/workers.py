@@ -1,13 +1,22 @@
-import time
-import os
-import pyautogui
-import numpy as np
-
-from tools.utils import encode_image, log_output, get_annotate_img, capture_game_window, log_request_cost
-from tools.serving.api_providers import anthropic_completion, anthropic_text_completion, openai_completion, openai_text_reasoning_completion, gemini_completion, gemini_text_completion, deepseek_text_reasoning_completion, together_ai_completion
-from tools.api_cost_calculator import calculate_all_costs_and_tokens, convert_string_to_messsage
-import re
 import json
+import os
+import re
+import time
+
+import pyautogui
+from tools.api_cost_calculator import calculate_all_costs_and_tokens, convert_string_to_messsage
+
+from tools.serving.api_providers import (
+    anthropic_completion,
+    anthropic_text_completion,
+    deepseek_text_reasoning_completion,
+    gemini_completion,
+    gemini_text_completion,
+    openai_completion,
+    openai_text_reasoning_completion,
+    together_ai_completion,
+)
+from tools.utils import capture_game_window, encode_image, log_request_cost
 
 # Default cache directory (can be overridden by passing cache_dir parameter)
 DEFAULT_CACHE_DIR = "cache/ace_attorney"
@@ -966,7 +975,7 @@ def check_skip_conversation(dialog, episode_name):
         # Check if dialog matches any key in the skip conversations
         episode_convs = skip_conversations.get(episode_name, {})
         if dialog_entry in episode_convs:
-            print(f">>> MATCH FOUND! Dialog matches key in skip conversations")
+            print(">>> MATCH FOUND! Dialog matches key in skip conversations")
             return episode_convs[dialog_entry]
             
         print("No matching key found in skip conversations")
@@ -995,7 +1004,7 @@ def handle_skip_conversation(system_prompt, api_provider, model_name, prev_respo
     print("=== Starting Skip Conversation ===")
     print(f"├── Episode: {episode_name}")
     print(f"├── Number of dialogs to skip: {len(skip_dialogs) - 1}")
-    print(f"└── Dialog sequence:")
+    print("└── Dialog sequence:")
     for i, skip_dialog in enumerate(skip_dialogs):
         print(f"    {i+1}. {skip_dialog}")
     print("="*70 + "\n")

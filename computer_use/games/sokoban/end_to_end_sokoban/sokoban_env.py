@@ -2,8 +2,9 @@
 #!/usr/bin/env python
 
 # --- Add local gym-sokoban to path ---
-import sys
 import os
+import sys
+
 # Get the directory containing this file (envs/)
 envs_dir = os.path.dirname(os.path.abspath(__file__))
 # Go up one level to gamingagent/
@@ -24,11 +25,12 @@ else:
 
 # Now the regular imports start
 import gymnasium as gym
+
 # Try importing gym_sokoban, handle potential import error
 try:
-    import gym_sokoban
-    from gym_sokoban.envs.sokoban_env import SokobanEnv, ACTION_LOOKUP, CHANGE_COORDINATES
+    import gym_sokoban  # noqa: F401
     from gym_sokoban.envs.render_utils import room_to_rgb
+    from gym_sokoban.envs.sokoban_env import ACTION_LOOKUP, CHANGE_COORDINATES, SokobanEnv
 except ImportError:
     print("Warning: gym_sokoban not found. Please install it: pip install gym-sokoban")
     # Define dummy classes/variables if needed for type hinting or basic structure
@@ -39,10 +41,10 @@ except ImportError:
     CHANGE_COORDINATES = {}
     def room_to_rgb(room_state, room_fixed): return None
 
-import numpy as np
 import sys
-import pygame # For render mode check
-import json # Added missing import for potential future use loading dims/levels
+
+import numpy as np
+import pygame  # For render mode check
 
 # Mapping from your level file characters to gym-sokoban internal state codes.
 # See gym_sokoban.envs.room_utils for original code definitions:

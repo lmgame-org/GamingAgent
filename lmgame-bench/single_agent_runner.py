@@ -1,25 +1,18 @@
 import argparse
-import os
-import json
 import datetime
-import time
-import numpy as np
-import yaml
-from typing import Any
+import json
+import os
 import sys
-import re
-import random
-
-import gymnasium as gym
-
+import time
 from typing import Any, Dict
 
+import gymnasium as gym
 import retro
-from retro.enums import Actions, Observations, State # retro.data will be used directly for Integrations
+import yaml
+from retro.enums import Actions, Observations, State  # retro.data will be used directly for Integrations
 
 from gamingagent.agents.base_agent import BaseAgent
-from gamingagent.modules import PerceptionModule, ReasoningModule # Observation is imported by Env
-from tools.utils import draw_grid_on_image
+
 # Directly import the specific environment we are using
 from gamingagent.envs.custom_01_2048.twentyFortyEightEnv import TwentyFortyEightEnv
 from gamingagent.envs.custom_02_sokoban.sokobanEnv import SokobanEnv
@@ -27,12 +20,12 @@ from gamingagent.envs.custom_03_candy_crush.candyCrushEnv import CandyCrushEnv
 from gamingagent.envs.custom_04_tetris.tetrisEnv import TetrisEnv
 from gamingagent.envs.custom_05_doom.doomEnv import DoomEnvWrapper
 from gamingagent.envs.custom_06_pokemon_red.pokemonRedEnv import PokemonRedEnv
-
 from gamingagent.envs.retro_01_super_mario_bros.superMarioBrosEnv import SuperMarioBrosEnv
 from gamingagent.envs.retro_02_ace_attorney.aceAttorneyEnv import AceAttorneyEnv
 from gamingagent.envs.retro_03_1942.NineteenFortyTwo_env import NineteenFortyTwoEnv
-
 from gamingagent.envs.zoo_01_tictactoe.TicTacToeEnv import SingleTicTacToeEnv
+from gamingagent.modules import PerceptionModule, ReasoningModule  # Observation is imported by Env
+from tools.utils import draw_grid_on_image
 
 game_config_mapping = {
     "twenty_forty_eight": "custom_01_2048",

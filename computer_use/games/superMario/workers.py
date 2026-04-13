@@ -1,10 +1,12 @@
-import time
 import os
-import pyautogui
-import numpy as np
+import time
 
-from tools.utils import encode_image, log_output, extract_python_code
-from tools.serving.api_providers import anthropic_completion, openai_completion, gemini_completion
+import numpy as np
+import pyautogui
+
+from tools.serving.api_providers import anthropic_completion, gemini_completion, openai_completion
+from tools.utils import encode_image, extract_python_code, log_output
+
 
 def worker_short(thread_id, offset, system_prompt, api_provider, model_name):
     """
@@ -18,7 +20,7 @@ def worker_short(thread_id, offset, system_prompt, api_provider, model_name):
     print(f"[Thread {thread_id} - SHORT] Starting after {offset}s delay...")
 
     short_prompt = (
-        f"Analyze the current game state and generate PyAutoGUI code to control Mario "
+        "Analyze the current game state and generate PyAutoGUI code to control Mario "
         "for the next 1 second.\n"
         "Mario's position most likely has moved forward when the generated code gets to execute.\n"
         "Your objective is to avoid obstacles, enemies, and hazards.\n"
@@ -101,7 +103,7 @@ def worker_long(thread_id, offset, system_prompt, api_provider, model_name):
     print(f"[Thread {thread_id} - LONG] Starting after {offset}s delay...")
 
     long_prompt = (
-        f"Analyze the current game state and generate PyAutoGUI code to control Mario "
+        "Analyze the current game state and generate PyAutoGUI code to control Mario "
         "for the next 2 seconds.\n"
         "Mario's position most likely has moved forward when the generated code gets to execute.\n"
         "Your objective is to make progress while avoiding obstacles, enemies, and hazards.\n"

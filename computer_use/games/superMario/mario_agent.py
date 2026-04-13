@@ -1,9 +1,8 @@
-import time
-import numpy as np
-import concurrent.futures
 import argparse
+import concurrent.futures
+import time
 
-from games.superMario.workers import worker_short, worker_long
+from games.superMario.workers import worker_long, worker_short
 
 # System prompt remains constant
 system_prompt = (

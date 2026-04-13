@@ -1,19 +1,18 @@
-import gymnasium as gym
-import numpy as np
-
 import copy
-from dataclasses import dataclass
-from typing import Optional, Dict, Any, Tuple, SupportsFloat, List
-from gymnasium.core import RenderFrame
-
-import cv2 # For rendering 'human' mode
-
 import os
 import re
+from dataclasses import dataclass
+from typing import Any, Dict, List, Optional, SupportsFloat, Tuple
 
+import cv2  # For rendering 'human' mode
+import gymnasium as gym
+import numpy as np
+from gymnasium.core import RenderFrame
+
+from gamingagent.envs.env_utils import create_board_image_tetris
 from gamingagent.envs.gym_env_adapter import GymEnvAdapter
 from gamingagent.modules.core_module import Observation
-from gamingagent.envs.env_utils import create_board_image_tetris
+
 
 # --- Core Tetris Components with Color ---
 @dataclass
@@ -395,7 +394,7 @@ class TetrisEnv(gym.Env):
 
         for r_idx in range(max_rotations):
             if r_idx == 0:
-                rotations_text += f"Rotation 0 (Canonical Base):\n"
+                rotations_text += "Rotation 0 (Canonical Base):\n"
             else:
                 rotations_text += f"Rotation {r_idx} (Base + {r_idx} clockwise):\n"
             
@@ -436,8 +435,8 @@ class TetrisEnv(gym.Env):
         self._fill_piece_queue()
         
         self.board = self._create_board()
-        self.game_over=False;
-        self.current_score=0.0; 
+        self.game_over=False
+        self.current_score=0.0 
         self.total_perf_score_episode = 0.0 # NEW: Reset total perf score for the episode
         self.lines_cleared_total=0; self.level=1; self.x=0; self.y=0
         self.active_tetromino_original_idx = None

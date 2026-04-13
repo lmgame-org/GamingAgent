@@ -6,22 +6,22 @@ observation.img_path keep working.
 """
 
 from __future__ import annotations
+
+import json
 import os
 import random
-from typing import Any, Dict, List, Optional, Tuple, Union, Callable
+from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 
 import gymnasium as gym
+import imageio
 import numpy as np
 from gymnasium.spaces import Box, Discrete
 from pettingzoo.classic import texas_holdem_v4
 from PIL import Image, ImageDraw, ImageFont
-import imageio
-import glob
-from natsort import natsorted
-import json
 
 from gamingagent.envs.gym_env_adapter import GymEnvAdapter
 from gamingagent.modules.core_module import Observation
+
 # ---------------------------------------------------------------------------
 # Helper utilities for optional text observation
 # ---------------------------------------------------------------------------
