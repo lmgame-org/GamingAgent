@@ -27,16 +27,16 @@ from __future__ import annotations
 
 import os
 import random
-from typing import Any, Dict, List, Optional, Tuple, Union, Callable
+from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 
 import gymnasium as gym
+import imageio
 import numpy as np
 import pygame
-from PIL import Image, ImageDraw, ImageFont
-import imageio
 from gymnasium.core import RenderFrame
 from gymnasium.spaces import Box, Discrete
 from pettingzoo.classic import tictactoe_v3
+from PIL import Image, ImageDraw, ImageFont
 
 from gamingagent.envs.gym_env_adapter import GymEnvAdapter
 from gamingagent.modules.core_module import Observation

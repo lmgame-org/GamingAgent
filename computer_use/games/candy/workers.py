@@ -1,22 +1,25 @@
-import time
 import os
-import pyautogui
-import numpy as np
+import time
 
-from tools.utils import encode_image, log_output, extract_python_code, get_annotate_img
-from tools.serving.api_providers import anthropic_completion, openai_completion, gemini_completion, anthropic_text_completion, gemini_text_completion, openai_text_reasoning_completion, openai_vision_reasoning_completion, deepseek_text_reasoning_completion
+import pyautogui
+
+from tools.serving.api_providers import (
+    anthropic_completion,
+    anthropic_text_completion,
+    deepseek_text_reasoning_completion,
+    gemini_completion,
+    gemini_text_completion,
+    openai_completion,
+    openai_text_reasoning_completion,
+    openai_vision_reasoning_completion,
+)
+from tools.utils import encode_image, get_annotate_img, log_output
 
 cache_dir = "cache/candy_crush"
 
-import time
-import os
-import pyautogui
-import numpy as np
 
-from tools.utils import encode_image, log_output, extract_python_code, get_annotate_img
-from tools.serving.api_providers import anthropic_completion, openai_completion, gemini_completion
-import re
 import json
+import re
 
 CACHE_DIR = "cache/candy_crush"
 

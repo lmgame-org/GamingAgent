@@ -1,6 +1,7 @@
-import numpy as np
-from typing import Optional, Dict, Tuple, List, Set
 import os
+from typing import Dict, List, Optional, Set, Tuple
+
+import numpy as np
 
 
 class LocationCollisionMap:

@@ -1,12 +1,18 @@
-import time
-import os
-import pyautogui
-import numpy as np
-
-from tools.utils import encode_image, log_output, get_annotate_img
-from tools.serving.api_providers import anthropic_completion, anthropic_text_completion, openai_completion, openai_text_reasoning_completion, gemini_completion, gemini_text_completion, deepseek_text_reasoning_completion
-import re
 import json
+import os
+import re
+import time
+
+from tools.serving.api_providers import (
+    anthropic_completion,
+    anthropic_text_completion,
+    deepseek_text_reasoning_completion,
+    gemini_completion,
+    gemini_text_completion,
+    openai_completion,
+    openai_text_reasoning_completion,
+)
+from tools.utils import encode_image, get_annotate_img, log_output
 
 CACHE_DIR = "cache/sokoban"
 

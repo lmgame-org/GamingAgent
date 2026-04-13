@@ -1,14 +1,14 @@
-import time
-import os
-import pyautogui
-import numpy as np
 import datetime
-import shutil
-
-from tools.utils import encode_image, log_output, get_annotate_img
-from tools.serving.api_manager import APIManager
-import re
 import json
+import os
+import re
+import shutil
+import time
+
+import pyautogui
+
+from tools.serving.api_manager import APIManager
+from tools.utils import get_annotate_img, log_output
 
 CACHE_DIR = "cache/2048"
 

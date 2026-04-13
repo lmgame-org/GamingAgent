@@ -1,7 +1,9 @@
-from grid import Grid
-from blocks import *
 import random
+
 import pygame
+from blocks import *
+from grid import Grid
+
 
 class Game:
 	def __init__(self):

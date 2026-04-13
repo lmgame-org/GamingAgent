@@ -4,9 +4,11 @@ Utility functions for image processing:
 2. Drawing coordinate grids on images
 """
 
-import cv2
 import os
+
+import cv2
 import numpy as np
+
 
 def scale_image_up(image_path, maximum_scale=1500):
     """

@@ -1,15 +1,16 @@
-import os
 import glob
-import zipfile 
-import requests
 import json
-import pandas as pd
+import os
+import random
 import shutil
+import zipfile
+
 import matplotlib.pyplot as plt
 import numpy as np
-import random
-import cvxpy as cp
-from scipy.optimize import minimize, LinearConstraint
+import pandas as pd
+import requests
+from scipy.optimize import minimize
+
 
 def check_evaluation_files(download_cache_sample: bool, download_url):
     report = {"cache_directory": None}  # Initialize with None
@@ -205,7 +206,7 @@ def generate_evaluation_map(file_info):
                 print(f"An error occurred while processing zip file {cache_location}: {e}")
         
         if run_map:
-             print(f"Info: Map generation from cache completed.")
+             print("Info: Map generation from cache completed.")
         else:
             # This warning will trigger if cache_location was valid but no mappings were found.
             print(f"Warning: Cache location '{cache_location}' was processed, but no valid agent_config to episode_log mappings were found.")
@@ -600,9 +601,9 @@ def polynomial_analysis(x_values, y_values, max_degree=3):
     Returns:
         Dictionary with coefficients and R² scores for each degree
     """
-    from sklearn.preprocessing import PolynomialFeatures
     from sklearn.linear_model import LinearRegression
     from sklearn.metrics import r2_score
+    from sklearn.preprocessing import PolynomialFeatures
     
     x_array = np.array(x_values).reshape(-1, 1)
     y_array = np.array(y_values)
@@ -902,7 +903,6 @@ def create_comparison_bar_chart(df: pd.DataFrame, model_colors: dict, selected_g
 
 def create_game_specific_horizontal_bar_charts(df: pd.DataFrame, model_colors: dict, selected_games: list, harness_status_str: str, highlight_models: list = None):
     import plotly.graph_objects as go
-    from plotly.subplots import make_subplots
     
     if df.empty:
         print(f"No data for Game-Specific Bar Charts ({harness_status_str})")
@@ -1022,10 +1022,8 @@ def generate_model_performance_plots(final_updated_df: pd.DataFrame, average_res
         average_results: Optional DataFrame with local results to highlight
         model_colors_url: Optional URL to fetch model colors JSON
     """
-    import plotly.graph_objects as go
+
     import requests
-    import json
-    import random
     
     # Default model and game names
     show_games = list(final_updated_df['game_name'].unique())
@@ -1042,7 +1040,7 @@ def generate_model_performance_plots(final_updated_df: pd.DataFrame, average_res
 
     # Load model colors
     if model_colors_url:
-        print(f"Attempting to load model colors from URL...")
+        print("Attempting to load model colors from URL...")
         try:
             response = requests.get(model_colors_url)
             response.raise_for_status()
@@ -1315,12 +1313,10 @@ def run_polynomial_analysis_notebook(
         Dictionary with comprehensive polynomial analysis results
     """
     from itertools import product
+
+    import requests
     from scipy.stats import rankdata
     from sklearn.preprocessing import PolynomialFeatures
-    from sklearn.linear_model import LinearRegression
-    from sklearn.metrics import r2_score
-    import requests
-    import json
     
     # Use provided DEFAULT_MODEL_MATCH or fallback to predefined list
     if DEFAULT_MODEL_MATCH is None:
@@ -1904,7 +1900,6 @@ def generate_tsne_visualization(benchmark_df: pd.DataFrame, model_names: list, s
     """
     import matplotlib.pyplot as plt
     import numpy as np
-    import pandas as pd
     from sklearn.manifold import TSNE
     from sklearn.preprocessing import StandardScaler
     
@@ -1982,9 +1977,8 @@ def generate_benchmark_correlation_matrix(benchmark_df: pd.DataFrame, save_plot:
         save_plot: Whether to save the plot
     """
     import matplotlib.pyplot as plt
-    import seaborn as sns
     import numpy as np
-    import pandas as pd
+    import seaborn as sns
     
     print("Generating benchmark correlation matrix...")
     
@@ -2199,7 +2193,7 @@ def generate_latent_ability_decomposition(benchmark_df: pd.DataFrame, model_name
     plt.show()
     
     # Print summary
-    print(f"\nLatent Ability Summary:")
+    print("\nLatent Ability Summary:")
     print(f"Total variance explained by {n_components} components: {cumvar[-1]:.1%}")
     for i in range(n_components):
         print(f"  PC{i+1}: {pca.explained_variance_ratio_[i]:.1%}")
@@ -2221,7 +2215,6 @@ def factorize_with_scipy_no_bias(Y, d, lambda_l1=0.01, lambda_l2_m=0.01, lambda_
     Low-rank matrix factorization using scipy optimization with improved NaN handling.
     """
     import numpy as np
-    from scipy.optimize import minimize
     
     T, S = Y.shape
 
@@ -2265,7 +2258,6 @@ def factorize_with_scipy_bias(Y, d, lambda_l1=0.01, lambda_l2_m=0.01, lambda_l2_
     Low-rank matrix factorization with bias terms using scipy optimization.
     """
     import numpy as np
-    from scipy.optimize import minimize
     
     T, S = Y.shape
 
@@ -2312,8 +2304,8 @@ def generate_simple_tsne_plots(benchmark_data: dict, save_plot: bool = False):
     """
     import matplotlib.pyplot as plt
     import numpy as np
-    from sklearn.manifold import TSNE
     from scipy.stats import rankdata
+    from sklearn.manifold import TSNE
     
     print("Generating simple t-SNE plots...")
     
@@ -2369,8 +2361,8 @@ def generate_simple_correlation_matrix(benchmark_df: pd.DataFrame, save_plot: bo
         save_plot: Whether to save the plot
     """
     import matplotlib.pyplot as plt
-    import seaborn as sns
     import numpy as np
+    import seaborn as sns
     
     print("Generating simple correlation matrix...")
     
@@ -2409,12 +2401,13 @@ def generate_simple_latent_factorization(benchmark_data: dict, benchmark_df: pd.
         feature_num: Number of latent features
         save_plot: Whether to save the plot
     """
+    from itertools import chain
+
     import matplotlib.pyplot as plt
-    import seaborn as sns
     import numpy as np
     import pandas as pd
+    import seaborn as sns
     from scipy.stats import rankdata
-    from itertools import chain
     
     print(f"Generating latent factorization with {feature_num} features...")
     

@@ -8,59 +8,54 @@ This class provides an object-oriented approach to:
 4. Store inputs and outputs in JSON format
 """
 
-import os
-import json
-import time
-import logging
-import datetime
 import base64
+import datetime
+import json
+import logging
+import os
+import time
 from decimal import Decimal
-from typing import Dict, List, Optional, Tuple, Union, Any
-
-# Import API providers
-from .api_providers import (
-    anthropic_completion,
-    anthropic_text_completion,
-    anthropic_multiimage_completion,
-    openai_completion,
-    openai_text_completion,
-    openai_multiimage_completion,
-    gemini_completion,
-    gemini_text_completion,
-    gemini_multiimage_completion,
-    together_ai_completion,
-    together_ai_text_completion,
-    together_ai_multiimage_completion,
-    deepseek_text_reasoning_completion,
-    xai_grok_text_completion,
-    vllm_text_completion,
-    vllm_completion,
-    vllm_multiimage_completion,
-    modal_vllm_text_completion,
-    modal_vllm_completion,
-    modal_vllm_multiimage_completion,
-    moonshot_text_completion,
-    moonshot_completion,
-    moonshot_multiimage_completion,
-    stepfun_text_completion,
-    stepfun_completion,
-    stepfun_multiimage_completion,
-    zai_text_completion,
-    longcat_text_completion,
-    longcat_completion,
-    longcat_multiimage_completion
-)
+from typing import Any, Dict, List, Optional, Tuple, Union
 
 # Import cost calculator utilities
 from .api_cost_calculator import (
     calculate_all_costs_and_tokens,
-    count_message_tokens,
-    count_string_tokens,
-    count_image_tokens,
     calculate_cost_by_tokens,
-    calculate_prompt_cost,
-    calculate_completion_cost,
-    calculate_image_cost,
+    count_image_tokens,
+)
+
+# Import API providers
+from .api_providers import (
+    anthropic_completion,
+    anthropic_multiimage_completion,
+    anthropic_text_completion,
+    deepseek_text_reasoning_completion,
+    gemini_completion,
+    gemini_multiimage_completion,
+    gemini_text_completion,
+    longcat_completion,
+    longcat_multiimage_completion,
+    longcat_text_completion,
+    modal_vllm_completion,
+    modal_vllm_multiimage_completion,
+    modal_vllm_text_completion,
+    moonshot_completion,
+    moonshot_multiimage_completion,
+    moonshot_text_completion,
+    openai_completion,
+    openai_multiimage_completion,
+    openai_text_completion,
+    stepfun_completion,
+    stepfun_multiimage_completion,
+    stepfun_text_completion,
+    together_ai_completion,
+    together_ai_multiimage_completion,
+    together_ai_text_completion,
+    vllm_completion,
+    vllm_multiimage_completion,
+    vllm_text_completion,
+    xai_grok_text_completion,
+    zai_text_completion,
 )
 
 # Configure logging

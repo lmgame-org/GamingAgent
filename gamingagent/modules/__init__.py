@@ -1,5 +1,5 @@
-from .core_module import CoreModule, Observation
 from .base_module import BaseModule
+from .core_module import CoreModule, Observation
 from .memory_module import MemoryModule
 from .perception_module import PerceptionModule
 from .reasoning_module import ReasoningModule

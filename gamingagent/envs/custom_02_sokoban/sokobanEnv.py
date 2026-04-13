@@ -1,16 +1,16 @@
+import os
+import re  # For parsing levels.txt
+from typing import Any, Dict, List, Optional, Tuple, Union
+
 import gymnasium as gym
 import numpy as np
-import os
-import pygame # For rendering
-from PIL import Image, ImageDraw, ImageFont 
-from typing import Any, Dict, Tuple, Optional, List, Union
-import json
-import re # For parsing levels.txt
+import pygame  # For rendering
+from gymnasium.core import RenderFrame
+from gymnasium.spaces import Box, Discrete
+from PIL import Image, ImageDraw, ImageFont
 
 from gamingagent.envs.gym_env_adapter import GymEnvAdapter
 from gamingagent.modules.core_module import Observation
-from gymnasium.spaces import Discrete, Box
-from gymnasium.core import RenderFrame
 
 # It's better to move create_board_image_sokoban to env_utils if it's generic enough,
 # but for now, let's assume it's defined here or imported from a local helper.

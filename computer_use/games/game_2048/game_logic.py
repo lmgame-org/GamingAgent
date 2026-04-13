@@ -1,8 +1,8 @@
-import json
-import sys
 import argparse
-import pygame
+import json
 import os
+
+import pygame
 from game import playGame
 
 # Default window size

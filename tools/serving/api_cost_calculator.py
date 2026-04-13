@@ -2,19 +2,18 @@
 Costs dictionary and utility tool for counting tokens
 """
 
-import os
-import tiktoken
-import anthropic
-from typing import Union, List, Dict
-from .constants import TOKEN_COSTS
-from decimal import Decimal
 import logging
-from PIL import Image
 import math
-import google.generativeai as genai
 import os
+from decimal import Decimal
+from typing import Dict, List, Union
 
-    
+import anthropic
+import google.generativeai as genai
+import tiktoken
+from PIL import Image
+
+from .constants import TOKEN_COSTS
 
 logger = logging.getLogger(__name__)
 
@@ -357,7 +356,7 @@ def count_image_tokens(image_path: str, model: str):
             elif any(model.startswith(prefix) for prefix in ["claude"]):
                 # Check if image needs to be resized (Claude limits)
                 if width > 8000 or height > 8000:
-                    logger.warning(f"Image exceeds Claude's maximum size of 8000x8000. It will be rejected or resized.")
+                    logger.warning("Image exceeds Claude's maximum size of 8000x8000. It will be rejected or resized.")
                 
                 # If dimensions exceed 1568 on either side, it will be resized by Claude
                 if width > 1568 or height > 1568:

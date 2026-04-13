@@ -1,25 +1,24 @@
 from __future__ import annotations
 
-import os
+import datetime
+import faulthandler
 import json
 import logging
+import os
+import random
 import sys
 import time
-import faulthandler
-from typing import Any, Dict, List, Tuple, Optional
-import datetime
-import random
-import cv2
-import psutil  # Add psutil import for memory usage logging
-import math
+from typing import Any, Dict, List, Optional, Tuple
 
-import numpy as np
-import vizdoom as vzd
+import cv2
 import gymnasium as gym
+import numpy as np
+import psutil  # Add psutil import for memory usage logging
+import vizdoom as vzd
 from gymnasium import spaces
 
 from gamingagent.envs.gym_env_adapter import GymEnvAdapter
-from gamingagent.modules.core_module import Observation, GameTrajectory
+from gamingagent.modules.core_module import GameTrajectory, Observation
 
 # Enable fault handler for better crash information
 faulthandler.enable()

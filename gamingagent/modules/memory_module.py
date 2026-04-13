@@ -1,9 +1,10 @@
-import os
-import json
-import time
 import datetime
+import json
+import os
 import re
+
 from .core_module import CoreModule, GameTrajectory, Observation
+
 
 class MemoryModule(CoreModule):
     """
@@ -131,7 +132,7 @@ class MemoryModule(CoreModule):
         )
 
         try:
-            print(f"[MemoryModule] Generating summary...")
+            print("[MemoryModule] Generating summary...")
             
             raw = self.api_manager.text_only_completion(
                 model_name=self.model_name,
@@ -162,7 +163,7 @@ class MemoryModule(CoreModule):
             print(f"[MemoryModule] Error generating summary: {e}")
             # Return a basic fallback summary
             fallback_summary = f"FALLBACK SUMMARY: Game trajectory contained {len(game_trajectory)} characters of gameplay data. Previous summary: {self.current_summary[:200] if self.current_summary else 'None'}..."
-            print(f"[MemoryModule] Using fallback summary due to error.")
+            print("[MemoryModule] Using fallback summary due to error.")
             return fallback_summary
 
     def process_observation(self, observation: Observation) -> str:
@@ -262,7 +263,7 @@ class MemoryModule(CoreModule):
                     
                     print(f"[MemoryModule] Successfully generated and saved summary. Length: {len(self.current_summary)} chars")
                 else:
-                    print(f"[MemoryModule] Failed to generate valid summary after all retries. Keeping existing trajectory.")
+                    print("[MemoryModule] Failed to generate valid summary after all retries. Keeping existing trajectory.")
             else:
                 print(f"[MemoryModule] Insufficient trajectory content ({len(current_trajectory)} chars) for summarization. Skipping.")
 

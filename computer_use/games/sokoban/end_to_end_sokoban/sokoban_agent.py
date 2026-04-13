@@ -1,26 +1,28 @@
 # filename: gamingagent/agents/sokoban_agent.py
-import numpy as np
-import time
+import argparse  # Added for command-line arguments
+import base64
+import io
 import os
 import re
-import json
 import sys
-from collections import deque # Added for MemoryModule
-from gamingagent.envs.sokoban_env import CustomSokobanEnv
-from tools.serving.api_providers import (
-    anthropic_completion, anthropic_text_completion,
-    openai_completion, openai_text_reasoning_completion,
-    gemini_completion, gemini_text_completion,
-    deepseek_text_reasoning_completion,
-    together_ai_completion,
-    xai_grok_completion
-)
-from gamingagent.utils.utils import convert_to_json_serializable # Added for JSONL logging
-import argparse # Added for command-line arguments
-import io
-import base64
-from PIL import Image
+import time
 import traceback
+from collections import deque  # Added for MemoryModule
+
+from gamingagent.envs.sokoban_env import CustomSokobanEnv
+from PIL import Image
+
+from tools.serving.api_providers import (
+    anthropic_completion,
+    anthropic_text_completion,
+    deepseek_text_reasoning_completion,
+    gemini_completion,
+    gemini_text_completion,
+    openai_completion,
+    openai_text_reasoning_completion,
+    together_ai_completion,
+    xai_grok_completion,
+)
 
 CACHE_DIR = "cache/sokoban"
 os.makedirs(CACHE_DIR, exist_ok=True)

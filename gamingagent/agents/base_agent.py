@@ -1,15 +1,13 @@
-import os
-import json
 import datetime
-from abc import ABC, abstractmethod
-from PIL import Image
+import json
+import os
+from abc import ABC
+
 import numpy as np
-import importlib
-import inspect
-from typing import Optional, Any
+from PIL import Image
 
 # Import modules
-from gamingagent.modules import BaseModule, PerceptionModule, MemoryModule, ReasoningModule, Observation
+from gamingagent.modules import BaseModule, MemoryModule, Observation
 
 GAMES_REQUIRE_HARNESS = [
     "pokemon_red",
@@ -355,7 +353,7 @@ class BaseAgent(ABC):
                 print(f"Warning: Observation shape {observation.shape} doesn't match image format.")
                 return None
         else:
-            print(f"Warning: Observation is not a numpy array, cannot save as image.")
+            print("Warning: Observation is not a numpy array, cannot save as image.")
             return None
     
     def get_action(self, observation):

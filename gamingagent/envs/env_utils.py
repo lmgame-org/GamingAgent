@@ -1,7 +1,8 @@
-import numpy as np
 import os
+from typing import Any, Dict, List, Optional
+
+import numpy as np
 from PIL import Image, ImageDraw, ImageFont
-from typing import Optional, Dict, List, Any
 
 # Color mapping for different tile values (extended from user's example)
 COLORS = {
@@ -191,7 +192,7 @@ def create_board_image_tetris(
         return
     
     if not pixel_color_mapping:
-        print(f"[create_board_image_tetris] Error: pixel_color_mapping is empty or None. Cannot determine piece colors.")
+        print("[create_board_image_tetris] Error: pixel_color_mapping is empty or None. Cannot determine piece colors.")
         return
     
     empty_color_val_id = 0 # Assuming 0 is the ID for empty space, used for comparison

@@ -1,6 +1,7 @@
 import pygame
 from colors import Colors
 
+
 class Grid:
 	def __init__(self):
 		self.num_rows = 20

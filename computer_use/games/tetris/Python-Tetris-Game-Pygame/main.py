@@ -1,10 +1,10 @@
-import pygame
-import sys
-from game import Game
-from colors import Colors
-
-import os
 import json
+import os
+import sys
+
+import pygame
+from colors import Colors
+from game import Game
 
 pygame.init()
 
@@ -25,7 +25,7 @@ game = Game()
 
 GAME_UPDATE = pygame.USEREVENT
 pygame.time.set_timer(GAME_UPDATE, 1200) # 2800 for vision-text
-CACHE_DIR = f"cache/tetris"
+CACHE_DIR = "cache/tetris"
 
 # save state
 os.makedirs(CACHE_DIR, exist_ok=True)

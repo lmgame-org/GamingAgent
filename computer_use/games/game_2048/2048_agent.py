@@ -1,18 +1,14 @@
-import time
-import numpy as np
-import concurrent.futures
 import argparse
-from collections import deque, Counter
+import concurrent.futures
 import datetime
-
 import os
-import json
-import re
-import pyautogui
+import time
+from collections import Counter, deque
 
+import pyautogui
 from games.game_2048.workers import game_2048_worker
+
 from tools.utils import str2bool
-from collections import Counter
 
 CACHE_DIR = "cache/2048"
 os.makedirs(CACHE_DIR, exist_ok=True)

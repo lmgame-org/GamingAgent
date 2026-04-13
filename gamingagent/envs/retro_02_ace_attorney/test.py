@@ -1,7 +1,8 @@
-import retro
 import os
-import pygame # For keyboard input
+
 import numpy as np
+import pygame  # For keyboard input
+import retro
 
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 
@@ -83,7 +84,7 @@ def main():
         print(f"'{game_name}' not found. Please ensure:")
         print(f"1. The game folder is named '{game_name}'.")
         print(f"2. It is located at: {os.path.join(SCRIPT_DIR, game_name)}")
-        print(f"3. It contains rom, data.json, scenario.json, etc.")
+        print("3. It contains rom, data.json, scenario.json, etc.")
         return
 
     print(f"Attempting to make environment for '{game_name}'...")
@@ -109,13 +110,13 @@ def main():
     pygame.display.set_caption("Keyboard Input Helper")
 
     print("\nControls (Keyboard -> GBA Button Index -> GBA Button Name based on env.buttons):")
-    print(f"  Keyboard 'A' -> Index 8 (GBA 'A')")
-    print(f"  Keyboard 'B' -> Index 0 (GBA 'B')")
-    print(f"  Keyboard 'L' -> Index 10 (GBA 'L')")
-    print(f"  Keyboard 'R' -> Index 11 (GBA 'R')")
-    print(f"  Arrow Keys   -> Indices 4-7 (GBA D-Pad)")
-    print(f"  Enter Key    -> Index 3 (GBA 'Start')")
-    print(f"  Backspace    -> Index 2 (GBA 'Select')")
+    print("  Keyboard 'A' -> Index 8 (GBA 'A')")
+    print("  Keyboard 'B' -> Index 0 (GBA 'B')")
+    print("  Keyboard 'L' -> Index 10 (GBA 'L')")
+    print("  Keyboard 'R' -> Index 11 (GBA 'R')")
+    print("  Arrow Keys   -> Indices 4-7 (GBA D-Pad)")
+    print("  Enter Key    -> Index 3 (GBA 'Start')")
+    print("  Backspace    -> Index 2 (GBA 'Select')")
     print("Press ESC in Pygame window or Ctrl+C in terminal to quit.")
 
     running = True

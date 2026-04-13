@@ -1,10 +1,9 @@
-import time
-import numpy as np
-import concurrent.futures
 import argparse
+import concurrent.futures
+import time
 
-from games.tetris.workers import tetris_worker
 from games.tetris.speculators import tetris_speculator
+from games.tetris.workers import tetris_worker
 
 system_prompt = (
     "You are an expert AI agent specialized in playing Tetris gameplay, search for and execute optimal moves given each game state. Prioritize line clearing over speed."

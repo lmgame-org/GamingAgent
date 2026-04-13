@@ -1,8 +1,8 @@
-import numpy as np
-import numba
-from numba import njit, types
-from typing import Optional, List, Tuple
+from typing import List, Optional, Tuple
 
+import numba
+import numpy as np
+from numba import njit, types
 
 """
 tile_colours = {

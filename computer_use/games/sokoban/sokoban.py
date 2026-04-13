@@ -1,12 +1,12 @@
 #!../bin/python
 
-import sys
-import pygame
-import string
-import queue
+import copy
 import json
 import os
-import copy
+import queue
+import sys
+
+import pygame
 
 CACHE_DIR = "cache/sokoban"
 

@@ -1,15 +1,15 @@
 from __future__ import annotations
 
-import os, json, hashlib
-from typing import Any, Dict, List, Tuple, Optional
+import hashlib
+import json
+import os
+from typing import Any, Dict, List, Optional
 
-import retro
-import numpy as np
-from PIL import Image
 import gymnasium as gym
+import numpy as np
+import retro
 
 from gamingagent.envs.gym_env_adapter import GymEnvAdapter
-from gamingagent.modules.core_module import Observation
 
 __all__ = ["NineteenFortyTwoEnv"]
 

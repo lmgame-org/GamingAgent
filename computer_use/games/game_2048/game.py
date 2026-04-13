@@ -1,13 +1,12 @@
 import json
+import os
 import sys
 import time
 from copy import deepcopy
 
 import pygame
-from pygame.locals import *
-
 from logic import *
-import os
+from pygame.locals import *
 
 # TODO: Add a RULES button on start page
 # TODO: Add score keeping

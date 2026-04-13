@@ -1,16 +1,31 @@
-import time
-import os
-import pyautogui
-import numpy as np
-
-import re
-from PIL import Image
-import json
-
 import concurrent.futures
+import json
+import os
+import re
+import time
 
-from tools.utils import encode_image, log_output, extract_python_code, read_log_to_string, extract_patch_table, extract_game_table, get_annotate_img, get_annotate_patched_img
-from tools.serving.api_providers import anthropic_completion, openai_completion, gemini_completion, anthropic_text_completion, openai_text_completion, gemini_text_completion, openai_text_reasoning_completion
+import numpy as np
+from PIL import Image
+
+from tools.serving.api_providers import (
+    anthropic_completion,
+    anthropic_text_completion,
+    gemini_completion,
+    gemini_text_completion,
+    openai_completion,
+    openai_text_completion,
+    openai_text_reasoning_completion,
+)
+from tools.utils import (
+    encode_image,
+    extract_game_table,
+    extract_patch_table,
+    extract_python_code,
+    get_annotate_img,
+    get_annotate_patched_img,
+    log_output,
+    read_log_to_string,
+)
 
 color_map = {
     0: "Empty",
@@ -199,12 +214,12 @@ def tetris_board_reader(system_prompt, api_provider, model_name, image_path, pat
         "Each block is represented by contiguous blocks with an unique background color.\n"
         "Only consider the following colors as color-filled:\n"
         "green = (47, 230, 23), "
-	    "red = (232, 18, 18), "
+        "red = (232, 18, 18), "
         "orange = (226, 116, 17), "
-	    "yellow = (237, 234, 4), "
-	    "purple = (166, 0, 247), "
-	    "cyan = (21, 204, 209), "
-	    "light_blue = (59, 85, 162). "
+        "yellow = (237, 234, 4), "
+        "purple = (166, 0, 247), "
+        "cyan = (21, 204, 209), "
+        "light_blue = (59, 85, 162). "
         "## The following DO NOT count as color-filled:\n"
         "1. Dark (deep blue) color background.\n"
         "2. Green grid lines.\n"
@@ -358,7 +373,7 @@ An active Tetris piece appears from the top, and is not connected to the bottom 
             # Read information passed from the speculator cache
             try:
                 # FIXME (lanxiang): make thread count configurable, currently planner is only in thread 0
-                experience_summary = read_log_to_string(f"cache/tetris/thread_0/planner/experience_summary.log")
+                experience_summary = read_log_to_string("cache/tetris/thread_0/planner/experience_summary.log")
             except Exception as e:
                 experience_summary = "- No lessons learned so far."
             

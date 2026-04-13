@@ -1,4 +1,5 @@
 from __future__ import annotations
+
 """
 multiagent_tictactoe_runner.py – final complete version
 ======================================================
@@ -7,16 +8,15 @@ Multi‑model Tic‑Tac‑Toe runner aligned with single_agent_runner.py.
 
 import argparse
 import datetime as _dt
-import os
-import time
-from typing import Any, Dict, Optional
-
-import yaml
-import trueskill
-import sys
-
 import json
+import os
+import sys
+import time
 from pathlib import Path
+from typing import Optional
+
+import trueskill
+import yaml
 
 from gamingagent.agents.base_agent import BaseAgent
 from gamingagent.envs.zoo_01_tictactoe.TicTacToeEnv import MultiTicTacToeEnv
@@ -442,7 +442,7 @@ def play_episode(env, agents, eid, max_turns, seed):
     print(f"Result: {result}")
     
     # Show move history
-    print(f"\nMove History:")
+    print("\nMove History:")
     for move in moves_log:
         print(f"  {move}")
     
@@ -736,8 +736,8 @@ def main(argv: Optional[list[str]] = None):
             ordered = sorted(final_chip_counts.items(), key=lambda kv: kv[1], reverse=True)
             
             if is_tournament_end:
-                print(f"\n🏆 TOURNAMENT FINAL RANKING - Updating TrueSkill based on final chip stacks")
-                print(f"Final chip standings:")
+                print("\n🏆 TOURNAMENT FINAL RANKING - Updating TrueSkill based on final chip stacks")
+                print("Final chip standings:")
                 for i, (player, chips) in enumerate(ordered, 1):
                     print(f"  #{i}: {player} - {chips:,.0f} chips")
                 # Print Aggression Factor summary
@@ -801,7 +801,7 @@ def main(argv: Optional[list[str]] = None):
                     weighted_ranks.append(weighted_rank)
                 
                 post_ratings = ts.rate(pre_ratings, ranks=weighted_ranks)
-                print(f"Applied TrueSkill 2 updates based on cumulative tournament performance")
+                print("Applied TrueSkill 2 updates based on cumulative tournament performance")
             else:
                 # Standard TrueSkill for non-poker games
                 post_ratings = ts.rate(pre_ratings, ranks=ranks)
@@ -893,13 +893,13 @@ def main(argv: Optional[list[str]] = None):
         
         # Show model assignments if using player_models
         if args.player_models and len(args.player_models) > 1:
-            print(f"\nModel Assignments:")
+            print("\nModel Assignments:")
             for i, model in enumerate(args.player_models):
                 player_key = f"player_{i}" if args.game_name.lower() == "texasholdem" else f"player_{i+1}"
                 print(f"  {player_key}: {model}")
         
         # Print final TrueSkill leaderboard
-        print(f"\n--- FINAL TRUESKILL RANKING ---")
+        print("\n--- FINAL TRUESKILL RANKING ---")
         sorted_ratings = sorted(ratings.items(), key=lambda item: trueskill.expose(item[1]), reverse=True)
         for rank, (agent_key, rating) in enumerate(sorted_ratings, 1):
             exposed_rating = trueskill.expose(rating)

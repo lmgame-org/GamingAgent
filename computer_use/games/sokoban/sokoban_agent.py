@@ -1,20 +1,17 @@
-import time
-import numpy as np
-import concurrent.futures
 import argparse
-from collections import deque, Counter
-
-import os
+import concurrent.futures
 import json
-import re
-import pyautogui
-from tools.utils import str2bool
+import os
+import time
+from collections import Counter, deque
 
+import pyautogui
 from games.sokoban.workers import sokoban_worker
+
+from tools.utils import str2bool
 
 CACHE_DIR = "cache/sokoban"
 
-from collections import Counter
 
 def majority_vote_move(moves_list, prev_move=None):
     """

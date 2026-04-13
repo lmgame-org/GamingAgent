@@ -1,18 +1,19 @@
 # Credits to https://github.com/Quentin18/gymnasium-2048/tree/main for the original 2048 game implementation.
 # We thank the author for their work, which serves as an excellent testbed for our agent.
 
-from typing import Any, Dict, Tuple, Optional, List
+from typing import Any, Dict, Optional
 
 import gymnasium as gym
 import numpy as np
 import pygame
 from gymnasium import spaces
-from gymnasium.core import ActType, ObsType, RenderFrame, SupportsFloat
+from gymnasium.core import ActType, RenderFrame, SupportsFloat
+
+from gamingagent.envs.env_utils import create_board_image_2048  # Ensure this is imported
 
 # Import the adapter and Observation dataclass
 from gamingagent.envs.gym_env_adapter import GymEnvAdapter
 from gamingagent.modules.core_module import Observation
-from gamingagent.envs.env_utils import create_board_image_2048 # Ensure this is imported
 
 WINDOW_WIDTH = 400
 WINDOW_HEIGHT = 400

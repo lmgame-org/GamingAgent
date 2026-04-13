@@ -23,14 +23,15 @@ Example:
 import argparse
 import json
 import os
-import sys
-import retro
 import socket
 import subprocess
+import sys
 import time
-import yaml
 from pathlib import Path
-from typing import Dict, Any
+from typing import Any, Dict
+
+import retro
+import yaml
 
 # Add the current directory to Python path for imports
 current_dir = Path(__file__).parent.parent
@@ -38,6 +39,7 @@ sys.path.insert(0, str(current_dir))
 
 # Import video generation functions
 from eval.replay_utils import generate_video_from_textual_logs
+
 
 def playback_movie(
     emulator,
@@ -203,7 +205,7 @@ def render_retro_video(bk2_file_path: str, game_name: str, output_path: str) -> 
         GAMING_AGENT_DIR = os.path.dirname(script_dir)
 
         # Handle custom integrations. Ace Attorney has one.
-        print(f"Setting up retro integration paths...")
+        print("Setting up retro integration paths...")
         if game_name == 'ace_attorney':
             ace_attorney_dir = os.path.join(GAMING_AGENT_DIR, "gamingagent", "envs", "retro_02_ace_attorney")
             if os.path.exists(ace_attorney_dir):
@@ -471,7 +473,7 @@ Examples:
                 sys.exit(1)
         elif args.method == 'retro':
             if config_info['game_name'].lower() not in ['ace_attorney', 'super_mario_bros']:
-                print(f"✗ Retro method is currently only supported for Ace Attorney and Super Mario Bros games")
+                print("✗ Retro method is currently only supported for Ace Attorney and Super Mario Bros games")
                 sys.exit(1)
                 
             print("Starting video generation from retro recording...")

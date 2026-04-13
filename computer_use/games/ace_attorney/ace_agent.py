@@ -1,35 +1,24 @@
-import time
-import numpy as np
-import concurrent.futures
 import argparse
-from collections import deque, Counter
-import shutil
-import threading
-from concurrent.futures import ThreadPoolExecutor
+import concurrent.futures
 import datetime
-
 import os
-import json
-import re
-import pyautogui
+import time
+from collections import Counter
+
 # from games.ace_attorney.reflection_worker import ReflectionTracker
-
-
 from games.ace_attorney.workers import (
-    ace_attorney_worker, 
-    perform_move, 
-    ace_evidence_worker, 
-    short_term_memory_worker,
-    vision_only_reasoning_worker,
-    long_term_memory_worker,
-    memory_retrieval_worker,
-    vision_only_ace_attorney_worker,
+    ace_attorney_worker,
+    ace_evidence_worker,
     check_end_statement,
     check_skip_conversation,
-    handle_skip_conversation
+    handle_skip_conversation,
+    long_term_memory_worker,
+    perform_move,
+    short_term_memory_worker,
+    vision_only_ace_attorney_worker,
 )
-from tools.utils import str2bool, encode_image, log_output, get_annotate_img, capture_game_window, log_game_event
-from collections import Counter
+
+from tools.utils import log_game_event, str2bool
 
 # Global base cache directory
 BASE_CACHE_DIR = "cache/ace_attorney"
@@ -184,7 +173,7 @@ def main():
                     print(f"\nThread {i} Analysis:")
                     print(f"├── Game State: {result['game_state']}")
                     print(f"├── Move: {result['move'].strip().lower()}")
-                    print(f"├── Thought Process:")
+                    print("├── Thought Process:")
                     print(f"│   ├── Primary Reasoning: {result['thought']}")
                     if "dialog" in result:
                         if isinstance(result['dialog'], dict) and 'name' in result['dialog'] and 'text' in result['dialog']:
@@ -228,7 +217,7 @@ def main():
                 print(f"│   ├── Votes: {count}")
                 # Find all thoughts associated with this move
                 move_indices = [i for i, m in enumerate(moves) if m == move]
-                print(f"│   ├── Supporting Thoughts:")
+                print("│   ├── Supporting Thoughts:")
                 for idx in move_indices:
                     print(f"│   │   ├── Thought: {thoughts[idx]}")
                     if dialogs[idx]:
@@ -253,7 +242,7 @@ def main():
             print("\n=== Final Decision ===")
             print(f"├── Game State: {chosen_game_state}")
             print(f"├── Chosen Move: {chosen_move}")
-            print(f"├── Decision Reasoning:")
+            print("├── Decision Reasoning:")
             print(f"│   ├── Primary Thought: {chosen_thought}")
             if chosen_dialog:
                 if isinstance(chosen_dialog, dict) and 'name' in chosen_dialog and 'text' in chosen_dialog:
@@ -263,7 +252,7 @@ def main():
             if chosen_evidence:
                 print(f"│   ├── Evidence Context: {chosen_evidence['name']}: {chosen_evidence['description']}")
             print(f"│   └── Scene Context: {chosen_scene[:200]}...")
-            print(f"└── Execution Status: Pending")
+            print("└── Execution Status: Pending")
             print("="*70 + "\n")
             
             # Log the final decision
@@ -334,7 +323,7 @@ def main():
                 )
                 dialog_new = {
                     "name": "Phoenix",
-                    "text": f"I revceive a new evidence 'Mia's Memo'."
+                    "text": "I revceive a new evidence 'Mia's Memo'."
                 }
                 long_term_memory_worker(
                     system_prompt,
